@@ -754,7 +754,7 @@ jobs:
         # That is the point of splitting it this way rather than teaching the
         # verifier a second source it would have to be re-proved against.
         if: ${{ !cancelled() && inputs.reuse_published_build != '' && steps.restore_probe.outputs.local_hit != 'true' && steps.find_build_artifact.outputs.run_id != '' }}
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: pdfe-build-${{ github.sha }}
           path: C:\pdfe-build-store\${{ github.sha }}
