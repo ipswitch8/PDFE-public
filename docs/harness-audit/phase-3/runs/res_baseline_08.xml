@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="2" failures="0" disabled="0" errors="0" time="0.028" timestamp="2026-07-28T02:01:46.579" name="AllTests">
+  <testsuite name="NegTzGreyTextEdit" tests="2" failures="0" disabled="0" skipped="0" errors="0" time="0.026" timestamp="2026-07-28T02:01:46.581">
+    <testcase name="PreservesOriginalFillColor" file="tests/test_content_stream_neg_tz.cpp" line="114" status="run" result="completed" time="0.015" timestamp="2026-07-28T02:01:46.581" classname="NegTzGreyTextEdit" />
+    <testcase name="ReplacementNotMirrored" file="tests/test_content_stream_neg_tz.cpp" line="134" status="run" result="completed" time="0.011" timestamp="2026-07-28T02:01:46.596" classname="NegTzGreyTextEdit" />
+  </testsuite>
+</testsuites>

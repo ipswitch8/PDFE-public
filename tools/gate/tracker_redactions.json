@@ -1,0 +1,32 @@
+{
+ "_repo_note": "The name above is the one these redactions were applied under, kept as written because this is a historical record of where they landed. Phase-4 then renamed that repository to ipswitch8/PDFE. Identity is the id, 1427819119. Nothing reads this field -- verify_tracker.py takes only `issue`, `needle_labels` and `reason` from this file -- so it is descriptive, not a comparison input.",
+ "_why": "verify_tracker.py compares sha256(body) against the source export. These issues are EXPECTED to differ because they were deliberately redacted. An issue not listed here must still match exactly -- this is a record, not a waiver.",
+ "redacted": [
+  {
+   "issue": 146,
+   "needle_labels": [
+    "build-account",
+    "build-host"
+   ],
+   "reason": "scrubbed identifier present in the body copied from the source repository; redacted in place because no scrub guard covers GitHub-side issue text"
+  },
+  {
+   "issue": 261,
+   "needle_labels": [
+    "customer-b-spaced",
+    "customer-c"
+   ],
+   "reason": "scrubbed identifier present in the body copied from the source repository; redacted in place because no scrub guard covers GitHub-side issue text"
+  },
+  {
+   "issue": 277,
+   "needle_labels": [
+    "build-host",
+    "customer-a"
+   ],
+   "reason": "scrubbed identifier present in the body copied from the source repository; redacted in place because no scrub guard covers GitHub-side issue text"
+  }
+ ],
+ "repo": "ipswitch8/PDFE",
+ "repo_id": 1427819119
+}

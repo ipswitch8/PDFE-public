@@ -1,0 +1,150 @@
+{
+  "description": "Real-world PDF corpus for PDFE rendering fidelity testing. All files from public/government/open-licensed sources.",
+  "assembled_at": "2026-05-30T07:00:04Z",
+  "files": [
+    {
+      "filename": "irs_w9.pdf",
+      "category": "irs_form",
+      "description": "IRS Form W-9 (Request for Taxpayer ID)",
+      "source_url": "https://www.irs.gov/pub/irs-pdf/fw9.pdf",
+      "size_bytes": 140815,
+      "sha256": "2d420cbb4123dcf1fb82595b2359cfbb5d81f00b9df9d359fcc7af361d093f53"
+    },
+    {
+      "filename": "irs_w4.pdf",
+      "category": "irs_form",
+      "description": "IRS Form W-4 (Employee Withholding)",
+      "source_url": "https://www.irs.gov/pub/irs-pdf/fw4.pdf",
+      "size_bytes": 208845,
+      "sha256": "92444d8856ce55d9e25dca8b6d1420634fc68b11e1ab1f760916ea29ddd312b2"
+    },
+    {
+      "filename": "irs_1040.pdf",
+      "category": "irs_form",
+      "description": "IRS Form 1040 (Individual Tax Return)",
+      "source_url": "https://www.irs.gov/pub/irs-pdf/f1040.pdf",
+      "size_bytes": 220237,
+      "sha256": "3d31c226df0d189ced80e039d01cf0f8820c1019681a0f0ca6264de277b7e982"
+    },
+    {
+      "filename": "irs_8829.pdf",
+      "category": "irs_form",
+      "description": "IRS Form 8829 (Home Office Expenses)",
+      "source_url": "https://www.irs.gov/pub/irs-pdf/f8829.pdf",
+      "size_bytes": 82821,
+      "sha256": "994834c9eeacdb371f5d75e8ed272bda6e9fd601898af57670b6b2c47665890b"
+    },
+    {
+      "filename": "uscis_i9.pdf",
+      "category": "gov_office",
+      "description": "USCIS Form I-9 (Employment Eligibility)",
+      "source_url": "https://www.uscis.gov/sites/default/files/document/forms/i-9.pdf",
+      "size_bytes": 524095,
+      "sha256": "780f348c34df694bb0b4dbbfaf9f22b99b9757b80d16a37ba89aadf069597281"
+    },
+    {
+      "filename": "ssa_sf86.pdf",
+      "category": "gov_office",
+      "description": "SF-86 (Background Investigation)",
+      "source_url": "https://www.opm.gov/forms/pdf_fill/sf86.pdf",
+      "size_bytes": 7984610,
+      "sha256": "973e23e3ba1e30efd613e03561c88d1aad2bce9978f095a9bbc06541ff38b810"
+    },
+    {
+      "filename": "arxiv_attention.pdf",
+      "category": "academic",
+      "description": "Attention Is All You Need (Vaswani et al.)",
+      "source_url": "https://arxiv.org/pdf/1706.03762v7",
+      "size_bytes": 2215244,
+      "sha256": "bdfaa68d8984f0dc02beaca527b76f207d99b666d31d1da728ee0728182df697"
+    },
+    {
+      "filename": "arxiv_bert.pdf",
+      "category": "academic",
+      "description": "BERT (Devlin et al.)",
+      "source_url": "https://arxiv.org/pdf/1810.04805v2",
+      "size_bytes": 775166,
+      "sha256": "5692a5514787a8c6727b4ff3b726a3385798bc68e12138d1d4af83947e2acf6e"
+    },
+    {
+      "filename": "irs_p15.pdf",
+      "category": "irs_pub",
+      "description": "IRS Publication 15 (Employer's Tax Guide)",
+      "source_url": "https://www.irs.gov/pub/irs-pdf/p15.pdf",
+      "size_bytes": 1713916,
+      "sha256": "b46c3622439d8521e3a0faca4cd5b5ece3451b526f65f06a5e38d5c9f804c88b"
+    },
+    {
+      "filename": "irs_p17.pdf",
+      "category": "irs_pub",
+      "description": "IRS Publication 17 (Federal Income Tax)",
+      "source_url": "https://www.irs.gov/pub/irs-pdf/p17.pdf",
+      "size_bytes": 3088632,
+      "sha256": "2d2381d62c7c77ed4b64b83ac23c28ed85b7c8304eb580c09bd9fd660be0840b"
+    },
+    {
+      "filename": "irs_p334.pdf",
+      "category": "irs_pub",
+      "description": "IRS Publication 334 (Small Business Tax Guide)",
+      "source_url": "https://www.irs.gov/pub/irs-pdf/p334.pdf",
+      "size_bytes": 2714784,
+      "sha256": "722639ba7bfd6f5348234b58d21e1afd8cb0c04895138bd5c4539142dde6c60a"
+    },
+    {
+      "filename": "irs_i1040.pdf",
+      "category": "irs_form",
+      "description": "IRS Form 1040 Instructions",
+      "source_url": "https://www.irs.gov/pub/irs-pdf/i1040gi.pdf",
+      "size_bytes": 4434643,
+      "sha256": "482e9c487c608f1bbeaceef35bc3c0933e8b35443cfff447e4279d590468364a"
+    },
+    {
+      "filename": "irs_f941.pdf",
+      "category": "irs_form",
+      "description": "IRS Form 941 (Employer's Quarterly)",
+      "source_url": "https://www.irs.gov/pub/irs-pdf/f941.pdf",
+      "size_bytes": 841648,
+      "sha256": "38a3d8cf7a455101d52543c8c48e66202bc25c189ead878627e35c797c88e2ad"
+    },
+    {
+      "filename": "irs_f1099misc.pdf",
+      "category": "irs_form",
+      "description": "IRS Form 1099-MISC",
+      "source_url": "https://www.irs.gov/pub/irs-pdf/f1099msc.pdf",
+      "size_bytes": 561788,
+      "sha256": "38051fe1cdce8fac5183a7e7b182b1a0de590dcfec3e4f66a156eba3f98943fa"
+    },
+    {
+      "filename": "irs_f1099nec.pdf",
+      "category": "irs_form",
+      "description": "IRS Form 1099-NEC",
+      "source_url": "https://www.irs.gov/pub/irs-pdf/f1099nec.pdf",
+      "size_bytes": 513361,
+      "sha256": "7cf3272e27de046a92346375601f3211b711a9c800f9185034dd70badcab0abe"
+    },
+    {
+      "filename": "gutenberg_alice.pdf",
+      "category": "ebook",
+      "description": "Alice in Wonderland (text, Project Gutenberg)",
+      "source_url": "https://www.gutenberg.org/cache/epub/11/pg11.txt",
+      "size_bytes": 174314,
+      "sha256": "30cb173f290507616869401e500daa37fab3c23cf9dd059f2fc36d2554201fbb"
+    },
+    {
+      "filename": "arxiv_resnet.pdf",
+      "category": "academic",
+      "description": "Deep Residual Learning (He et al.)",
+      "source_url": "https://arxiv.org/pdf/1512.03385v1",
+      "size_bytes": 819383,
+      "sha256": "1e0651b6810ecba34a3dbc5b5b0209226f889004607c1f203540a48d64e5a93a"
+    },
+    {
+      "filename": "arxiv_gan.pdf",
+      "category": "academic",
+      "description": "Generative Adversarial Networks (Goodfellow et al.)",
+      "source_url": "https://arxiv.org/pdf/1406.2661v1",
+      "size_bytes": 530482,
+      "sha256": "ff5819e3a7b713c3bd3107b7de3d51fe0a347aa5d8444f0efdcf2345ef0a8b63"
+    }
+  ]
+}

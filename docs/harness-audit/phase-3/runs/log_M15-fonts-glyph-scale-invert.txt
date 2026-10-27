@@ -1,0 +1,57 @@
+Note: Google Test filter = GlyphScaleAdjusterTest.*
+[==========] Running 15 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 15 tests from GlyphScaleAdjusterTest
+[ RUN      ] GlyphScaleAdjusterTest.SameFontScaleIsOne
+[       OK ] GlyphScaleAdjusterTest.SameFontScaleIsOne (6 ms)
+[ RUN      ] GlyphScaleAdjusterTest.DifferentFontsScaleNonOne
+[       OK ] GlyphScaleAdjusterTest.DifferentFontsScaleNonOne (4 ms)
+[ RUN      ] GlyphScaleAdjusterTest.EmptyTextReturnsDefault
+[       OK ] GlyphScaleAdjusterTest.EmptyTextReturnsDefault (0 ms)
+[ RUN      ] GlyphScaleAdjusterTest.NullFaceReturnsDefault
+[       OK ] GlyphScaleAdjusterTest.NullFaceReturnsDefault (0 ms)
+[ RUN      ] GlyphScaleAdjusterTest.FontSizePreserved
+[       OK ] GlyphScaleAdjusterTest.FontSizePreserved (17 ms)
+[ RUN      ] GlyphScaleAdjusterTest.ConsistentResultsForSameInput
+[       OK ] GlyphScaleAdjusterTest.ConsistentResultsForSameInput (7 ms)
+[ RUN      ] GlyphScaleAdjusterTest.DifferentTextProducesDifferentScales
+[       OK ] GlyphScaleAdjusterTest.DifferentTextProducesDifferentScales (7 ms)
+[ RUN      ] GlyphScaleAdjusterTest.LongTextHandledCorrectly
+[       OK ] GlyphScaleAdjusterTest.LongTextHandledCorrectly (4 ms)
+[ RUN      ] GlyphScaleAdjusterTest.SpecialCharactersHandled
+[       OK ] GlyphScaleAdjusterTest.SpecialCharactersHandled (4 ms)
+[ RUN      ] GlyphScaleAdjusterTest.ZeroFontSizeHandledGracefully
+[       OK ] GlyphScaleAdjusterTest.ZeroFontSizeHandledGracefully (0 ms)
+[ RUN      ] GlyphScaleAdjusterTest.NegativeFontSizeHandledGracefully
+[       OK ] GlyphScaleAdjusterTest.NegativeFontSizeHandledGracefully (0 ms)
+[ RUN      ] GlyphScaleAdjusterTest.VeryLargeFontSizeHandled
+[       OK ] GlyphScaleAdjusterTest.VeryLargeFontSizeHandled (4 ms)
+[ RUN      ] GlyphScaleAdjusterTest.UnicodeTextHandled
+[       OK ] GlyphScaleAdjusterTest.UnicodeTextHandled (4 ms)
+[ RUN      ] GlyphScaleAdjusterTest.SingleCharacterText
+[       OK ] GlyphScaleAdjusterTest.SingleCharacterText (4 ms)
+[ RUN      ] GlyphScaleAdjusterTest.WhitespaceOnlyText
+[       OK ] GlyphScaleAdjusterTest.WhitespaceOnlyText (4 ms)
+[----------] 15 tests from GlyphScaleAdjusterTest (72 ms total)
+
+[----------] Global test environment tear-down
+
+============ ADVERSARIAL-AMBIENT GAP REGISTER (content-stream-continuity phase-1 discovery) ============
+injector               hostile_op   injected  neighbor  probed   notes
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+CONFIRMED corrupting cells (probed AND injected_ok==false OR neighbor_ok==false):
+cells=0 probed=0 confirmed_corrupt=0
+====================================================================================================
+
+[AdversarialAmbient] no cells this run (filtered subset) — leaving gap-register.json intact
+
+================ AUTOSAVE CAPTURE GAP REGISTER (phase-1 discovery) ================
+family                 undoAP dirty    autosave  capture  restore  probed 
+------------------------------------------------------------------------------------
+====================================================================================
+GAP = probed family whose edit is NOT captured by autosave (capture_present == NO).
+
+[AutosaveCaptureAudit] no audit rows this run (filtered subset) — leaving gap-register.json intact
+[==========] 15 tests from 1 test suite ran. (74 ms total)
+[  PASSED  ] 15 tests.

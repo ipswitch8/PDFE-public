@@ -1,0 +1,7 @@
+{
+  "_comment": "Template for the signtool + Azure.CodeSigning.Dlib signing path (alternative to the `sign` .NET tool). Copy to trusted-signing-metadata.json, fill in your values, and DO NOT commit the filled copy. See docs/code-signing.md.",
+  "Endpoint": "https://<region>.codesigning.azure.net/",
+  "CodeSigningAccountName": "<your-trusted-signing-account>",
+  "CertificateProfileName": "<your-certificate-profile>",
+  "CorrelationId": "pdfe-release"
+}

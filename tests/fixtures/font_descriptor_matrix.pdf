@@ -1,0 +1,125 @@
+%PDF-1.7
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /F1 6 0 R /F2 8 0 R /F3 10 0 R /F4 12 0 R /F5 14 0 R /F6 15 0 R /F7 18 0 R /F8 19 0 R /F9 20 0 R /F10 21 0 R >> /XObject << /Fx 23 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 94 >>
+stream
+q
+BT
+/F1 12 Tf
+0 0 0 rg
+20 160 Td
+(FontDescriptor matrix) Tj
+ET
+Q
+q
+1 0 0 1 20 20 cm
+/Fx Do
+Q
+endstream
+endobj
+5 0 obj
+<< /Type /FontDescriptor /FontName /ItalicByFlagBit /Flags 64 /ItalicAngle 0 /StemV 80 /Ascent 750 /Descent -250 /CapHeight 700 /FontBBox [-200 -250 1000 900] >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /ItalicByFlagBit /FontDescriptor 5 0 R >>
+endobj
+7 0 obj
+<< /Type /FontDescriptor /FontName /ItalicByAngle /Flags 32 /ItalicAngle -12 /StemV 80 /Ascent 750 /Descent -250 /CapHeight 700 /FontBBox [-200 -250 1000 900] >>
+endobj
+8 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /ItalicByAngle /FontDescriptor 7 0 R >>
+endobj
+9 0 obj
+<< /Type /FontDescriptor /FontName /BoldByForceBold /Flags 262176 /ItalicAngle 0 /StemV 80 /Ascent 750 /Descent -250 /CapHeight 700 /FontBBox [-200 -250 1000 900] >>
+endobj
+10 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /BoldByForceBold /FontDescriptor 9 0 R >>
+endobj
+11 0 obj
+<< /Type /FontDescriptor /FontName /BoldByStemV140 /Flags 32 /ItalicAngle 0 /StemV 140 /Ascent 750 /Descent -250 /CapHeight 700 /FontBBox [-200 -250 1000 900] >>
+endobj
+12 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /BoldByStemV140 /FontDescriptor 11 0 R >>
+endobj
+13 0 obj
+<< /Type /FontDescriptor /FontName /NotBoldStemV139 /Flags 32 /ItalicAngle 0 /StemV 139 /Ascent 750 /Descent -250 /CapHeight 700 /FontBBox [-200 -250 1000 900] >>
+endobj
+14 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /NotBoldStemV139 /FontDescriptor 13 0 R >>
+endobj
+15 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /NoDescriptorFont >>
+endobj
+16 0 obj
+<< /Type /FontDescriptor /FontName /CidBoldItalicComposite /Flags 64 /ItalicAngle -15 /StemV 190 /Ascent 750 /Descent -250 /CapHeight 700 /FontBBox [-200 -250 1000 900] >>
+endobj
+17 0 obj
+<< /Type /Font /Subtype /CIDFontType0 /BaseFont /CidBoldItalicComposite /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 16 0 R /DW 1000 >>
+endobj
+18 0 obj
+<< /Type /Font /Subtype /Type0 /BaseFont /CidBoldItalicComposite /Encoding /Identity-H /DescendantFonts [17 0 R] >>
+endobj
+19 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /SameFirstThirtyOneCharsPrefixXXAlpha >>
+endobj
+20 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /SameFirstThirtyOneCharsPrefixXXBeta >>
+endobj
+21 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /BBBBBB+ShortPrefixedName >>
+endobj
+22 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /AAAAAA+XObjectNestedLongFontNameItalic >>
+endobj
+23 0 obj
+<< /Type /XObject /Subtype /Form /BBox [0 0 120 60] /Resources << /Font << /FN 22 0 R >> >> /Length 39 >>
+stream
+q
+BT
+/FN 10 Tf
+0 0 Td
+(nested) Tj
+ET
+Q
+endstream
+endobj
+xref
+0 24
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000372 00000 n 
+0000000515 00000 n 
+0000000692 00000 n 
+0000000790 00000 n 
+0000000967 00000 n 
+0000001063 00000 n 
+0000001244 00000 n 
+0000001343 00000 n 
+0000001521 00000 n 
+0000001620 00000 n 
+0000001799 00000 n 
+0000001899 00000 n 
+0000001977 00000 n 
+0000002165 00000 n 
+0000002362 00000 n 
+0000002494 00000 n 
+0000002592 00000 n 
+0000002689 00000 n 
+0000002775 00000 n 
+0000002875 00000 n 
+trailer
+<< /Size 24 /Root 1 0 R >>
+startxref
+3053
+%%EOF

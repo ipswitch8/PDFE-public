@@ -1,0 +1,12 @@
+{
+  "page_count": 4,
+  "has_xref_repair": false,
+  "description": "4 pages with /Rotate values 0/90/180/270",
+  "fixture_type": "rotated_mixed",
+  "rotations": [
+    0,
+    90,
+    180,
+    270
+  ]
+}

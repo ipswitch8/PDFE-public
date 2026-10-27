@@ -1,0 +1,34 @@
+{
+  "pageCount": 1,
+  "isEncrypted": false,
+  "hasForm": false,
+  "hasForms": false,
+  "hasAnnotations": true,
+  "hasImages": false,
+  "pdfVersion": "1.7",
+  "fileSize": 6562,
+  "origin": "phase3-generator",
+  "category_tags": [
+    "annotations",
+    "all-major-types",
+    "vector-text"
+  ],
+  "description": "One annotation of each major subtype on a single page.",
+  "annotationTypes": [
+    "Text",
+    "Highlight",
+    "StrikeOut",
+    "Underline",
+    "Squiggly",
+    "Ink",
+    "Circle",
+    "Square",
+    "Line",
+    "FreeText",
+    "Stamp"
+  ],
+  "scripts": [
+    "ascii"
+  ],
+  "contentKind": "vector-text"
+}

@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# PDFE pre-push security regression hook.
+#
+# Runs the OPT-IN security CTest label (ctest -L security) before a
+# push and blocks the push if any baseline regression is detected.
+#
+# Installation is OPT-IN per developer:
+#     pwsh scripts/security/install_hooks.ps1
+# (or copy this file manually to .git/hooks/pre-push and chmod +x.)
+#
+# To bypass once (e.g., emergency hotfix): `git push --no-verify`.
+# Use sparingly -- the entire point is to surface regressions
+# before they leave the developer's machine.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+BUILD_DIR="${PDFE_BUILD_DIR:-$REPO_ROOT/build/vs2022}"
+
+if [ ! -d "$BUILD_DIR" ]; then
+    echo "[pre-push] $BUILD_DIR does not exist." >&2
+    echo "[pre-push] Configure with: cmake -B $BUILD_DIR -S $REPO_ROOT -DPDFE_ENABLE_SECURITY_TESTS=ON" >&2
+    exit 1
+fi
+
+# CTestTestfile.cmake must exist for ctest to find tests.
+if [ ! -f "$BUILD_DIR/CTestTestfile.cmake" ]; then
+    echo "[pre-push] $BUILD_DIR/CTestTestfile.cmake missing -- reconfigure with -DPDFE_ENABLE_SECURITY_TESTS=ON." >&2
+    exit 1
+fi
+
+cd "$BUILD_DIR"
+echo "[pre-push] running security label suite (ctest -L security)..."
+if ! ctest -L security -C Debug --output-on-failure; then
+    echo "[pre-push] FAIL: security regression detected." >&2
+    echo "[pre-push] See test output above; bypass with --no-verify only if you understand the risk." >&2
+    exit 1
+fi
+echo "[pre-push] security regression check PASSED -- push allowed."
+exit 0

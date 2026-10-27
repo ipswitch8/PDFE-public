@@ -1,0 +1,23 @@
+[package]
+name = "tantivy_bridge"
+version = "0.1.0"
+edition = "2021"
+description = "C ABI bridge exposing Tantivy full-text search to PDFE's C++ core"
+publish = false
+
+[lib]
+name = "tantivy_bridge"
+# staticlib on Windows produces tantivy_bridge.lib; CMake links it into pdfe_search.
+crate-type = ["staticlib"]
+
+[dependencies]
+tantivy = "0.26"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+[profile.dev]
+opt-level = 0
+debug = true

@@ -1,0 +1,175 @@
+{
+  "_what": "Locally-authored PDF/A + PDF/UA clause-conformance corpus.",
+  "_why_not_downloaded": "The Isartor suite is not redistributable and the veraPDF corpus is a ~2,900-file network download; this project's fixtures must be committed and bounded. See gen_conformance_corpus.py for why a locally-authored fixture is not a self-consistent oracle here.",
+  "generator": "tests/fixtures/gen_conformance_corpus.py",
+  "deterministic": true,
+  "exercised_by": [
+    "tests/test_pdfa_isartor_corpus.cpp",
+    "tests/test_pdfua_clause_coverage.cpp",
+    "tests/test_conformance_corpus_sampling.cpp"
+  ],
+  "fixtures": [
+    {
+      "path": "pdfa/pdfa_1b_control.pdf",
+      "kind": "control",
+      "clause": "",
+      "validate_at": "1b",
+      "single_delta_from_control": "control -- nothing wrong; every negative below is this file plus exactly one defect",
+      "size": 2413,
+      "sha256": "627021b0617b3e2310ac0f0cf7086c5c01a9a5b20fefc087f7911ab102f3f6f9"
+    },
+    {
+      "path": "pdfa/pdfa_2u_control.pdf",
+      "kind": "control",
+      "clause": "",
+      "validate_at": "2u",
+      "single_delta_from_control": "control for the ToUnicode clause -- part 2 conformance U, every font carries /ToUnicode",
+      "size": 2413,
+      "sha256": "aa7376d1ce68333c9875baaa49e1faf55efe24bb329ea36cda3f5b5920780bb5"
+    },
+    {
+      "path": "pdfa/pdfa_2a_control.pdf",
+      "kind": "control",
+      "clause": "",
+      "validate_at": "2a",
+      "single_delta_from_control": "control for the tagging clause -- part 2 conformance A, /MarkInfo /Marked true plus a /StructTreeRoot",
+      "size": 2612,
+      "sha256": "f2e633a954ffccc1be254973e27af542ed1285367eb56c100d87c127760e2be1"
+    },
+    {
+      "path": "pdfa/pdfa_6_7_11_no_xmp_identification.pdf",
+      "kind": "clause-negative",
+      "clause": "6.7.11",
+      "validate_at": "1b",
+      "single_delta_from_control": "/Catalog /Metadata removed -- no pdfaid:part/conformance",
+      "size": 2398,
+      "sha256": "f0cda2afbc8fa13e2076203b4f55570caf74c91af187af9a66d8c0d2bb9a2de2"
+    },
+    {
+      "path": "pdfa/pdfa_6_2_2_no_output_intent.pdf",
+      "kind": "clause-negative",
+      "clause": "6.2.2",
+      "validate_at": "1b",
+      "single_delta_from_control": "/Catalog /OutputIntents removed",
+      "size": 2259,
+      "sha256": "666e05ab7783c7b55e5aba53665cd3d889f265a5c36040ed6e0a7ab9135667c5"
+    },
+    {
+      "path": "pdfa/pdfa_6_3_3_font_not_embedded.pdf",
+      "kind": "clause-negative",
+      "clause": "6.3.3",
+      "validate_at": "1b",
+      "single_delta_from_control": "/FontDescriptor /FontFile2 removed -- font referenced by name",
+      "size": 2397,
+      "sha256": "624152d7e5cc55f996bca554656a2a17b86ff912ec7e65457c841b91c1bf4adb"
+    },
+    {
+      "path": "pdfa/pdfa_6_3_8_no_tounicode.pdf",
+      "kind": "clause-negative",
+      "clause": "6.3.8",
+      "validate_at": "2u",
+      "single_delta_from_control": "/Font /ToUnicode removed from the 2u control",
+      "size": 2397,
+      "sha256": "6e371387e360a05889c643875058267de9f2f2c94e2329c4e0cbf61f7be92338"
+    },
+    {
+      "path": "pdfa/pdfa_6_1_3_encrypted.pdf",
+      "kind": "clause-negative",
+      "clause": "6.1.3",
+      "validate_at": "1b",
+      "single_delta_from_control": "RC4-128 (/V 2 /R 3) standard security handler with an empty user password; /OutputIntents dropped because its literal strings would otherwise be decrypted into noise",
+      "size": 2491,
+      "sha256": "c8b9252464131940bad7a9dc44e7cd47f9a01769598dbf971ac981927e777a96"
+    },
+    {
+      "path": "pdfa/pdfa_6_6_1_javascript.pdf",
+      "kind": "clause-negative",
+      "clause": "6.6.1",
+      "validate_at": "1b",
+      "single_delta_from_control": "/Catalog /Names /JavaScript name tree added",
+      "size": 2613,
+      "sha256": "9907e61bd8e24b3a620ca1cb44ca1adcd44ae575f2aa462b1f48461ce02c12f0"
+    },
+    {
+      "path": "pdfa/pdfa_6_6_3_launch_action.pdf",
+      "kind": "clause-negative",
+      "clause": "6.6.3",
+      "validate_at": "1b",
+      "single_delta_from_control": "a /Link annotation whose action is /S /Launch",
+      "size": 2575,
+      "sha256": "40cc5e90498e38194dcca5b4da61e297cca6189ae0c4b3a9545cce086ed0ab8c"
+    },
+    {
+      "path": "pdfa/pdfa_6_4_transparency_group.pdf",
+      "kind": "clause-negative",
+      "clause": "6.4",
+      "validate_at": "1b",
+      "single_delta_from_control": "page /Group <</S /Transparency>> added",
+      "size": 2462,
+      "sha256": "330ed1d90ebca53179942fc0eb9872d9c33181fa8bd48400696134a5eb04a02b"
+    },
+    {
+      "path": "pdfa/pdfa_6_1_7_object_stream.pdf",
+      "kind": "clause-negative",
+      "clause": "6.1.7",
+      "validate_at": "1b",
+      "single_delta_from_control": "identical objects, re-indexed through an /ObjStm and a cross-reference STREAM instead of an xref table",
+      "size": 1745,
+      "sha256": "1789890e8402d8802837965bc9df93c44aefff884a0a24279fb5651b441aecc5"
+    },
+    {
+      "path": "pdfa/pdfa_6_8_untagged.pdf",
+      "kind": "clause-negative",
+      "clause": "6.8",
+      "validate_at": "2a",
+      "single_delta_from_control": "/MarkInfo and /StructTreeRoot removed from the 2a control",
+      "size": 2413,
+      "sha256": "6ad36ae1e12347572f64eb77d6b37ffd0c3f83f5e1277a0eb85ff87aeaf6cd0d"
+    },
+    {
+      "path": "pdfua/pdfua_control.pdf",
+      "kind": "control",
+      "clause": "",
+      "validate_at": "ua1",
+      "single_delta_from_control": "control -- structure tree, /Lang, and a /Figure carrying /Alt",
+      "size": 2810,
+      "sha256": "f81fd1fcd938f4a73c84f16018a0331d6af006b10f7626082b24a9ecc01ce0cf"
+    },
+    {
+      "path": "pdfua/pdfua_7_1_no_structure_tree.pdf",
+      "kind": "clause-negative",
+      "clause": "7.1",
+      "validate_at": "ua1",
+      "single_delta_from_control": "/Catalog /StructTreeRoot removed",
+      "size": 2491,
+      "sha256": "0f43dd9c07f154ecb0b1705a529d4c6268b628cad86df74f3fb3366074acaa5a"
+    },
+    {
+      "path": "pdfua/pdfua_7_2_no_document_language.pdf",
+      "kind": "clause-negative",
+      "clause": "7.2",
+      "validate_at": "ua1",
+      "single_delta_from_control": "/Catalog /Lang removed",
+      "size": 2798,
+      "sha256": "b7410f7500e19224d86d0e89a84c8845b83517b4d7d04296fec7bd3f7e5fcaba"
+    },
+    {
+      "path": "pdfua/pdfua_7_3_figure_without_alt.pdf",
+      "kind": "clause-negative",
+      "clause": "7.3",
+      "validate_at": "ua1",
+      "single_delta_from_control": "the /Figure structure element's /Alt removed (and no /ActualText substituted -- either would satisfy the clause)",
+      "size": 2784,
+      "sha256": "aa1045f64a9301515a01551e4c2b5ab10eb40100b9385f5f9196b08a923e6a88"
+    },
+    {
+      "path": "pdfua/pdfua_7_16_encrypted.pdf",
+      "kind": "clause-negative",
+      "clause": "7.16",
+      "validate_at": "ua1",
+      "single_delta_from_control": "RC4-128 standard security handler over the control document",
+      "size": 3042,
+      "sha256": "ac50f0752d7d4bad74641058d3e07d80a394492ff38f0f4b3ab1c0c93200a1c4"
+    }
+  ]
+}

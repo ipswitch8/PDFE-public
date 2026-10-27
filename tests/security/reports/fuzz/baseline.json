@@ -1,0 +1,9 @@
+{
+  "_comment": "PLACEHOLDER. The real baseline is produced by an actual 5-minute-per-harness smoke run under clang-cl + libFuzzer. See tests/security/fuzz/README.md § 'Why no live baseline is committed' for the procedure. When the first clean smoke run completes, REPLACE THIS FILE with the run_<stamp>/summary.json from that run.",
+  "schema_version": 1,
+  "stamp": null,
+  "budget": null,
+  "overall_verdict": null,
+  "harnesses": [],
+  "deferred_per_pipeline_option_a": true
+}

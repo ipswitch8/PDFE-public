@@ -1,0 +1,82 @@
+{
+  "schema": "pdfe/installer-expected-residue@1",
+  "description": "Expected-residue baseline for scripts/vm-install-residue-harness.ps1. Every entry is derived from docs/installer-residue-and-hkcu-intent.md (the authoritative intent note) and from packaging/file_assoc_uninstall.nsh, which that note names as the authority for the registry half. scripts/check-installer-residue-baseline.ps1 re-derives all of it and fails on any difference, so this file cannot silently drift from the documented intent.",
+  "source_of_truth": "docs/installer-residue-and-hkcu-intent.md",
+  "registry_authority": "packaging/file_assoc_uninstall.nsh",
+
+  "hkcu_intent": "PRESERVED",
+  "hkcu_intent_note": "The uninstaller deliberately does NOT delete HKCU\\Software\\PDFE. Surviving HKCU user data is INTENDED and must never be reported as residue by the harness.",
+
+  "expected_surviving": {
+    "registry": [
+      "HKCU\\Software\\PDFE",
+      "HKCU\\Software\\PDFE\\PDFE"
+    ],
+    "filesystem": [],
+    "filesystem_note": "Empty by derivation: the intent note records that PDFE persists user data through QSettings in its default NativeFormat backend, i.e. in the registry under HKCU\\Software\\PDFE\\PDFE. No installer-created filesystem artifact is expected to survive uninstall."
+  },
+
+  "must_be_absent_after_uninstall": {
+    "registry": [
+      "HKCR\\PDFE.Document",
+      "HKCR\\.pdf\\OpenWithProgids!PDFE.Document",
+      "HKLM\\Software\\Classes\\.pdf\\OpenWithProgids!PDFE.Document",
+      "HKCR\\Applications\\pdfe.exe",
+      "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\pdfe.exe",
+      "HKLM\\Software\\PDFE",
+      "HKLM\\Software\\RegisteredApplications!PDFE",
+      "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PDFE"
+    ],
+    "registry_cpack_generated": [
+      "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PDFE"
+    ],
+    "filesystem": [
+      "$INSTDIR",
+      "$DESKTOP\\PDFE.lnk",
+      "$SMPROGRAMS\\$STARTMENU_FOLDER\\PDFE.lnk"
+    ]
+  },
+
+  "uninstall_directives": {
+    "required": [
+      "DeleteRegKey HKLM \"Software\\PDFE\""
+    ],
+    "forbidden": [
+      "DeleteRegKey HKCU \"Software\\PDFE\""
+    ]
+  },
+
+  "user_data_sentinels": {
+    "note": "Written by the harness before uninstall / before the upgrade install; every path here MUST lie inside the preserved HKCU scope or the per-user app-data scope, and the harness asserts each one still exists afterwards (WIN-04 / WIN-93).",
+    "registry_value": "HKCU\\Software\\PDFE\\PDFE!PdfeVmHarnessSentinel",
+    "document_path": "%LOCALAPPDATA%\\PDFE\\vm-harness-sentinel.pdf"
+  },
+
+  "installer_sources": [
+    {
+      "artifact": "Installed files under `$INSTDIR\\bin` (exe, DLLs, tessdata, model, Qt runtime)",
+      "created_by": "`install(...)` rules + `windeployqt` (root `CMakeLists.txt`)",
+      "removed_by": "CPack/NSIS auto-generated uninstaller (`Delete`/`RMDir` from the install manifest)"
+    },
+    {
+      "artifact": "Start-menu shortcut `$SMPROGRAMS\\$STARTMENU_FOLDER\\PDFE.lnk`",
+      "created_by": "`CPACK_NSIS_CREATE_ICONS_EXTRA`",
+      "removed_by": "`CPACK_NSIS_DELETE_ICONS_EXTRA`"
+    },
+    {
+      "artifact": "Desktop shortcut `$DESKTOP\\PDFE.lnk`",
+      "created_by": "`packaging/file_assoc.nsh`",
+      "removed_by": "`packaging/file_assoc_uninstall.nsh`"
+    },
+    {
+      "artifact": "File-association / ProgID / capabilities registry keys (HKCR + HKLM)",
+      "created_by": "`packaging/file_assoc.nsh`",
+      "removed_by": "`packaging/file_assoc_uninstall.nsh`"
+    },
+    {
+      "artifact": "Uninstall registry key (`HKLM\\...\\Uninstall\\PDFE`, DisplayName etc.)",
+      "created_by": "CPack/NSIS auto",
+      "removed_by": "CPack/NSIS auto (uninstaller self-deletes it)"
+    }
+  ]
+}

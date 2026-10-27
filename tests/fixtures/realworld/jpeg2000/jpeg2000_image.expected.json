@@ -1,0 +1,6 @@
+{
+  "page_count": 1,
+  "has_xref_repair": false,
+  "description": "Manually-constructed PDF with an image stream tagged /Filter /JPXDecode (JPEG2000); body is an 8-byte JP2 signature placeholder. Parser must open without throwing.",
+  "fixture_type": "jpeg2000_image"
+}

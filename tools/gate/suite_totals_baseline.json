@@ -1,0 +1,28 @@
+{
+  "_what": "Live source for the GoogleTest suite's size and skip set (GitHub #276). Updating this file is how a deliberate change to either is recorded; check_suite_totals.py fails on any drift that has not been recorded here.",
+  "_why_a_set": "A count cannot distinguish a new skip from a different machine. CI reported 15 and a workstation 19 for the same commit, the difference being four CNN-model tests whose model file is absent locally.",
+  "tests": 6527,
+  "skipped_count": 19,
+  "skipped": [
+    "CNNFontClassifierTest.DifferentFontLowerSimilarity",
+    "CNNFontClassifierTest.EmbeddingDimensions",
+    "CNNFontClassifierTest.LoadModel",
+    "CNNFontClassifierTest.SameFontHighSimilarity",
+    "ConcurrentInstanceSaveChild.RunRole",
+    "ConditionalGcTest.SaveAsFastOnXfaWithoutStructuralOp",
+    "CrashFaultChild.RunRole",
+    "ExternalCorpus/ExternalRealWorldTest.SaveRoundTrip/irs_i1040",
+    "ExternalCorpus/ExternalRealWorldTest.SaveRoundTrip/irs_p17",
+    "ExternalCorpus/ExternalRealWorldTest.SaveRoundTrip/ssa_sf86",
+    "FontFuzzMemoryCapChild.RunRole",
+    "HugeImageRenderChild.RunRole",
+    "IncrementalSaveRoutingTest.FormFillSaveIsFastOnXfa",
+    "NestedFormXObjectBoundChild.RunRole",
+    "NestedXObjectRenderChild.RunRole",
+    "PerfBenchmark.ZZ_WriteMeasuredJson",
+    "ResourceBombSandboxChild.RunRole",
+    "StagedIncrementalXfaBenchmark.MeasureUnstagedVersusStagedAppend",
+    "XfaSaveBenchmark.MeasureGcLevels"
+  ],
+  "note": "Recorded 2026-10-07 from the phase-2 evidence run on this workstation. CI run 37366537472 reported 15 skipped for a comparable commit; the four CNNFontClassifierTest entries here skip because the CNN model file is absent locally, which is why the SET is recorded and not a threshold."
+}

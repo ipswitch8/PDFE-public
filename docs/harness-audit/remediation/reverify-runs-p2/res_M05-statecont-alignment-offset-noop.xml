@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="6" failures="1" disabled="0" errors="0" time="0.091" timestamp="2026-07-28T13:35:55.716" name="AllTests">
+  <testsuite name="AlignmentInjectorTest" tests="6" failures="1" disabled="0" skipped="0" errors="0" time="0.089" timestamp="2026-07-28T13:35:55.718">
+    <testcase name="ApplyInjectsBlockAndFileRemainsParseable" file="C:\Users\dev\source\PDFE\tests\test_alignment_injector.cpp" line="126" status="run" result="completed" time="0.01" timestamp="2026-07-28T13:35:55.718" classname="AlignmentInjectorTest" />
+    <testcase name="ReApplyDoesNotStackDuplicates" file="C:\Users\dev\source\PDFE\tests\test_alignment_injector.cpp" line="142" status="run" result="completed" time="0.023" timestamp="2026-07-28T13:35:55.729" classname="AlignmentInjectorTest" />
+    <testcase name="RemoveDropsPreviouslyInjectedBlocks" file="C:\Users\dev\source\PDFE\tests\test_alignment_injector.cpp" line="175" status="run" result="completed" time="0.014" timestamp="2026-07-28T13:35:55.752" classname="AlignmentInjectorTest" />
+    <testcase name="MultipleBlocksOnDifferentPagesEachLand" file="C:\Users\dev\source\PDFE\tests\test_alignment_injector.cpp" line="199" status="run" result="completed" time="0.012" timestamp="2026-07-28T13:35:55.767" classname="AlignmentInjectorTest" />
+    <testcase name="CenteredLineIsActuallyCenteredNotLeftAligned" file="C:\Users\dev\source\PDFE\tests\test_alignment_injector.cpp" line="232" status="run" result="completed" time="0.021" timestamp="2026-07-28T13:35:55.780" classname="AlignmentInjectorTest">
+      <failure message="C:\Users\dev\source\PDFE\tests\test_alignment_injector.cpp:255&#x0A;Expected: (xCenter) &gt; (xLeft + 30.0f), actual: 72 vs 102&#x0A;Center-aligned line was NOT shifted right of Left (xLeft=72 xCenter=72) — lineXOffset Center offset is a no-op&#x0A;" type=""><![CDATA[C:\Users\dev\source\PDFE\tests\test_alignment_injector.cpp:255
+Expected: (xCenter) > (xLeft + 30.0f), actual: 72 vs 102
+Center-aligned line was NOT shifted right of Left (xLeft=72 xCenter=72) — lineXOffset Center offset is a no-op
+]]></failure>
+      <failure message="C:\Users\dev\source\PDFE\tests\test_alignment_injector.cpp:261&#x0A;Expected: (xCenter) &gt; (110.0f), actual: 72 vs 110&#x0A;Center line x=72 is at/near the left margin (72pt) — not centered&#x0A;" type=""><![CDATA[C:\Users\dev\source\PDFE\tests\test_alignment_injector.cpp:261
+Expected: (xCenter) > (110.0f), actual: 72 vs 110
+Center line x=72 is at/near the left margin (72pt) — not centered
+]]></failure>
+    </testcase>
+    <testcase name="EmptyBlockListProducesParseableFile" file="C:\Users\dev\source\PDFE\tests\test_alignment_injector.cpp" line="266" status="run" result="completed" time="0.005" timestamp="2026-07-28T13:35:55.802" classname="AlignmentInjectorTest" />
+  </testsuite>
+</testsuites>

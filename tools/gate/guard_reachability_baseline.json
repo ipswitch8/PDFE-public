@@ -1,0 +1,187 @@
+{
+ "_what": "Guards under tools/gate that no automatically-triggered workflow reaches. Read by tools/gate/check_guard_reachability.py, the standing control for the second half of test-gap class C-BELOW (docs/audit/test-gap-classes.md section 3) -- the half where the CONTROL ITSELF is unreachable. GitHub #255.",
+ "_rules": [
+  "This is a RATCHET, not an amnesty. A NEW unreachable guard fails the build.",
+  "A baselined guard that BECOMES reachable must be REMOVED from here, or the guard fails. A list that only grows reports 'closed' about its own contents rather than about the property -- the 0023 shape.",
+  "A baselined guard that is DELETED must be removed from here too.",
+  "Every entry states WHICH kind it is. The kinds, and what each one means, are defined ONCE -- in BASELINE_KINDS in tools/gate/check_guard_reachability.py, each documented at its own line. They are deliberately NOT restated here. This rule used to describe them, the set later grew, and the description silently became false while also contradicting an entry in this very file; that was the fifth instance of one shape in the pipeline that created this baseline, and the remedy every time was to stop keeping a second copy.",
+  "Do not add an entry to make a failure go away. An entry whose kind does not fit what the script actually is, or an admitted gap with no issue number, is rejected by load_baseline -- the taxonomy is enforced, not merely described."
+ ],
+ "_established": "2026-09-24, pipeline p92-guard-reachability. The live population is printed by the guard on every run and recorded by this file; no tally is kept here, because a tally kept in prose goes stale and this file's own history is the evidence for that.",
+ "_known_guards_note": "GitHub #251. The INDEPENDENT expected-set of guards. Everything else in this checker derives its population from the filesystem, so a guard deleted together with its workflow step vanishes without a trace -- nothing can miss what is no longer there. Enforced in BOTH directions: a guard that disappears must be removed from this list in the same commit, and a new guard must be added to it.",
+ "_known_guards": [
+  "audit_gate_artifacts.py",
+  "audit_pipeline_issue_updates.py",
+  "check_accessible_name_not_identifier.py",
+  "check_asan_cadence.py",
+  "check_build_reuse_guards.py",
+  "check_canvas_uia_selector.py",
+  "check_chained_jobs.py",
+  "check_ci_readiness.py",
+  "check_cited_evidence.py",
+  "check_coverage_floor.py",
+  "check_crash_dumps.py",
+  "check_crashdump_artifact.py",
+  "check_crl_chain_fixture.py",
+  "check_dca.py",
+  "check_dca_presence.py",
+  "check_duplicate_test_definitions.py",
+  "check_engine_wiring.py",
+  "check_ensure_build_tree.py",
+  "check_external_corpus_skips.py",
+  "check_f38c_risk_acceptance.py",
+  "check_f45_ci_only_markers.py",
+  "check_fast_checks_citations.py",
+  "check_flaky_quarantine.py",
+  "check_fz_try_throw_free.py",
+  "check_governance_liveness.py",
+  "check_guard_reachability.py",
+  "check_judgement_prose.py",
+  "check_junit_xml.py",
+  "check_known_weak_cap.py",
+  "check_label_drift.py",
+  "check_magnitude_guard.py",
+  "check_mupdf_bump_recheck.py",
+  "check_native_event_filter_installed.py",
+  "check_needle_inventory.py",
+  "check_package_account_name.py",
+  "check_packaging_testing_flag.py",
+  "check_page_pointer_rebind.py",
+  "check_param_suite_reconciliation.py",
+  "check_perf_floor.py",
+  "check_ps1_encoding.py",
+  "check_publication_block.py",
+  "check_publish_shape_completeness.py",
+  "check_pwsh_step_locals.py",
+  "check_qt6svg_deploy.py",
+  "check_reachability_skip_shape.py",
+  "check_record_vs_diff.py",
+  "check_release_asset_hygiene.py",
+  "check_render_junit.py",
+  "check_rtm_counts.py",
+  "check_rtm_live_ui_citations.py",
+  "check_runner_deploy_pin.py",
+  "check_runner_label_coverage.py",
+  "check_runner_queue_overlap.py",
+  "check_scrub_regressions.py",
+  "check_security_regime.py",
+  "check_skip_reason_objectnames.py",
+  "check_staged_runtime_closure.py",
+  "check_stress_perf_budgets.py",
+  "check_suite_totals.py",
+  "check_test_exe_exit_captured.py",
+  "check_test_key_markers.py",
+  "check_test_pipe_naming.py",
+  "check_third_party_notices.py",
+  "check_tool_acts_on_the_clicked_page.py",
+  "check_tool_cached_page.py",
+  "check_tracked_path_hygiene.py",
+  "check_tracker_hygiene.py",
+  "check_tracking_banners.py",
+  "check_trust_source_claims.py",
+  "check_vcpkg_binary_sources.py",
+  "check_win87_publish_shapes.py",
+  "check_workflow_expressions.py",
+  "check_workflow_triggers.py",
+  "f48_producer_probe.py",
+  "fz_try_raii_scan.py",
+  "mutation_kill.py",
+  "page_load_guard_scan.py",
+  "parity_filter.py",
+  "phase39_corpus_manifest.py",
+  "pin_pe_normalised.py",
+  "pin_workflow_actions.py",
+  "rebuild_assert.py",
+  "registry_snapshot.py",
+  "relativize_ui_summary.py",
+  "run_fast_checks_locally.py",
+  "run_security_regression_check.py",
+  "scan_binary_path_hygiene.py",
+  "scrub_artifacts.py",
+  "scrub_package_account_name.py",
+  "select_f35_tranche.py",
+  "vcpkg_cache_manifest.py",
+  "verify_f17_dispositions.py",
+  "verify_f18_dispositions.py",
+  "verify_f19_dispositions.py",
+  "verify_f19_doc_claims.py",
+  "verify_f20_dispositions.py",
+  "verify_f21_dispositions.py",
+  "verify_f22_dispositions.py",
+  "verify_mupdf_recursion_recheck.py",
+  "verify_vcpkg_overlays.py"
+ ],
+ "check_perf_floor.py": {
+  "kind": "admitted-gap",
+  "issue": 258,
+  "reason": "GitHub #258. NOW WIRED LOCALLY (p94 phase-4): it is in SLOW_LOCAL_ONLY in run_fast_checks_locally, and it BRINGS ITS OWN INPUT -- the entry's prepare command runs tests/scripts/run_perf_benchmark.py, which runs the PerfBenchmark gtest suite and emits perf-measured.json, so the floor is compared against real timings from this machine rather than against a file that may not exist. A prepare FAILURE fails the entry rather than skipping it: a checker whose input could not be produced has not passed. Verified end to end 2026-09-30 with the JSON deleted first, so the prepare step had to recreate it: 102 passed, 0 failed under --slow. Still not reachable from fast-checks.yml and cannot be: that workflow has no build and runs no gtest at all, so the input cannot exist there."
+ },
+ "page_load_guard_scan.py": {
+  "kind": "admitted-gap",
+  "issue": 258,
+  "reason": "GitHub #258. One of #187's original seven. NOW WIRED LOCALLY (p94 phase-4): it is in SLOW_LOCAL_ONLY in run_fast_checks_locally, run by --slow and reported by name with its cost whenever it is not. Still not reachable from fast-checks.yml, and two independent MEASURED reasons say it cannot be: (1) it needs a CONFIGURED build tree -- build/vs2022-asan/compile_commands.json -- and exits 2 without one, which no GitHub-hosted runner has; (2) a full clang AST parse of 244 translation units takes about 55 minutes as first measured 2026-09-29, and RE-MEASURED 2026-10-07 at ~2h03m uncontended on a 4-logical-processor box (so --jobs defaults to 3) -- 2.2x the original figure. Budget from the larger number: someone timing out at 55 minutes will conclude it has hung. Measured 2026-09-29: with the database refreshed it reports 244/244 covered, 14 call sites, 0 unguarded, exit 0. It also earns its keep -- 9 of those 14 are reached through MACRO EXPANSION, which the lexical scanner cannot see by construction. NOTE it was RED (exit 4) before that refresh, because three source files added since the database was generated were absent from it; its coverage silently shrinks as the tree grows."
+ },
+ "run_fast_checks_locally.py": {
+  "kind": "deliberately-local-only",
+  "reason": "Exists to mirror the CI suite OUTSIDE CI, for a developer before pushing. Invoking it from fast-checks.yml -- the workflow it mirrors -- would be circular, and it says so in its own header. Unreached is the correct state for this one file, which is why it carries its own kind rather than being filed as a gap."
+ },
+ "f48_producer_probe.py": {
+  "kind": "one-shot-phase-verifier",
+  "reason": "Meta-audit follow-up F48 evidence: an end-to-end probe that a REAL runner invocation emits nothing host-rooted, run once to produce that phase's record. The standing per-push protection is run_ui_suite.py --self-test plus the path-hygiene guards, which are wired."
+ },
+ "phase39_corpus_manifest.py": {
+  "kind": "one-shot-phase-verifier",
+  "reason": "Emitted the corpus manifest for the F39 (D-6) local fuzz campaign -- name, size and sha256 per unit -- so 44 binary fuzzer artifacts need not be committed. It records what one campaign contained; re-running it on a later tree would describe a corpus that no longer exists."
+ },
+ "registry_snapshot.py": {
+  "kind": "one-shot-phase-verifier",
+  "reason": "Meta-audit follow-up F28 acceptance criterion 3: snapshot the HKCU hives the suite can touch, so the disposition record carries a VERIFIED statement of registry state after a full sharded run rather than an assertion. Its output is the evidence; the run is historical."
+ },
+ "relativize_ui_summary.py": {
+  "kind": "one-shot-phase-verifier",
+  "reason": "F48 repair tool: re-expresses an EXISTING ui-suite-summary.json with portable paths. It does not re-run the UI suite and has no standing subject -- the producer now scrubs at source, so this exists to fix artifacts already captured."
+ },
+ "verify_f17_dispositions.py": {
+  "kind": "one-shot-phase-verifier",
+  "reason": "Machine-checks the F17 (meta-audit follow-up phase-17) disposition table for the gap A1-* ids assigned to that phase. Bound to one phase's table at one moment; the phase is closed."
+ },
+ "verify_f18_dispositions.py": {
+  "kind": "one-shot-phase-verifier",
+  "reason": "Machine-checks the F18 disposition table against the tree as it stood for that phase. Bound to one closed phase's table."
+ },
+ "verify_f19_dispositions.py": {
+  "kind": "one-shot-phase-verifier",
+  "reason": "Machine-checks the F19 disposition table against the tree as it stood for that phase. Bound to one closed phase's table."
+ },
+ "verify_f19_doc_claims.py": {
+  "kind": "one-shot-phase-verifier",
+  "reason": "F19 acceptance criterion 2: claim-by-claim re-verification that every documentation claim that phase touched either matches the tree or is labelled history. Pinned to the claims F19 edited, not to the docs generally."
+ },
+ "verify_f20_dispositions.py": {
+  "kind": "one-shot-phase-verifier",
+  "reason": "Machine-checks the F20 dispositions for pipeline meta-audit-f20-f25. Bound to one closed phase's table."
+ },
+ "verify_f21_dispositions.py": {
+  "kind": "one-shot-phase-verifier",
+  "reason": "Machine-checks the F21 dispositions for pipeline meta-audit-f20-f25. Bound to one closed phase's table."
+ },
+ "verify_f22_dispositions.py": {
+  "kind": "one-shot-phase-verifier",
+  "reason": "Machine-checks the F22 (phase-3) dispositions for gap PDF-38, 'can a save-path garbage-collection pass drop /DSS?'. Bound to one closed phase's table."
+ },
+ "check_suite_totals.py": {
+  "issue": 276,
+  "kind": "admitted-gap",
+  "reason": "GitHub #276, added by the open-issue pipeline phase-3. It compares a MERGED gtest JUnit XML against tools/gate/suite_totals_baseline.json, so its input is produced only by a full build plus a 16-shard run. fast-checks.yml has no C++ toolchain at all, and the local mirror does not build either, so wiring it into either would make every run red for a reason unrelated to the suite's shape -- the same situation as check_coverage_floor.py and check_perf_floor.py above, and resolved the same way. It runs where its input exists: windows-validation.yml's core-tests job, immediately after check_junit_xml.py and under the same `steps.gtest.outcome != 'skipped'` condition, so a run whose shape changed is adjudicated rather than skipped. Its TEST (tools/gate/test_check_suite_totals.py, 8 cases over synthetic XML including the drift and vacuity controls) IS on the push lane -- and that split is exactly what #258 warns about, so it is recorded here rather than left to look like wiring. Closing it properly needs a gtest artifact on an automatic trigger, which is the same CI-policy change #258 identifies and not something to slip in here."
+ },
+ "pin_pe_normalised.py": {
+  "kind": "reached-via-ctest",
+  "add_test": "pin_pe_normalised",
+  "reason": "GitHub #298. Not an orphan: tests/test_pe_normalised_pin.py imports this module and is wired as the ctest target pin_pe_normalised, so it runs on every lane that runs ctest. It cannot be a fast-checks step because verifying a PE pin needs BUILT BINARIES, and a guard listed on a lane where it cannot run reads as coverage while providing none. It also deliberately carries no `security` ctest label: windows-validation.yml selects by label and the pins were generated on a workstation toolchain, so that lane would fail for the wrong reason. Regenerating them on the CI toolchain is #298 itself."
+ },
+ "check_staged_runtime_closure.py": {
+  "kind": "admitted-gap",
+  "issue": 258,
+  "reason": "GitHub #281's standing control, and it cannot go on push for the same structural reason as check_perf_floor.py and page_load_guard_scan.py: it reads the PE import tables of BUILT IMAGES, and fast-checks.yml has no build. A closure check with no binary to read would be structurally unable to fail, which is worse than not running. It IS invoked automatically by the windows-validation.yml core-tests job immediately after the build, and is in run_fast_checks_locally.py's LOCAL_ONLY set so it runs on this workstation; its judgement half (--self-test, 7 cases including the direction where an unstaged import must FAIL) runs on push via the pytest batch. Filed against #258 because that issue is this exact reachability class -- guards whose input only a build produces -- not because the closure check itself is unfinished."
+ }
+}

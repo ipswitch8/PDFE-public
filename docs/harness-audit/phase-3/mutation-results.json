@@ -1,0 +1,435 @@
+{
+ "baseline": {
+  "AlignmentInjectorTest.*": {
+   "exit": 0,
+   "tests": 5,
+   "failures": 0,
+   "errors": 0,
+   "parsed_xml": true,
+   "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_baseline_00.xml",
+   "ran_nonzero": true
+  },
+  "AutosaveRecoveryTest.*": {
+   "exit": 0,
+   "tests": 5,
+   "failures": 0,
+   "errors": 0,
+   "parsed_xml": true,
+   "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_baseline_01.xml",
+   "ran_nonzero": true
+  },
+  "CommandPageRebindTest.*:*OrdinarySaveDrains*": {
+   "exit": 0,
+   "tests": 5,
+   "failures": 0,
+   "errors": 0,
+   "parsed_xml": true,
+   "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_baseline_02.xml",
+   "ran_nonzero": true
+  },
+  "ContentStreamOutOfClass.*": {
+   "exit": 0,
+   "tests": 2,
+   "failures": 0,
+   "errors": 0,
+   "parsed_xml": true,
+   "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_baseline_03.xml",
+   "ran_nonzero": true
+  },
+  "ContentStreamSubstitutionTest.*": {
+   "exit": 0,
+   "tests": 7,
+   "failures": 0,
+   "errors": 0,
+   "parsed_xml": true,
+   "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_baseline_04.xml",
+   "ran_nonzero": true
+  },
+  "ContentStreamSubstitutionTest.*:PerRunEmissionTest.*": {
+   "exit": 0,
+   "tests": 12,
+   "failures": 0,
+   "errors": 0,
+   "parsed_xml": true,
+   "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_baseline_05.xml",
+   "ran_nonzero": true
+  },
+  "CtmReset.*": {
+   "exit": 0,
+   "tests": 3,
+   "failures": 0,
+   "errors": 0,
+   "parsed_xml": true,
+   "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_baseline_06.xml",
+   "ran_nonzero": true
+  },
+  "GlyphScaleAdjusterTest.*": {
+   "exit": 0,
+   "tests": 15,
+   "failures": 0,
+   "errors": 0,
+   "parsed_xml": true,
+   "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_baseline_07.xml",
+   "ran_nonzero": true
+  },
+  "NegTzGreyTextEdit.*": {
+   "exit": 0,
+   "tests": 2,
+   "failures": 0,
+   "errors": 0,
+   "parsed_xml": true,
+   "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_baseline_08.xml",
+   "ran_nonzero": true
+  },
+  "Phase5FormsTest.*:FormManagerTest.*": {
+   "exit": 0,
+   "tests": 26,
+   "failures": 0,
+   "errors": 0,
+   "parsed_xml": true,
+   "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_baseline_09.xml",
+   "ran_nonzero": true
+  },
+  "Phase5FormsTest.ResetFormRestoresDefaultValues": {
+   "exit": 0,
+   "tests": 1,
+   "failures": 0,
+   "errors": 0,
+   "parsed_xml": true,
+   "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_baseline_10.xml",
+   "ran_nonzero": true
+  },
+  "RedactionPartialOverlap.*": {
+   "exit": 0,
+   "tests": 2,
+   "failures": 0,
+   "errors": 0,
+   "parsed_xml": true,
+   "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_baseline_11.xml",
+   "ran_nonzero": true
+  },
+  "RedactionVerifierTest.*:RedactionVerifierFailPathTest.*": {
+   "exit": 0,
+   "tests": 15,
+   "failures": 0,
+   "errors": 0,
+   "parsed_xml": true,
+   "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_baseline_12.xml",
+   "ran_nonzero": true
+  }
+ },
+ "mutants": [
+  {
+   "id": "M01-statecont-ctm-guard-drop-Q",
+   "subsystem": "content-editing/state-continuity",
+   "file": "src/core/PageContentGuard.h",
+   "prediction": "killed",
+   "test_filter": "CtmReset.*",
+   "build_seconds": 70.5,
+   "run": {
+    "exit": 1,
+    "tests": 3,
+    "failures": 3,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M01-statecont-ctm-guard-drop-Q.xml",
+    "ran_nonzero": true
+   },
+   "result": "KILLED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M02-statecont-preamble-tz-mirror",
+   "subsystem": "content-editing/state-continuity",
+   "file": "src/core/ContentStreamPreamble.h",
+   "prediction": "killed",
+   "test_filter": "CtmReset.*",
+   "build_seconds": 61.0,
+   "run": {
+    "exit": 1,
+    "tests": 3,
+    "failures": 3,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M02-statecont-preamble-tz-mirror.xml",
+    "ran_nonzero": true
+   },
+   "result": "KILLED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M03-statecont-editor-tz-mirror",
+   "subsystem": "content-editing/state-continuity",
+   "file": "src/textedit/ContentStreamEditor.cpp",
+   "prediction": "killed",
+   "test_filter": "NegTzGreyTextEdit.*",
+   "build_seconds": 44.8,
+   "run": {
+    "exit": 1,
+    "tests": 2,
+    "failures": 1,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M03-statecont-editor-tz-mirror.xml",
+    "ran_nonzero": true
+   },
+   "result": "KILLED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M04-statecont-subst-tz-mirror",
+   "subsystem": "content-editing/state-continuity",
+   "file": "src/textedit/ContentStreamEditor.cpp",
+   "prediction": "survived",
+   "test_filter": "ContentStreamSubstitutionTest.*",
+   "build_seconds": 27.3,
+   "run": {
+    "exit": 0,
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M04-statecont-subst-tz-mirror.xml",
+    "ran_nonzero": true
+   },
+   "result": "SURVIVED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M05-statecont-alignment-offset-noop",
+   "subsystem": "content-editing/state-continuity",
+   "file": "src/reflow/TextReflowEngine.cpp",
+   "prediction": "survived",
+   "test_filter": "AlignmentInjectorTest.*",
+   "build_seconds": 30.0,
+   "run": {
+    "exit": 0,
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M05-statecont-alignment-offset-noop.xml",
+    "ran_nonzero": true
+   },
+   "result": "SURVIVED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M06-statecont-subst-drop-fill-color",
+   "subsystem": "content-editing/state-continuity",
+   "file": "src/textedit/ContentStreamEditor.cpp",
+   "prediction": "survived",
+   "test_filter": "ContentStreamSubstitutionTest.*",
+   "build_seconds": 29.8,
+   "run": {
+    "exit": 0,
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M06-statecont-subst-drop-fill-color.xml",
+    "ran_nonzero": true
+   },
+   "result": "SURVIVED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M07-statecont-subst-fontsize-halved",
+   "subsystem": "content-editing/state-continuity",
+   "file": "src/textedit/ContentStreamEditor.cpp",
+   "prediction": "survived",
+   "test_filter": "ContentStreamSubstitutionTest.*:PerRunEmissionTest.*",
+   "build_seconds": 26.7,
+   "run": {
+    "exit": 0,
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M07-statecont-subst-fontsize-halved.xml",
+    "ran_nonzero": true
+   },
+   "result": "SURVIVED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M08-save-recovery-force-image-recompress",
+   "subsystem": "save/rewrite-routing",
+   "file": "src/core/Document.cpp",
+   "prediction": "survived",
+   "test_filter": "AutosaveRecoveryTest.*",
+   "build_seconds": 33.1,
+   "run": {
+    "exit": 0,
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M08-save-recovery-force-image-recompress.xml",
+    "ran_nonzero": true
+   },
+   "result": "SURVIVED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M09-save-fullgc-downgrade",
+   "subsystem": "save/rewrite-routing",
+   "file": "src/core/Document.cpp",
+   "prediction": "survived",
+   "test_filter": "CommandPageRebindTest.*:*OrdinarySaveDrains*",
+   "build_seconds": 27.7,
+   "run": {
+    "exit": 0,
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M09-save-fullgc-downgrade.xml",
+    "ran_nonzero": true
+   },
+   "result": "SURVIVED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M10-redaction-intersection-flip",
+   "subsystem": "redaction-confidentiality",
+   "file": "src/redaction/RedactionVerifier.cpp",
+   "prediction": "killed",
+   "test_filter": "RedactionPartialOverlap.*",
+   "build_seconds": 32.5,
+   "run": {
+    "exit": 1,
+    "tests": 2,
+    "failures": 2,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M10-redaction-intersection-flip.xml",
+    "ran_nonzero": true
+   },
+   "result": "KILLED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M11-redaction-singlerev-always-clean",
+   "subsystem": "redaction-confidentiality",
+   "file": "src/redaction/RedactionVerifier.cpp",
+   "prediction": "survived",
+   "test_filter": "RedactionVerifierTest.*:RedactionVerifierFailPathTest.*",
+   "build_seconds": 26.2,
+   "run": {
+    "exit": 0,
+    "tests": 15,
+    "failures": 0,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M11-redaction-singlerev-always-clean.xml",
+    "ran_nonzero": true
+   },
+   "result": "SURVIVED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M12-forms-reset-dv-break",
+   "subsystem": "forms",
+   "file": "src/forms/FormManager.cpp",
+   "prediction": "killed",
+   "test_filter": "Phase5FormsTest.ResetFormRestoresDefaultValues",
+   "build_seconds": 31.8,
+   "run": {
+    "exit": 1,
+    "tests": 1,
+    "failures": 1,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M12-forms-reset-dv-break.xml",
+    "ran_nonzero": true
+   },
+   "result": "KILLED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M13-forms-button-reset-to-off",
+   "subsystem": "forms",
+   "file": "src/forms/FormManager.cpp",
+   "prediction": "survived",
+   "test_filter": "Phase5FormsTest.*:FormManagerTest.*",
+   "build_seconds": 27.2,
+   "run": {
+    "exit": 0,
+    "tests": 26,
+    "failures": 0,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M13-forms-button-reset-to-off.xml",
+    "ran_nonzero": true
+   },
+   "result": "SURVIVED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M14-fonts-glyph-emit-codepoint",
+   "subsystem": "fonts",
+   "file": "src/tre/PdfContentWriter.cpp",
+   "prediction": "killed",
+   "test_filter": "ContentStreamOutOfClass.*",
+   "build_seconds": 33.3,
+   "run": {
+    "exit": 1,
+    "tests": 2,
+    "failures": 2,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M14-fonts-glyph-emit-codepoint.xml",
+    "ran_nonzero": true
+   },
+   "result": "KILLED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M15-fonts-glyph-scale-invert",
+   "subsystem": "fonts",
+   "file": "src/fonts/GlyphScaleAdjuster.cpp",
+   "prediction": "survived",
+   "test_filter": "GlyphScaleAdjusterTest.*",
+   "build_seconds": 29.0,
+   "run": {
+    "exit": 0,
+    "tests": 15,
+    "failures": 0,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M15-fonts-glyph-scale-invert.xml",
+    "ran_nonzero": true
+   },
+   "result": "SURVIVED",
+   "matches_prediction": true
+  },
+  {
+   "id": "M16-save-recovery-force-compress",
+   "subsystem": "save/rewrite-routing",
+   "file": "src/core/Document.cpp",
+   "prediction": "survived",
+   "test_filter": "AutosaveRecoveryTest.*",
+   "build_seconds": 28.8,
+   "run": {
+    "exit": 0,
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "parsed_xml": true,
+    "xml": "C:\\Users\\dev\\source\\PDFE\\docs\\harness-audit\\phase-3\\runs\\res_M16-save-recovery-force-compress.xml",
+    "ran_nonzero": true
+   },
+   "result": "SURVIVED",
+   "matches_prediction": true
+  }
+ ],
+ "started": "2026-07-28 02:01:41",
+ "finished": "2026-07-28 02:11:30",
+ "summary": {
+  "killed": 6,
+  "survived": 10,
+  "other": 0,
+  "kill_rate": 37.5
+ }
+}

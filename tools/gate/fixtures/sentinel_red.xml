@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- GAP-A15 (R-30) SENTINEL: a deliberately-RED GoogleTest JUnit report. The
+     fast-checks CI lane runs tools/gate/check_junit_xml.py against this file and
+     REQUIRES a non-zero exit. If check_junit_xml.py ever returns 0 on this red
+     report, the false-green defense has regressed and the lane fails. Note the
+     testsuites element carries failures="0" while a child testcase records a
+     real <failure> and the inner testsuite has failures="1" — this mimics the
+     exact GAP-A15 shape where an aggregate looks clean but a case failed. -->
+<testsuites tests="2" failures="0" errors="0" name="AllTests">
+  <testsuite name="SentinelSuite" tests="2" failures="1" errors="0">
+    <testcase name="PassingCase" classname="SentinelSuite" status="run"/>
+    <testcase name="DeliberatelyFailingSentinel" classname="SentinelSuite" status="run">
+      <failure message="GAP-A15 sentinel: this failure MUST fail the build via JUnit parse.">
+        Expected: neutralized. Actual: not neutralized (sentinel).
+      </failure>
+    </testcase>
+  </testsuite>
+</testsuites>

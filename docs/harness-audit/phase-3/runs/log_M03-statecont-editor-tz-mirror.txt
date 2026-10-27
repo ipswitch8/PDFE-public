@@ -1,0 +1,41 @@
+Note: Google Test filter = NegTzGreyTextEdit.*
+[==========] Running 2 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 2 tests from NegTzGreyTextEdit
+[ RUN      ] NegTzGreyTextEdit.PreservesOriginalFillColor
+[       OK ] NegTzGreyTextEdit.PreservesOriginalFillColor (21 ms)
+[ RUN      ] NegTzGreyTextEdit.ReplacementNotMirrored
+C:\Users\dev\source\PDFE\tests\test_content_stream_neg_tz.cpp(140): error: Expected: (q.ur.x) > (q.ul.x), actual: 166.66 vs 180
+first edited glyph is horizontally mirrored (quad ur.x <= ul.x)
+
+C:\Users\dev\source\PDFE\tests\test_content_stream_neg_tz.cpp(144): error: Expected: (glyphs.back().quad.ul.x) > (glyphs.front().quad.ul.x), actual: 105.54 vs 180
+edited run advances right-to-left -- text is mirrored
+
+[  FAILED  ] NegTzGreyTextEdit.ReplacementNotMirrored (14 ms)
+[----------] 2 tests from NegTzGreyTextEdit (35 ms total)
+
+[----------] Global test environment tear-down
+
+============ ADVERSARIAL-AMBIENT GAP REGISTER (content-stream-continuity phase-1 discovery) ============
+injector               hostile_op   injected  neighbor  probed   notes
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+CONFIRMED corrupting cells (probed AND injected_ok==false OR neighbor_ok==false):
+cells=0 probed=0 confirmed_corrupt=0
+====================================================================================================
+
+[AdversarialAmbient] no cells this run (filtered subset) — leaving gap-register.json intact
+
+================ AUTOSAVE CAPTURE GAP REGISTER (phase-1 discovery) ================
+family                 undoAP dirty    autosave  capture  restore  probed 
+------------------------------------------------------------------------------------
+====================================================================================
+GAP = probed family whose edit is NOT captured by autosave (capture_present == NO).
+
+[AutosaveCaptureAudit] no audit rows this run (filtered subset) — leaving gap-register.json intact
+[==========] 2 tests from 1 test suite ran. (38 ms total)
+[  PASSED  ] 1 test.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] NegTzGreyTextEdit.ReplacementNotMirrored
+
+ 1 FAILED TEST

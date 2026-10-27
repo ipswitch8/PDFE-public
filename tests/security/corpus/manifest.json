@@ -1,0 +1,637 @@
+{
+  "schema_version": 1,
+  "corpus_size": 70,
+  "unmapped_files": [],
+  "payloads": [
+    {
+      "relative_path": "goto/test1.pdf",
+      "category": "goto",
+      "upstream_payload_id": "1",
+      "description": "CVE-2018-4993 /GoToE UNC NTLM callback",
+      "sha256": "abc4b8cc7114f69fc91a7b0c11522e9356e4392371bfef3eb30e8587ef53f439",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "MuPDF parses /Annots /A /S /GoToE; PDFE never resolves UNC FileSpec for /GoToE"
+    },
+    {
+      "relative_path": "js/test10.pdf",
+      "category": "js",
+      "upstream_payload_id": "10",
+      "description": "CVE-2017-10951 Foxit this.getURL JS callback",
+      "sha256": "c10c8f157dc5ae95bb193e633e567072aacd80d07d78048543d0d21ae3bb95e6",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "MuJS this.getURL not implemented; calling it raises a JS error that is swallowed"
+    },
+    {
+      "relative_path": "eicar/test11.pdf",
+      "category": "eicar",
+      "upstream_payload_id": "11",
+      "description": "EICAR test pattern",
+      "sha256": "20956724c2cce9b251e3b54098d11aa701857786bbe116880d56ab7f3aa633bf",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "EICAR is plain text inside a PDF stream; not a PDF feature; host AV may quarantine before PDFE sees it"
+    },
+    {
+      "relative_path": "xfa/test12.pdf",
+      "category": "xfa",
+      "upstream_payload_id": "12",
+      "description": "CVE-2014-8453 XFA FormCalc Post()",
+      "sha256": "97fdad3cbd549c59aeef6804eab8be234530af0c2d28d3f0719a359d616b75fc",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "No XFA FormCalc engine in PDFE"
+    },
+    {
+      "relative_path": "xfa/test13.pdf",
+      "category": "xfa",
+      "upstream_payload_id": "13",
+      "description": "XFA submit CRLF injection",
+      "sha256": "84945e45ccb2bb52c978c0a15474ab131db796bfc1b18b70ee4b91022e9891f1",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "No XFA renderer"
+    },
+    {
+      "relative_path": "svg_polyglot/test14.svg",
+      "category": "svg_polyglot",
+      "upstream_payload_id": "14",
+      "description": "ImageMagick SVG/MSL polyglot",
+      "sha256": "1a9b24c778a108d403644b31d67a33f167d5cc917d6e67ba455f39b167dc04c2",
+      "expected_pdfe_behavior": "refuse",
+      "maps_to_pdfe_surface": "Not a PDF; PDFE refuses non-PDF inputs"
+    },
+    {
+      "relative_path": "xfa/test15.pdf",
+      "category": "xfa",
+      "upstream_payload_id": "15",
+      "description": "FormCalc Post() arbitrary headers",
+      "sha256": "2e55794fd81c9c4c59ba27a8b20029910ab760e342c83d1411389a939fe89ed3",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "No XFA"
+    },
+    {
+      "relative_path": "goto/test16.pdf",
+      "category": "goto",
+      "upstream_payload_id": "16",
+      "description": "/GoToE javascript: URI XSS",
+      "sha256": "71749a55aec2839f5b64d925ef972cf94ccdf0b0e6026ee57bfc834d65235e73",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "PDFE never invokes javascript: scheme externally; QDesktopServices is only reached for explicit user link clicks and javascript: is filtered"
+    },
+    {
+      "relative_path": "xxe/test17.pdf",
+      "category": "xxe",
+      "upstream_payload_id": "17",
+      "description": "CVE-2014-8452 XMLData.parse XXE",
+      "sha256": "ec100d75ab8d26147958e2ad346b8010210190ed13f9e5df94e1376dfc1daf8d",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "MuPDF's XML parser disables external entity resolution"
+    },
+    {
+      "relative_path": "js/test18.pdf",
+      "category": "js",
+      "upstream_payload_id": "18",
+      "description": "Unescaped parens duplicate /A JS action",
+      "sha256": "1b7982265edec63731d651a893ea579cb0a7242da37792c72314951c9c85e4d2",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "PDFE does not auto-fire /A JS at OpenAction time; only on explicit user-triggered events"
+    },
+    {
+      "relative_path": "js/test19.pdf",
+      "category": "js",
+      "upstream_payload_id": "19",
+      "description": "/AA /PV Screen annotation auto-fires JS",
+      "sha256": "bb573c8229bca79036eb7e5d7f9591f80f8e76a6df623e0edf1e6c00e060598a",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "MuJS sandbox; Screen annotations not auto-played; /AA /PV ignored"
+    },
+    {
+      "relative_path": "goto/test1_1.pdf",
+      "category": "goto",
+      "upstream_payload_id": "1.1",
+      "description": "CVE-2018-4993 /GoToE HTTPS URL",
+      "sha256": "0a05221e5e3faaa0d3156e84ab4513310e90303b627af0564931827fb8215b84",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Same as 1; HTTPS URL FileSpec, PDFE only follows /GoTo within document"
+    },
+    {
+      "relative_path": "xfa/test2.pdf",
+      "category": "xfa",
+      "upstream_payload_id": "2",
+      "description": "XFA submit XDP exfiltrates form data",
+      "sha256": "3dceab2984b534b14ff7a2842683c676f015d00e9635b90fa63608ff45710c2f",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "PDFE has no XFA renderer; XFA stream parsed by MuPDF only, no submit action triggered"
+    },
+    {
+      "relative_path": "js/test20.pdf",
+      "category": "js",
+      "upstream_payload_id": "20",
+      "description": "/AA /PC page-close JS",
+      "sha256": "86d39b10fa2c984fb38ae11cb1a04aad9c259b9b7f1402345016fc455e7cc32e",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Page-close events not wired to the JS engine"
+    },
+    {
+      "relative_path": "submitform/test21.pdf",
+      "category": "submitform",
+      "upstream_payload_id": "21",
+      "description": "/SubmitForm Flags 256 (entire PDF)",
+      "sha256": "6b5c86a3270ec4226a84e20ae1adb2cd90b20603f523393c34b8ca0ca6cd60ee",
+      "expected_pdfe_behavior": "sandbox_block",
+      "maps_to_pdfe_surface": "HostAllowlist must reject; if allowed, exfiltration would still go through QNAM and get blocked by phase-3 firewall"
+    },
+    {
+      "relative_path": "submitform/test22.pdf",
+      "category": "submitform",
+      "upstream_payload_id": "22",
+      "description": "this.submitForm() cSubmitAs PDF",
+      "sha256": "1c25735d3a53c456b2510746c12e7b3f5c75e59a6e6332da7a7bfaa5dc3d9eaa",
+      "expected_pdfe_behavior": "sandbox_block",
+      "maps_to_pdfe_surface": "HostAllowlist; same as 21"
+    },
+    {
+      "relative_path": "js/test23.pdf",
+      "category": "js",
+      "upstream_payload_id": "23",
+      "description": "Invisible /Btn widget JS click",
+      "sha256": "a52475bb3909cc557f845a164ea16b8e61120e7ebf668ae499425a30f431b659",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "MuJS for form events; clicks on hidden widgets do not fire automatically"
+    },
+    {
+      "relative_path": "submitform/test24.pdf",
+      "category": "submitform",
+      "upstream_payload_id": "24",
+      "description": "/Tx widget submitForm() POST",
+      "sha256": "4f7c215765be59974e83a8482f61ffc0eb9b85b235f3b668f7686c9af69dc193",
+      "expected_pdfe_behavior": "sandbox_block",
+      "maps_to_pdfe_surface": "HostAllowlist; phase-3 firewall is the second line"
+    },
+    {
+      "relative_path": "js/test25.pdf",
+      "category": "js",
+      "upstream_payload_id": "25",
+      "description": "getPageNthWord() rendered text exfil",
+      "sha256": "363a050f60aee8188552847a66b138c72b83c2b578142c553a59f9954c473c73",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "getPageNthWord returns to JS context only; no network exit"
+    },
+    {
+      "relative_path": "js/test26.pdf",
+      "category": "js",
+      "upstream_payload_id": "26",
+      "description": "/AA /E mouseover JS",
+      "sha256": "fc09e1b59f15443724a124538157041dddf93ff72d469589fbfd46699df3c90b",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Mouseover not wired to JS engine in PDFE viewer"
+    },
+    {
+      "relative_path": "uri/test28.pdf",
+      "category": "uri",
+      "upstream_payload_id": "28",
+      "description": "Unescaped parens /URI hijack",
+      "sha256": "d65ace699bb15b3f6c8ddcec3cd6990c10f36d49beee4584969eeb11fabad1e4",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "URI parsing in MuPDF; PDFE follows only via explicit click"
+    },
+    {
+      "relative_path": "font/test29.pdf",
+      "category": "font",
+      "upstream_payload_id": "29",
+      "description": "CVE-2024-4367 Type1 FontMatrix break out",
+      "sha256": "f76645fa0466d01afb3b4ba5d7bf80a7ca9f285eb135a182647373083a4b34a6",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "PDF.js-specific; PDFE uses MuPDF + FreeType, not affected"
+    },
+    {
+      "relative_path": "js/test3.pdf",
+      "category": "js",
+      "upstream_payload_id": "3",
+      "description": "/OpenAction app.openDoc() remote URL",
+      "sha256": "448c307b9d6be502facad0dbfc0c0b3fa831d0067efde1a2de622c76e80e64cf",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "JavaScriptEngine (MuJS) sandbox; app.openDoc not implemented; OpenAction JS allowed but cannot exfiltrate"
+    },
+    {
+      "relative_path": "uri/test30.pdf",
+      "category": "uri",
+      "upstream_payload_id": "30",
+      "description": "External XObject /FS /URL silent fetch",
+      "sha256": "dbba00f872e0a4990b3fe84ada3d62eb0547c61659ac34a02d849648e1c5d56f",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "XObject streams are local-only in MuPDF; external /FS /URL is not resolved"
+    },
+    {
+      "relative_path": "goto/test31.pdf",
+      "category": "goto",
+      "upstream_payload_id": "31",
+      "description": "/S /Thread remote FileSpec",
+      "sha256": "1deeacb6fb0c3ff5a6dde056f5a51a0180b537ddc6e273c9b385266329c0f93d",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Thread navigation not implemented in PDFE"
+    },
+    {
+      "relative_path": "launch/test32.pdf",
+      "category": "launch",
+      "upstream_payload_id": "32",
+      "description": "/Launch /Win /O /print remote fetch",
+      "sha256": "4b8e5359c22a0e5567fa8349121ffa84db5cec67cfe16feb85a350fdaaba4637",
+      "expected_pdfe_behavior": "prompt_user",
+      "maps_to_pdfe_surface": "MainWindow::followLinkAt /Launch confirmation prompt; user must explicitly accept"
+    },
+    {
+      "relative_path": "js/test33_1.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_1",
+      "description": "Acrobat JS this.submitForm",
+      "sha256": "eba7a4da10f83138a6abb3fb0ad3726daa2e80dcd7760c393026134110cba0ed",
+      "expected_pdfe_behavior": "sandbox_block",
+      "maps_to_pdfe_surface": "Goes through HostAllowlist when reached"
+    },
+    {
+      "relative_path": "js/test33_10.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_10",
+      "description": "PDF.js XMLHttpRequest",
+      "sha256": "994ba6797dba019e42c9cec05de6eb9389ca17d01ffc90fd9ea119893081befb",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "MuJS lacks XHR"
+    },
+    {
+      "relative_path": "js/test33_11.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_11",
+      "description": "PDF.js new Image() callback",
+      "sha256": "d501d94b9ec86c7210fe8743b1b50e6d90e8f6154b696a9e7b8eefb562cbcbb7",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "MuJS lacks Image()"
+    },
+    {
+      "relative_path": "js/test33_12.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_12",
+      "description": "PDF.js WebSocket",
+      "sha256": "f37bf2384074ad05e22c2538b7863805ffcaf38e1780091abc5174f9ecf90de0",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "MuJS lacks WebSocket"
+    },
+    {
+      "relative_path": "js/test33_13.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_13",
+      "description": "Adobe RSS.addFeed callback",
+      "sha256": "d2119b5d85e8db0db52d78bfc4d3672207e9c233a97a326078e56f1bf3eea260",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not implemented"
+    },
+    {
+      "relative_path": "js/test33_14.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_14",
+      "description": "Adobe util.readFileIntoStream + SOAP chain",
+      "sha256": "adda08922b88fa00ad7ea433b90dfdb2b33f2072818c5bbb43acedd80248d06a",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Neither piece implemented"
+    },
+    {
+      "relative_path": "js/test33_15.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_15",
+      "description": "Adobe base64 staged JS via /Tx /V getField",
+      "sha256": "9f8b970aef5a8ef7dc2534449933ded9fbf274ebebd559db0c314d9f188012b4",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "getField returns to JS context only; no exec primitive"
+    },
+    {
+      "relative_path": "js/test33_2.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_2",
+      "description": "Acrobat JS this.getURL",
+      "sha256": "ece21d3cd2795f0c556fb53594f01983dd42c5b5df665b5d6a92e2bb255c8343",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not implemented in MuJS"
+    },
+    {
+      "relative_path": "js/test33_3.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_3",
+      "description": "Acrobat JS app.launchURL",
+      "sha256": "f19d443c7d31bec68f49e51ab5df339ab62b719556d5089073f8fe4c727709c8",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not implemented in MuJS"
+    },
+    {
+      "relative_path": "js/test33_4.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_4",
+      "description": "Acrobat JS app.media.getURLData",
+      "sha256": "2feab5a07740e2aafd0040ae40b74af8ae1f571babfdd3d780cb12630e6603f4",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not implemented (no media subsystem)"
+    },
+    {
+      "relative_path": "js/test33_5.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_5",
+      "description": "Acrobat JS SOAP.connect",
+      "sha256": "be309577ded7b56519552bc587f8ab32f5bb4780db085f0eab637fa2a0620567",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "No SOAP runtime"
+    },
+    {
+      "relative_path": "js/test33_6.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_6",
+      "description": "Acrobat JS SOAP.request",
+      "sha256": "845f3a0b2d123d211a983810dbde36a35a27357731f3d92775a6edf6070c6389",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "No SOAP runtime"
+    },
+    {
+      "relative_path": "js/test33_7.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_7",
+      "description": "Acrobat JS this.importDataObject",
+      "sha256": "c014101b9df678c3b0e94aab04f5930e32750e5b1cf0e019af1803910bde961f",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not implemented"
+    },
+    {
+      "relative_path": "js/test33_8.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_8",
+      "description": "Acrobat JS app.openDoc",
+      "sha256": "d28413c30ccce02242f060f2dfddf3a8f2922172b17946cee2c7bd960939998e",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not implemented"
+    },
+    {
+      "relative_path": "js/test33_9.pdf",
+      "category": "js",
+      "upstream_payload_id": "33_9",
+      "description": "PDF.js fetch()",
+      "sha256": "909fa75e3c4e61138593c1598d0798c7f9448b2b941d3cc6b9046717d175451e",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "MuJS lacks fetch()"
+    },
+    {
+      "relative_path": "uri_unc/test34_1.pdf",
+      "category": "uri_unc",
+      "upstream_payload_id": "34_1",
+      "description": "UNC image XObject (NTLM via render)",
+      "sha256": "14c8ed5dc71277b5caaeb1b2b056d80b489f28bea0662fedc3e08a8363d5b4af",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "MuPDF does not resolve UNC paths in image XObjects on Windows"
+    },
+    {
+      "relative_path": "goto/test34_2.pdf",
+      "category": "goto",
+      "upstream_payload_id": "34_2",
+      "description": "UNC /GoToR FileSpec",
+      "sha256": "608846ac009119115ed0688d27c1574e29087896001dc5cc6c97656125fd3e75",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not followed"
+    },
+    {
+      "relative_path": "goto/test34_3.pdf",
+      "category": "goto",
+      "upstream_payload_id": "34_3",
+      "description": "UNC /Thread FileSpec",
+      "sha256": "e44246569af870f56c8070ad09e6be56e6910a11f269f34b4c9c60b8a0fde268",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not implemented"
+    },
+    {
+      "relative_path": "uri_unc/test34_4.pdf",
+      "category": "uri_unc",
+      "upstream_payload_id": "34_4",
+      "description": "UNC /URI",
+      "sha256": "2fe24abde6bac25fa3588f371ab64b25a426aa4353b9cd8f0f8fc423a43cebca",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not auto-followed"
+    },
+    {
+      "relative_path": "submitform/test34_5.pdf",
+      "category": "submitform",
+      "upstream_payload_id": "34_5",
+      "description": "UNC this.submitForm",
+      "sha256": "d202d6d527c59d03b7acca48a7bb3ab35f3a9959f247034ff02c2510055b72bc",
+      "expected_pdfe_behavior": "sandbox_block",
+      "maps_to_pdfe_surface": "HostAllowlist"
+    },
+    {
+      "relative_path": "js/test34_6.pdf",
+      "category": "js",
+      "upstream_payload_id": "34_6",
+      "description": "UNC this.getURL",
+      "sha256": "648c2b04e1fe98ac502545c6e83a054812619980750270015c67130fbf63d3ff",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not implemented"
+    },
+    {
+      "relative_path": "js/test34_7.pdf",
+      "category": "js",
+      "upstream_payload_id": "34_7",
+      "description": "UNC app.launchURL",
+      "sha256": "a1d922fcec72014f07d8cf52a3e1e90f8fe94e7a4bab992fc566afa6504053c5",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not implemented"
+    },
+    {
+      "relative_path": "js/test34_8.pdf",
+      "category": "js",
+      "upstream_payload_id": "34_8",
+      "description": "UNC SOAP.connect",
+      "sha256": "0626896d82d23dcc712c9031270d68daf54d638eb6d3987a11a4e2688b121365",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not implemented"
+    },
+    {
+      "relative_path": "js/test34_9.pdf",
+      "category": "js",
+      "upstream_payload_id": "34_9",
+      "description": "UNC app.openDoc",
+      "sha256": "6629f68c6c6d4e6c227ce463ff5d84355559a8939cb4ce3356906ee5866e4f56",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not implemented"
+    },
+    {
+      "relative_path": "js/test35.pdf",
+      "category": "js",
+      "upstream_payload_id": "35",
+      "description": "/Names /JavaScript catalog auto-execute",
+      "sha256": "0814285823a2adbff1556b3a9d209c7a97487793055c96a0076d75e6b7580bcf",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "MuJS runs but cannot exfiltrate; OpenAction JS not auto-fired in PDFE"
+    },
+    {
+      "relative_path": "xxe/test36.pdf",
+      "category": "xxe",
+      "upstream_payload_id": "36",
+      "description": "CVE-2016-2175/2017-9096 XMP XXE",
+      "sha256": "be250e2385becbdbb09f8661eb3762b15a22f35ca4f9051fc97bf04634bc432b",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "MuPDF XML parser disables external entities"
+    },
+    {
+      "relative_path": "xxe/test37.pdf",
+      "category": "xxe",
+      "upstream_payload_id": "37",
+      "description": "XXE in /AcroForm /XFA stream",
+      "sha256": "3e7a758dc85d0e61177e0adef90c0c44f31c271d1d5766a48c6012cb10010ef0",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Same"
+    },
+    {
+      "relative_path": "js/test38.pdf",
+      "category": "js",
+      "upstream_payload_id": "38",
+      "description": "CVE-2020-29075 /AA /WC /WS /DS DNS callback",
+      "sha256": "e9a73f34c35032f39fd50c271fd28af57d3d068135fab7a1429b5527dd379645",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Document-level events not wired"
+    },
+    {
+      "relative_path": "embedded/test39.pdf",
+      "category": "embedded",
+      "upstream_payload_id": "39",
+      "description": "CVE-2022-28244 RichMedia HTML/JS CSP bypass",
+      "sha256": "0105c1bd9ac399ba9d85c0f2e72663385c83a20a9a554fc587d85213b608513f",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "RichMedia not played; annotation read but inert"
+    },
+    {
+      "relative_path": "xfa/test4.pdf",
+      "category": "xfa",
+      "upstream_payload_id": "4",
+      "description": "CVE-2019-7089 XFA external XSLT UNC callback",
+      "sha256": "ee79ab9345f718c93c2c1ca10094a81e7bd360576f8694ae1d1a58ca5df823e1",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Same XFA story as 2; XSLT external resolution disabled"
+    },
+    {
+      "relative_path": "font/test40.pdf",
+      "category": "font",
+      "upstream_payload_id": "40",
+      "description": "CVE-2018-5158 /FunctionType 4 PostScript JS",
+      "sha256": "da384f9a34c4570d4c54e5915f6c551119aaf5f49be556c2a275a481034f8497",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "PDF.js-specific"
+    },
+    {
+      "relative_path": "uri/test41.pdf",
+      "category": "uri",
+      "upstream_payload_id": "41",
+      "description": "CVE-2018-20065 /OpenAction /S /URI",
+      "sha256": "f43856d11e2173ba7daa22f85d5ffa9fbda2e3e9b07e820be3d165ff6a957915",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "OpenAction not auto-fired"
+    },
+    {
+      "relative_path": "xxe/test42.pdf",
+      "category": "xxe",
+      "upstream_payload_id": "42",
+      "description": "CVE-2025-66516 OOB %xxe XFA",
+      "sha256": "18d4f6696be515809e1f4af5c112165ce6cea12b284d1a85c66d58ad313a1e57",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "No XFA"
+    },
+    {
+      "relative_path": "js/test43.pdf",
+      "category": "js",
+      "upstream_payload_id": "43",
+      "description": "CVE-2025-70401 <img> Text annot XSS",
+      "sha256": "13183fd2e0a91d556034144135dd04dc218d6b708dcca9ffd0ab431e95f4e1b7",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Apryse-specific; PDFE renders annotations as image, not HTML"
+    },
+    {
+      "relative_path": "uri/test44.pdf",
+      "category": "uri",
+      "upstream_payload_id": "44",
+      "description": "CVE-2024-12426 vnd.sun.star.expand env leak",
+      "sha256": "4e343663709ab1a58412e1d44273e1123ecf53415313af089c027b71c4146927",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "LibreOffice-specific URI scheme; PDFE does not handle"
+    },
+    {
+      "relative_path": "js/test45.pdf",
+      "category": "js",
+      "upstream_payload_id": "45",
+      "description": "CVE-2025-59803 OCG /AA /WP /DP signing JS",
+      "sha256": "07ac48c478e067edd3422f4a56bea0d9e1c1394ecf919a6e7837d364182b66d5",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Foxit-specific; OCG /AA not wired in PDFE"
+    },
+    {
+      "relative_path": "js/test46.pdf",
+      "category": "js",
+      "upstream_payload_id": "46",
+      "description": "CVE-2026-25755 jsPDF addJS /AA /O auto",
+      "sha256": "eec630fefb046be1218cc55a6b98287d86acbf8492791d264564de78fbe294bb",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "jsPDF-specific writer; PDFE only reads"
+    },
+    {
+      "relative_path": "embedded/test47.pdf",
+      "category": "embedded",
+      "upstream_payload_id": "47",
+      "description": "PDF 2.0 /AF Associated Files HTML/JS",
+      "sha256": "c4d0f8892f1bd61599bf9166c25b7af08a6a9b085502ef9a4181aeb4f0a34046",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "AttachmentManager extracts only on explicit user action"
+    },
+    {
+      "relative_path": "xfa/test48.pdf",
+      "category": "xfa",
+      "upstream_payload_id": "48",
+      "description": "XFA SOAP submit initialize event",
+      "sha256": "fb0a5e9584a356bbc0e07e32a7e9d20218c98aaf51bdfaab4ef3f78911990fae",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "No XFA"
+    },
+    {
+      "relative_path": "uri/test5.pdf",
+      "category": "uri",
+      "upstream_payload_id": "5",
+      "description": "/URI action triggers DNS/HTTP",
+      "sha256": "d4d417139ea0d7d544a7ac1a532869c88811e178ff48443fa2006931dc05768f",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "URI from /Annots /A is shown but only followed via canvas click + followLinkAt -> QDesktopServices::openUrl; auto-trigger via OpenAction /S /URI is not honored"
+    },
+    {
+      "relative_path": "launch/test6.pdf",
+      "category": "launch",
+      "upstream_payload_id": "6",
+      "description": "/Launch action with external URL",
+      "sha256": "35cfb24e7fab63fdc58f51de23c79115cde4500e3bcd2ba1b71c160d79153c5c",
+      "expected_pdfe_behavior": "prompt_user",
+      "maps_to_pdfe_surface": "MainWindow::followLinkAt -> Launch case shows QMessageBox confirmation before any shell invocation"
+    },
+    {
+      "relative_path": "goto/test7.pdf",
+      "category": "goto",
+      "upstream_payload_id": "7",
+      "description": "/GoToR remote PDF",
+      "sha256": "2f67a5a89189f400fbc6c6501b36f4314d413dc50bfad6611937647fe60c289b",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "PDFE does not follow /GoToR; FileSpec lookup is local-only"
+    },
+    {
+      "relative_path": "submitform/test8.pdf",
+      "category": "submitform",
+      "upstream_payload_id": "8",
+      "description": "/SubmitForm with HTML flags",
+      "sha256": "20c5aca6aaf934e5b18c2cbbcfe75fd8f21103a881bdcc15ace0c9cc460bb067",
+      "expected_pdfe_behavior": "sandbox_block",
+      "maps_to_pdfe_surface": "FormSubmitter goes through HostAllowlist; non-loopback target should be refused unless host explicitly allowed"
+    },
+    {
+      "relative_path": "submitform/test9.pdf",
+      "category": "submitform",
+      "upstream_payload_id": "9",
+      "description": "/ImportData external data import",
+      "sha256": "8f5b8a40043d874b7ac5414ab257dc012a0b113e10343df28a351f2e1471a655",
+      "expected_pdfe_behavior": "open_clean",
+      "maps_to_pdfe_surface": "Not wired in PDFE viewer; FormDataIO is for explicit user import only"
+    }
+  ]
+}

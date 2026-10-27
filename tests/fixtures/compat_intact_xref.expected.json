@@ -1,0 +1,22 @@
+{
+  "pageCount": 2,
+  "isEncrypted": false,
+  "hasForm": false,
+  "hasForms": false,
+  "hasAnnotations": false,
+  "hasImages": false,
+  "pdfVersion": "1.7",
+  "fileSize": 1322,
+  "origin": "gen_format_compat_corpus.py",
+  "category_tags": [
+    "no-encryption"
+  ],
+  "scripts": [
+    "ascii"
+  ],
+  "contentKind": "vector-text",
+  "description": "Intact twin of compat_rebuilt_xref.pdf (issue #33 / PDF-86). Emitted by gen_format_compat_corpus.py::gen_rebuilt_xref() from the SAME doc.save() call, captured before the xref damage transform is applied — so it is an independent reference for what a correct reconstruction of the damaged file must recover. Regenerating the corpus reproduces compat_rebuilt_xref.pdf byte-for-byte (verified), which is what makes this file that fixture's genuine pristine ancestor rather than a lookalike.",
+  "page_count": 2,
+  "has_xref_repair": false,
+  "fixture_type": "vector-text"
+}

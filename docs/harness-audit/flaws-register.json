@@ -1,0 +1,508 @@
+{
+ "phase": "phase-5-capstone-synthesis",
+ "generated_note": "CONSOLIDATED, severity-ranked Flaws & Gaps Register. Clusters Phase-1's 181 ranked weak-oracle findings (2 Crit/77 High/75 Med/27 Low across 402 files) + Phase-2 RTM/hostile-input/fixture gaps + Phase-3's 10 surviving mutants + Phase-4 UI/process critique into ~35 class-level entries. FIND-AND-DOCUMENT only; no product/test source modified. Ranked Critical->Low.",
+ "totals": {
+  "entries": 37,
+  "by_severity": {
+   "Critical": 2,
+   "High": 25,
+   "Med": 8,
+   "Low": 2
+  },
+  "by_class": {
+   "oracle-weakness": 23,
+   "coverage-gap": 3,
+   "process": 9,
+   "input-domain-gap": 2
+  },
+  "source_findings_consolidated": {
+   "phase1_ranked_weak_findings": 181,
+   "phase1_weak_oracle_files": 147,
+   "phase2_capabilities_happy_path_only": 68,
+   "phase2_hostile_classes_zero": 4,
+   "phase3_surviving_mutants": 10,
+   "phase4_process_findings_consolidated": 7,
+   "note": "All 7 phase-4 process-critique findings are now consolidated: CI-trigger-posture->R-25, mutation-green-by-construction->R-24, DCA-loop-decorative->R-26, coverage-floor-unenforced->R-32, judgment-gate-honor-system->R-31, macOS-thin-subset->R-36 (added, karen phase-5 gate), no-flaky-quarantine-ledger->R-37 (added, karen phase-5 gate). R-28 (UI-matrix over-claim) and R-30 (GAP-A15 historical class, now DEFENDED in CI per phase-4) are additional process-class register entries from other sources, NOT among the 7 phase-4 process findings \u2014 the earlier '7 process entries == 7 phase-4 findings' equality was the scope-narrowing-behind-a-matching-total defect karen caught; corrected here."
+  }
+ },
+ "register": [
+  {
+   "id": "R-01",
+   "phase": "P1",
+   "class": "oracle-weakness",
+   "location": "security/CVE-replay & malware sandbox: tests/test_cve_replay.cpp:62, tests/test_malicious_pdf_advanced.cpp:651, tests/test_malicious_pdf_security.cpp:211",
+   "description": "The malformed-PDF / CVE-neutralization suites assert only that Document::open (and fireKeystroke/render) returns within a timeout and does not throw, wrapped in a catch-all try/catch that even hides an outright throw. 21 replayed CVEs + SSRF/JS/process-spawn negatives share one timing assertion; no oracle asserts the attack was actually neutralized.",
+   "exemplar_escape": "A regression re-enabling CVE-2018-4993 (NTLM leak to attacker SMB share), CVE-2021-30560 (/AA JavaScript exec), CVE-2024-4367 (font PostScript), or /GoToR UNC SSRF ships GREEN.",
+   "failure_missed": "Attacker exfiltrates NTLM credentials / executes embedded JavaScript / spawns a process on the victim opening a crafted PDF, with a fully green security suite.",
+   "severity": "Critical",
+   "evidence": "phase-1 ranked_weak_findings[0-1] (2 of the 2 Criticals); test_cve_replay.cpp:62 (EXPECT_NO_THROW + 5-10s timing); test_malicious_pdf_security.cpp:211 (GoToRRemotePathRejected/DataUriNotExecuted no-throw-only)",
+   "remediation": "Adopt a positive-neutralization oracle per attack class: assert no outbound socket/UNC connection attempt (mock transport spy), no process spawn (deny-list hook that FAILs if invoked), no JS side-effect (canary), and remove the catch-all try/catch so a throw is a failure not a pass."
+  },
+  {
+   "id": "R-02",
+   "phase": "P1/P3",
+   "class": "oracle-weakness",
+   "location": "redaction confidentiality: tests/test_redaction_completeness.cpp:67, tests/test_image_redaction_phase7.cpp:428, tests/test_redaction_verifier.cpp:114, src/redaction/RedactionVerifier.cpp",
+   "description": "The only oracles that prove the secret is gone from the saved decompressed stream GTEST_SKIP under fixture fallback; RedactionVerifier's own unit file constrains it with tautologies (EXPECT_TRUE(success||!success)); checkTextRemoved is only ever asserted TRUE, never FALSE on a real leftover. Phase-3 mutant M11 (checkSingleRevision -> always return true) SURVIVED 15 tests.",
+   "exemplar_escape": "Seed 8: RedactionVerifier full-containment oracle too weak. A redaction that paints a box but leaves the /Tj operators (or prior-revision recoverable content) intact ships GREEN.",
+   "failure_missed": "Redacted SSN / classified text survives in the saved stream or in an incremental-update shadow revision and is trivially recoverable; a data-disclosure defect ships with a green suite.",
+   "severity": "Critical",
+   "evidence": "phase-3 M11-redaction-singlerev-always-clean SURVIVED (15 run/0 fail); phase-1 test_redaction_verifier.cpp:114, test_redaction_completeness.cpp:67 GTEST_SKIP@67-69, test_image_redaction_phase7.cpp:428 SKIP@428-430; phase-2 top_uncovered_capabilities[0]",
+   "remediation": "Make the decompressed-stream byte-absence + extraction-absence oracle UNCONDITIONAL (own the fixture; no skip-on-fallback); add a RedactionVerifierFailPath test that asserts checkTextRemoved/checkSingleRevision return FALSE on a genuinely leaky multi-revision file; seed M11 into the standing mutation gate."
+  },
+  {
+   "id": "R-03",
+   "phase": "P1/P3",
+   "class": "oracle-weakness",
+   "location": "71 files across content-edit/TRE/fonts/image/alignment (dominant smell 'extraction-only-for-visual')",
+   "description": "The single most prevalent disease: a visual feature (glyph/image/layout) is verified only by extractPlainText().find(marker) or a non-null display list. fz_stext extraction reports the same codepoints whether the run renders upright, mirrored, invisible, white-on-white, wrong-size, off-page, or with clobbered neighbour spans.",
+   "exemplar_escape": "The shipped -100 Tz mirror / color-loss / half-size ambient-state-leak bug class (seeds 1 & 3). Phase-3 mutants M04 (Tz mirror in substitution), M06 (drop fill color), M07 (halve font size) all SURVIVED extraction-only suites.",
+   "failure_missed": "Edited/reconstructed text renders mirrored, invisible, white, half-size, or recolored while the suite is green because 'the page still has text'.",
+   "severity": "High",
+   "evidence": "phase-1 totals.by_smell_files.extraction-only-for-visual=71; phase-3 M04/M06/M07 SURVIVED (7/7/12 run, 0 fail); test_content_stream_editor.cpp:172, test_text_edit_pipeline.cpp:129",
+   "remediation": "Oracle standard (SC-b): any test of a visual feature must render + assert a glyph-quad / pixel-ink property (upright, on-page, non-white, correct size band), not extraction presence. Ban 'extraction-only-for-visual' as a lint-detectable smell."
+  },
+  {
+   "id": "R-04",
+   "phase": "P1/P3",
+   "class": "oracle-weakness",
+   "location": "content-stream editors: src/textedit/ContentStreamEditor.cpp; tests/test_content_stream_editor.cpp:172, test_text_edit_integration.cpp:236, test_text_edit_width_scaling.cpp:164, test_text_edit_save_roundtrip.cpp:242",
+   "description": "Inline text-edit correctness (ambient CTM/Tz/Tc/Tw/Ts/Tr/color continuity, glyph identity, position, size, neighbour-span preservation) is unverified. MultiplePageEdits has ZERO assertions; the adversarial-ambient corpus cells are SUCCEED()-only; width-scaling recomputes charRatio in the test body and asserts it against itself.",
+   "exemplar_escape": "Seeds 1 & 3: state-continuity/mirror (extraction-blind, benign fixtures) and small-text-edit no-op (oracle asserted structure not the produced glyph).",
+   "failure_missed": "A user's edit lands the wrong glyph, at half width, mirrored, recolored, or clobbers the adjacent span; save drops/garbles the edit; all green.",
+   "severity": "High",
+   "evidence": "phase-1 test_content_stream_editor.cpp:172, test_text_edit_integration.cpp:236 (zero asserts), test_text_edit_width_scaling.cpp:164 (tautological CharRatioLogic); phase-3 M04/M06/M07; phase-2 top_uncovered_capabilities[3]",
+   "remediation": "Adversarial-ambient fixture corpus x ContentStreamEditor with pixel/quad oracles (SC-a); promote the SUCCEED-only measurement cells in test_content_stream_adversarial_ambient.cpp to ASSERTing tests."
+  },
+  {
+   "id": "R-05",
+   "phase": "P1/P3",
+   "class": "oracle-weakness",
+   "location": "alignment injector: src/reflow/TextReflowEngine.cpp; tests/test_alignment_injector.cpp:82, test_alignment_pipeline.cpp:154",
+   "description": "Left/Center/Right/Justify is an inherently positional feature but every test asserts only extractPlainText().find(marker); the glyph x-offset that IS the alignment is never checked. The strong CTM-reset suite uses Left only, so it does not cover the center/right cells.",
+   "exemplar_escape": "Phase-3 mutant M05 (Center offset -> 0.0) rendered center-requested blocks left-aligned and SURVIVED 5 tests. Justify has a substring bug making fully un-justified output pass.",
+   "failure_missed": "Text drawn left/off-page/invisible when Center or Right was requested; user sees mis-aligned document, suite green.",
+   "severity": "High",
+   "evidence": "phase-3 M05-statecont-alignment-offset-noop SURVIVED (5 run/0 fail); phase-1 test_alignment_injector.cpp:82, test_alignment_pipeline.cpp:154; phase-2 top_uncovered_capabilities[4]",
+   "remediation": "Add a glyph x-offset/geometry oracle (assert the injected block's left edge matches the requested alignment within tolerance) under the SC-a corpus."
+  },
+  {
+   "id": "R-06",
+   "phase": "P1",
+   "class": "oracle-weakness",
+   "location": "TRE reconstruction: tests/test_region_reconstructor.cpp:229, test_tre_coord_mapper.cpp:161, test_tre_commands.cpp:257, test_content_stream_per_run_emission.cpp:229",
+   "description": "TRE writes NEW glyphs into the content stream (visual) but nothing renders/re-extracts the produced PDF; meaningful checks sit inside if(result.success) and only test non-empty text + bbox>0. The 'critical' Y-flip coord-mapper tests recompute the mapping with the test's own arithmetic and never call the product mapper.",
+   "exemplar_escape": "A reconstructor writing wrong/garbage/mirrored/invisible text, or a product Y-flip that lands a scanned-text selection on the opposite end of the page, passes.",
+   "failure_missed": "User edits scanned/image-only text and the reconstructed glyphs are wrong/mirrored/off-page; the Y-flip regression the tests are named to guard cannot fail them.",
+   "severity": "High",
+   "evidence": "phase-1 test_tre_coord_mapper.cpp:161 (tautological), test_region_reconstructor.cpp:229, test_tre_commands.cpp:257; phase-2 top_uncovered_capabilities[5]",
+   "remediation": "Render + re-extract the produced PDF with a glyph-quad oracle; rewrite the coord-mapper tests to call mapper_->pdfToPixel/pixelRectToPdf and assert against fixed reference points."
+  },
+  {
+   "id": "R-07",
+   "phase": "P1",
+   "class": "oracle-weakness",
+   "location": "image edit: tests/test_image_content_editor.cpp:63, test_image_flow_oracle.cpp:71, test_ocr_routing_fix.cpp:314, test_image_replacer.cpp:171",
+   "description": "Image insert/remove/resize/rotate/crop are visual but the only oracle is a return bool / non-null createDisplayList() / unchanged count. A no-op, a wrong CTM producing a mirrored or HALF-SIZE image (the exact a03f6b6 half-size-under-CTM bug class), or wrong-region crop is indistinguishable from correct.",
+   "exemplar_escape": "The recurring half-size / mirrored image-under-imposed-CTM defect; ImageCommandsDirtyTest's 15 cases all green on displayList!=nullptr.",
+   "failure_missed": "User resizes/rotates/crops an image and gets a mirrored, half-size, or wrong-region result; suite green.",
+   "severity": "High",
+   "evidence": "phase-1 test_image_content_editor.cpp:63, test_image_flow_oracle.cpp:71, test_ocr_routing_fix.cpp:314; phase-2 top_uncovered_capabilities[6]; only image_ctm_leak/mediabox_origin_crop pin geometry",
+   "remediation": "Pixel-at-known-coordinate + bounding-box geometry oracles for every CTM image op under the SC-a corpus (extend the image-edit injectors to the adversarial-ambient fixtures)."
+  },
+  {
+   "id": "R-08",
+   "phase": "P3",
+   "class": "oracle-weakness",
+   "location": "save/rewrite-routing: src/core/Document.cpp; tests/test_command_page_rebind.cpp:133, test_optimize.cpp:175, AutosaveRecovery suite",
+   "description": "Entire save/rewrite subsystem had a 0% mutation kill-rate. Saved files are validated only by reopen + pageCount() (reopens-without-error), with no size/gc/perf/object-count oracle. Recovery-copy perf property (do_compress=0, do_compress_images=0) and gc-escalation are unpinned.",
+   "exemplar_escape": "Phase-3 M08 (force image recompress), M09 (downgrade escalated gc 3->1, file bloat / stale-object retention), M16 (force stream recompress) all SURVIVED.",
+   "failure_missed": "Save silently drops an annotation, retains duplicated/stale objects (bloat + potential data retention), or a 30s autosave tick regresses from ~440ms to seconds on image-heavy scans; all green.",
+   "severity": "High",
+   "evidence": "phase-3 save/rewrite-routing kill_rate=0.0 (M08/M09/M16 SURVIVED); phase-1 test_command_page_rebind.cpp:133, test_optimize.cpp:175",
+   "remediation": "Add an object-count/dedup oracle (assert gc=3 removes duplicated objects), a written-file size/perf budget oracle on the recovery path, and a saved-artifact content oracle that asserts the created annotation/edit is present in the written bytes."
+  },
+  {
+   "id": "R-09",
+   "phase": "P1/P2",
+   "class": "oracle-weakness",
+   "location": "autosave/crash-recovery: tests/test_autosave_capture_audit.cpp:187 (all 15 edit families)",
+   "description": "The 15-family autosave capture audit is SUCCEED()-only with ZERO EXPECT_/ASSERT_; finishRow() records capture_present=NO as passing DATA. The exact crash-recovery data-loss class this project keeps shipping produces a green suite.",
+   "exemplar_escape": "Autosave silently fails to capture an edit family on crash and every one of the 15 tests stays green.",
+   "failure_missed": "A user's edits are lost on crash because autosave dropped a whole edit family; suite green.",
+   "severity": "High",
+   "evidence": "phase-1 test_autosave_capture_audit.cpp:187 (assertion-free); phase-2 top_uncovered_capabilities[7]",
+   "remediation": "Convert finishRow()'s captured data into EXPECT_TRUE(capture_present) per family; treat capture_present=NO as a test failure, not recorded data."
+  },
+  {
+   "id": "R-10",
+   "phase": "P1/P3",
+   "class": "oracle-weakness",
+   "location": "fonts: src/fonts/GlyphScaleAdjuster.cpp; tests/test_glyph_scale_adjuster.cpp:102, test_glyph_synthesizer.cpp:195, test_vector_font_atlas_builder.cpp:106, test_type3_font_builder.cpp:332, test_font_fuzz.cpp:112, test_visual_font_ranker.cpp:121, test_cnn_font_classifier.cpp:170",
+   "description": "Glyph rasterization/synthesis/scaling/ranking are visual but oracles check only presence/non-null/format/size>0 or a wide bound (0.5,2.0). Transform recipes (b->d HFlip, 9->6 rotate) never inspect pixels; the ranker's correctness check is wrapped in if(arialFirst){} so it self-neuters on the failure case; font fuzz is assertion-free.",
+   "exemplar_escape": "Phase-3 M15 (invert horizontalScale = substituteWidth/originalWidth) SURVIVED: substituted text renders too narrow/wide within the wide band.",
+   "failure_missed": "User editing scanned text gets a serif substitute for a sans source, tofu/.notdef glyphs, or squeezed/overlapping substituted text; all green.",
+   "severity": "High",
+   "evidence": "phase-3 M15-fonts-glyph-scale-invert SURVIVED (15 run/0 fail); phase-1 test_glyph_scale_adjuster.cpp:102, test_glyph_synthesizer.cpp:195, test_visual_font_ranker.cpp:121, test_font_fuzz.cpp:112",
+   "remediation": "Pin golden per-string width ratios (kill M15); NCC/pixel-compare synthesized glyphs to a reference; assert a real serif-vs-sans discrimination margin (SameFont - DifferentFont > delta); give font fuzz a rendered-glyph oracle."
+  },
+  {
+   "id": "R-11",
+   "phase": "P1/P3",
+   "class": "oracle-weakness",
+   "location": "forms: src/forms/FormManager.cpp; tests/test_form_commands.cpp:77, test_metadata_manager.cpp:124",
+   "description": "Field value/reset correctness is checked only against the in-memory FormManager/dict, never save+reopen; checkbox/radio /DV-restore on Reset Form has no positive oracle (reset coverage is text-field-only).",
+   "exemplar_escape": "Phase-3 M13 (button reset hard-coded to /Off instead of /DV) SURVIVED 26 tests; a setFieldValue that updates the widget cache but never writes /V (value lost on save) passes.",
+   "failure_missed": "User fills a form / resets it and the values are lost or wrong on the saved+reopened file; a defaulted-on checkbox reverts to unchecked; all green.",
+   "severity": "High",
+   "evidence": "phase-3 M13-forms-button-reset-to-off SURVIVED (26 run/0 fail); phase-1 test_form_commands.cpp:77, test_metadata_manager.cpp:124 (WriteMetadata_Roundtrip in-memory only)",
+   "remediation": "Save+reopen every form/metadata assertion; add a checkbox/radio ResetFormRestoresDefaultValues case asserting /DV state after reset."
+  },
+  {
+   "id": "R-12",
+   "phase": "P1",
+   "class": "oracle-weakness",
+   "location": "signatures trust: tests/test_signature_roundtrip.cpp:425, test_certification_signatures.cpp:175, test_ltv_validator.cpp:342",
+   "description": "Certificate trust-chain is never positively validated: every fixture is self-signed and MuPDF has no system trust store, so certificateStatus is always non-Okay and the trust tests assert only 'non-Okay OR !certValid'. DocMDP enforcement is only ever tested for ALLOWED changes; the forged-GOOD-untrusted-responder OCSP negative is missing.",
+   "exemplar_escape": "A signature from an untrusted/attacker-controlled issuer is indistinguishable from a trusted one; a disallowed edit under P1 NoChanges is never flagged; an injected self-signed GOOD OCSP is reported as validly revocation-checked.",
+   "failure_missed": "User trusts a signature backed by an attacker cert / a modified certified document / a forged revocation status; all green.",
+   "severity": "High",
+   "evidence": "phase-1 test_signature_roundtrip.cpp:425, test_certification_signatures.cpp:175, test_ltv_validator.cpp:342; phase-2 top_uncovered_capabilities[2]",
+   "remediation": "Introduce a real trust anchor + a truly-trusted chained cert fixture; assert a trusted cert reports Okay AND an untrusted one reports non-Okay (positive+negative); add a DocMDP-violation-flagged negative and a forged-GOOD-OCSP rejection."
+  },
+  {
+   "id": "R-13",
+   "phase": "P1",
+   "class": "oracle-weakness",
+   "location": "signature tamper/revocation: tests/test_signature_security_phase2.cpp:310, test_ocsp_crl_validation.cpp:279, test_tsa_real_endpoint.cpp:146",
+   "description": "Negative signature tests are weak or broken: the tamper test has an operator-precedence bug ('&b == 0') that may write a no-op so it may assert !isFullyValid on an UNMODIFIED doc; OCSP staleness/CRL-expiry enforcement could be removed and the FIX-OCSP regression tests still pass (all paths collapse to UntrustedChain); the TSA token OID is printed, never asserted.",
+   "exemplar_escape": "A genuinely-broken verifier returning isFullyValid=true fails the tamper test only by luck of the target byte; a stale/expired revocation response is accepted as fresh; TSA timestamping is non-functional yet presents as timestamped.",
+   "failure_missed": "Tampered / stale-revocation / un-timestamped signatures present to the user as valid; all green.",
+   "severity": "High",
+   "evidence": "phase-1 test_signature_security_phase2.cpp:310 (precedence bug), test_ocsp_crl_validation.cpp:279 (tautological UntrustedChain), test_tsa_real_endpoint.cpp:146 (print-only)",
+   "remediation": "Fix the tamper mutation to deterministically flip a byte and assert detection; make freshness enforcement observable independent of trust state; assert the RFC-3161 token OID is embedded."
+  },
+  {
+   "id": "R-14",
+   "phase": "P1",
+   "class": "oracle-weakness",
+   "location": "self-reimplementation: tests/test_cid_font_encoding.cpp:360, test_tre_coord_mapper.cpp:161, test_image_text_edit_bugs.cpp:286, test_text_edit_width_scaling.cpp:164",
+   "description": "A distinct class where the test copies the production algorithm (CMap scan loop, coord mapping, pixel-rect union, charRatio) into its own body and asserts the copy against itself, never invoking product code. Labelled as regression tests for named QA findings they cannot actually lock.",
+   "exemplar_escape": "Seed 3 small-text-edit no-op (charRatio); if the real CMap scanner still used unsigned short (the original infinite-loop bug) both 'regression' tests stay green.",
+   "failure_missed": "The exact fixed bug regresses in production and the 'regression test' that claims to guard it cannot fail; zero coverage of the fix.",
+   "severity": "High",
+   "evidence": "phase-1 test_cid_font_encoding.cpp:360, test_tre_coord_mapper.cpp:161, test_image_text_edit_bugs.cpp:286",
+   "remediation": "Oracle standard bans self-reimplementation: a regression test must call the production symbol under test; add a lint that flags algorithm duplication in test bodies."
+  },
+  {
+   "id": "R-15",
+   "phase": "P1",
+   "class": "coverage-gap",
+   "location": "skip-hidden-coverage (10 files): tests/test_image_text_edit_display.cpp:202 (41 skip sites), test_redaction_completeness.cpp:67, test_image_redaction_phase7.cpp:428",
+   "description": "Files where the only real oracle is GTEST_SKIP-gated on fixture/tessdata presence, so on a realistic CI runner ~30-41 of 42 tests skip and the file reports GREEN with zero verification and no unconditional smoke assertion. The novel 'conditional-skip-on-only-real-oracle' pattern.",
+   "exemplar_escape": "A totally broken ImageReplacer or a redaction leak ships undetected when the fixture/tessdata is absent (the CI reality, per gap_a14).",
+   "failure_missed": "Whole subsystems are silently unverified on the CI runner because their sole oracle skipped; suite green.",
+   "severity": "High",
+   "evidence": "phase-1 by_novel_smell_files.skip-hidden-coverage=10; test_image_text_edit_display.cpp:202, test_redaction_completeness.cpp:67, test_image_redaction_phase7.cpp:428",
+   "remediation": "Own the fixtures (commit or generate them) so the strong oracle runs unconditionally; add an unconditional smoke assertion; fail the build if a P0 confidentiality oracle skips."
+  },
+  {
+   "id": "R-16",
+   "phase": "P1",
+   "class": "oracle-weakness",
+   "location": "search: tests/test_search.cpp:46, test_search_performance.cpp:56",
+   "description": "totalMatches() returns size_t/int hits.size(), so EXPECT_GE(...,0) is a tautology; quad/hit-structure checks live in for(hit:result.hits) loops that run zero times when the result is empty. A file named 'performance' asserts no timing.",
+   "exemplar_escape": "Broken indexing/highlight-quads returning ZERO hits for text actually on the fixture is invisible; case-insensitive returning different sets for 'test' vs 'TEST' passes.",
+   "failure_missed": "Search silently finds nothing / highlights nowhere and the suite is green.",
+   "severity": "High",
+   "evidence": "phase-1 test_search.cpp:46, test_search_performance.cpp:56; phase-2 top_uncovered_capabilities (full-text search)",
+   "remediation": "Assert a known query on a known fixture returns EXACT expected hit count + non-empty quads; add a real timing budget to the performance file."
+  },
+  {
+   "id": "R-18",
+   "phase": "P1",
+   "class": "oracle-weakness",
+   "location": "assertion-free / SUCCEED-only class (42 files): e.g. test_text_edit_undo_chain.cpp:292, test_autosave_capture_audit.cpp:187, test_font_fuzz.cpp:112",
+   "description": "Whole test bodies end in SUCCEED() ('soft-asserting') or contain zero EXPECT_/ASSERT_, so they can only fail on a hard crash. The named regression (e.g. UI-TE-UNDO-01 formatting-run loss) cannot fail its own test.",
+   "exemplar_escape": "Undo dropping formatting runs, autosave dropping edits, a font-parser rendering blank glyphs -- all green on non-crash.",
+   "failure_missed": "Any behavioral regression that does not crash ships green in 42 files.",
+   "severity": "High",
+   "evidence": "phase-1 totals.by_smell_files.assertion-free=42; test_text_edit_undo_chain.cpp:292 (SUCCEED)",
+   "remediation": "Oracle standard bans lone SUCCEED()/assertion-free bodies; every test must execute >=1 behavioral EXPECT/ASSERT (lint-enforceable)."
+  },
+  {
+   "id": "R-19",
+   "phase": "P1",
+   "class": "oracle-weakness",
+   "location": "EXPECT_NO_THROW-only class (81 files) + tautological class (73 files)",
+   "description": "81 files whose dominant oracle is that a call did not throw, and 73 with logically-always-true asserts (EXPECT_TRUE(x||!x), EXPECT_GE(unsigned,0), substrings that appear in timestamps/UUIDs). Both can never observe a wrong-but-non-throwing result.",
+   "exemplar_escape": "test_save_throw_undo_safety (undo corrupts state, both clean-return and throw pass); test_xmp_metadata_writer (malformed pdfaid passes on substring match); test_font_compliance_checker (tautology).",
+   "failure_missed": "Wrong verdicts, corrupted state, malformed output that does not throw ship green.",
+   "severity": "High",
+   "evidence": "phase-1 totals.by_smell_files.EXPECT_NO_THROW-only=81, tautological=73; test_save_throw_undo_safety.cpp:286, test_xmp_metadata_writer.cpp:50",
+   "remediation": "Oracle standard: no-throw is admissible only as a secondary check; each such test needs a value/state oracle. Flag lone-EXPECT_NO_THROW and tautological predicates in review."
+  },
+  {
+   "id": "R-20",
+   "phase": "P1/P4",
+   "class": "oracle-weakness",
+   "location": "widget-exists-only class (77 files); UI e.g. test_annotation_font_controls.cpp:129, test_bookmark_panel_context_menu.cpp:169",
+   "description": "UI tests assert an objectName/widget exists (or a boolean return) and place real checks inside if(widget && widget->isVisible()) or if(created) guards that skip silently when the control regresses. No pixel/icon/model oracle.",
+   "exemplar_escape": "Seed 4: wrong icons / missing form separators. A toolbar button renders the WRONG icon or a FreeText font-size spinner is never created and the test still reports GREEN with zero assertions executed (annotation toolbar has NO icons per UI-AN-22, undetectable).",
+   "failure_missed": "A control paints the wrong icon/color, a dialog opens garbled, a bookmark insert no-ops -- all green.",
+   "severity": "High",
+   "evidence": "phase-1 totals.by_smell_files.widget-exists-only=77; phase-4 ui.invisible_regression_classes (wrong icon/garbled dialog); test_annotation_font_controls.cpp:129",
+   "remediation": "Move assertions out of existence-guards (a missing control is a failure); add a visual/icon oracle for toolbar buttons (SC-g); assert model state, not the boolean return."
+  },
+  {
+   "id": "R-21",
+   "phase": "P1",
+   "class": "oracle-weakness",
+   "location": "reopens-without-error-only class (74 files): e.g. test_optimize.cpp:175, test_command_page_rebind.cpp:133, test_replace_page.cpp:66",
+   "description": "Persistence tests validate a saved file only by reopen + pageCount()>0, never inspecting whether the intended change is present/absent in the written bytes. Metamorphic round-trips omit the != check (textAfter never asserted != textBefore), so a silent no-op round-trips trivially.",
+   "exemplar_escape": "OptimizeDoesNotLeakDeletedFormFieldValues (leak ships), ReplacePageCommandUndoRestoresOriginal (page-replace no-op ships), OrdinarySaveDrainsAndRebinds (dropped annotation ships).",
+   "failure_missed": "Saved file silently drops/leaks/no-ops the user's change; reopen still shows N pages; green.",
+   "severity": "High",
+   "evidence": "phase-1 totals.by_smell_files.reopens-without-error-only=74; test_optimize.cpp:175, test_replace_page.cpp:66",
+   "remediation": "Every persistence test must assert the change is present (or the leak is absent) in the reopened content, and metamorphic pairs must assert the transformed state differs from the original."
+  },
+  {
+   "id": "R-24",
+   "phase": "P4",
+   "class": "process",
+   "location": "CI mutation gate: tools/gate/mutants.json (3 mutants), .github/workflows/mutation-kill.yml",
+   "description": "The standing CI mutation manifest has 3 curated already-fixed mutants, so mutation-kill.yml can only report 100% -- green-by-construction. Phase-3's real 16-mutant run found 10 survivors (37.5% kill-rate) including R-02 redaction confidentiality and R-05/R-08/R-10/R-11 defects, NONE represented in the manifest.",
+   "exemplar_escape": "Seeds 6/7 (fabrication/over-claim class): the gate meant to be the standing defense against false-green oracles exercises no known false-green oracle.",
+   "failure_missed": "Every real surviving-mutant defect class is invisible to the standing gate; a false-green oracle regression merges with a 100% mutation report.",
+   "severity": "High",
+   "evidence": "phase-4 process 'Mutation gate is green-by-construction'; tools/gate/mutants.json (3); phase-3 mutation-report (16 mutants/10 survivors)",
+   "remediation": "Replace the manifest with the phase-3 16-mutant set (esp. M11/M04/M05/M08/M09/M15/M13) and enforce a kill-rate floor; a survivor fails the build (SC-c)."
+  },
+  {
+   "id": "R-25",
+   "phase": "P4",
+   "class": "process",
+   "location": "CI trigger posture: .github/workflows/windows-validation.yml:23-34, mutation-kill.yml, governance.yml (all workflow_dispatch/nightly)",
+   "description": "As of 2026-07-20 ALL PDFE CI is nightly/workflow_dispatch only -- push/PR auto-triggers were removed to protect the single self-hosted runner. Every quality gate (validation, mutation-kill, governance, fuzz) is decoupled from the commit that would introduce a regression; nothing fails a bad commit at PR/merge time.",
+   "exemplar_escape": "A regression surfaces at best the next nightly, at worst only when a human dispatches -- the whole 'gates are mandatory' discipline is bypassed structurally.",
+   "failure_missed": "Any regression in any class merges cleanly and is not caught until a manual/nightly run.",
+   "severity": "High",
+   "evidence": "phase-4 process 'CI trigger posture (meta-finding)'; windows-validation.yml:23-34; census.json:452",
+   "remediation": "Re-enable per-commit/PR triggers for at least a fast lane (build + core + mutation-kill on the changed subsystem), with the full suite nightly; queue rather than drop on the single runner (SC-h)."
+  },
+  {
+   "id": "R-26",
+   "phase": "P4",
+   "class": "process",
+   "location": "escaped-defect/DCA loop: docs/audit/dca/ (only 0001-*.md), governance.yml:51-58, tools check_dca.py/check_dca_presence.py",
+   "description": "The harness has been reactive since inception: of 72 mined bug-fixes, 70 escaped to a human before any test existed (oracle 41 / coverage 15 / input-domain 8 / process 6). The escaped-defect->DCA->class-test loop is implemented but runs only inside workflow_dispatch-only governance.yml and only when a base ref is manually supplied.",
+   "exemplar_escape": "A defect fix can (and by the 1-record history does) ship with no DCA and no class-level test -- exactly the reactive posture the loop was meant to end.",
+   "failure_missed": "Each new escaped defect is patched instance-by-instance; the class re-escapes because no class-level test or DCA is required.",
+   "severity": "High",
+   "evidence": "phase-4 process 'Escaped-defect / DCA loop not enforced'; docs/audit/README.md:34-35,51; only docs/audit/dca/0001-*.md exists",
+   "remediation": "Make the DCA loop a mandatory merge gate: any bug-fix commit must add a DCA record + a class-level test, enforced per-commit not dispatch-only (SC-e)."
+  },
+  {
+   "id": "R-27",
+   "phase": "P4",
+   "class": "coverage-gap",
+   "location": "UI permaskip wall: 43 UI test files, tests/ui_automation/*, gap_a14 UIA hang",
+   "description": "~472 of ~1018 UI skip sites are silent-zero-protection (gap_a14 UIA-hang on Server-2019), gating an estimated ~300 of ~450 UI test functions from running ANY behavioral assertion in CI. The visual oracles that could catch the real bug class sit behind this wall.",
+   "exemplar_escape": "Seed 4 wrong-icons and the shipped mirror/half-size content-stream bug class: the UI pixel oracles that would catch them never execute in CI.",
+   "failure_missed": "The entire end-to-end UI layer runs zero behavioral assertions in CI; real-window regressions are invisible.",
+   "severity": "High",
+   "evidence": "phase-4 ui.silent_zero_protection=472, effectively_never_run_in_ci=472; gap_a14 (route menus via testToolActivatePipe)",
+   "remediation": "De-skip the UI visual oracles by routing menu/tool activation through the testToolActivatePipe (invoke_action) rather than UIA FindAll, and read results back via the result pipe (SC-g)."
+  },
+  {
+   "id": "R-28",
+   "phase": "P4",
+   "class": "process",
+   "location": "UI matrix over-claim: tests/ui_automation/conftest.py:85,575; tests/_runtime/ui_test_matrix_*.csv (973 CSVs)",
+   "description": "UI-matrix 'pass' is a runtime-generated CSV whose rows start as status=planned then flip green/red at runtime; the committed green reflects a one-off developer-workstation interactive run, not a reproducible CI result. Row color is a fragile last-write-wins value, so a non-owning suite's SKIP can clobber a proven GREEN. 236 dialog rows are green on objectName-present-in-.cpp alone; 131 act_* rows green on pipe-fired-no-effect.",
+   "exemplar_escape": "Seed 7: UI-matrix over-claim (matrix integrity). A 'green' matrix reflects source presence + a one-off local run, not that the feature ran AND asserted in CI.",
+   "failure_missed": "A green UI matrix is presented as coverage while the backing tests skip in CI; over-claim of tested surface.",
+   "severity": "High",
+   "evidence": "phase-4 ui.matrix_pass_is (runtime CSV, last-write-wins conftest.py:85/575); 236 dialog + 131 act_* over-claimed rows",
+   "remediation": "Live RTM enforcement: a matrix cell is 'pass' only if the owning test RAN and ASSERTED in the CI run that produced the CSV; forbid rebuilding the matrix from committed green; make SKIP clobbering impossible (owner-only writes) (SC-f)."
+  },
+  {
+   "id": "R-29",
+   "phase": "P4",
+   "class": "oracle-weakness",
+   "location": "visual oracles: tests/visual/diff.py, tests/ui_harness/core/golden.py, test_ui_annotations.py, test_ui_page_operations.py",
+   "description": "PrintWindow/SSIM/pixel_diff/golden mechanisms exist but goldens self-seed (regen_golden), thresholds are relaxed (SSIM>=0.85), and the dominant assertion is a CHANGE-detector (SSIM<0.95 OR pixel_diff>=0.0001 == 'changed' == pass) rather than a correctness oracle.",
+   "exemplar_escape": "Canvas renders MIRRORED / wrong-zoom / half-size / tofu glyphs / wrong icon -- the change-detector sees a diff and PASSES; a self-seeded golden makes a plausible-looking wrong render indistinguishable from correct.",
+   "failure_missed": "The exact shipped mirror/half-size/wrong-orientation render class passes the UI visual layer because 'it changed' is treated as 'it's correct'.",
+   "severity": "High",
+   "evidence": "phase-4 ui.visual_mechanisms + invisible_regression_classes (mirror/zoom/tofu/wrong-icon); self-seeding goldens, relaxed thresholds",
+   "remediation": "Commit correctness goldens produced by a trusted reference (not regen-from-current); assert against a known-correct baseline, not merely 'differs from before'; tighten thresholds for orientation/scale-sensitive views (SC-g)."
+  },
+  {
+   "id": "R-35",
+   "phase": "P1/P2",
+   "class": "coverage-gap",
+   "location": "lifecycle/teardown: tests/test_save_throw_undo_safety.cpp:286 (nearest existing); no window-close-mid-active-edit test",
+   "description": "There is no test that destroys the application/document while an edit or tool is active. The nearest coverage (save-that-throws undo rebind) is EXPECT_NO_THROW-only and only a hard crash on ASan fails it; on Debug/Release a logic-corrupting rebind passes. No test drives real window-close during an in-flight edit.",
+   "exemplar_escape": "Seed 2: crash-on-close mid-edit (no destruction-under-active-state test). The shipped ~MainWindow mid-edit teardown 0xC0000005 UAF class.",
+   "failure_missed": "The app crashes (UAF) when the user closes the window while a text/annotation edit is active; no test catches it outside an ASan hard-crash.",
+   "severity": "High",
+   "evidence": "phase-1 test_save_throw_undo_safety.cpp:286 (only-ASan-crash-fails); seed 2; memory pipeline_a3f8e21d (mid-edit teardown UAF)",
+   "remediation": "Add a destruction-under-active-state test matrix (close window / destroy document while each edit family + tool is active) run under ASan, asserting clean teardown; partial today -- only the save-throw sub-case exists."
+  },
+  {
+   "id": "R-17",
+   "phase": "P1",
+   "class": "oracle-weakness",
+   "location": "OCR: tests/test_ocr_pipeline.cpp:190",
+   "description": "OCR's user-visible truth is the recognized text; the oracle checks hocr non-empty + blocks>0. Gibberish recognition passes because no known word from the scanned fixture is asserted present; a DPI regression (RenderPageAt300Dpi accepts >100px) silently degrades OCR input.",
+   "exemplar_escape": "OCR mis-recognizes the page into gibberish and passes.",
+   "failure_missed": "User OCRs a scan and gets unusable text while the suite is green.",
+   "severity": "Med",
+   "evidence": "phase-1 test_ocr_pipeline.cpp:190; phase-2 top_uncovered_capabilities (OCR recognition quality)",
+   "remediation": "Assert a known word/string from the fixture appears in the hOCR; pin the render-DPI to a tolerance band."
+  },
+  {
+   "id": "R-22",
+   "phase": "P1",
+   "class": "oracle-weakness",
+   "location": "compliance/metadata: tests/test_prohibited_feature_scanner.cpp:39, test_xmp_metadata_writer.cpp:50, test_font_compliance_checker.cpp:96",
+   "description": "PDF/A and compliance scanners are tested only against clean fixtures asserting the scanner reports NOTHING; a scanner that always returns false/empty (never detects encryption/JS/external-refs) passes every test. XMP pdfaid part/conformance verified by substring-anywhere.",
+   "exemplar_escape": "A broken ProhibitedFeatureScanner silently passes non-compliant documents; a malformed pdfaid (part=3) passes.",
+   "failure_missed": "Non-compliant / mislabelled PDF/A documents pass validation and are delivered as compliant; green.",
+   "severity": "Med",
+   "evidence": "phase-1 test_prohibited_feature_scanner.cpp:39, test_xmp_metadata_writer.cpp:50, test_font_compliance_checker.cpp:96",
+   "remediation": "Add positive-detection fixtures (a doc WITH encryption/JS/external-ref) and assert the scanner flags each; assert pdfaid part/conformance at the correct XML node, not substring-anywhere."
+  },
+  {
+   "id": "R-23",
+   "phase": "P1",
+   "class": "oracle-weakness",
+   "location": "optimize leak: tests/test_optimize.cpp:175 (OptimizeDoesNotLeakDeletedFormFieldValues)",
+   "description": "Optimize (garbage=4) can leave stale/deleted form-field values or removed content embedded; the test reopens and asserts only pageCount>0, so the exact data-leak the test is named for ships green. (Related to R-08 gc-downgrade M09.)",
+   "exemplar_escape": "Deleted form-field values remain recoverable in the optimized output.",
+   "failure_missed": "A user 'removes' content and optimizes, but the content survives in the file; green.",
+   "severity": "Med",
+   "evidence": "phase-1 test_optimize.cpp:175; phase-2 top_uncovered_capabilities (Optimize deleted-content leak); phase-3 M09",
+   "remediation": "Assert the deleted value's bytes are ABSENT from the decompressed optimized stream (a real byte-absence oracle, as with redaction)."
+  },
+  {
+   "id": "R-30",
+   "phase": "P4/P6",
+   "class": "process",
+   "location": "GAP-A15 exit-code masking: pdfe_tests.exe exit code vs JUnit XML; windows-validation.yml JUnit parse",
+   "description": "pdfe_tests.exe can exit 0 while the JUnit XML records failures (tell-tale: tests != passed+skipped). Now DEFENDED in CI (XML sum-of-failures parsed, not exit code) and honored in phase-3 mutation runs; registered as the residual standing requirement so the defense is never removed.",
+   "exemplar_escape": "Seed 5: GAP-A15 exit-code masking (CI integrity) -- the original escape where a green exit code hid failing tests.",
+   "failure_missed": "If the JUnit-parse step is ever removed, a failing suite reports success on exit code alone.",
+   "severity": "Med",
+   "evidence": "phase-4 process gap_a15_junit_parsed_in_ci=true; phase-3 test_runner_evidence.junit_xml_parsed_all=true; gtest_exit_code_masking memory",
+   "remediation": "Keep the JUnit sum-of-failures check as a required, non-removable CI step; add a self-test that a deliberately-failing sentinel fails the build (SC-h)."
+  },
+  {
+   "id": "R-31",
+   "phase": "P4/P6",
+   "class": "process",
+   "location": "gate governance: ~/.claude/hooks/phase-gate.sh:218-241; tools/gate/emit-gate-verdict.sh",
+   "description": "The gate-reliability fix is REAL (verdicts derive from artifacts + parsed JUnit XML, no forgery allow-list). Residual: karen/validator/security-audit emit PASS with no independent evidence of their own; the hook only re-checks the test-runner XML, so a judgment gate can falsely bless a phase whose tests are green but whose acceptance criteria were not truly met.",
+   "exemplar_escape": "Seed 6: gate fabrication (governance) -- now structurally prevented for test-backed verdicts; the residual honor-system exposure is the judgment gates.",
+   "failure_missed": "A judgment gate signs off a phase that passes tests but does not meet acceptance criteria.",
+   "severity": "Med",
+   "evidence": "phase-4 process gate_verdict_source=artifact, forgery_allowlist_present=false, 'Judgment-gate verdict is honor-system (bounded)'",
+   "remediation": "Require judgment gates to cite machine-checkable evidence (specific acceptance-criterion artifacts) in their verdict payload; keep the red-XML veto as the hard floor."
+  },
+  {
+   "id": "R-32",
+   "phase": "P4",
+   "class": "process",
+   "location": "coverage floor: windows-validation.yml:346-374 (OpenCppCoverage->Cobertura)",
+   "description": "Coverage is best-effort: continue-on-error:true, silently skipped when the tool is absent, gated by NO floor. It produces an artifact but can never fail the build, so coverage regressions are invisible.",
+   "exemplar_escape": "A new untested subsystem (or a deleted test) drops coverage with no CI signal.",
+   "failure_missed": "Coverage silently erodes; the artifact exists but enforces nothing.",
+   "severity": "Med",
+   "evidence": "phase-4 process coverage_floor_enforced=false; windows-validation.yml:346-374",
+   "remediation": "Enforce a per-subsystem coverage floor that fails the build on regression; make the tool's absence a hard error, not a silent skip (SC-d)."
+  },
+  {
+   "id": "R-33",
+   "phase": "P2",
+   "class": "input-domain-gap",
+   "location": "hostile-input-matrix zero classes + adversarial fixture backlog",
+   "description": "4 of 38 hostile-input classes have ZERO fixture coverage: sheared/skewed CTM in content-stream (the direct geometric sibling of the -100 Tz mirror bug this audit exists for), 0-page document, 10k-page scale boundary, combining-marks/ZWJ/grapheme clusters. The adversarial-ambient corpus has half-SCALE cm but no shear.",
+   "exemplar_escape": "An injector that fails to reset a sheared ambient CTM emits slanted/parallelogram text/images -- untested; a legally-empty (0-page) doc crashes page(0)-assuming paths.",
+   "failure_missed": "Slanted/parallelogram edits on sheared-CTM pages, crash on 0-page docs, O(n^2) blowup at 10k pages, delete-half-a-grapheme corruption -- no red test today.",
+   "severity": "Med",
+   "evidence": "phase-2 zero_coverage_hostile_classes (4); consolidated_adversarial_fixture_backlog (shear/rotated/mediabox-offset/grapheme/0-page/10k)",
+   "remediation": "Add the phase-2 fixture backlog (aa_shear.pdf, aa_img_shear.pdf, rotated-edit, mediabox-offset, grapheme_clusters, zero_page, 10000page) and feed each through the injectors with the SC-a pixel/quad oracles."
+  },
+  {
+   "id": "R-36",
+   "phase": "P4",
+   "class": "process",
+   "location": "CI: .github/workflows/macos-validation.yml:118-120",
+   "description": "The macOS validation lane runs only PreflightOpen.*/PreflightXPlatform.* (a handful of isolation-boundary tests), not the full suite, so one of three advertised platforms provides almost no regression coverage.",
+   "exemplar_escape": "A macOS-specific regression outside the preflight subset ships green because the macOS lane never exercises the rest of the suite.",
+   "failure_missed": "Any macOS-only defect in the ~4360 tests outside the preflight subset is invisible on the macOS lane.",
+   "severity": "Med",
+   "evidence": "phase-4 process-critique.json finding 'macOS validation is a thin subset' (macos-validation.yml:118-120)",
+   "remediation": "Run the full (or a representative core) suite on the macOS lane, or drop the platform's advertised support claim to match reality."
+  },
+  {
+   "id": "R-34",
+   "phase": "P2",
+   "class": "input-domain-gap",
+   "location": "fixture catalog: 200 fixtures, 32 orphan, 1 missing-referenced; flaw_corpus (47) all -> one open-only smoke test",
+   "description": "Adversarial breadth exists but adversarial DEPTH per product-path is thin: 32 orphan fixtures are unreferenced by any test, and the 47-fixture flaw corpus all feed a single open-only smoke test (an open-parse pass is not a save/redact/render pass).",
+   "exemplar_escape": "A fixture crafted to stress the save/redact/render path is only ever opened, so the deeper path it was built for is never exercised.",
+   "failure_missed": "Adversarial inputs prove open() survives but never prove save/redact/render survive; orphan fixtures test nothing.",
+   "severity": "Low",
+   "evidence": "phase-2 fixture_totals.orphan=32, missing_referenced=1; cross_validation (flaw_corpus open-only)",
+   "remediation": "Wire orphan fixtures to a consumer test on their intended product path; extend the flaw corpus beyond open() to save/redact/render depth passes."
+  },
+  {
+   "id": "R-37",
+   "phase": "P4",
+   "class": "process",
+   "location": "CI: census.json:451; .github/workflows/windows-validation.yml:291-304",
+   "description": "Rerun-on-failure exists but known-flaky tests (PerfStressTest.TenThousandAnnotationsOnePage, MainWindowIntegrationTest.ZoomComboExists) are tracked only in inline comments \u2014 there is no machine-readable quarantine/xfail registry, so a test degrading from reliable to flaky is not a first-class signal and reruns can mask a slowly-worsening test.",
+   "exemplar_escape": "A test that silently drifts from reliable to intermittently-failing is absorbed by rerun-on-failure and never flagged as degrading.",
+   "failure_missed": "A slowly-worsening test (eventually a real regression) is masked by reruns with no quarantine ledger to surface the trend.",
+   "severity": "Low",
+   "evidence": "phase-4 process-critique.json finding 'No formal flaky quarantine ledger' (census.json:451; windows-validation.yml:291-304)",
+   "remediation": "Add a machine-readable flaky-quarantine/xfail registry with an entry+owner+expiry per known-flaky test; fail CI when an unregistered test flakes."
+  }
+ ],
+ "seed_coverage_check": {
+  "1": [
+   "R-03",
+   "R-04"
+  ],
+  "2": [
+   "R-35"
+  ],
+  "3": [
+   "R-04",
+   "R-14",
+   "R-03"
+  ],
+  "4": [
+   "R-20",
+   "R-29",
+   "R-27"
+  ],
+  "5": [
+   "R-30"
+  ],
+  "6": [
+   "R-31",
+   "R-24"
+  ],
+  "7": [
+   "R-28",
+   "R-24"
+  ],
+  "8": [
+   "R-02"
+  ],
+  "all_seeds_mapped": true
+ }
+}

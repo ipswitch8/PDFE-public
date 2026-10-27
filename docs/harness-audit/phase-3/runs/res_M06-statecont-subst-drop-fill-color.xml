@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="9" failures="2" disabled="0" errors="0" time="0.101" timestamp="2026-07-28T13:36:27.624" name="AllTests">
+  <testsuite name="ContentStreamSubstitutionTest" tests="9" failures="2" disabled="0" skipped="0" errors="0" time="0.099" timestamp="2026-07-28T13:36:27.626">
+    <testcase name="EmptySubstitutionsDelegatesToApplyEdits" file="tests/test_content_stream_substitution.cpp" line="225" status="run" result="completed" time="0.018" timestamp="2026-07-28T13:36:27.626" classname="ContentStreamSubstitutionTest" />
+    <testcase name="NullPageIsNoOp" file="tests/test_content_stream_substitution.cpp" line="242" status="run" result="completed" time="0.005" timestamp="2026-07-28T13:36:27.644" classname="ContentStreamSubstitutionTest" />
+    <testcase name="NullDocIsNoOp" file="tests/test_content_stream_substitution.cpp" line="254" status="run" result="completed" time="0.004" timestamp="2026-07-28T13:36:27.650" classname="ContentStreamSubstitutionTest" />
+    <testcase name="EmptyModificationsIsNoOp" file="tests/test_content_stream_substitution.cpp" line="266" status="run" result="completed" time="0.01" timestamp="2026-07-28T13:36:27.654" classname="ContentStreamSubstitutionTest" />
+    <testcase name="AccentedSubstitutionTextIsPresent" file="tests/test_content_stream_substitution.cpp" line="279" status="run" result="completed" time="0.011" timestamp="2026-07-28T13:36:27.664" classname="ContentStreamSubstitutionTest" />
+    <testcase name="BackwardCompatibleEditLands" file="tests/test_content_stream_substitution.cpp" line="301" status="run" result="completed" time="0.011" timestamp="2026-07-28T13:36:27.676" classname="ContentStreamSubstitutionTest" />
+    <testcase name="ScaledSubstitutionEditLands" file="tests/test_content_stream_substitution.cpp" line="320" status="run" result="completed" time="0.011" timestamp="2026-07-28T13:36:27.687" classname="ContentStreamSubstitutionTest" />
+    <testcase name="PerRunSubstitutionEditNotMirroredKeepsColor" file="tests/test_content_stream_substitution.cpp" line="343" status="run" result="completed" time="0.013" timestamp="2026-07-28T13:36:27.698" classname="ContentStreamSubstitutionTest">
+      <failure message="tests/test_content_stream_substitution.cpp:361&#10;Expected: (r) &gt; (0x60), actual: 30 vs 96&#10;edited glyph is (near) dark — original grey fill lost (r=30 g=29 b=29)&#10;" type="">tests/test_content_stream_substitution.cpp:361
+Expected: (r) &gt; (0x60), actual: 30 vs 96
+edited glyph is (near) dark — original grey fill lost (r=30 g=29 b=29)
+</failure>
+      <failure message="tests/test_content_stream_substitution.cpp:363&#10;The difference between r and 0xDB is 189, which exceeds 28, where&#10;r evaluates to 30,&#10;0xDB evaluates to 219, and&#10;28 evaluates to 28.&#10;" type="">tests/test_content_stream_substitution.cpp:363
+The difference between r and 0xDB is 189, which exceeds 28, where
+r evaluates to 30,
+0xDB evaluates to 219, and
+28 evaluates to 28.
+</failure>
+      <failure message="tests/test_content_stream_substitution.cpp:364&#10;The difference between g and 0xD0 is 179, which exceeds 28, where&#10;g evaluates to 29,&#10;0xD0 evaluates to 208, and&#10;28 evaluates to 28.&#10;" type="">tests/test_content_stream_substitution.cpp:364
+The difference between g and 0xD0 is 179, which exceeds 28, where
+g evaluates to 29,
+0xD0 evaluates to 208, and
+28 evaluates to 28.
+</failure>
+      <failure message="tests/test_content_stream_substitution.cpp:365&#10;The difference between b and 0xD0 is 179, which exceeds 28, where&#10;b evaluates to 29,&#10;0xD0 evaluates to 208, and&#10;28 evaluates to 28.&#10;" type="">tests/test_content_stream_substitution.cpp:365
+The difference between b and 0xD0 is 179, which exceeds 28, where
+b evaluates to 29,
+0xD0 evaluates to 208, and
+28 evaluates to 28.
+</failure>
+    </testcase>
+    <testcase name="LegacySubstitutionEditFullSizeKeepsColor" file="tests/test_content_stream_substitution.cpp" line="372" status="run" result="completed" time="0.013" timestamp="2026-07-28T13:36:27.712" classname="ContentStreamSubstitutionTest">
+      <failure message="tests/test_content_stream_substitution.cpp:392&#10;Expected: (r) &gt; (0x60), actual: 30 vs 96&#10;edited glyph lost its grey fill (r=30)&#10;" type="">tests/test_content_stream_substitution.cpp:392
+Expected: (r) &gt; (0x60), actual: 30 vs 96
+edited glyph lost its grey fill (r=30)
+</failure>
+      <failure message="tests/test_content_stream_substitution.cpp:393&#10;The difference between r and 0xDB is 189, which exceeds 28, where&#10;r evaluates to 30,&#10;0xDB evaluates to 219, and&#10;28 evaluates to 28.&#10;" type="">tests/test_content_stream_substitution.cpp:393
+The difference between r and 0xDB is 189, which exceeds 28, where
+r evaluates to 30,
+0xDB evaluates to 219, and
+28 evaluates to 28.
+</failure>
+      <failure message="tests/test_content_stream_substitution.cpp:394&#10;The difference between g and 0xD0 is 179, which exceeds 28, where&#10;g evaluates to 29,&#10;0xD0 evaluates to 208, and&#10;28 evaluates to 28.&#10;" type="">tests/test_content_stream_substitution.cpp:394
+The difference between g and 0xD0 is 179, which exceeds 28, where
+g evaluates to 29,
+0xD0 evaluates to 208, and
+28 evaluates to 28.
+</failure>
+      <failure message="tests/test_content_stream_substitution.cpp:395&#10;The difference between b and 0xD0 is 179, which exceeds 28, where&#10;b evaluates to 29,&#10;0xD0 evaluates to 208, and&#10;28 evaluates to 28.&#10;" type="">tests/test_content_stream_substitution.cpp:395
+The difference between b and 0xD0 is 179, which exceeds 28, where
+b evaluates to 29,
+0xD0 evaluates to 208, and
+28 evaluates to 28.
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

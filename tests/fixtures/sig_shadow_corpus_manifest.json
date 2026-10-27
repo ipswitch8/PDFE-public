@@ -1,0 +1,220 @@
+{
+  "fixtures": {
+    "sig_clean_signed.pdf": {
+      "byte_range": [
+        0,
+        1037,
+        9229,
+        261
+      ],
+      "byte_range_arrays_in_file": 1,
+      "byte_range_hole_bytes": 8192,
+      "bytes": 9490,
+      "contents_hole_bytes": 8192,
+      "expect_verdict": "CoversWholeFile",
+      "original_line": "Pay ACME Corporation the sum of 100 USD.",
+      "role": "control",
+      "signed_bytes": 1298,
+      "unsigned_after_range": 0,
+      "unsigned_in_gaps": 0
+    },
+    "sig_docmdp_multirev.pdf": {
+      "appended_per_revision": [
+        503,
+        532,
+        542
+      ],
+      "attacker_revisions": 3,
+      "byte_range": [
+        0,
+        1205,
+        9397,
+        261
+      ],
+      "byte_range_arrays_in_file": 1,
+      "byte_range_hole_bytes": 8192,
+      "bytes": 11235,
+      "catalog_rewrites": 3,
+      "contents_hole_bytes": 8192,
+      "expect_level": 1,
+      "expect_verdict": "ContentAppendedAfterSignedRange",
+      "role": "attacker-added revision chain against a /P 1 certification",
+      "signed_bytes": 1466,
+      "unsigned_after_range": 1577,
+      "unsigned_in_gaps": 0
+    },
+    "sig_fieldmdp_locked.pdf": {
+      "byte_range": [
+        0,
+        1903,
+        10095,
+        323
+      ],
+      "byte_range_arrays_in_file": 1,
+      "byte_range_hole_bytes": 8192,
+      "bytes": 10678,
+      "changed_field": "locked_field",
+      "contents_hole_bytes": 8192,
+      "expect_field_lock_violated": true,
+      "expect_level": 2,
+      "expect_verdict": "ContentAppendedAfterSignedRange",
+      "locked_fields": [
+        "locked_field"
+      ],
+      "role": "FieldMDP locked-field update (/P 2 certified)",
+      "signed_bytes": 2226,
+      "unsigned_after_range": 260,
+      "unsigned_in_gaps": 0
+    },
+    "sig_fieldmdp_unlocked.pdf": {
+      "byte_range": [
+        0,
+        1903,
+        10095,
+        323
+      ],
+      "byte_range_arrays_in_file": 1,
+      "byte_range_hole_bytes": 8192,
+      "bytes": 10676,
+      "changed_field": "free_field",
+      "contents_hole_bytes": 8192,
+      "expect_field_lock_violated": false,
+      "expect_level": 2,
+      "expect_verdict": "ContentAppendedAfterSignedRange",
+      "locked_fields": [
+        "locked_field"
+      ],
+      "role": "FieldMDP unlocked-field update (/P 2 certified)",
+      "signed_bytes": 2226,
+      "unsigned_after_range": 258,
+      "unsigned_in_gaps": 0
+    },
+    "sig_iso_docmdp_p1.pdf": {
+      "byte_range": [
+        0,
+        1205,
+        9397,
+        261
+      ],
+      "byte_range_arrays_in_file": 1,
+      "byte_range_hole_bytes": 8192,
+      "bytes": 9658,
+      "contents_hole_bytes": 8192,
+      "expect_level": 1,
+      "expect_verdict": "CoversWholeFile",
+      "role": "ISO-layout certification (/Reference /TransformParams)",
+      "signed_bytes": 1466,
+      "unsigned_after_range": 0,
+      "unsigned_in_gaps": 0
+    },
+    "sig_iso_docmdp_p3.pdf": {
+      "byte_range": [
+        0,
+        1205,
+        9397,
+        261
+      ],
+      "byte_range_arrays_in_file": 1,
+      "byte_range_hole_bytes": 8192,
+      "bytes": 9658,
+      "contents_hole_bytes": 8192,
+      "expect_level": 3,
+      "expect_verdict": "CoversWholeFile",
+      "role": "ISO-layout certification (/Reference /TransformParams)",
+      "signed_bytes": 1466,
+      "unsigned_after_range": 0,
+      "unsigned_in_gaps": 0
+    },
+    "sig_orphan_widget_signed.pdf": {
+      "acroform_linked_from_root": false,
+      "applied_signatures": 1,
+      "byte_range": [
+        0,
+        1021,
+        9213,
+        261
+      ],
+      "byte_range_arrays_in_file": 1,
+      "byte_range_hole_bytes": 8192,
+      "bytes": 9474,
+      "contents_hole_bytes": 8192,
+      "expect_verdict": "CoversWholeFile",
+      "original_line": "Pay ACME Corporation the sum of 100 USD.",
+      "role": "applied signature reachable ONLY from the page /Annots (no /Root /AcroForm) \u2014 F26 under-warn regression fixture",
+      "signed_bytes": 1282,
+      "unsigned_after_range": 0,
+      "unsigned_in_gaps": 0
+    },
+    "sig_shadow_hide.pdf": {
+      "appended_bytes": 318,
+      "byte_range": [
+        0,
+        1037,
+        9229,
+        261
+      ],
+      "byte_range_arrays_in_file": 1,
+      "byte_range_hole_bytes": 8192,
+      "bytes": 9808,
+      "contents_hole_bytes": 8192,
+      "expect_verdict": "ContentAppendedAfterSignedRange",
+      "original_line": "Pay ACME Corporation the sum of 100 USD.",
+      "rendered_line": "(nothing to see here)",
+      "role": "incremental-update shadow attack (hide)",
+      "signed_bytes": 1298,
+      "signed_prefix_matches": "sig_clean_signed.pdf",
+      "unsigned_after_range": 318,
+      "unsigned_in_gaps": 0
+    },
+    "sig_shadow_replace.pdf": {
+      "appended_bytes": 303,
+      "byte_range": [
+        0,
+        1037,
+        9229,
+        261
+      ],
+      "byte_range_arrays_in_file": 1,
+      "byte_range_hole_bytes": 8192,
+      "bytes": 9793,
+      "contents_hole_bytes": 8192,
+      "expect_verdict": "ContentAppendedAfterSignedRange",
+      "original_line": "Pay ACME Corporation the sum of 100 USD.",
+      "rendered_line": "Pay EVIL Holdings the sum of 100000 USD.",
+      "role": "incremental-update shadow attack (replace)",
+      "signed_bytes": 1298,
+      "signed_prefix_matches": "sig_clean_signed.pdf",
+      "unsigned_after_range": 303,
+      "unsigned_in_gaps": 0
+    },
+    "sig_wrapping_two_byteranges.pdf": {
+      "byte_range": [
+        0,
+        1037,
+        11288,
+        250
+      ],
+      "byte_range_arrays_in_file": 2,
+      "byte_range_hole_bytes": 10251,
+      "bytes": 11538,
+      "contents_hole_bytes": 8192,
+      "expect_verdict": "GapInSignedRange",
+      "gap_bytes": 2059,
+      "gap_marker": "PDFE-F21-WRAPPED-PAYLOAD-NOT-COVERED-BY-BYTERANGE",
+      "injected_bytes": 2048,
+      "role": "signature wrapping",
+      "signed_bytes": 1287,
+      "unsigned_after_range": 0,
+      "unsigned_in_gaps": 2059
+    }
+  },
+  "gap_ids": [
+    "PDF-33",
+    "PDF-36",
+    "PDF-37"
+  ],
+  "generator": "tests/fixtures/gen_sig_shadow_corpus.py",
+  "phase": "F21 (meta-audit-2026-07 follow-up phase-2)",
+  "signer": "tests/fixtures/test_signer.pfx (password test123)",
+  "synthetic": true
+}

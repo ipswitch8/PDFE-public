@@ -1,0 +1,20 @@
+{
+  "_comment": "F31/R-24 third control: an anchor that occurs MORE THAN ONCE is as unusable as one that is absent -- mutation_kill applies the replacement to the first match only, so an ambiguous anchor silently mutates a site the author did not mean. 'pdfe_sweep_fixture' appears twice in tools/gate/fixtures/mutant_sweep_target.cpp (namespace open and close comment), so the sweep must report FX20 FAIL and exit 2. See tools/gate/test_mutation_manifest_sweep.py.",
+  "build": {
+    "cmake": "cmake",
+    "build_preset": "debug-vs2022",
+    "test_exe": "build/vs2022/bin/Debug/pdfe_tests.exe"
+  },
+  "mutants": [
+    {
+      "id": "FX20-sweep-ambiguous-anchor",
+      "file": "tools/gate/fixtures/mutant_sweep_target.cpp",
+      "find": "pdfe_sweep_fixture",
+      "replace": "pdfe_sweep_fixture_mutated",
+      "target": "pdfe_tests",
+      "killing_test": "SweepFixture.Ambiguous",
+      "expected": "killed",
+      "note": "AMBIGUOUS ON PURPOSE: two occurrences in the fixture target."
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "_purpose": "GitHub #211 layer 2. For every gtest suite parameterised over DISCOVERED ARTEFACTS, state the artefact set independently of the test binary so a case that was never instantiated is a RED, not a silence. See tools/gate/check_param_suite_reconciliation.py. Layer 1 (enumeration vs XML) cannot catch this shape: with no artefacts present, --gtest_list_tests omits the cases too, so enumeration and XML agree perfectly on a suite that is 100% missing.",
+  "_recorded": "2026-09-18",
+  "_how_to_extend": "Add an entry when you write an INSTANTIATE_TEST_SUITE_P whose ValuesIn() comes from a filesystem scan. The 'artefacts'/'exclude'/'require_sibling' keys must MIRROR the C++ discovery predicate; quote the predicate in 'why' so the two can be re-checked against each other.",
+  "expectations": [
+    {
+      "suite": "RealworldFixtures/RealworldCorpusTest",
+      "artefacts": ["tests/fixtures/realworld/**/*.expected.json"],
+      "require_sibling": ".pdf",
+      "strip_suffix": ".expected.json",
+      "min_artefacts": 20,
+      "why": "tests/test_realworld_corpus.cpp discoverFixtures() walks tests/fixtures/realworld/ with recursive_directory_iterator, accepts every '*.expected.json', and keeps it only if the same-stem '.pdf' exists. This is the suite PDF-79 was found in: seventeen fixtures had no sidecars, so seventeen cases did not exist and the suite was green throughout. min_artefacts is a floor well below the current population so a wholesale corpus loss reddens even before the per-case comparison."
+    },
+    {
+      "suite": "ExternalCorpus/ExternalRealWorldTest",
+      "artefacts": ["tests/fixtures/realworld/*.pdf"],
+      "exclude": ["tests/fixtures/realworld/test_*.pdf"],
+      "min_artefacts": 5,
+      "why": "tests/test_realworld_external_corpus.cpp collectExternalCorpus() uses a NON-recursive directory_iterator over tests/fixtures/realworld/, takes '*.pdf', and skips stems beginning 'test_' (the synthetic fixtures belonging to the suite above). min_artefacts=5 mirrors ExternalRealWorldMeta.CorpusAssembled's own EXPECT_GE(pdfs.size(), 5u) -- but note that test SKIPS when the corpus is empty, which is exactly the vacuous-green shape this expectation closes: a skip is green, an unmet expectation here is not."
+    }
+  ],
+  "_deliberately_not_listed": {
+    "I18nRtlCjk/ExtractionFidelitySidecarTest": "NOT discovery-driven -- ::testing::Values(\"i18n_rtl\", \"i18n_cjk\", \"i18n_combining\") is a literal list, and tests/test_extraction_fidelity_sidecars.cpp already carries ExtractionFidelitySidecarInventory.EveryCommittedSidecarIsExercised, which asserts the committed sidecar set equals the consumed set. That is the same control, in-suite.",
+    "Corpus/HostileNameRoundTrip, AutosaveMatrix/AutosaveMatrixTest, F6/PreservationMatrix, TempWriteBlockModes/*, AllEditFamilies/*, AllOpsBothSaveModes/*, AllPageHoldingFamilies/*, AllPageInvalidatingPaths/*, BothEditKinds/*, ShadowAttacks/*, UnmodeledFeatures/*, UnprovenSafeFamilies/*": "Parameterised over COMPILED-IN value lists, not over discovered files. Their instantiation count is a property of the source, which layer 1 (enumeration vs XML) already reconciles. Listing them here would add rows that cannot express anything layer 1 does not."
+  }
+}

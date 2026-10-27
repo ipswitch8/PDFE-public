@@ -1,0 +1,22 @@
+{
+  "pageCount": 1,
+  "isEncrypted": false,
+  "hasForm": false,
+  "hasForms": false,
+  "hasAnnotations": false,
+  "hasImages": false,
+  "pdfVersion": "1.4",
+  "fileSize": 1204,
+  "origin": "phase3-generator",
+  "category_tags": [
+    "pdf-1.4",
+    "vector-text",
+    "ascii-only",
+    "no-encryption"
+  ],
+  "description": "Minimal PDF 1.4 doc with ASCII body for version-fallback tests.",
+  "scripts": [
+    "ascii"
+  ],
+  "contentKind": "vector-text"
+}

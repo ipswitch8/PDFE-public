@@ -1,0 +1,22 @@
+{
+  "pageCount": 100,
+  "isEncrypted": false,
+  "hasForm": false,
+  "hasForms": false,
+  "hasAnnotations": false,
+  "hasImages": true,
+  "pdfVersion": "1.7",
+  "fileSize": 23127304,
+  "origin": "phase3-generator",
+  "category_tags": [
+    "medium",
+    "large-corpus",
+    "100-page",
+    "image-heavy"
+  ],
+  "description": "100 pages, each with a 320x240 deterministic noise PNG. File size 23127304 bytes.",
+  "scripts": [
+    "ascii"
+  ],
+  "contentKind": "mixed"
+}

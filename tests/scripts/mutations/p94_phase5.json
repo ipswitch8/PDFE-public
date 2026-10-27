@@ -1,0 +1,94 @@
+{
+  "pipeline": "p94-open-issues phase-5 (GitHub #261)",
+  "notes": [
+    "GitHub #261 was six tests that GTEST_SKIP()'d on every run, everywhere,",
+    "because each resolved its input from an absolute path inside another",
+    "developer's home directory. Making them RUN is only half the fix: a test",
+    "that runs and cannot fail is worth no more than one that skips, and these",
+    "six had never been exercised by anything, so nothing had ever shown they",
+    "could go red.",
+    "",
+    "Each mutation below reverses one behaviour a now-running case asserts.",
+    "The C2 cache cases carry the weight: P5-M1 restores the kMaxCachedPages=3",
+    "cap that C2 exists to replace, which is the exact regression these three",
+    "were written to catch and which nothing has been able to catch since they",
+    "started skipping.",
+    "",
+    "The two tessdata mutations reach production through HocrParser and",
+    "FontMatcher. The size-fit case (RealWorldPdf_FontSize_FitsInSpanBbox) has",
+    "no mutation here on purpose: its final assertion re-implements",
+    "ImageReplacer's capping arithmetic inside the test body rather than",
+    "calling it, so no production change reaches the oracle. That is a real",
+    "weakness of the case, recorded rather than papered over -- it is a",
+    "diagnostic that proves OCR and font matching complete on a scan, not a",
+    "guard on the capping rule."
+  ],
+  "mutations": [
+    {
+      "id": "P5-M1",
+      "what": "restores the old kMaxCachedPages=3 page-count cap in place of the byte budget -- the exact regression C2 removed",
+      "file": "src/tre/ImageReplacer.cpp",
+      "find": "        // Evict LRU entries until we can fit the new one.\n        evictUntilFits(cacheBudgetBytes_ - cost);",
+      "replace": "        // MUTATION-P94-P5M1: page-count cap instead of the byte budget.\n        while (cacheAccessOrder_.size() >= 3) {  // MUTATION-P94-P5M1\n            int evictIdx = cacheAccessOrder_.front();\n            cacheAccessOrder_.erase(cacheAccessOrder_.begin());\n            auto ev = originalImageCache_.find(evictIdx);\n            if (ev != originalImageCache_.end()) {\n                cacheBytes_ -= imageBytes(ev->second);\n                if (cacheBytes_ < 0) cacheBytes_ = 0;\n                originalImageCache_.erase(ev);\n                ++cacheEvictions_;\n            }\n        }",
+      "marker": "MUTATION-P94-P5M1",
+      "targets": ["pdfe_tests"],
+      "filter": "C2SpecimenBCacheTest.*:C2ImageCacheTest.*",
+      "expect_fail": [
+        "C2SpecimenBCacheTest.NonSequentialEditingKeepsEarlyPages",
+        "C2SpecimenBCacheTest.BudgetShrinkEvictsImmediately"
+      ]
+    },
+    {
+      "id": "P5-M2",
+      "what": "stops setCacheBudgetBytes applying the new budget immediately, so a shrink only takes effect on the next insertion",
+      "file": "src/tre/ImageReplacer.cpp",
+      "find": "    } else {\n        pImpl_->evictUntilFits(pImpl_->cacheBudgetBytes_);\n    }",
+      "replace": "    } else {\n        // MUTATION-P94-P5M2: deferred, not immediate.\n    }",
+      "marker": "MUTATION-P94-P5M2",
+      "targets": ["pdfe_tests"],
+      "filter": "C2SpecimenBCacheTest.*:C2ImageCacheTest.*",
+      "expect_fail": [
+        "C2SpecimenBCacheTest.BudgetShrinkEvictsImmediately"
+      ]
+    },
+    {
+      "id": "P5-M3",
+      "what": "makes every lookup a miss -- the cache stores but never serves, which is what the pre-C2 3-page cap amounted to for non-sequential editing",
+      "file": "src/tre/ImageReplacer.cpp",
+      "find": "            cacheAccessOrder_.push_back(pageIndex);\n            ++cacheHits_;\n            return it->second;",
+      "replace": "            cacheAccessOrder_.push_back(pageIndex);\n            // MUTATION-P94-P5M3: fall through to a re-decode instead of serving.\n            originalImageCache_.erase(it);",
+      "marker": "MUTATION-P94-P5M3",
+      "targets": ["pdfe_tests"],
+      "filter": "C2SpecimenBCacheTest.*:C2ImageCacheTest.*",
+      "expect_fail": [
+        "C2SpecimenBCacheTest.NonSequentialEditingKeepsEarlyPages"
+      ]
+    },
+    {
+      "id": "P5-M4",
+      "what": "misclassifies Latin text as Arabic, the misdetection that put an Arabic face on an English scan",
+      "file": "src/tre/FontMatcher.cpp",
+      "find": "pdfe::fonts::FontScript FontMatcher::detectScript(const std::u32string& text)\n{\n    int latinCount = 0;",
+      "replace": "pdfe::fonts::FontScript FontMatcher::detectScript(const std::u32string& text)\n{\n    if (!text.empty()) return pdfe::fonts::FontScript::Arabic;  // MUTATION-P94-P5M4\n    int latinCount = 0;",
+      "marker": "MUTATION-P94-P5M4",
+      "targets": ["pdfe_tests"],
+      "filter": "TessdataFontDetectionTest.RealWorldPdf_*",
+      "expect_fail": [
+        "TessdataFontDetectionTest.RealWorldPdf_FontDetection_SansSerif"
+      ]
+    },
+    {
+      "id": "P5-M5",
+      "what": "shrinks extractRegion's pixel bbox to the raw selection instead of the union of the OCR lines it covers -- the under-sized render box that leaves ghost text behind",
+      "file": "src/tre/HocrParser.cpp",
+      "find": "    // Set the pixel bounding box as the union of all included lines\n    result.pixelBbox = unionBbox(includedLineBboxes);",
+      "replace": "    // MUTATION-P94-P5M5: raw selection, not the union of covered lines.\n    result.pixelBbox = selectionPixels;  // MUTATION-P94-P5M5",
+      "marker": "MUTATION-P94-P5M5",
+      "targets": ["pdfe_tests"],
+      "filter": "TessdataFontDetectionTest.RealWorldPdf_*",
+      "expect_fail": [
+        "TessdataFontDetectionTest.RealWorldPdf_GhostText_BboxOverlap"
+      ]
+    }
+  ]
+}

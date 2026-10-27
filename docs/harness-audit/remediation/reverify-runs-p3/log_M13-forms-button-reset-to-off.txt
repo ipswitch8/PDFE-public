@@ -1,0 +1,102 @@
+Note: Google Test filter = Phase5FormsTest.*:FormManagerTest.*
+[==========] Running 27 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 17 tests from FormManagerTest
+[ RUN      ] FormManagerTest.GetFormFieldsOnPageWithForms
+[       OK ] FormManagerTest.GetFormFieldsOnPageWithForms (9 ms)
+[ RUN      ] FormManagerTest.GetFormFieldsOnPageWithoutForms
+[       OK ] FormManagerTest.GetFormFieldsOnPageWithoutForms (3 ms)
+[ RUN      ] FormManagerTest.GetFormFieldByIndex
+[       OK ] FormManagerTest.GetFormFieldByIndex (4 ms)
+[ RUN      ] FormManagerTest.GetFormFieldByIndex_Invalid
+[       OK ] FormManagerTest.GetFormFieldByIndex_Invalid (5 ms)
+[ RUN      ] FormManagerTest.HitTestFormField
+[       OK ] FormManagerTest.HitTestFormField (5 ms)
+[ RUN      ] FormManagerTest.HitTestMiss
+[       OK ] FormManagerTest.HitTestMiss (4 ms)
+[ RUN      ] FormManagerTest.SetTextFieldValue
+[       OK ] FormManagerTest.SetTextFieldValue (4 ms)
+[ RUN      ] FormManagerTest.ToggleCheckbox
+[       OK ] FormManagerTest.ToggleCheckbox (4 ms)
+[ RUN      ] FormManagerTest.HasFormFields_True
+[       OK ] FormManagerTest.HasFormFields_True (3 ms)
+[ RUN      ] FormManagerTest.HasFormFields_False
+[       OK ] FormManagerTest.HasFormFields_False (2 ms)
+[ RUN      ] FormManagerTest.NullPageThrows
+[       OK ] FormManagerTest.NullPageThrows (2 ms)
+[ RUN      ] FormManagerTest.GetTabOrder
+[       OK ] FormManagerTest.GetTabOrder (3 ms)
+[ RUN      ] FormManagerTest.FormFieldDataHasType
+[       OK ] FormManagerTest.FormFieldDataHasType (3 ms)
+[ RUN      ] FormManagerTest.ResetForm_NoWidgets_NocrashNullGuard
+[       OK ] FormManagerTest.ResetForm_NoWidgets_NocrashNullGuard (2 ms)
+[ RUN      ] FormManagerTest.ResetForm_WithWidgets_NocrashNullGuard
+[       OK ] FormManagerTest.ResetForm_WithWidgets_NocrashNullGuard (3 ms)
+[ RUN      ] FormManagerTest.ResetTxWidgetFromObj_NullFieldObj_GuardReturnsFalse
+[       OK ] FormManagerTest.ResetTxWidgetFromObj_NullFieldObj_GuardReturnsFalse (2 ms)
+[ RUN      ] FormManagerTest.ResetTxWidgetFromObj_NonNullFieldObj_ReturnsTrueEntersBody
+[       OK ] FormManagerTest.ResetTxWidgetFromObj_NonNullFieldObj_ReturnsTrueEntersBody (3 ms)
+[----------] 17 tests from FormManagerTest (71 ms total)
+
+[----------] 10 tests from Phase5FormsTest
+[ RUN      ] Phase5FormsTest.TextFieldValueCommitsAndPersists
+[       OK ] Phase5FormsTest.TextFieldValueCommitsAndPersists (3 ms)
+[ RUN      ] Phase5FormsTest.RadioGroupExclusivity
+[       OK ] Phase5FormsTest.RadioGroupExclusivity (2 ms)
+[ RUN      ] Phase5FormsTest.PushButtonToggleNoCrash
+[       OK ] Phase5FormsTest.PushButtonToggleNoCrash (6 ms)
+[ RUN      ] Phase5FormsTest.JavaScriptValidateEventReturnsBoolean
+[       OK ] Phase5FormsTest.JavaScriptValidateEventReturnsBoolean (15 ms)
+[ RUN      ] Phase5FormsTest.XfdfRoundTripPreservesFieldValues
+[       OK ] Phase5FormsTest.XfdfRoundTripPreservesFieldValues (5 ms)
+[ RUN      ] Phase5FormsTest.ResetFormRestoresDefaultValues
+[       OK ] Phase5FormsTest.ResetFormRestoresDefaultValues (49 ms)
+[ RUN      ] Phase5FormsTest.ResetFormRestoresCheckboxDefaultOnState
+C:\Users\dev\source\PDFE\tests\test_forms_phase5.cpp(461): error: Expected equality of these values:
+  mgr.getFormField(dvPage.get(), cbIdx).value
+    Which is: "Off"
+  kAgreeTermsDvOn
+    Which is: "Yes"
+resetForm must restore a checkbox to its /DV on-state (/Yes), not hard-code it to /Off.
+
+C:\Users\dev\source\PDFE\tests\test_forms_phase5.cpp(483): error: Expected equality of these values:
+  rMgr.getFormField(rPage.get(), rIdx).value
+    Which is: "Off"
+  kAgreeTermsDvOn
+    Which is: "Yes"
+The checkbox reset-to-/DV on-state must persist across save+reopen.
+
+[  FAILED  ] Phase5FormsTest.ResetFormRestoresCheckboxDefaultOnState (14 ms)
+[ RUN      ] Phase5FormsTest.FlattenFormRemovesInteractiveWidgets
+[       OK ] Phase5FormsTest.FlattenFormRemovesInteractiveWidgets (13 ms)
+[ RUN      ] Phase5FormsTest.HostAllowlistBlocksDisallowedHosts
+[       OK ] Phase5FormsTest.HostAllowlistBlocksDisallowedHosts (2 ms)
+[ RUN      ] Phase5FormsTest.SignatureWidgetTypeIsDistinctFromOthers
+[       OK ] Phase5FormsTest.SignatureWidgetTypeIsDistinctFromOthers (2 ms)
+[----------] 10 tests from Phase5FormsTest (116 ms total)
+
+[----------] Global test environment tear-down
+
+============ ADVERSARIAL-AMBIENT GAP REGISTER (content-stream-continuity phase-1 discovery) ============
+injector               hostile_op   injected  neighbor  probed   notes
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+CONFIRMED corrupting cells (probed AND injected_ok==false OR neighbor_ok==false):
+cells=0 probed=0 confirmed_corrupt=0
+====================================================================================================
+
+[AdversarialAmbient] no cells this run (filtered subset) — leaving gap-register.json intact
+
+================ AUTOSAVE CAPTURE GAP REGISTER (phase-1 discovery) ================
+family                 undoAP dirty    autosave  capture  restore  probed 
+------------------------------------------------------------------------------------
+====================================================================================
+GAP = probed family whose edit is NOT captured by autosave (capture_present == NO).
+
+[AutosaveCaptureAudit] no audit rows this run (filtered subset) — leaving gap-register.json intact
+[==========] 27 tests from 2 test suites ran. (190 ms total)
+[  PASSED  ] 26 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] Phase5FormsTest.ResetFormRestoresCheckboxDefaultOnState
+
+ 1 FAILED TEST

@@ -1,0 +1,90 @@
+# Pinned Python deps for the PDFE pywinauto / WinAppDriver UI test
+# harness under tests/ui_automation/. Bump deliberately; pinned for
+# reproducibility across CI and developer desktops.
+#
+# Runtime layout:
+#   - pywinauto drives Qt UIA controls inside the MainWindow subtree
+#     (the legacy primary harness; covers ~487 matrix rows).
+#   - Appium-Python-Client drives the W3C WebDriver protocol against
+#     WinAppDriver for native Win32 modal dialogs (#32770) that live
+#     outside the MainWindow subtree — used by Pipeline H Category A
+#     tests for the file Open/Save dialogs that pywinauto cannot
+#     reliably resolve under non-interactive automation.
+#
+# Install + run WinAppDriver service (one-time, on the test desktop):
+#   1. Install from https://github.com/microsoft/WinAppDriver/releases
+#      (default install path: C:\Program Files (x86)\Windows
+#      Application Driver\WinAppDriver.exe).
+#   2. Enable Developer Mode in Windows Settings (required by
+#      WinAppDriver for SendKeys / element actions).
+#   3. Launch WinAppDriver.exe — it listens on 127.0.0.1:4723 by
+#      default. Tests skip cleanly when this endpoint is not
+#      reachable, so the helper is opt-in.
+#
+# Install Python deps:
+#   python -m pip install -r tests/ui_automation/requirements.txt
+
+# Primary UIA driver for Qt widgets that DO live in MainWindow's
+# UIA subtree (menus, toolbars, dialogs with stable Qt objectName).
+pywinauto==0.6.9
+
+# WinAppDriver client for native Win32 dialogs and any flow that
+# needs the W3C protocol (e.g. file Open/Save shell dialogs that
+# pywinauto's UIA backend resolves unreliably). Pipeline H phase-1.
+Appium-Python-Client>=3.1,<4.0
+
+# pytest is the runner; conftest.py + record_matrix_result depend
+# on it. Pinned to a version compatible with the conftest fixtures.
+pytest>=8.0,<9.0
+
+# pikepdf is used by tests that synthesize PDF fixtures inline
+# (e.g. test_attachment_panel_list_shows_embedded_files synthesizes
+# /EmbeddedFiles fixtures via pikepdf.AttachedFileSpec).
+pikepdf>=8.0
+
+# pymupdf (fitz) is used for read-only verification of PDF state
+# after a UI flow (e.g. checking /Rotate, page count, /AcroForm
+# /CO order in a saved file).
+pymupdf>=1.24
+
+# Pipeline L phase-1 (Option 1): per-test process isolation.
+# pytest-forked uses os.fork() (Unix-only) and pytest-isolate uses
+# fcntl (Unix-only) — neither works on Windows. We implement our own
+# Windows-compatible @pytest.mark.forked in conftest.py via subprocess
+# (pytest_runtest_protocol hook). No additional pip dependency
+# required for this option.
+
+# Pipeline f2a8c3e1 phase-5b: hard test-level timeout enforcement.
+# tests/test_ui_file_operations.py::test_save_as_overwrite_existing_file
+# uses @pytest.mark.timeout(60) to prevent the OS-shell "Confirm Save
+# As" prompt from wedging the user's desktop indefinitely (observed
+# >70 min hang during the phase-5 live sweep).  Without pytest-timeout
+# installed, the @pytest.mark.timeout(...) decorator silently degrades
+# to a no-op and the hang protection is gone.  Required for any test
+# session that touches test_save_as_overwrite_existing_file or any
+# future test that adds a @pytest.mark.timeout(...) decorator.
+pytest-timeout>=2.0
+
+# Imported by tests/helpers/pdfe_session.py to enumerate, force-kill,
+# and inspect PDFE.exe processes between tests. Without it, every
+# tests/test_ui_*.py collection fails at import time with
+# "ModuleNotFoundError: No module named 'psutil'".
+psutil>=5.9,<8.0
+
+# Fallback automation for raster/canvas drag/click when the UIA
+# tree cannot resolve a target (PdfCanvas custom-painted widget).
+# Imported by tests/test_ui_canvas_*.py and several ui_automation
+# tests under PixelInput strategy.
+pyautogui>=0.9,<1.0
+
+# Pillow is needed by gen_fixtures.py and by UI tests that diff
+# screenshots; already pinned in tests/fixtures/image_pdf/
+# requirements.txt but listed here too because the UI test layer
+# uses it directly (see test_ui_chrome_smoke.py imports).
+Pillow>=10.0,<13.0
+
+# numpy is imported by tests/visual/diff.py (screenshot diffing
+# under PIL → np.ndarray). Without it, conftest.py:_janitor cannot
+# import the visual diff helpers and the whole UI session fails
+# at collection time with "No module named 'numpy'".
+numpy>=1.26,<3.0

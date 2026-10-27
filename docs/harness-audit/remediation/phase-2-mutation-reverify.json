@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "phase": "remediation/phase-2",
+  "description": "Re-verification that phase-3 SURVIVING mutants M04/M05/M06/M07 are now KILLED by the strengthened render/glyph-quad oracles added in phase-2. Parsed from the per-mutant JUnit XMLs in reverify-runs-p2/ (produced by docs/harness-audit/phase-3/run_mutations.py --only M04,M05,M06,M07). A mutant is KILLED when a targeted test in its filter fails on the behaviour-breaking edit.",
+  "generated": "2026-07-28 13:38:24",
+  "source_harness": "docs/harness-audit/phase-3/run_mutations.py",
+  "mutants": [
+    {
+      "id": "M04",
+      "mutant_id": "M04-statecont-subst-tz-mirror",
+      "file": "src/textedit/ContentStreamEditor.cpp",
+      "defect": "hScale 100->-100 (edited text MIRRORED)",
+      "test_filter": "ContentStreamSubstitutionTest.*",
+      "phase3_status": "SURVIVED",
+      "reverify_status": "KILLED",
+      "tests_run": 9,
+      "failures": 1,
+      "errors": 0,
+      "killed_by": [
+        "ContentStreamSubstitutionTest.PerRunSubstitutionEditNotMirroredKeepsColor"
+      ],
+      "xml": "reverify-runs-p2/res_M04-statecont-subst-tz-mirror.xml"
+    },
+    {
+      "id": "M05",
+      "mutant_id": "M05-statecont-alignment-offset-noop",
+      "file": "src/reflow/TextReflowEngine.cpp",
+      "defect": "Center offset ->0 (centered text left-aligned)",
+      "test_filter": "AlignmentInjectorTest.*",
+      "phase3_status": "SURVIVED",
+      "reverify_status": "KILLED",
+      "tests_run": 6,
+      "failures": 1,
+      "errors": 0,
+      "killed_by": [
+        "AlignmentInjectorTest.CenteredLineIsActuallyCenteredNotLeftAligned"
+      ],
+      "xml": "reverify-runs-p2/res_M05-statecont-alignment-offset-noop.xml"
+    },
+    {
+      "id": "M06",
+      "mutant_id": "M06-statecont-subst-drop-fill-color",
+      "file": "src/textedit/ContentStreamEditor.cpp",
+      "defect": "drop fill-colour emit (edited text loses colour)",
+      "test_filter": "ContentStreamSubstitutionTest.*",
+      "phase3_status": "SURVIVED",
+      "reverify_status": "KILLED",
+      "tests_run": 9,
+      "failures": 2,
+      "errors": 0,
+      "killed_by": [
+        "ContentStreamSubstitutionTest.PerRunSubstitutionEditNotMirroredKeepsColor",
+        "ContentStreamSubstitutionTest.LegacySubstitutionEditFullSizeKeepsColor"
+      ],
+      "xml": "reverify-runs-p2/res_M06-statecont-subst-drop-fill-color.xml"
+    },
+    {
+      "id": "M07",
+      "mutant_id": "M07-statecont-subst-fontsize-halved",
+      "file": "src/textedit/ContentStreamEditor.cpp",
+      "defect": "initialFontSize *0.5 (edited text HALF-SIZE)",
+      "test_filter": "ContentStreamSubstitutionTest.*:PerRunEmissionTest.*",
+      "phase3_status": "SURVIVED",
+      "reverify_status": "KILLED",
+      "tests_run": 14,
+      "failures": 1,
+      "errors": 0,
+      "killed_by": [
+        "ContentStreamSubstitutionTest.LegacySubstitutionEditFullSizeKeepsColor"
+      ],
+      "xml": "reverify-runs-p2/res_M07-statecont-subst-fontsize-halved.xml"
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "killed": 4,
+    "survived": 0,
+    "before": "4 SURVIVED",
+    "after": "4 KILLED",
+    "kill_rate": "100.0%",
+    "all_killed": true
+  }
+}

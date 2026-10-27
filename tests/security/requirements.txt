@@ -1,0 +1,28 @@
+# Pinned Python deps for the PDFE security test harness.
+# Installed by tests/security/runner/bootstrap.ps1 into a venv.
+# Versions pinned for reproducibility; bump deliberately.
+
+# UI automation against PDFE.exe (matches the existing
+# tests/ui_automation harness, same backend).
+pywinauto==0.6.9
+
+# Process / memory monitoring for the corpus runner (peak RSS, kill
+# orphans, watch for hangs).
+psutil==7.0.0
+
+# Optional PE inspection if a corpus PDF triggers PDFE to spawn a
+# child process — useful for verifying no shell process leaked out.
+pefile==2024.8.26
+
+# HTTP / DNS callback listener stubs for phase 3.
+requests==2.32.3
+
+# CLI argument parsing + timestamps; stdlib has these but a few of
+# the helper scripts use rich for nicer terminal output. Optional;
+# scripts gracefully fall back to plain text when missing.
+rich==13.9.4
+
+# Used by the malicious-pdf generator (phase 2) to construct a few
+# of the more elaborate JS payloads. Already pinned in the wider
+# fixture-generation requirements set.
+pyyaml==6.0.2

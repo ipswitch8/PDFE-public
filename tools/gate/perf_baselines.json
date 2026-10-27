@@ -1,0 +1,10 @@
+{
+  "_comment": "Performance-regression floor baselines for PDFE (C-07). SAME-MACHINE baselines: absolute wall-clock varies by machine / load / Debug-vs-Release, so the gate (tools/gate/check_perf_floor.py) compares RELATIVE to these with a generous default 3x threshold. Values below were captured on the Windows dev box (Debug, test_single.pdf fixture) with ~2x headroom over the observed medians (doc_open~1.1ms, save~3.4ms, search~0.5ms, tile~0.13ms; variance <1.15x across runs) so noise never trips the gate while a real large regression (the XFA-save 10x-100x class) does. Regenerate on the machine that runs the gate: set PDFE_PERF_JSON, run `pdfe_tests --gtest_filter=PerfBenchmark.*`, then set each baseline_ms to ~2x the emitted median. See docs/coverage-expansion/phase-4-report.md.",
+  "threshold_multiplier": 3.0,
+  "metrics": {
+    "document_open_ms": {"baseline_ms": 2.5},
+    "save_routing_ms": {"baseline_ms": 7.0},
+    "search_ms": {"baseline_ms": 1.2},
+    "tile_render_ms": {"baseline_ms": 0.6}
+  }
+}

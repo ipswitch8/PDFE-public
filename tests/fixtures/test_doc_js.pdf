@@ -1,0 +1,36 @@
+%PDF-1.3
+%¿÷¢þ
+1 0 obj
+<< /AA << /WS 2 0 R >> /AcroForm << /Fields [ 3 0 R ] /NeedAppearances true >> /Names << /JavaScript << /Names [ (willSaveHook) 2 0 R ] >> >> /Pages 4 0 R /Type /Catalog >>
+endobj
+2 0 obj
+<< /JS (this.getField\("marker"\).value = "from-willSave";) /S /JavaScript >>
+endobj
+3 0 obj
+<< /FT /Tx /Ff 0 /P 5 0 R /Rect [ 72 72 200 100 ] /Subtype /Widget /T (marker) /Type /Annot /V () >>
+endobj
+4 0 obj
+<< /Count 1 /Kids [ 5 0 R ] /Type /Pages >>
+endobj
+5 0 obj
+<< /Annots [ 3 0 R ] /Contents 6 0 R /MediaBox [ 0 0 612 792 ] /Parent 4 0 R /Resources << >> /Type /Page >>
+endobj
+6 0 obj
+<< /Length 0 /Filter /FlateDecode >>
+stream
+
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000015 00000 n 
+0000000203 00000 n 
+0000000296 00000 n 
+0000000412 00000 n 
+0000000471 00000 n 
+0000000595 00000 n 
+trailer << /Root 1 0 R /Size 7 /ID [<164c65d4712b05ac29ccba431fd3e6f0><164c65d4712b05ac29ccba431fd3e6f0>] >>
+startxref
+665
+%%EOF

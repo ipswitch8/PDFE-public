@@ -1,0 +1,95 @@
+{
+ "phase": "phase-4-ui-and-process-critique",
+ "generated_note": "Synthesis of ui-critique.json + process-critique.json. FIND-AND-DOCUMENT; no code changed.",
+ "ui": {
+  "total_skip_sites": 1018,
+  "legitimate_env_guard": 270,
+  "silent_zero_protection": 472,
+  "ui_test_files": 43,
+  "effectively_never_run_in_ci": 472,
+  "matrix_pass_is": "RUNTIME artifact, and structurally over-claimed. The matrix is a runtime-generated CSV (census: 973 CSVs under tests/_runtime/ ui_test_matrix_*.csv). Rows are emitted from source as status=planned (act_* from MainWindow.cpp, dialog-widget from audit_source.py) then flipped green/red at runtime by conftest.record_matrix_result(). The committed 'green' reflects a one-off developer-workstation interactive run, NOT a reproducible CI result \u2014 on the Server-2019 runner the backing pywinauto tests skip (gap_a14). Row color is also a fragile last-write-wins value (tests/ui_automation/conftest.py:85 MATRIX_RESULTS[test_id]=... ; sessionfinish:575), so a non-owning suite's SKIP could clobber a proven GREEN. Prior audit already found the matrix structurally over-claimed (a runtime CSV rebuilt from committed green).",
+  "over_claimed_row_classes": 6,
+  "visual_verification_exists": true,
+  "visual_mechanisms": [
+   "Win32 PrintWindow (PW_RENDERFULLCONTENT) canvas capture \u2014 tests/test_ui_file_operations.py:407-433 (capture_hwnd), test_ui_annotations.py:995, test_ui_page_operations.py:399",
+   "SSIM structural-similarity compare \u2014 tests/visual/diff.py (ssim/pixel_diff), thresholds SSIM>=0.95 (relaxed 0.85) in test_ui_file_operations.py:151/550, test_ui_annotations.py:183-184, test_ui_page_operations.py:157",
+   "pixel_diff_fraction change-detection (SSIM<0.95 OR pixel_diff_fraction>=0.0001) \u2014 test_ui_annotations.py:_assert_canvas_changed 1077-1097, test_ui_page_operations.py:454-472",
+   "Golden-image capture + compare \u2014 tests/ui_harness/core/screenshot.py capture_canvas + tests/ui_harness/core/golden.py compare_to_golden/regen_golden \u2014 test_ui_harness_smoke.py:169-208, and the *_smoke.py files (forms/annotations/chrome/image_redaction)",
+   "PyAutoGUI full-screen screenshot artifact (diagnostic only, not asserted) \u2014 test_ui_specimen_a_e2e_walkthrough.py:163"
+  ],
+  "invisible_regression_classes": [
+   "Canvas renders the page MIRRORED or rotated the wrong direction \u2014 change-detector sees a diff and passes; no correct-orientation golden.",
+   "Canvas renders at the WRONG ZOOM / wrong tile scale \u2014 half-size or double-size content still differs from baseline = 'changed' = pass.",
+   "Glyphs render as .notdef/tofu or blurry while text still EXTRACTS correctly \u2014 extraction-blind (phase-1 systemic 'extraction-only-for-visual'); UI layer has no glyph-ink oracle except the single per-line-font-size probe.",
+   "A control/toolbar button renders but paints the WRONG icon or WRONG color \u2014 objectName-exists / reachability oracle is blind to pixels (annotation toolbar has NO icons at all per UI_MATRIX_GAPS UI-AN-22, undetectable).",
+   "A dialog OPENS but its contents are garbled/mislaid-out \u2014 the 236 dialog-reachability rows assert only that the objectName exists in source, never that it renders.",
+   "White/invisible/half-size edited text in the content stream (the exact shipped mirror/half-size/color-loss bug class) \u2014 no UI pixel oracle catches it; only the C++ content-stream tests (also extraction-blind) cover it.",
+   "Wrong-but-plausible rendered content in a region \u2014 no committed golden to compare against (self-seeded), so a plausible-looking wrong render is indistinguishable from correct."
+  ]
+ },
+ "process": {
+  "gate_verdict_source": "artifact",
+  "forgery_allowlist_present": false,
+  "gap_a15_junit_parsed_in_ci": true,
+  "mutation_gate": "real",
+  "mutation_mutant_count": 3,
+  "mutation_kill_floor_enforced": true,
+  "coverage_floor_enforced": false,
+  "flaky_policy": "present",
+  "dod": "absent",
+  "dca_loop": "decorative"
+ },
+ "process_findings": [
+  {
+   "area": "CI trigger posture (meta-finding)",
+   "severity": "High",
+   "finding": "EVERY quality gate is decoupled from the commit that would introduce a regression. As of 2026-07-20 all PDFE CI is nightly/workflow_dispatch ONLY \u2014 push/PR auto-triggers were removed to protect the single self-hosted runner. Windows+Linux full validation run nightly; mutation-kill, governance (DCA, mutation dry-run, matrix-health), and windows-fuzz run on-demand or nightly and never block a merge. The gates are mechanically real but nothing fails a bad commit at PR/merge time; a regression surfaces at best the next nightly, at worst only when a human dispatches.",
+   "evidence": "windows-validation.yml:23-34; mutation-kill.yml:23-24; governance.yml:24-25; docs/harness-audit/census.json:452"
+  },
+  {
+   "area": "Mutation gate is green-by-construction",
+   "severity": "High",
+   "finding": "The standing CI mutation manifest (mutants.json) has 3 mutants, all already-fixed lines curated to be killed, so mutation-kill.yml can only report 100%. Phase-3's real 16-mutant run found 10 surviving mutants (37.5% kill-rate) \u2014 including a redaction single-revision confidentiality regression and multiple invisible-render text-edit defects \u2014 NONE of which are represented in the standing manifest. The gate that is supposed to be the standing defense against false-green oracles does not exercise any known false-green oracle.",
+   "evidence": "tools/gate/mutants.json (3 mutants); docs/harness-audit/phase-3/mutation-report.md:5-96 (10 survivors)"
+  },
+  {
+   "area": "Escaped-defect / DCA loop not enforced",
+   "severity": "High",
+   "finding": "The harness has been reactive since inception: of 72 mined bug-fixes, 70 escaped to a human before any test existed (oracle 41 / coverage 15 / input-domain 8 / process 6). The designed remedy \u2014 the escaped-defect->DCA->class-test loop \u2014 is fully implemented (check_dca.py + check_dca_presence.py) but only runs inside governance.yml, which is workflow_dispatch-only and runs check_dca_presence only when a base ref is manually supplied. Result: a defect fix can (and by the 1-record history, does) ship with no DCA and no class-level test, exactly the reactive posture the loop was meant to end.",
+   "evidence": "docs/audit/README.md:34-35,51; governance.yml:51-58; docs/audit/dca/ (only 0001-*.md)"
+  },
+  {
+   "area": "Coverage floor unenforced",
+   "severity": "Medium",
+   "finding": "OpenCppCoverage->Cobertura is best-effort: continue-on-error:true, silently skipped when the tool is absent on the runner, and gated by NO floor. It produces an artifact but can never fail the build, so coverage regressions are invisible to CI.",
+   "evidence": "windows-validation.yml:346-374"
+  },
+  {
+   "area": "macOS validation is a thin subset",
+   "severity": "Medium",
+   "finding": "macos-validation.yml runs only PreflightOpen.*/PreflightXPlatform.* (~a handful of isolation-boundary tests), not the full suite, so the macOS lane provides almost no regression coverage despite being one of three advertised platforms.",
+   "evidence": "macos-validation.yml:118-120"
+  },
+  {
+   "area": "No formal flaky quarantine ledger",
+   "severity": "Low",
+   "finding": "Rerun-on-failure is a sound policy, but known-flaky tests (PerfStressTest.TenThousandAnnotationsOnePage, MainWindowIntegrationTest.ZoomComboExists) are tracked only in inline comments. There is no machine-readable quarantine/xfail registry, so a test degrading from reliable to flaky is not tracked as a first-class signal and reruns can mask a slowly-worsening test.",
+   "evidence": "census.json:451; windows-validation.yml:291-304"
+  },
+  {
+   "area": "Judgment-gate verdict is honor-system (bounded)",
+   "severity": "Low",
+   "finding": "karen/validator/security-audit emit their PASS artifact via emit-gate-verdict.sh with no independent evidence of their own; the hook only re-checks the test-runner XML. The red-XML veto prevents signing off a phase with failing tests, so the exposure is limited to a judgment gate falsely blessing a phase whose tests are green but whose acceptance criteria were not truly met.",
+   "evidence": "~/.claude/hooks/phase-gate.sh:218-241 (derive_verdict, judgment-gate branch)"
+  }
+ ],
+ "headline_findings": [
+  "GOOD: the gate-reliability fix is REAL \u2014 verdicts derive from artifacts + parsed JUnit XML, not prose; no forgery allow-list; GAP-A15 defended in CI (XML sum-of-failures, not exit code).",
+  "HOLLOW STANDING GATES: the CI mutation-kill gate is green-by-construction (3 curated mutants, all pre-fixed) while phase-3's real 16-mutant run found 10 survivors incl. a redaction confidentiality regression; coverage floor unenforced; DCA loop decorative; DoD absent.",
+  "META: every quality gate is decoupled from the merge \u2014 all CI is nightly/dispatch-only since 2026-07-20, so nothing blocks a bad commit at commit time.",
+  "UI PERMASKIP WALL: ~472 of the ~1018 UI skip sites are silent-zero-protection (gap_a14 UIA-hang), gating an estimated ~300 of ~450 UI test functions from running ANY behavioral assertion in CI.",
+  "MATRIX OVER-CLAIM: UI-matrix 'pass' is a runtime CSV rebuilt from a one-off interactive run; 236 dialog rows are green on objectName-present-in-.cpp alone, 131 act_* rows green on pipe-fired-no-effect.",
+  "VISUAL ORACLE EXISTS BUT SHALLOW: PrintWindow/SSIM/pixel_diff/golden exist but goldens self-seed, thresholds relaxed, and all of it sits behind the gap_a14 skip wall \u2014 so mirrored/wrong-zoom canvas, tofu glyphs, wrong icon, garbled dialog, white/half-size edited text stay invisible (the shipped content-stream bug class, one level up from phase-1)."
+ ],
+ "cross_validation": "Phase-1 found widget-exists-only dominating 77 files; phase-4 confirms it one level up at the E2E/matrix layer AND shows the visual oracles that could catch the real bug class are skip-walled. Phase-3's real mutation survivors (esp. redaction confidentiality) are absent from the standing 3-mutant CI gate."
+}

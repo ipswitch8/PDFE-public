@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "phase": "phase-3-remediation",
+  "generated": "2026-07-28 14:49:16",
+  "description": "Re-verification that phase-3 mutants M13 and M15 flipped SURVIVED->KILLED after the phase-3 oracle strengthening. Killed = a targeted test in the mutant filter failed under the mutation. Per-mutant JUnit XML + logs copied to reverify-runs-p3/.",
+  "mutants": [
+    {
+      "id": "M13-forms-button-reset-to-off",
+      "file": "src/forms/FormManager.cpp",
+      "test_filter": "Phase5FormsTest.*:FormManagerTest.*",
+      "prior": "SURVIVED",
+      "result": "KILLED",
+      "killing_test": "Phase5FormsTest.ResetFormRestoresCheckboxDefaultOnState",
+      "run": {
+        "tests": 27,
+        "failures": 1,
+        "errors": 0
+      },
+      "xml": "reverify-runs-p3/res_M13-forms-button-reset-to-off.xml"
+    },
+    {
+      "id": "M15-fonts-glyph-scale-invert",
+      "file": "src/fonts/GlyphScaleAdjuster.cpp",
+      "test_filter": "GlyphScaleAdjusterTest.*",
+      "prior": "SURVIVED",
+      "result": "KILLED",
+      "killing_test": "GlyphScaleAdjusterTest.HorizontalScaleIsOriginalOverSubstituteNotInverted",
+      "run": {
+        "tests": 16,
+        "failures": 1,
+        "errors": 0
+      },
+      "xml": "reverify-runs-p3/res_M15-fonts-glyph-scale-invert.xml"
+    }
+  ],
+  "summary": {
+    "killed": 2,
+    "survived": 0,
+    "kill_rate": 100.0
+  }
+}

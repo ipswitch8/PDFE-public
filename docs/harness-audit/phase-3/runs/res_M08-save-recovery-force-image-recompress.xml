@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="6" failures="1" disabled="0" errors="0" time="0.236" timestamp="2026-07-28T12:46:44.180" name="AllTests">
+  <testsuite name="AutosaveRecoveryTest" tests="6" failures="1" disabled="0" skipped="0" errors="0" time="0.234" timestamp="2026-07-28T12:46:44.183">
+    <testcase name="AutosaveWritesRecoverableState" file="tests/test_autosave_recovery.cpp" line="155" status="run" result="completed" time="0.08" timestamp="2026-07-28T12:46:44.183" classname="AutosaveRecoveryTest" />
+    <testcase name="KillMidEditRecoveryRestoresUnsavedWork" file="tests/test_autosave_recovery.cpp" line="187" status="run" result="completed" time="0.043" timestamp="2026-07-28T12:46:44.263" classname="AutosaveRecoveryTest" />
+    <testcase name="CleanSaveLeavesNothingToRecover" file="tests/test_autosave_recovery.cpp" line="233" status="run" result="completed" time="0.045" timestamp="2026-07-28T12:46:44.306" classname="AutosaveRecoveryTest" />
+    <testcase name="NoDirtyNoAutosave" file="tests/test_autosave_recovery.cpp" line="269" status="run" result="completed" time="0.006" timestamp="2026-07-28T12:46:44.352" classname="AutosaveRecoveryTest" />
+    <testcase name="DiscardAllRecoverableClearsStaleSidecars" file="tests/test_autosave_recovery.cpp" line="297" status="run" result="completed" time="0.036" timestamp="2026-07-28T12:46:44.359" classname="AutosaveRecoveryTest" />
+    <testcase name="RecoveryCopyPreservesVerbatimStreams" file="tests/test_autosave_recovery.cpp" line="355" status="run" result="completed" time="0.021" timestamp="2026-07-28T12:46:44.396" classname="AutosaveRecoveryTest">
+      <failure message="tests/test_autosave_recovery.cpp:389&#10;Expected: (raw.find(imageSentinel)) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615&#10;raw image sentinel missing from the recovery copy: the image stream was re-encoded (do_compress_images must stay 0 for a fast, no-recompress recovery snapshot).&#10;" type="">tests/test_autosave_recovery.cpp:389
+Expected: (raw.find(imageSentinel)) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615
+raw image sentinel missing from the recovery copy: the image stream was re-encoded (do_compress_images must stay 0 for a fast, no-recompress recovery snapshot).
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

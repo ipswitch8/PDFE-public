@@ -1,0 +1,29 @@
+{
+  "pageCount": 1,
+  "isEncrypted": false,
+  "hasForm": true,
+  "hasForms": true,
+  "hasAnnotations": false,
+  "hasImages": false,
+  "pdfVersion": "1.7",
+  "fileSize": 37089,
+  "origin": "phase3-generator",
+  "category_tags": [
+    "acroform",
+    "all-field-types",
+    "vector-text"
+  ],
+  "description": "AcroForm with text, checkbox, combobox, listbox, multiline, and signature fields.",
+  "fieldTypes": [
+    "text",
+    "checkbox",
+    "combobox",
+    "listbox",
+    "text-multiline",
+    "signature"
+  ],
+  "scripts": [
+    "ascii"
+  ],
+  "contentKind": "vector-text"
+}

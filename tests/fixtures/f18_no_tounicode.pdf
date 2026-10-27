@@ -1,0 +1,130 @@
+%PDF-1.7
+%‚„œ”
+10 0 obj
+<<  /Length 28 >>
+stream
+600 0 d0
+60 60 480 620 re f
+
+endstream
+endobj
+11 0 obj
+<<  /Length 28 >>
+stream
+520 0 d0
+60 60 400 620 re f
+
+endstream
+endobj
+12 0 obj
+<<  /Length 28 >>
+stream
+560 0 d0
+60 60 440 620 re f
+
+endstream
+endobj
+13 0 obj
+<<  /Length 28 >>
+stream
+540 0 d0
+60 60 420 620 re f
+
+endstream
+endobj
+14 0 obj
+<<  /Length 28 >>
+stream
+520 0 d0
+60 60 400 620 re f
+
+endstream
+endobj
+15 0 obj
+<<  /Length 28 >>
+stream
+500 0 d0
+60 60 380 620 re f
+
+endstream
+endobj
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 1 /Kids [3 0 R] >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /T3 5 0 R /F1 9 0 R /T4 16 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<<  /Length 154 >>
+stream
+BT
+/T3 24 Tf
+1 0 0 1 20 100 Tm
+<010203040506> Tj
+ET
+BT
+/T4 24 Tf
+1 0 0 1 20 160 Tm
+<010203040506> Tj
+ET
+BT
+/F1 10 Tf
+1 0 0 1 20 40 Tm
+(VISIBLEMARK) Tj
+ET
+
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type3 /FontBBox [0 0 700 700] /FontMatrix [0.001 0 0 0.001 0 0] /CharProcs 6 0 R /Encoding 7 0 R /FirstChar 1 /LastChar 6 /Widths 8 0 R /Resources << >> >>
+endobj
+6 0 obj
+<< /Ssmall 10 0 R /Esmall 11 0 R /Csmall 12 0 R /Rsmall 13 0 R /Tsmall 15 0 R >>
+endobj
+7 0 obj
+<< /Type /Encoding /Differences [1 /Ssmall /Esmall /Csmall /Rsmall /Esmall /Tsmall] >>
+endobj
+8 0 obj
+[600 520 560 540 520 500]
+endobj
+9 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+16 0 obj
+<< /Type /Font /Subtype /Type3 /FontBBox [0 0 700 700] /FontMatrix [0.001 0 0 0.001 0 0] /CharProcs 17 0 R /Encoding 18 0 R /FirstChar 1 /LastChar 6 /Widths 8 0 R /Resources << >> >>
+endobj
+17 0 obj
+<< /gx1 10 0 R /gx2 11 0 R /gx3 12 0 R /gx4 13 0 R /gx5 14 0 R /gx6 15 0 R >>
+endobj
+18 0 obj
+<< /Type /Encoding /Differences [1 /gx1 /gx2 /gx3 /gx4 /gx5 /gx6] >>
+endobj
+xref
+0 19
+0000000000 65535 f 
+0000000495 00000 n 
+0000000544 00000 n 
+0000000601 00000 n 
+0000000748 00000 n 
+0000000954 00000 n 
+0000001150 00000 n 
+0000001246 00000 n 
+0000001348 00000 n 
+0000001389 00000 n 
+0000000015 00000 n 
+0000000095 00000 n 
+0000000175 00000 n 
+0000000255 00000 n 
+0000000335 00000 n 
+0000000415 00000 n 
+0000001459 00000 n 
+0000001658 00000 n 
+0000001752 00000 n 
+trailer
+<< /Size 19 /Root 1 0 R >>
+startxref
+1837
+%%EOF

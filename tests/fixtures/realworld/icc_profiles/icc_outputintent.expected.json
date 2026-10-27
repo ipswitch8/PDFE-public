@@ -1,0 +1,6 @@
+{
+  "page_count": 1,
+  "has_xref_repair": false,
+  "description": "Manually-constructed PDF with /OutputIntents array containing one GTS_PDFA1 entry whose DestOutputProfile is a 128-byte ICC header placeholder.",
+  "fixture_type": "icc_outputintent"
+}

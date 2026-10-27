@@ -1,0 +1,12 @@
+Phase 3 — text-edit screenshot baseline
+========================================
+
+Deferred to Phase D1 (final integration + visual regression baseline).
+
+Rationale: Phase 3 scope is the C++ regression-lock cycle for the three
+reported user-bugs and surrounding P0 rows. Pixel-level UI-screenshot
+work (UI-TE-UI-01..05 in tests/fixtures/ui_audit/UI_MATRIX_GAPS.md)
+is consolidated in Phase D1 where the project-wide baseline is built
+in a single deterministic session.
+
+See README.md in this directory for the full deferral rationale.

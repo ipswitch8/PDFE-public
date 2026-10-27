@@ -1,0 +1,27 @@
+PDFE — Corresponding Source
+===========================
+
+PDFE is free software, licensed under the GNU Affero General Public License
+version 3.0 (AGPL-3.0-only). The LICENSE file installed alongside this one
+contains the full licence text.
+
+The complete corresponding source code for PDFE — including the build scripts
+needed to produce the binaries you are running — is available at:
+
+    https://github.com/ipswitch8/PDFE
+
+Each released version is tagged; the source matching this binary is the tag
+with the same version number (for example, v0.3.0), reachable directly as:
+
+    https://github.com/ipswitch8/PDFE/releases
+
+Every release page also carries GitHub's automatic "Source code" archives for
+its tag.
+
+PDFE incorporates third-party components under their own licences — notably
+MuPDF (AGPL-3.0) and QPDF (Apache-2.0). See THIRD-PARTY-NOTICES.md in the
+source repository for the complete attribution list.
+
+If you received this binary without access to the URL above, you may request
+the corresponding source from the distributor who provided the binary; under
+the AGPL they are obliged to provide it.

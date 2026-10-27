@@ -1,0 +1,518 @@
+{
+  "$comment": [
+    "Single source of truth for what a pdfe-windows self-hosted runner needs.",
+    "BOTH Install-PdfeRunner.ps1 and Test-PdfeRunner.ps1 read this file, so a",
+    "dependency cannot be installed-but-unverified or verified-but-uninstalled.",
+    "Two separate hand-maintained lists is how a runner ends up missing a tool",
+    "that the installer 'handles' -- which is literally the OpenCppCoverage",
+    "situation this package exists to fix.",
+    "",
+    "Every entry names the WORKFLOW STEP that consumes it, so a future reader",
+    "can tell whether an item is still needed without guessing.",
+    "",
+    "NO WINGET. Four entries here used to say kind:'winget'. That does not work",
+    "on the machines this package targets: the existing runner is Windows Server",
+    "2019, which has no Microsoft Store, and winget ships as the App Installer",
+    "Store package. Measured on the live host -- winget is absent AND the Appx",
+    "module fails to load at all ('Operation is not supported on this platform'),",
+    "so App Installer cannot be added either. winget was not a fallback away from",
+    "working; it was unreachable by construction.",
+    "",
+    "Everything installable is therefore kind:'download' -- an explicit pinned",
+    "URL plus explicit silent_args. ONE code path, exercised on every machine,",
+    "including ones that do have winget. Silent args are DATA here rather than",
+    "inferred from the file extension, because the inference was wrong: Git is",
+    "Inno Setup (/VERYSILENT), OpenCppCoverage is NSIS (/S), and the Visual",
+    "Studio bootstrapper is neither.",
+    "PROFILES: each requirement carries the profiles it belongs to, so a profile cannot drift out of sync with the requirement list the way a separate hand-maintained roster would."
+  ],
+  "schema": "pdfe.runner-requirements/1",
+  "_target_labels_note": [
+    "These are the labels a DEFAULT (solo) deployment must register with, and",
+    "they now include `pdfe-builder`. They previously did not, which made every",
+    "machine provisioned by this package unable to run windows-validation's",
+    "`build` and `release` jobs -- those two are the only ones whose `runs-on`",
+    "carries `pdfe-builder`. GitHub does not error on an unsatisfiable",
+    "`runs-on`: the job QUEUES and is then reported `cancelled`, a status",
+    "indistinguishable from a deliberate cancellation and one that alerts",
+    "nobody. So the symptom of the old default was silence.",
+    "",
+    "THE FLEET MUST DEGRADE TO ONE MACHINE. Other runners (the ephemeral",
+    "Hetzner box, any second Windows machine) are not always present, and their",
+    "absence must never fail anything -- the work simply lands here instead.",
+    "That is only true if the machine that IS present carries every label the",
+    "workflows ask for, which is what this list now guarantees.",
+    "",
+    "See `profiles.consume` below for the one case where a NARROWER label set is",
+    "correct, and why it must never be a solo machine's profile."
+  ],
+  "target_labels": [
+    "self-hosted",
+    "Windows",
+    "X64",
+    "pdfe-windows",
+    "pdfe-builder"
+  ],
+  "workflows_served": [
+    ".github/workflows/windows-validation.yml",
+    ".github/workflows/governance.yml",
+    ".github/workflows/mutation-kill.yml",
+    ".github/workflows/windows-sanitizer.yml",
+    ".github/workflows/windows-fuzz.yml"
+  ],
+  "requirements": [
+    {
+      "id": "os",
+      "name": "Windows 10/11 or Server 2019+ x64",
+      "why": "All five workflows are runs-on: [self-hosted, Windows, X64, pdfe-windows].",
+      "verify": {
+        "kind": "os-arch",
+        "arch": "64-bit"
+      },
+      "installable": false,
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    },
+    {
+      "id": "interactive-desktop",
+      "name": "Interactive desktop session (NOT a Windows service)",
+      "why": "The UI E2E suite drives a real PDFE.exe window through UIA (pywinauto/WinAppDriver). UIA needs a real desktop; a service-mode runner in session 0 has no visible desktop and every UI test blinds or hangs. This is why the existing runner is run.cmd rather than a service -- see docs/audit and the ui_pytest_requires_bash_shell note.",
+      "verify": {
+        "kind": "interactive-session"
+      },
+      "installable": false,
+      "tension": "A service would survive reboots and not die silently, which is the OTHER known failure (selfhosted_runner_ops: run.cmd dies silently, unserviced runs queue then report cancelled). These two requirements genuinely conflict. Resolution used here: interactive session + autologon + the watchdog in Watch-PdfeRunner.ps1, NOT a service.",
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    },
+    {
+      "id": "git",
+      "name": "Git for Windows",
+      "why": "actions/checkout on a self-hosted runner uses the system git. Floor is 2.18 because that is what actions/checkout documents needing (sparse-checkout/submodule paths); an earlier draft of this file said 2.40 with no basis and failed a working machine running 2.30 -- an invented requirement is as bad as a missing one.",
+      "verify": {
+        "kind": "command",
+        "command": "git",
+        "version_arg": "--version",
+        "min_version": "2.18.0"
+      },
+      "install": {
+        "kind": "download",
+        "url": "https://github.com/git-for-windows/git/releases/download/v2.55.0.windows.4/Git-2.55.0.4-64-bit.exe",
+        "silent_args": "/VERYSILENT /NORESTART /NOCANCEL /SP- /SUPPRESSMSGBOXES /o:PathOption=Cmd",
+        "ok_exit_codes": [
+          0,
+          3010,
+          1641
+        ],
+        "note": "Inno Setup, so /VERYSILENT -- NOT /S, which Inno ignores and which would leave an interactive installer waiting forever on a headless deploy. /o:PathOption=Cmd is what puts git on the machine PATH; without it actions/checkout cannot find it."
+      },
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    },
+    {
+      "id": "vs2022",
+      "name": "Visual Studio 2022 with the C++ desktop workload",
+      "why": "MSVC toolchain for the windows-vs2022 preset. CMakePresets.json hard-codes the VS-bundled Ninja at 'C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe', so the COMMUNITY edition path is what the presets expect.",
+      "verify": {
+        "kind": "path-any",
+        "paths": [
+          "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe",
+          "C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe",
+          "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe"
+        ]
+      },
+      "install": {
+        "kind": "download",
+        "url": "https://aka.ms/vs/17/release/vs_community.exe",
+        "silent_args": "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.NativeDesktop --includeRecommended",
+        "ok_exit_codes": [
+          0,
+          3010,
+          1641
+        ],
+        "note": "Large (~10 GB) and slow; --wait means this call blocks for the whole install. This is the ONE url here that is not version-pinned -- aka.ms/vs/17/release always resolves to current VS 2022, and Microsoft publishes no stable per-version bootstrapper URL. If a VS edition other than Community is installed, CMakePresets.json's hard-coded Ninja path will NOT resolve -- see the README."
+      },
+      "profiles": [
+        "build"
+      ]
+    },
+    {
+      "id": "cmake",
+      "name": "CMake 3.31+",
+      "why": "Project requires 3.31+ in manifest mode. The VS-bundled CMake satisfies this and is what the project documents using.",
+      "verify": {
+        "kind": "command",
+        "command": "cmake",
+        "version_arg": "--version",
+        "min_version": "3.31.0",
+        "allow_missing_if": "vs2022"
+      },
+      "profiles": [
+        "build"
+      ]
+    },
+    {
+      "id": "python",
+      "name": "Python 3.11+ with pip",
+      "why": "tests/scripts/run_gtest.py (sharded runner), tests/scripts/run_ui_suite.py (UI sweep), the security ctest entries (three of five are python -m pytest), and every tools/gate/*.py checker.",
+      "verify": {
+        "kind": "command",
+        "command": "python",
+        "version_arg": "--version",
+        "min_version": "3.11.0"
+      },
+      "install": {
+        "kind": "download",
+        "url": "https://www.python.org/ftp/python/3.13.7/python-3.13.7-amd64.exe",
+        "silent_args": "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0",
+        "ok_exit_codes": [
+          0,
+          3010,
+          1641
+        ],
+        "note": "InstallAllUsers=1 + PrependPath=1 are both required: the runner service account and the interactive operator must resolve the same python, and pip-requirements below shells out to it in the same session."
+      },
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    },
+    {
+      "id": "python-ui-deps",
+      "name": "Pinned UI test dependencies (33 hash-locked packages)",
+      "why": "pywinauto / pyautogui / Pillow / pytest and friends for the UI E2E suite. The workflow installs these itself, but pre-installing makes a cold runner's first job much faster and surfaces a broken pip environment at deploy time instead of 90 minutes into a run.",
+      "verify": {
+        "kind": "python-module",
+        "modules": [
+          "pywinauto",
+          "pyautogui",
+          "PIL",
+          "pytest"
+        ]
+      },
+      "install": {
+        "kind": "pip-requirements",
+        "path": "tests\\ui_automation\\requirements-locked.txt",
+        "args": "--require-hashes"
+      },
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    },
+    {
+      "id": "vcpkg",
+      "name": "vcpkg (manifest mode)",
+      "why": "Every dependency (Qt 6.10, MuPDF, QPDF, Tesseract, ONNX...) comes from vcpkg manifest mode. VCPKG_ROOT must be set for CMakePresets.json's toolchain file to resolve.",
+      "verify": {
+        "kind": "env-path",
+        "env": "VCPKG_ROOT",
+        "must_contain": "scripts\\buildsystems\\vcpkg.cmake"
+      },
+      "install": {
+        "kind": "git-clone-bootstrap",
+        "repo": "https://github.com/microsoft/vcpkg.git",
+        "default_dest": "C:\\vcpkg",
+        "bootstrap": "bootstrap-vcpkg.bat"
+      },
+      "profiles": [
+        "build"
+      ]
+    },
+    {
+      "id": "opencppcoverage",
+      "name": "OpenCppCoverage",
+      "why": "windows-validation.yml step 'Code coverage (OpenCppCoverage -> Cobertura)' treats ABSENCE AS A HARD ERROR (R-32) -- it is a required runner dependency, not optional. The workflow's fallback tries Chocolatey, which is broken on the current runner; that is exactly the failure phase-24 criterion 3 exists to fix. This package installs from the GitHub release MSI instead.",
+      "verify": {
+        "kind": "path-any",
+        "paths": [
+          "C:\\Program Files\\OpenCppCoverage\\OpenCppCoverage.exe",
+          "C:\\Program Files (x86)\\OpenCppCoverage\\OpenCppCoverage.exe"
+        ],
+        "also_command": "OpenCppCoverage"
+      },
+      "install": {
+        "kind": "download",
+        "url": "https://github.com/OpenCppCoverage/OpenCppCoverage/releases/download/release-0.9.9.0/OpenCppCoverageSetup-x64-0.9.9.0.exe",
+        "silent_args": "/VERYSILENT /NORESTART /SP- /SUPPRESSMSGBOXES",
+        "ok_exit_codes": [
+          0,
+          3010,
+          1641
+        ],
+        "portable_fallback": {
+          "kind": "innoextract",
+          "innoextract_url": "https://github.com/dscharrer/innoextract/releases/download/1.9/innoextract-1.9-windows.zip",
+          "dest": "%LOCALAPPDATA%\\Programs\\OpenCppCoverage",
+          "add_to_user_path": true,
+          "why": "OpenCppCoverage ships ONLY as an Inno installer, which requires elevation -- and a runner account is often not in the local Administrators group, making the install an operator action that may never happen. It does not need installing: the payload extracts with innoextract and runs standalone, because it instruments via the debugging APIs, which work for a same-user process. Verified on the live runner from an unelevated extracted copy: a real Cobertura report, lines-valid=53399. Extracting to %LOCALAPPDATA%\\Programs and adding that to the USER PATH needs no elevation at all. windows-validation.yml checks this location FIRST."
+        },
+        "note": "INNO SETUP, not NSIS. An earlier version of this file asserted NSIS and passed /S; the downloaded bytes say otherwise (3 'Inno Setup' signature hits, 0 NSIS). This matters more than a mislabel: Inno IGNORES unrecognised switches and falls back to its INTERACTIVE wizard, so /S under Start-Process -Wait hangs forever on a headless runner rather than failing. Deliberately NOT choco -- choco is the path that is broken on the current runner -- and NOT winget, which is unreachable on Server 2019."
+      },
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    },
+    {
+      "id": "winappdriver",
+      "name": "WinAppDriver >= 1.2.1",
+      "why": "WAD-driven UI tests. Below 1.2.1 the 2016 v0 beta answers /status but cannot create sessions (PDFE-LIMITATION-WINAPPDRIVER-V0), so a too-old install is worse than none.",
+      "verify": {
+        "kind": "path-version",
+        "path": "C:\\Program Files (x86)\\Windows Application Driver\\WinAppDriver.exe",
+        "min_version": "1.2.1"
+      },
+      "install": {
+        "kind": "download",
+        "url": "https://github.com/microsoft/WinAppDriver/releases/download/v1.2.1/WindowsApplicationDriver_1.2.1.msi",
+        "silent_args": "",
+        "ok_exit_codes": [
+          0,
+          3010,
+          1641
+        ]
+      },
+      "requires": "developer-mode",
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    },
+    {
+      "id": "developer-mode",
+      "name": "Windows Developer Mode enabled",
+      "why": "WinAppDriver refuses to start sessions unless Developer Mode is on.",
+      "verify": {
+        "kind": "registry",
+        "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock",
+        "name": "AllowDevelopmentWithoutDevLicense",
+        "expect": 1
+      },
+      "install": {
+        "kind": "registry-set",
+        "path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock",
+        "name": "AllowDevelopmentWithoutDevLicense",
+        "value": 1
+      },
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    },
+    {
+      "id": "gh",
+      "name": "GitHub CLI",
+      "why": "Not needed by the workflows themselves, but every operational procedure in this repo uses gh to inspect runs (and gh is NOT on PATH on the current runner -- it lives at C:\\Users\\dev\\bin\\gh, which has cost time before).",
+      "verify": {
+        "kind": "command",
+        "command": "gh",
+        "version_arg": "--version"
+      },
+      "install": {
+        "kind": "download",
+        "url": "https://github.com/cli/cli/releases/download/v2.97.0/gh_2.97.0_windows_amd64.msi",
+        "silent_args": "",
+        "ok_exit_codes": [
+          0,
+          3010,
+          1641
+        ],
+        "note": "Also the escape hatch for Bootstrap-PdfeRunner.ps1 on a machine with neither gh nor a token: this URL is PUBLIC and needs no authentication, whereas the package it fetches does."
+      },
+      "severity": "warn",
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    },
+    {
+      "id": "actions-runner",
+      "name": "GitHub Actions runner (interactive, run.cmd)",
+      "why": "The agent itself.",
+      "verify": {
+        "kind": "path-any",
+        "paths": [
+          "%RUNNER_DIR%\\run.cmd"
+        ]
+      },
+      "install": {
+        "kind": "actions-runner",
+        "note": "Requires a registration token, which is short-lived and must be supplied by a human -- this package will not attempt to obtain one."
+      },
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    },
+    {
+      "id": "long-paths",
+      "name": "Win32 long paths enabled",
+      "why": "vcpkg buildtrees plus Qt's deep header layout exceed MAX_PATH on a default Windows install; the symptom is a confusing mid-build file-not-found rather than an obvious path error.",
+      "verify": {
+        "kind": "registry",
+        "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem",
+        "name": "LongPathsEnabled",
+        "expect": 1
+      },
+      "install": {
+        "kind": "registry-set",
+        "path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem",
+        "name": "LongPathsEnabled",
+        "value": 1
+      },
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    },
+    {
+      "id": "disk-space",
+      "name": ">= 120 GB free (build) / >= 15 GB free (consume)",
+      "why": "BUILD profile: vcpkg_installed + buildtrees + two build configs + the ~44 MB ONNX model + artifacts. A cold vcpkg build spikes into the tens of GB transiently, and that PEAK -- not the steady state -- is what 120 GB absorbs. Disk exhaustion on this project has previously presented as an unrelated failure (see vs_diaghub_etw_leak). CONSUME profile: no toolchain at all. Measured on the live host: VS2022 12 GB, vcpkg repo ~2.7 GB, its caches 2.4 GB -- none of it needed. What remains is the ~2.3 GB restored runtime closure plus Python/WinAppDriver/runner, about 5 GB. 15 GB is that with headroom for a second commit's store and log/temp churn.",
+      "verify": {
+        "kind": "free-space-gb",
+        "min_gb": 120,
+        "min_gb_by_profile": {
+          "build": 120,
+          "consume": 15
+        }
+      },
+      "installable": false,
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    },
+    {
+      "id": "aws-cli",
+      "name": "AWS CLI v2 (S3-compatible client for Cloudflare R2)",
+      "why": "The build-closure restore and the crash-dump shipper both shell out to `aws s3`. R2 is S3-compatible and this is the client. WITHOUT IT a consume-only machine cannot obtain binaries at all -- ensure-build-tree reaches its cold-machine refusal and the job fails -- and a build machine cannot publish, so every OTHER machine then fails. It is required on both profiles for opposite reasons: consumers read, builders write. The action fails LOUDLY when R2 is configured and this is absent rather than silently falling through, so the symptom is at least honest; this requirement is what stops it arising.",
+      "verify": {
+        "kind": "command",
+        "command": "aws",
+        "version_arg": "--version"
+      },
+      "install": {
+        "kind": "download",
+        "url": "https://awscli.amazonaws.com/AWSCLIV2-2.28.10.msi",
+        "silent_args": "",
+        "ok_exit_codes": [
+          0,
+          3010,
+          1641
+        ],
+        "note": "Windows Installer package. silent_args is EMPTY because Install-FromUrl drives `msiexec /quiet /norestart` itself for the msi family -- passing them here duplicates the switches and mismatches the convention winappdriver and gh already follow. Caught by Test-InstallerUrls.ps1, which is the same check that found OpenCppCoverage was Inno and not NSIS. Pinned rather than the floating AWSCLIV2.msi so two machines provisioned a week apart cannot silently get different clients."
+      },
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    },
+    {
+      "id": "r2-config",
+      "name": "Cloudflare R2 credentials (machine-level environment)",
+      "why": "PDFE_R2_ENDPOINT / PDFE_R2_BUCKET / PDFE_R2_ACCESS_KEY_ID / PDFE_R2_SECRET_ACCESS_KEY, set at MACHINE scope. Deliberately not workflow secrets: on a self-hosted runner the machine is the trust boundary, and workflow secrets are readable by every job in the repository. This requirement is NOT installable -- credentials are operator-supplied and a script that minted or stored them would be holding something it has no business holding. See docs/ci/r2-build-store.md. Consume-only machines should hold a READ-ONLY token; that is the control the store's integrity rests on.",
+      "verify": {
+        "kind": "env-set",
+        "env": [
+          "PDFE_R2_ENDPOINT",
+          "PDFE_R2_BUCKET",
+          "PDFE_R2_ACCESS_KEY_ID",
+          "PDFE_R2_SECRET_ACCESS_KEY"
+        ]
+      },
+      "installable": false,
+      "severity": "warn",
+      "severity_by_profile": {
+        "build": "warn",
+        "consume": "error"
+      },
+      "profiles": [
+        "build",
+        "consume"
+      ]
+    }
+  ],
+  "profiles": {
+    "build": {
+      "labels": [
+        "self-hosted",
+        "Windows",
+        "X64",
+        "pdfe-windows",
+        "pdfe-builder"
+      ],
+      "description": "THE DEFAULT, and the only correct profile for a machine that is on its own. Compiles pdfe; needs the full MSVC + vcpkg toolchain. windows-validation's `build` and `release` jobs target `pdfe-builder`, so at least ONE machine must carry this profile or those two queue forever and report `cancelled`. When the fleet is a single machine -- which is the normal resting state here, because the other private runners are not always accessible -- that machine must be this profile, so that every self-hosted Windows job in the tree can land on it.",
+      "min_free_gb": 120,
+      "requirement_count": 17,
+      "is_default": true
+    },
+    "consume": {
+      "labels": [
+        "self-hosted",
+        "Windows",
+        "X64",
+        "pdfe-windows"
+      ],
+      "description": "OPT-IN, MULTI-MACHINE FLEETS ONLY. NEVER the profile of a solo machine. Runs tests against binaries built elsewhere and restored via the cross-machine build store. It deliberately does NOT carry `pdfe-builder` so GitHub will never route a build job to a machine that cannot build -- a job that lands on the wrong machine does not fail fast, it fails deep into a compile. That reasoning is correct ONLY when some OTHER registered machine carries `pdfe-builder`. Applied to the sole runner it inverts: `build` and `release` become unsatisfiable and die silently in the queue. Choose this profile only when you can name the machine that is carrying the build profile instead.",
+      "min_free_gb": 15,
+      "requirement_count": 14,
+      "is_default": false,
+      "requires_another_machine_with": "pdfe-builder"
+    }
+  },
+  "_consolidation_risk": [
+    "WHAT SINGLE-MACHINE CONSOLIDATION ACTUALLY PUTS TOGETHER, and why it is accepted.",
+    "",
+    "Adding `pdfe-builder` to the default label set is not only a convenience fix. It",
+    "is the change that makes `build` and `release` LAND on the shared host for the",
+    "first time -- before it, those two jobs could not be scheduled onto a machine",
+    "this package provisioned at all: they queued and were reported `cancelled`. So",
+    "the co-location described below did not previously happen in practice, and now",
+    "does, by design, because the fleet must degrade to one machine.",
+    "",
+    "CO-LOCATED, IN SERIAL (never concurrent -- every workflow is",
+    "`workflow_dispatch`-only and the runner is single-capacity):",
+    "  * `build` / `release`, which compile and produce published artifacts, and",
+    "  * `fuzz`, `windows-sanitizer`, `mutation-kill`, `governance`, which build and",
+    "    execute attacker-shaped PDF input under instrumentation,",
+    "on the same host, the same workspace root, and the same machine-scoped",
+    "environment that carries PDFE_R2_ACCESS_KEY_ID / PDFE_R2_SECRET_ACCESS_KEY.",
+    "",
+    "WHY IT IS ACCEPTED:",
+    "  1. `TRUSTED_SIGNING_*` is NEVER touched by CI. `scripts/sign/Sign-Artifacts.ps1`",
+    "     is not invoked by any workflow -- verified by grep over .github/workflows --",
+    "     and is a manual, `az login`-first, local-only tool. Release SIGNING",
+    "     credentials are therefore not present on the runner at all.",
+    "  2. `PDFE_R2_*` is a BUILD-CACHE credential, not a signing credential, and it is",
+    "     deliberately machine-scoped: the machine is the trust boundary, and workflow",
+    "     secrets would be worse, being readable by every job in every workflow. That",
+    "     rationale predates this change; what is new is that `release` is now one of",
+    "     the jobs on that boundary. Consume-only machines still hold READ-ONLY,",
+    "     bucket-scoped tokens.",
+    "  3. `build` checks out with actions/checkout's DEFAULT `clean: true`",
+    "     (`git clean -ffdx`), so the producing lane wipes gitignored leftovers at the",
+    "     start of every run. `clean: false` appears only on jobs downstream of `build`",
+    "     WITHIN THE SAME RUN, so it does not carry fuzz or sanitizer state across into",
+    "     a later release build.",
+    "",
+    "RESIDUAL, NOT COVERED BY THE ABOVE -- recorded rather than implied:",
+    "  * DISK CONTENTION is an availability risk, not an integrity one: a fuzz corpus",
+    "    or an ASan build can starve a later `release` of space on a host that is",
+    "    already near its floor. This is the concrete reason the `build` profile asks",
+    "    for 120 GB free rather than the consume profile's 15.",
+    "  * NON-REPO-TREE STATE that `git clean -ffdx` cannot reach -- %TEMP%, the local",
+    "    per-SHA build store, orphaned processes holding the machine-global",
+    "    single-instance mutex -- survives between lanes on a shared host.",
+    "",
+    "If you have more than one machine, `profiles.consume` exists precisely so you do",
+    "not have to accept any of this; see its description."
+  ]
+}

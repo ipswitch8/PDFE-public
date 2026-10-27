@@ -1,0 +1,498 @@
+[
+ {
+  "file": "tests/test_cve_replay.cpp",
+  "subsystem": "security/crypto",
+  "tests": 21,
+  "assertions": 1,
+  "assert_density": 0.05,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_pkcs7_fuzz.cpp",
+  "subsystem": "signatures",
+  "tests": 4,
+  "assertions": 1,
+  "assert_density": 0.25,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_malicious_pdf_advanced.cpp",
+  "subsystem": "security/crypto",
+  "tests": 30,
+  "assertions": 34,
+  "assert_density": 1.13,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_b2_measured_width.cpp",
+  "subsystem": "annotations",
+  "tests": 14,
+  "assertions": 17,
+  "assert_density": 1.21,
+  "gtest_skip_sites": 11
+ },
+ {
+  "file": "tests/test_annotation_color_seam.cpp",
+  "subsystem": "annotations",
+  "tests": 6,
+  "assertions": 9,
+  "assert_density": 1.5,
+  "gtest_skip_sites": 6
+ },
+ {
+  "file": "tests/test_ltv_responder_validation.cpp",
+  "subsystem": "signatures",
+  "tests": 7,
+  "assertions": 11,
+  "assert_density": 1.57,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_certification_signatures.cpp",
+  "subsystem": "signatures",
+  "tests": 12,
+  "assertions": 21,
+  "assert_density": 1.75,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_invisible_and_certification_signatures.cpp",
+  "subsystem": "signatures",
+  "tests": 8,
+  "assertions": 14,
+  "assert_density": 1.75,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_prohibited_feature_scanner.cpp",
+  "subsystem": "security/crypto",
+  "tests": 9,
+  "assertions": 16,
+  "assert_density": 1.78,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_stamp_and_watermark.cpp",
+  "subsystem": "annotations",
+  "tests": 11,
+  "assertions": 21,
+  "assert_density": 1.91,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_measure.cpp",
+  "subsystem": "annotations",
+  "tests": 22,
+  "assertions": 44,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_malicious_pdf_security.cpp",
+  "subsystem": "security/crypto",
+  "tests": 11,
+  "assertions": 22,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_signature_commands.cpp",
+  "subsystem": "signatures",
+  "tests": 10,
+  "assertions": 20,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_tsa_real_endpoint.cpp",
+  "subsystem": "signatures",
+  "tests": 3,
+  "assertions": 6,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_signature_manager.cpp",
+  "subsystem": "signatures",
+  "tests": 25,
+  "assertions": 53,
+  "assert_density": 2.12,
+  "gtest_skip_sites": 19
+ },
+ {
+  "file": "tests/test_comment_panel_context_menu.cpp",
+  "subsystem": "annotations",
+  "tests": 4,
+  "assertions": 9,
+  "assert_density": 2.25,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_path_security.cpp",
+  "subsystem": "security/crypto",
+  "tests": 34,
+  "assertions": 79,
+  "assert_density": 2.32,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_stamp_tokens.cpp",
+  "subsystem": "annotations",
+  "tests": 12,
+  "assertions": 28,
+  "assert_density": 2.33,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_forms_designer.cpp",
+  "subsystem": "signatures",
+  "tests": 6,
+  "assertions": 14,
+  "assert_density": 2.33,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_process_mitigations.cpp",
+  "subsystem": "security/crypto",
+  "tests": 6,
+  "assertions": 14,
+  "assert_density": 2.33,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_hf_watermark_adversarial.cpp",
+  "subsystem": "annotations",
+  "tests": 3,
+  "assertions": 7,
+  "assert_density": 2.33,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_content_stream_tm_sign.cpp",
+  "subsystem": "signatures",
+  "tests": 17,
+  "assertions": 42,
+  "assert_density": 2.47,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_tsa_fixture.cpp",
+  "subsystem": "signatures",
+  "tests": 6,
+  "assertions": 15,
+  "assert_density": 2.5,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_attachment_panel_mainwindow_integration.cpp",
+  "subsystem": "annotations",
+  "tests": 4,
+  "assertions": 10,
+  "assert_density": 2.5,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_tsa_and_taborder.cpp",
+  "subsystem": "signatures",
+  "tests": 35,
+  "assertions": 90,
+  "assert_density": 2.57,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_pkcs7_bridge.cpp",
+  "subsystem": "signatures",
+  "tests": 8,
+  "assertions": 22,
+  "assert_density": 2.75,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_encryption_manager.cpp",
+  "subsystem": "security/crypto",
+  "tests": 23,
+  "assertions": 64,
+  "assert_density": 2.78,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_signature_security_phase2.cpp",
+  "subsystem": "signatures",
+  "tests": 5,
+  "assertions": 15,
+  "assert_density": 3.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_docmdp_byterange.cpp",
+  "subsystem": "signatures",
+  "tests": 3,
+  "assertions": 9,
+  "assert_density": 3.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_attachment_panel.cpp",
+  "subsystem": "annotations",
+  "tests": 6,
+  "assertions": 19,
+  "assert_density": 3.17,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_security_audit.cpp",
+  "subsystem": "security/crypto",
+  "tests": 6,
+  "assertions": 19,
+  "assert_density": 3.17,
+  "gtest_skip_sites": 8
+ },
+ {
+  "file": "tests/test_comment_threading.cpp",
+  "subsystem": "annotations",
+  "tests": 5,
+  "assertions": 16,
+  "assert_density": 3.2,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_encrypt_ocsp_phase3.cpp",
+  "subsystem": "signatures",
+  "tests": 5,
+  "assertions": 16,
+  "assert_density": 3.2,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_attachments.cpp",
+  "subsystem": "annotations",
+  "tests": 14,
+  "assertions": 45,
+  "assert_density": 3.21,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_pkcs7_roundtrip.cpp",
+  "subsystem": "signatures",
+  "tests": 4,
+  "assertions": 13,
+  "assert_density": 3.25,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_annotation_tools.cpp",
+  "subsystem": "annotations",
+  "tests": 8,
+  "assertions": 27,
+  "assert_density": 3.38,
+  "gtest_skip_sites": 8
+ },
+ {
+  "file": "tests/test_annotation_roundtrip.cpp",
+  "subsystem": "annotations",
+  "tests": 12,
+  "assertions": 42,
+  "assert_density": 3.5,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_watermark_extended.cpp",
+  "subsystem": "annotations",
+  "tests": 8,
+  "assertions": 28,
+  "assert_density": 3.5,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_ocsp_crl_validation.cpp",
+  "subsystem": "signatures",
+  "tests": 7,
+  "assertions": 25,
+  "assert_density": 3.57,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_permission_enforcement.cpp",
+  "subsystem": "security/crypto",
+  "tests": 16,
+  "assertions": 58,
+  "assert_density": 3.62,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_sticky_note_popup.cpp",
+  "subsystem": "annotations",
+  "tests": 15,
+  "assertions": 55,
+  "assert_density": 3.67,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_security_phase8.cpp",
+  "subsystem": "security/crypto",
+  "tests": 8,
+  "assertions": 31,
+  "assert_density": 3.88,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_signature_panel.cpp",
+  "subsystem": "signatures",
+  "tests": 8,
+  "assertions": 31,
+  "assert_density": 3.88,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_ltv_dss_writer.cpp",
+  "subsystem": "signatures",
+  "tests": 10,
+  "assertions": 40,
+  "assert_density": 4.0,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_annotations_phase4.cpp",
+  "subsystem": "annotations",
+  "tests": 9,
+  "assertions": 38,
+  "assert_density": 4.22,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_comment_panel_threading.cpp",
+  "subsystem": "annotations",
+  "tests": 4,
+  "assertions": 17,
+  "assert_density": 4.25,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_file_attachment_annotation.cpp",
+  "subsystem": "annotations",
+  "tests": 6,
+  "assertions": 27,
+  "assert_density": 4.5,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_signature_data.cpp",
+  "subsystem": "signatures",
+  "tests": 19,
+  "assertions": 86,
+  "assert_density": 4.53,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_comment_panel.cpp",
+  "subsystem": "annotations",
+  "tests": 12,
+  "assertions": 55,
+  "assert_density": 4.58,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_signature_roundtrip.cpp",
+  "subsystem": "signatures",
+  "tests": 10,
+  "assertions": 48,
+  "assert_density": 4.8,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_sign_dialog.cpp",
+  "subsystem": "signatures",
+  "tests": 11,
+  "assertions": 54,
+  "assert_density": 4.91,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_encryption_roundtrip.cpp",
+  "subsystem": "security/crypto",
+  "tests": 14,
+  "assertions": 72,
+  "assert_density": 5.14,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_annotation_manager.cpp",
+  "subsystem": "annotations",
+  "tests": 14,
+  "assertions": 75,
+  "assert_density": 5.36,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_fidelity_r3_20_annotation_ap.cpp",
+  "subsystem": "annotations",
+  "tests": 5,
+  "assertions": 27,
+  "assert_density": 5.4,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_watermark_state_leak.cpp",
+  "subsystem": "annotations",
+  "tests": 2,
+  "assertions": 11,
+  "assert_density": 5.5,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_sign_dialog_geometry.cpp",
+  "subsystem": "signatures",
+  "tests": 5,
+  "assertions": 28,
+  "assert_density": 5.6,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_image_stamp.cpp",
+  "subsystem": "annotations",
+  "tests": 9,
+  "assertions": 57,
+  "assert_density": 6.33,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_annotation_commands.cpp",
+  "subsystem": "annotations",
+  "tests": 10,
+  "assertions": 70,
+  "assert_density": 7.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_ocsp_crl_parser.cpp",
+  "subsystem": "signatures",
+  "tests": 6,
+  "assertions": 47,
+  "assert_density": 7.83,
+  "gtest_skip_sites": 6
+ },
+ {
+  "file": "tests/test_encryption_settings.cpp",
+  "subsystem": "security/crypto",
+  "tests": 13,
+  "assertions": 102,
+  "assert_density": 7.85,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_encryption_dialog.cpp",
+  "subsystem": "security/crypto",
+  "tests": 12,
+  "assertions": 98,
+  "assert_density": 8.17,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_ltv_validator.cpp",
+  "subsystem": "signatures",
+  "tests": 5,
+  "assertions": 44,
+  "assert_density": 8.8,
+  "gtest_skip_sites": 1
+ }
+]

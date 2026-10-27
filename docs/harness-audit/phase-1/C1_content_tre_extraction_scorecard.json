@@ -1,0 +1,1316 @@
+{
+ "cluster": "C1_content_tre_extraction",
+ "method": "Adversarial oracle audit. Every TEST/TEST_F body read; each file classified into one dominant oracle category and tallied against 7 named smell patterns with file:line evidence. Seeds verified directly by the lead auditor; the remaining 63 files audited by six parallel sub-auditors and cross-checked. by_smell counts are the number of FILES exhibiting each smell (a file may exhibit several).",
+ "totals": {
+  "files": 66,
+  "tests": 680,
+  "by_oracle": {
+   "true": 19,
+   "pseudo": 10,
+   "metamorphic": 4,
+   "heuristic": 4,
+   "proxy": 25,
+   "no-oracle-smoke": 4
+  },
+  "by_smell": {
+   "assertion-free": 12,
+   "tautological": 7,
+   "EXPECT_NO_THROW-only": 17,
+   "over-tolerant-threshold": 16,
+   "extraction-only-for-visual": 16,
+   "widget-exists-only": 9,
+   "reopens-without-error-only": 10
+  }
+ },
+ "per_file": [
+  {
+   "file": "tests/test_content_stream_adversarial_ambient.cpp",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "tests": 9,
+   "note": "SEED CONFIRMED. Deliberate measurement instrument: all 9 TESTs funnel through finishCell() which ends in SUCCEED() (lines 126-131). Internally builds a genuinely strong glyph-quad+pixel oracle (evalTextCell) but NEVER asserts it \u2014 corruption is recorded as data. By design for phase-1 discovery, but zero test-failure signal.",
+   "smells_raw": [
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_scan_style_transfer.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold",
+    "assertion-free"
+   ],
+   "tests": 24,
+   "note": "Operates on real glyph pixels; interior/exterior preservation and premultiplied-invariant checks (331-353) are true. But most measurement tests assert wide ranges (roughness>10, noise 3-15) and EnrichedAtlas cache test (386) is near-assertion-free.",
+   "smells_raw": [
+    "over-tolerant-threshold",
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_text_shaper.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "over-tolerant-threshold",
+    "assertion-free"
+   ],
+   "tests": 7,
+   "note": "Shaping is proto-visual but no test verifies glyph IDs or metric-accurate positions; asserts glyph-count==char-count + xAdvance>0. CanRenderReturnsFalseForCJK (95) is (void)result \u2014 assertion-free.",
+   "smells_raw": [
+    "over-tolerant-threshold",
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_content_stream_tagger.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only",
+    "assertion-free"
+   ],
+   "tests": 9,
+   "note": "Injects H1/P/Figure tags; only asserts boolean pageHasMarkedContent after reopen. Never verifies WHICH tag/MCID/region survived. PreservesRendering checks only pageCount>0; ConstructDestroy is SUCCEED().",
+   "smells_raw": [
+    "reopens-without-error-only",
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_ocr_language_routing.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 10,
+   "note": "STRONG. Asserts exact language codes (\"ara\"/\"eng\"/\"chi_sim\"); override test uses throw-after-record to prove override beats config via lastOcrLanguage(). Minor proxy: EXPECT_FALSE(hocr.empty()) paired with the language assertion.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_alignment_writer.cpp",
+   "oracle": "true",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 17,
+   "note": "STRONG. Asserts exact emitted content-stream operator bytes (Tm offsets, marker, escaping). One flaw: JustifyEmitsTw (191) is defeated by substring aliasing \u2014 find(\" Tw\\n\") matches \"0 Tw\\n\".",
+   "smells_raw": [
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_tre_commands.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "assertion-free",
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "tests": 18,
+   "note": "Save/restore byte roundtrips decent. But headline ReconstructCommand/ImageReplaceCommand ExecuteAndUndo (257,327) tolerate a silent no-op and only compare image-data SIZE. SaveImageXObjectRef/SaveContentsRef ReturnsValue (161,171) have zero EXPECT.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "assertion-free",
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_text_edit_span_provenance.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 10,
+   "note": "STRONG unit tests of provenance predicates gating invisible-OCR vs visible-vector routing; exact boolean outputs for known font-name inputs, good edge coverage.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_tre_types.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 43,
+   "note": "Exact EXPECT_DOUBLE_EQ against independent hand-computed constants for geometry/confidence math. Default-value tests are pure change-detectors but legitimate value-object coverage.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_tre_coord_mapper.cpp",
+   "oracle": "pseudo",
+   "smells": [
+    "tautological"
+   ],
+   "tests": 31,
+   "note": "MIXED. Rotation-0/90/180/270 tests correctly call the product mapper with hand-derived numbers (strong). But the comment-labelled 'critical' Y-flip-fix tests (NoYFlip_*, PixelRectToPdf/PdfRectToPixel_SimpleRect at 161,176,191,210) recompute the mapping with the test's OWN arithmetic and never invoke the mapper \u2014 cannot catch the exact regression they name.",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_ocr_routing_fix.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only",
+    "widget-exists-only"
+   ],
+   "tests": 26,
+   "note": "isImageDominated bool tests + TileRenderer sequence-counter tests are good. But the 15 ImageCommandsDirtyTest cases (Insert/Remove/Resize/Rotate/Crop x exec/undo/redo) assert ONLY that createDisplayList()!=nullptr \u2014 blind to whether the visual image edit happened. Routing tests are widget-exists (textEditTool()!=null).",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only",
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_ocr_language_preference.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 8,
+   "note": "STRONG. Asserts exact round-tripped language codes (\"fra\", \"eng+fra\", whitespace->\"eng\" fallback) through real dialog OK-click + settings reread; persisted code IS the truth. Only PreferencesDialogExposesCombo is structural.",
+   "smells_raw": [
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_search.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "over-tolerant-threshold",
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 13,
+   "note": "No test asserts a KNOWN query returns KNOWN hits. Positive path is totalMatches()>=0 (always true \u2014 returns int size_t) and hit-structure loops are vacuous when hits is empty. Broken search stays green.",
+   "smells_raw": [
+    "over-tolerant-threshold",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_quality_assessor.cpp",
+   "oracle": "pseudo",
+   "smells": [
+    "tautological"
+   ],
+   "tests": 12,
+   "note": "Approach-selection boundary tests (B vs C) meaningful, but PerfectScore/BorderlineScore/CustomThresholdsRespected hand-recompute expected scores with the SAME weighting formula the code uses \u2014 a wrong weight propagates identically.",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_export_plain_text.cpp",
+   "oracle": "true",
+   "smells": [
+    "tautological"
+   ],
+   "tests": 9,
+   "note": "STRONG. BOM asserted byte-exact (0xEF/0xBB/0xBF), form-feeds==pageCount-1, action enable/disable. Extraction IS the export truth. ContentMatchesPageExtractPlainText is circular (compares to same extractPlainText) but byte/separator tests carry the file.",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_text_color_and_replace.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "widget-exists-only"
+   ],
+   "tests": 34,
+   "note": "MIXED. ColorPersistsThroughSaveAndReopen (243) is exemplary \u2014 renders and counts red pixels>50 (true visual). But ApplyEditWithColor/BlackColorDoesNotCrash (150,177) only no-throw; SearchPanel block is widget-exists + signal-emission.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_ocr_pipeline.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "over-tolerant-threshold",
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 12,
+   "note": "OcrOnScannedPdf asserts hocr non-empty + blocks>0 but never that a KNOWN word was recognized \u2014 gibberish passes. RenderPageAt300Dpi comment predicts ~2550x3300 yet asserts only >100.",
+   "smells_raw": [
+    "over-tolerant-threshold",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_alignment_pipeline.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "tests": 9,
+   "note": "In-memory queue/snapshot contract asserts exact alignment enum + page index (solid). But FlushAppliesPendingBlocks (154) \u2014 the only end-to-end test \u2014 greps extractPlainText() for a marker; Left/Center/Right/Justify all pass identically. FlushWithEmptyQueue only checks pageCount.",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_tre_region_tool.cpp",
+   "oracle": "true",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 14,
+   "note": "STRONG. Exact QRectF geometry via EXPECT_FLOAT_EQ for press/move/release, inverted-coord normalization, min-size gating, wrong-button rejection. Selection rect IS the output. Only paint-overlay/no-callback are no-throw.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_unified_text_edit.cpp",
+   "oracle": "pseudo",
+   "smells": [
+    "tautological"
+   ],
+   "tests": 5,
+   "note": "native->true / scanned->false routing on real fixtures is meaningful. TextExtractorHasText_Delegates (75) compares two impls that delegate to each other (can't fail independently); TessdataFixtureExists just checks a file exists.",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_tantivy_search.cpp",
+   "oracle": "true",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 16,
+   "note": "STRONG. Boolean AND/OR/NOT, phrase-adjacency, prefix, ranking order (p1 before p0), upsert-replace, reopen-persistence all assert specific pages match/exclude. Text search IS the truth. Perf budget deliberately loose.",
+   "smells_raw": [
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_region_reconstructor.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold",
+    "extraction-only-for-visual",
+    "tautological"
+   ],
+   "tests": 14,
+   "note": "Reconstruction writes NEW glyphs into the content stream but nothing renders/re-extracts the produced PDF. Nearly every assertion is guarded by if(result.success); a mutation flipping success to false makes the body vanish while the test passes. Tautologies at 183-188 (bg: isUniform||...||neither) and 212-213 (font: empty||!empty).",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold",
+    "extraction-only-for-visual",
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_text_edit_tool.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 11,
+   "note": "Up/Down key-accept (434) and textEdited-callback tests are genuine behavior oracles. Lifecycle/PaintOverlayNoCrash (393) are pure no-crash \u2014 the painted QImage is created but never inspected for geometry/pixels.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_fidelity_r3_08_ocr_wer.cpp",
+   "oracle": "pseudo",
+   "smells": [],
+   "tests": 5,
+   "note": "STRONGEST OCR file. Independent Levenshtein WER/CER vs committed golden sidecar; EXPECT_LE(wer,0.15) (295) with a self-check EXPECT_GE(wer(garbage),1.0) (269) proving it kills garbage. Real accuracy oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_text_extraction.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold",
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 10,
+   "note": "Confirms text present + structurally shaped, never specific expected text/positions. CharacterPositions asserts EXPECT_GE(quad.width(),0.0) (110) which cannot fail for any real quad \u2014 collapsed/degenerate quads pass. PlainTextMatchesStructured asserts both non-empty, not that they match.",
+   "smells_raw": [
+    "over-tolerant-threshold",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_content_stream_editor.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "assertion-free",
+    "EXPECT_NO_THROW-only",
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "tests": 13,
+   "note": "Edits the CONTENT STREAM (core visual mutation) yet ApplySimpleEdit/PreserveUnmodifiedText only assert blocksAfter.size()>0 \u2014 never that 'X' appears at the right place/upright/color, nor that neighbours are byte-identical. Two MuPdfFzAlwaysInvariant tests (347,388) are strong but test setjmp mechanics, not output. ConstructorDestructor is SUCCEED().",
+   "smells_raw": [
+    "assertion-free",
+    "EXPECT_NO_THROW-only",
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_tre_edit_dialog.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only",
+    "assertion-free"
+   ],
+   "tests": 12,
+   "note": "Decent widget test: DisplaysOcrText (66) EXPECT_EQ(toPlainText, expected); approach-selection threshold tests assert real branching. ConstructAndDestroy ends in redundant SUCCEED() but has a prior EXPECT.",
+   "smells_raw": [
+    "widget-exists-only",
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_text_edit_commands.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 8,
+   "note": "Undo/redo can-state round-trips + merge-id behavior are genuine. ExecuteCallsApplyEdits (224) is misnamed \u2014 only EXPECT_NO_THROW(execute()), never proves applyEdits was called or changed anything.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_text_edit_model.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 14,
+   "note": "STRONGEST structural file. Synthetic fixtures, exact expected span text/indices (EXPECT_EQ(U\"Hello\",span.text) at 95) and hit-testing (EXPECT_EQ(2,charIndex) at 335). Fully deterministic, no render dependency.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_text_edit_save_roundtrip.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only",
+    "over-tolerant-threshold"
+   ],
+   "tests": 7,
+   "note": "Verifies font family/size/bold PURELY via stext fontName/fontSize after reopen \u2014 blind to whether glyphs render, are upright/colored/positioned. BoldToggleReachesContentStream (266) passes on ANY font-name change (nameMentionsBold||nameDiffers).",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_text_edit_toolbar.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 25,
+   "note": "STRONG. Literal-font-name tests assert exact displayed text (EXPECT_EQ(combo->currentText(),\"Alef\") at 262) \u2014 the real user-visible value. Signal-guard tests flush the event loop before counting. *Exists tests also check min-width/range/checkable.",
+   "smells_raw": [
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_alignment_state_leak.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 2,
+   "note": "STRONG \u2014 the model the others fail to meet. Reads argb via fitz stext after inject+reopen: EXPECT_NE(aligned.argb,0xFFFFFF) (98) + EXPECT_EQ(0x000000) (100) catch the invisible-white leak; neighbor-unchanged oracle (114) guards collateral damage.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_find_replace.cpp",
+   "oracle": "pseudo",
+   "smells": [],
+   "tests": 2,
+   "note": "STRONG. EXPECT_NE(text.find(\"REPLACED\"),npos) AND EXPECT_EQ(text.find(\"Page\"),npos) after save/reopen (69,71) assert both halves. Extraction is legitimate \u2014 find/replace is a text-content feature, not visual.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_text_edit_width_scaling.cpp",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "tautological",
+    "assertion-free"
+   ],
+   "tests": 7,
+   "note": "HIGHEST-YIELD no-oracle file. Feature is VISUAL glyph width scaling; not one test asserts any width/matrix/geometry. CharRatioLogic (164) recomputes oldLen/newLen and asserts it equals oldLen/newLen (calls zero product code). Six *NoException tests + a SUCCEED (267).",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "tautological",
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_text_selector.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 17,
+   "note": "Comments self-incriminate ('just verify no crash', 'verify API works'). The user-visible truth (selected text==what's under the rubber-band; quads cover it) is only checked behind if(!empty) guards \u2014 an all-empty regression passes green.",
+   "smells_raw": [
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_textedit_toolbar_indicators.cpp",
+   "oracle": "pseudo",
+   "smells": [],
+   "tests": 6,
+   "note": "Reasonably strong. EXPECT_TRUE(args.at(3).toBool())/args.at(2) (179,181) verify the live selectionFormattingChanged bold/italic payload, not merely widget existence. Minor redundancy between two helper tests.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_text_edit_selection_render.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold",
+    "widget-exists-only"
+   ],
+   "tests": 13,
+   "note": "Best of the render tests \u2014 actually renders onPaintOverlay and samples pixels. But the predicate counts ANY non-white pixel as highlight (164: c!=qRgb(255,255,255)) without confirming the semi-transparent blue or position \u2014 a stray caret/glyph pixel satisfies it. Catches invisible-highlight, misses wrong-color/wrong-position.",
+   "smells_raw": [
+    "over-tolerant-threshold",
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_alignment_injector.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 5,
+   "note": "Idempotency/remove via countOccurrences are legitimate content checks, but the feature's point \u2014 is the text ALIGNED (left/center/right), visible, on-page \u2014 is never asserted. Left vs Center vs Right produce identical passing extraction.",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_alignment_e2e.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "EXPECT_NO_THROW-only",
+    "widget-exists-only"
+   ],
+   "tests": 5,
+   "note": "fileContainsAlignMarker (44,125) proves a %%PDFE-ALIGN comment byte-sequence is present, not that any glyph rendered visibly/aligned. MainWindowOwnsAlignmentPipeline (183) is EXPECT_NO_THROW + objectName()==\"mainWindow\".",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "EXPECT_NO_THROW-only",
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_content_stream_out_of_class.cpp",
+   "oracle": "pseudo",
+   "smells": [
+    "tautological"
+   ],
+   "tests": 2,
+   "note": "Checks glyph-index correctness (NOT a proxy). EXPECT_NE(p.emitted,hex4(cp)) (105) independently pins the raw-codepoint-as-GID bug and is not tautological. The EXPECT_EQ(gid) half (99) may be circular if encodeGlyphIndicesHex shares fz_encode_character. Does not render.",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_actualtext_extraction_crash.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 1,
+   "note": "More than no-crash: EXPECT_NE(text.find(\"ABC\"),npos) (57) verifies displayed glyphs win over /ActualText. Weakness: no assertion that the wrong override text is absent. Crash-regression value real (fixture reproduces the abort).",
+   "smells_raw": [
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_textshaper_i18n.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ],
+   "tests": 16,
+   "note": "Strong render-path ink-bbox flip (459-464: EXPECT_GT(vb.height(),vb.width())) is real geometry. Weak spot: ArabicShaping joining (146-155) sets sawPositionalForm if any glyph id absent from nominal cmap \u2014 verifies substitution happened, not that it was CORRECT (garbage gids also pass).",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_search_performance.cpp",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free",
+    "over-tolerant-threshold"
+   ],
+   "tests": 4,
+   "note": "File named 'performance' asserts ZERO timing. SearchPage_FindsText (56): EXPECT_GE(totalMatches(),0) is always true (returns int hits.size()); only real assert is query non-empty. Quad checks (104) are in a for-loop that is vacuous when hits empty.",
+   "smells_raw": [
+    "assertion-free",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_ocr_all_pages_command.cpp",
+   "oracle": "pseudo",
+   "smells": [],
+   "tests": 8,
+   "note": "Solid command-contract oracle: independent re-derivation of processed/invalidated page sets via fake callbacks, exact set equality. Real Tesseract stubbed by design (acceptable scope limit). DescriptionIsStable is trivial.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_content_stream_per_run_emission.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "tests": 5,
+   "note": "Per-run VISUAL Tf/font emission verified only by save->reopen distinct-fontSize count (EXPECT_GE(fontSizes.size(),2) at 229). Admits streams are FlateDecode so byte-search 'couldn't work'; wrong glyphs/position/mirror/white all still yield >=2 sizes. One contract DISABLED (353-381).",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_word_export.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "tests": 12,
+   "note": "MIXED. Escaping/MiniZip-magic tests are true (exact bytes). But DOCX/RTF body content is never validated against source PDF text (substring presence of <w:body> etc). BoldIsEmittedWhenFontNameImpliesBold (207) asserts only <w:document present \u2014 nothing about bold.",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_text_edit_undo_chain.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "assertion-free",
+    "over-tolerant-threshold"
+   ],
+   "tests": 13,
+   "note": "Text edit->undo->original round-trips are legitimate (extraction is truth for text content). But UndoPreservesFormattingRunsBaseline (292) is SUCCEED() on the exact UI-TE-UNDO-01 formatting-drop regression it names. Undo tests use 'text appears somewhere on page 0' (pageContainsSpanText) \u2014 blind to wrong span/position/duplication.",
+   "smells_raw": [
+    "assertion-free",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_text_edit_commands_per_run.cpp",
+   "oracle": "pseudo",
+   "smells": [],
+   "tests": 11,
+   "note": "STRONG. Exact field-by-field equality on SubstitutionInfo from buildSubstitutionFromFormattingRuns; pure data-transform helper with independent expected values, no visual claim to be blind to.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_search_engine_tantivy_parity.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 7,
+   "note": "STRONG. Hybrid-path==full-scan parity incl. exact quad geometry (EXPECT_NEAR 1e-3) + pseudo page-set checks. Quad-equality is real user-visible truth. HundredPage<50ms (340) is env-dependent (false-red flake risk) but also asserts correctness.",
+   "smells_raw": [
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_textedit_vertical_caret.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 7,
+   "note": "STRONG. Exact caret-line/selection-rect coordinates (EXPECT_NEAR 1e-3) for vertical + RTL geometry, with a documented re-red mutation. Asserts the exact visual geometry the overlay consumes.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_hocr_parser.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 30,
+   "note": "STRONG. Exact structured-data equality (bbox coords, text, confidence, codepoints, char distribution). Parsing structured data with exact expected values \u2014 extraction IS the truth for a parser.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_text_edit_clipboard.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "assertion-free",
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 5,
+   "note": "CopyAfterSelectAll (169) has a real EXPECT_EQ(clipboardText,spanText). But PasteWithEmptyClipboard (373) ends in SUCCEED() and CopyWithNoSelection (311-317) reduces to EXPECT_FALSE(empty)+NO_THROW. Cut/Paste assert callback-fired only.",
+   "smells_raw": [
+    "assertion-free",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_textedit_ux_phase2.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "widget-exists-only"
+   ],
+   "tests": 5,
+   "note": "ApplyTextColorWithCaretRecolorsWholeSpan (138-146) asserts color landed in internal formattingRuns struct, NOT a rendered pixel \u2014 blind to whether color actually renders. HasEnabledColorButton (162-173) is pure widget-exists. But CtrlAWhileEditingSelectsSpan (247-253) is a genuine behavioral oracle.",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_content_stream_state_leak.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 3,
+   "note": "STRONG. Asserts the leaked state's VISUAL effect not a flag: baseline shift from ambient 50 Ts via EXPECT_NEAR(shop.firstBaselineY,orig.firstBaselineY,5.0) (130), non-mirror (136), neighbour argb (193) + baseline (195). One test is a documented refutation but still carries a mirror oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_excel_export.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 7,
+   "note": "MIXED. looksLikeNumber/columnLetter (46-76) are exact-value true oracles. But end-to-end tests only check zip magic PK + substring-presence of part names/<sheetData> in raw bytes (106-113) \u2014 never that any actual PDF cell VALUE reached the sheet. Empty/garbled sheets pass.",
+   "smells_raw": [
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_content_stream_neg_tz.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 2,
+   "note": "SEED CONFIRMED STRONG. Reads back edited glyphs via fitz stext after save/reopen. Color: EXPECT_GT(r,0x60)+EXPECT_NEAR(r,0xDB,24) (123-128). Mirror: EXPECT_GT(q.ur.x,q.ul.x) (140) + run-direction (144). Genuine user-visible oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_text_edit_integration.cpp",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free",
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 5,
+   "note": "MultiplePageEdits (236-237) ends with a 'without crash' comment and ZERO assertions. SaveAfterEdit (247,275-296) explicitly declines content verification \u2014 only EXPECT_NO_THROW(save)+reopen+non-empty. UndoRedoCycle/DirtyFlag assert only can-undo/isClean flags, no content.",
+   "smells_raw": [
+    "assertion-free",
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_content_stream_ctm_reset.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 3,
+   "note": "SEED CONFIRMED STRONG. Glyph-quad + pixel-ink hard asserts under ambient N-up CTM: upright EXPECT_GT(inj.firstUrx,inj.firstUlx) (187), visible EXPECT_GT(ink,60) (192), size band EXPECT_GT(ratio,0.80)/LT(1.20) normalized to KEEPME (197-201), on-page bounds. Promotes the half-size-under-imposed-CTM bug to a red test.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_smalltext_edit_render.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 3,
+   "note": "PROMPT GUESS DID NOT HOLD \u2014 NOT strong. Filename says 'render' but NO pixels are rendered. Every oracle is extractPlainText().find(newTok)!=npos && find(oldTok)==npos (96-101,131-134,159-162). Catches total no-op; blind to the edit landing mirrored/wrong-color/wrong-size/off-page/wrong-glyph.",
+   "smells_raw": [
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_text_edit_pipeline.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ],
+   "tests": 5,
+   "note": "Replacement-appears/original-gone via extractPlainText (129,159,203-205,263). TextPositionPreserved uses EXPECT_NEAR(newBBox.width(),origWidth,origWidth*0.5) (318) \u2014 a 50% tolerance asserting almost nothing. No pixel/quad/mirror/color.",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_tre_state_leak.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 2,
+   "note": "STRONG. Mirror via q.ur.x>q.ul.x (61,112); neighbour integrity via changed-pixel bounding-box EXPECT_LT(boxArea,pageArea*15/100) with changed>50 floor (170-178). Real pixel-diff localization oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_text_edit_undo_after_save.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 1,
+   "note": "ACCEPTABLE UAF regression. ASSERT_NO_THROW(undo()) (180) is the crash oracle, but ALSO asserts content restoration via exact model.span(i).text==wanted (92,183). Blind to visual position/mirror of restored text.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_tre_undo_after_save.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 2,
+   "note": "MIXED. Oracle 1 asserts exact restored dimensions EXPECT_EQ(restored->width,origWidth) (191-194) \u2014 real. Oracle 2 asserts only EXPECT_FALSE(restoredData.empty()) after undo (327) \u2014 'an image exists', not that the ORIGINAL content came back; heavily tessdata-gated.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_textedit_tm_regression.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 2,
+   "note": "MODERATE (prompt guess overstated). Orientation EXPECT_NEAR(editedBBox.y(),origBBox.y(),5.0) (137) + size ratio 0.90-1.10 (146-149) catch Tm.d sign flip and Tfs scale. But glyph correctness is extraction-find only (122) and nothing checks ur.x>ul.x \u2014 a pure horizontal mirror preserving bbox could slip. Second TEST_F heavily GTEST_SKIP-gated.",
+   "smells_raw": [
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_fidelity_r3_07_text_extraction.cpp",
+   "oracle": "pseudo",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 6,
+   "note": "STRONG for its domain (extraction IS the feature). Column-major reading order cross-checked against real geometry (203,235); ligature ASCII decomposition with U+FB00-06 negative check (277-286); table row/col geometry (471-492); hyphen terminal-glyph EXPECT_EQ(codepoint,0x2D) (681). Only soft spot: RtlScripts presence-count tolerant (342).",
+   "smells_raw": [
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_content_stream_multi_injector.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 1,
+   "note": "SEED CONFIRMED STRONG. Mirror EXPECT_GT(inj.firstUrx,inj.firstUlx) (212), visibility pixel-ink EXPECT_GT(ink,60) (216), size band 0.80-1.20 normalized to KEEPME (220-224), on-page bounds (228-231), idempotency via countGuardStreams (278). Strongest injector file.",
+   "smells_raw": []
+  }
+ ],
+ "ranked_weak_findings": [
+  {
+   "file": "tests/test_ocr_routing_fix.cpp",
+   "line": 314,
+   "test": "ImageCommandsDirtyTest.* (15 cases: Insert/Remove/Resize/Rotate/Crop x exec/undo/redo; reps 314,367,417,470,533)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Image insert/remove/resize/rotate/crop are all VISUAL, yet the only oracle is createDisplayList()!=nullptr. A command that no-ops, inserts at the wrong rect/size, rotates the wrong way, crops the wrong region, or an undo that fails to revert \u2014 the page still builds a display list, so all 15 stay green. No pixels, geometry, XObject presence, or dirty-state verified.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_content_stream_editor.cpp",
+   "line": 172,
+   "test": "ContentStreamEditorTest.ApplySimpleEdit (and PreserveUnmodifiedText:185)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Replaces a span's first char with 'X', then asserts only EXPECT_NO_THROW + blocksAfter.size()>0. The editor writing the wrong glyph, dropping the edit, mirroring the text, emitting it white/invisible, corrupting position, or clobbering/recoloring NEIGHBOUR spans (the exact shipped ambient-state-leak bug class) \u2014 all pass, because the page 'still has some text'.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_text_edit_width_scaling.cpp",
+   "line": 164,
+   "test": "CharRatioLogic (+ six *NoException at 48,86,129,272,304,341)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "tautological",
+    "EXPECT_NO_THROW-only",
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "Feature is glyph horizontal-width scaling. CharRatioLogic recomputes charRatio=oldLen/newLen and asserts it equals oldLen/newLen \u2014 calls zero product code. If EditTextCommand's width math were inverted/dropped/clamped (text at half/double width, overlapping or spilling off-line), every assertion here passes. The six *NoException tests read back no Tz/matrix/width/geometry.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_region_reconstructor.cpp",
+   "line": 229,
+   "test": "ReconstructHighQualityRegion (and ReconstructReturnsRegionData:256)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "Reconstruction writes NEW glyphs into the page content stream (visual). All meaningful assertions are inside if(result.success) and only check originalText/editedText non-empty + bbox w/h>0. Nothing renders/re-extracts the produced PDF. A reconstructor writing wrong/garbage/mirrored/invisible text, or a mutation flipping success to false, passes.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_text_edit_integration.cpp",
+   "line": 236,
+   "test": "MultiplePageEdits (and SaveAfterEdit:275)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free",
+    "reopens-without-error-only",
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "MultiplePageEdits has ZERO assertions after the edits ('without crash' comment) \u2014 an edit that no-ops, lands wrong glyphs/position, or corrupts the other page passes. SaveAfterEdit explicitly declines content verification (line 247) and only checks save didn't throw + reopen yields non-empty blocks \u2014 a saved PDF dropping/garbling/mirroring/off-page-writing the edit passes.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_alignment_pipeline.cpp",
+   "line": 154,
+   "test": "AlignmentPipelineTest.FlushAppliesPendingBlocksToOutputPdf",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "The ONE end-to-end test of an inherently VISUAL feature (text alignment). The injector could write every block Left-aligned when Center/Right was requested, off-page, or invisible \u2014 extractPlainText().find(marker) still succeeds, so it passes. No geometry/x-offset/render oracle exists.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_alignment_injector.cpp",
+   "line": 82,
+   "test": "all 6 tests (82-190)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Left/Center/Right alignment is the feature, but only extractPlainText().find(...) is checked. Text drawn left when it should be centered, positioned off-page, white/invisible, or with a leaked CTM all extract identically and pass. MultipleBlocksOnDifferentPages proves presence, never position.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_text_edit_save_roundtrip.cpp",
+   "line": 242,
+   "test": "BoldToggleReachesContentStream (+ font family/size roundtrips 140,173,192)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Bold oracle is EXPECT_TRUE(nameMentionsBold || nameDiffers) (266): any font-name change for an unrelated reason (subset prefix, substitution, resource rename) passes as 'bold survived' even if strokes aren't heavier. Font family/size verified only via stext metadata \u2014 a correct Tf reference with glyphs rendered invisible/mirrored/white/off-page reports the right font regardless.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_search.cpp",
+   "line": 46,
+   "test": "SearchTest.BasicSearch (and SearchResultHitStructure:75)",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold",
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "Search returning ZERO hits for text actually on the fixture is invisible: BasicSearch asserts only totalMatches()>=0 (a tautology \u2014 returns size_t) and the hit-structure/quad-geometry checks live inside for(hit:result.hits) loops that run zero times when empty. Broken indexing/highlight-quads stay green.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_search_performance.cpp",
+   "line": 56,
+   "test": "SearchPage_FindsText (+ CaseInsensitive:138, QuadsNotEmpty:104)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free",
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "File named 'performance' asserts NO timing. Verified: totalMatches() returns int hits.size(), so EXPECT_GE(...,0) is always true. Only real assert is query non-empty. Search returning zero hits for present text, or case-insensitive returning different sets for 'test' vs 'TEST', passes. Quad checks are in a vacuous loop.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_tre_coord_mapper.cpp",
+   "line": 161,
+   "test": "NoYFlip_TopStaysTop (+ NoYFlip_BottomStaysBottom:176, PixelRectToPdf_SimpleRect:191, PdfRectToPixel_SimpleRect:210)",
+   "oracle": "tautological",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "These are the comment-labelled 'critical' tests for the Y-flip regression. Each computes the mapping with the test's OWN arithmetic (e.g. pixY=(fitzTopLeft.y-tf.translateY)/tf.scaleY) and asserts on that \u2014 never calls mapper_->pdfToPixel / pixelRectToPdf. If the PRODUCT mapper inverts Y (a scanned-text selection lands on the opposite end of the page), the test cannot fail.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_tre_commands.cpp",
+   "line": 257,
+   "test": "ReconstructCommand_ExecuteAndUndo (and ImageReplaceCommand_ExecuteAndUndo:327)",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Reconstructing text onto a scanned page is visual. execute() is wrapped in EXPECT_NO_THROW; the comment concedes it 'may succeed or fail gracefully'; the only post-state check is image-data SIZE equality after undo. A command that silently does nothing, writes the wrong text, positions it wrong, or an undo restoring a same-size-but-different image all pass.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_content_stream_per_run_emission.cpp",
+   "line": 229,
+   "test": "TwoSegmentsProduceMultipleTfOps (+ SingleSegment/EmptySegment/OutOfBounds 270,310,338)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Per-run font/size emission is visual; oracle is distinct extracted-font-size count (EXPECT_GE(fontSizes.size(),2)). Per-run text rendered with wrong glyphs, wrong X/Y, mirrored, white/invisible, overlapping, or off-page all still yield >=2 distinct extracted sizes and pass. Emitted operators never inspected (streams FlateDecode-compressed).",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_word_export.cpp",
+   "line": 207,
+   "test": "BoldIsEmittedWhenFontNameImpliesBold",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Test name claims bold coverage; the final assert is EXPECT_NE(bytes.find(\"<w:document\"),npos) \u2014 a structural shell check unrelated to bold. Bold never emitted into the DOCX (heuristic-to-<w:b/> wiring broken) passes; comment admits 'cannot assert the specific markup'.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_text_edit_undo_chain.cpp",
+   "line": 292,
+   "test": "UndoPreservesFormattingRunsBaseline",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "Body ends in SUCCEED() ('Soft-asserting'). Undo dropping formatting runs (a blank/de-formatted line) \u2014 precisely the UI-TE-UNDO-01 bug named in the test's own header \u2014 cannot fail this test.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_text_edit_pipeline.cpp",
+   "line": 129,
+   "test": "FontNameMapping / EditedTextAppears / MultipleSpansEdited (129,159,203)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Edited text rendered mirrored, invisible, white-on-white, wrong size, wrong color, or off-page \u2014 extraction-present (find(...)!=npos) sees the codepoints regardless of how/whether they render. The visual correctness of the edit is unverified.",
+   "severity": "High",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_ocr_pipeline.cpp",
+   "line": 190,
+   "test": "OcrPipelineTest.OcrOnScannedPdf",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "OCR's user-visible truth is the RECOGNIZED TEXT. hocr non-empty + blocks>0 passes even when OCR mis-recognizes the page into gibberish; no assertion checks a KNOWN word from the scanned fixture appears in the hOCR.",
+   "severity": "High",
+   "confidence": "likely"
+  },
+  {
+   "file": "tests/test_smalltext_edit_render.cpp",
+   "line": 96,
+   "test": "EditLandsAtAllFontSizes / OnPage2 / ReplaceAll (96,131,159)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Despite the 'render' filename, no pixels are rendered \u2014 oracle is extractPlainText().find. Misses the small-text edit landing mirrored, wrong-color, wrong-position, wrong-glyph, or off-page (only detects a total no-op).",
+   "severity": "Med",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_textedit_ux_phase2.cpp",
+   "line": 138,
+   "test": "ApplyTextColorWithCaretRecolorsWholeSpan",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Text-color is a visual property; the oracle inspects the internal formattingRuns struct, never a rendered pixel/argb. The color can be recorded correctly in the model yet not actually render (serialization/render break) and the test passes.",
+   "severity": "Med",
+   "confidence": "likely"
+  },
+  {
+   "file": "tests/test_excel_export.cpp",
+   "line": 106,
+   "test": "OutputIsValidZipWithRequiredParts",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Asserts only PK zip-magic + part-name/<sheetData> substring presence. Sheets exported structurally valid but EMPTY or with garbled/wrong cell values (no PDF-derived value reaches the sheet) pass.",
+   "severity": "Med",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_text_extraction.cpp",
+   "line": 110,
+   "test": "CharacterPositions",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "EXPECT_GE(ch.quad.width(),0.0) / height()>=0.0 accept zero \u2014 a mutation collapsing every character quad to zero area (all glyphs stacked at a point / degenerate positioning, breaking selection & highlight) passes. Only fontSize>0 is a real check.",
+   "severity": "Med",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_content_stream_tagger.cpp",
+   "line": 86,
+   "test": "TagPageContent_PreservesRendering (and _MultipleRegions:65)",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only",
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "PreservesRendering asserts only pageCount()>0 \u2014 if BDC injection corrupts the content stream so the page renders blank/garbled, page count is unaffected. MultipleRegions asserts only pageHasMarkedContent==true \u2014 a tagger emitting P where H1 was requested, dropping regions, or wrong MCIDs (wrong document structure / reading order for assistive tech) passes.",
+   "severity": "Med",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_textedit_tm_regression.cpp",
+   "line": 129,
+   "test": "FullEditSaveUndoCycle",
+   "oracle": "heuristic",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Checks bbox y/height stability (catches Tm.d sign flip and Tfs scale) but never asserts glyph direction (ur.x>ul.x). A pure horizontal mirror that preserves bbox height and y slips through; glyph correctness is extraction-present only (122).",
+   "severity": "Med",
+   "confidence": "likely"
+  },
+  {
+   "file": "tests/test_alignment_writer.cpp",
+   "line": 191,
+   "test": "JustifyEmitsTwWordSpacingOnNonLastLines",
+   "oracle": "true",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "Intends to prove non-last lines get positive word-spacing, but body.find(\" Tw\\n\") is a substring of \"0 Tw\\n\" (the leading space). If the justifier is broken and emits 0 Tw on every line, both finds succeed \u2014 fully un-justified text (renders left-aligned) passes green.",
+   "severity": "Med",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_text_selector.cpp",
+   "line": 95,
+   "test": "SelectionReturnsText / SelectionQuadsAreValid / MultiLineSelection (95,101,192)",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "user_visible_failure_missed": "The real checks (selected text == region text; quads cover the glyphs) are wrapped in if(!isEmpty) guards / empty-loops. A regression where selection silently returns empty text or zero quads for a text-bearing region passes because the assertions are skipped.",
+   "severity": "Med",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_text_color_and_replace.cpp",
+   "line": 150,
+   "test": "ApplyEditWithColorDoesNotCrash (and ApplyEditWithBlackColorDoesNotCrash:177)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "The color edit could drop the rg operator, mirror the text, or apply the wrong color \u2014 it produces wrong output without throwing, so both pass. (Mitigated at file level by ColorPersistsThroughSaveAndReopen:243 which counts red pixels \u2014 but these two contribute zero oracle value.)",
+   "severity": "Med",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_ocr_pipeline.cpp",
+   "line": 131,
+   "test": "RenderPageAt300Dpi",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "Comment states expected ~2550x3300, but the assertion is >100 on each axis. A DPI regression (renders at 72 DPI ~612x792, or a thumbnail) passes, silently degrading OCR input quality.",
+   "severity": "Med",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_textshaper_i18n.cpp",
+   "line": 146,
+   "test": "ArabicShapingTest.JoiningSubstitutesPositionalForms",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "sawPositionalForm is set if any shaped glyph id is absent from the isolated-cmap nominal set \u2014 verifies substitution happened, not that it was CORRECT. Shaping emitting wrong positional forms or garbage gids (also not in nominal set) passes; joined Arabic could render incorrectly.",
+   "severity": "Med",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_text_edit_selection_render.cpp",
+   "line": 164,
+   "test": "pixel-highlight tests (198,214,405)",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "The predicate counts ANY pixel != qRgb(255,255,255) as the selection highlight without confirming semi-transparent blue or correct sub-region. A stray caret line, anti-aliased glyph, or a highlight painted in the wrong color/offset registers hits>0. Catches invisible-highlight, misses wrong-color/wrong-position.",
+   "severity": "Med",
+   "confidence": "likely"
+  },
+  {
+   "file": "tests/test_text_edit_commands.cpp",
+   "line": 224,
+   "test": "ExecuteCallsApplyEdits",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "Despite the name, only EXPECT_NO_THROW({cmd.execute();}) \u2014 execute() silently not calling applyEdits, or applying nothing, has no spy or state check to catch it.",
+   "severity": "Med",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_tre_commands.cpp",
+   "line": 161,
+   "test": "SaveImageXObjectRef_ReturnsValue (and SaveContentsRef_ReturnsValue:171)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "Zero EXPECT/ASSERT despite the 'ReturnsValue' name; comment says 'expect a non-null image reference' but never checks it. saveImageXObjectRef returning null (breaking undo capture) passes silently.",
+   "severity": "Med",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_region_reconstructor.cpp",
+   "line": 183,
+   "test": "AnalyzeDetectsBackground (and AnalyzeMatchesFont:212)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "EXPECT_TRUE(isUniform||hasGradient||isComplex||(!isUniform&&!hasGradient&&!isComplex)) is true for every combination of three bools; EXPECT_TRUE(fontFamily.empty()||!fontFamily.empty()) is a pure tautology. Any/garbage background or font classification passes.",
+   "severity": "Low",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_text_shaper.cpp",
+   "line": 52,
+   "test": "ShapeAsciiTextReturnsGlyphs",
+   "oracle": "proxy",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "Asserts glyphs.size()==5 and xAdvance>0. Wrong glyph IDs (renders wrong characters) or wrong advances (overlapping/spread text) both pass \u2014 nothing compares to expected glyph indices or metric-accurate advances.",
+   "severity": "Low",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_text_edit_clipboard.cpp",
+   "line": 373,
+   "test": "PasteWithEmptyClipboard (and CopyWithNoSelection:311)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free",
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "PasteWithEmptyClipboard ends in SUCCEED() and only guards against a crash; a paste that corrupts span text or mis-fires the callback passes. CopyWithNoSelection reduces to EXPECT_FALSE(empty)+NO_THROW.",
+   "severity": "Low",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_content_stream_out_of_class.cpp",
+   "line": 99,
+   "test": "TreGlyphFallbackEmitsGlyphIndicesNotCodepoints",
+   "oracle": "pseudo",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "The EXPECT_EQ(p.emitted,hex4(p.gid)) expected value is derived from fz_encode_character; if encodeGlyphIndicesHex maps cp->gid via the same MuPDF call this half is circular and misses a systematic shared mis-mapping. Mitigated: the EXPECT_NE(...,hex4(cp)) at 105 independently pins the real historical bug.",
+   "severity": "Low",
+   "confidence": "likely"
+  },
+  {
+   "file": "tests/test_scan_style_transfer.cpp",
+   "line": 386,
+   "test": "EnrichedAtlas_FreeTypeFallback_CachesResult (and StrokeWeight_NoOp:208)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "Cache test asserts only isNull-parity and (conditionally) equal size ('Either way, if we get a result, caching should work'); a cache returning a different/corrupt glyph on the 2nd call passes. StrokeWeight_NoOp asserts only result.size()==glyph.size() \u2014 a same-size blank/garbage image passes; pixels never compared.",
+   "severity": "Low",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_tre_undo_after_save.cpp",
+   "line": 327,
+   "test": "ImageReplaceCommandSurvivesFullRewriteSave (Oracle 2)",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "After undo the page carries SOME image but not necessarily the ORIGINAL (wrong dimensions/content) \u2014 Oracle 2 asserts only !restoredData.empty(). Impact limited: Oracle 1 (191) covers dims deterministically.",
+   "severity": "Low",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_alignment_e2e.cpp",
+   "line": 183,
+   "test": "MainWindowOwnsAlignmentPipeline",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "widget-exists-only"
+   ],
+   "user_visible_failure_missed": "Asserts only that a call doesn't throw and the window objectName()==\"mainWindow\". Any alignment-persistence defect is invisible.",
+   "severity": "Low",
+   "confidence": "confirmed"
+  },
+  {
+   "file": "tests/test_actualtext_extraction_crash.cpp",
+   "line": 57,
+   "test": "ActualTextExtractionDoesNotCrash",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Asserts displayed 'ABC' is present but never that the /ActualText override is correctly ignored (a result that also leaked the override text as a separate run still contains 'ABC' and passes). Crash-regression coverage itself is sound.",
+   "severity": "Low",
+   "confidence": "likely"
+  }
+ ]
+}

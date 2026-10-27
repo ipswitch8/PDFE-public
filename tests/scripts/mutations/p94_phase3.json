@@ -1,0 +1,136 @@
+{
+  "pipeline": "p94-open-issues phase-3 (GitHub #262, GitHub #250, GitHub #218)",
+  "notes": [
+    "Every mutation here reverses one of the three standing controls named in",
+    "docs/audit/dca/0105-a-success-reported-without-checking-the-thing-it-claims.md.",
+    "",
+    "HISTORY WORTH KEEPING: on the first pass, P3-M3 (remove the visibility",
+    "check) and P3-M4 (restore the page-spanning offset assumption) had NO gtest",
+    "killer at all -- every gtest drove PdfContentWriter directly and none",
+    "reached ImageReplacer::replace(). The DCA's primary standing control was",
+    "therefore unenforced by anything that runs offline. That gap is what",
+    "occluded_write_target.pdf and RecompositeMixedDpiEndToEndTest were written",
+    "to close, and the expect_fail sets below are the evidence they did. A",
+    "mutation with no killer is information, not a bookkeeping gap.",
+    "FILTER TRAP, found by the sweep itself: the filter was 'Recomposite*', which does NOT match 'Arrangements/RecompositeArrangementTest....' -- a TEST_P's full name begins with the instantiation prefix. The class-level rows therefore never ran, and every mutation 'survived' them vacuously. That is the same shape as a mutation whose patch failed to apply: an absent oracle and a surviving mutant are indistinguishable from the outside. Filter is now 'Recomposite*:Arrangements/*'.",
+    "P3-M2 EXPECTATION WAS WRONG, not the guard: 'always prefer the smallest overlapping image' is behaviourally IDENTICAL to the real rule on every region tested, because non-overlapping images are already discarded and the candidate set had one member each time. It is now killed by ARegionMostlyOverThePhotoResolvesToThePhotoNotTheThumbnail, a region that overlaps both images and whose correct answer is the LARGER one.",
+    "P3-M3 RETARGETED. The control it reverses was REBUILT mid-phase: the first version compared the region as rendered before and after the write, and reported a successful edit as FAILED because one user edit drives five recomposite passes and the later ones are visually but not byte-idempotent. The replacement asks, before writing, whether the target is the image drawn on top at that region. The mutation now neutralises that. See DCA 0105, 'Prevention / standing control', which records both versions rather than only the one that survived.",
+    "P3-M5 EXPECTATION WAS UNDER-DECLARED, not a guard failure. Guessing the ambiguous dimension match can resolve to the TOPMOST of the two same-sized images, which makes the write visible -- so the occlusion fixture's second test, which expects a failure verdict, legitimately dies too. Both are now declared. Recorded because the sweep reported it as a discrepancy first, and a discrepancy that turns out to be the author's arithmetic is worth as much as one that turns out to be the product's.",
+    "P3-M6 added for the GitHub #266 partial fix: EnrichedAtlas now records the DPI of the render its glyphs were cropped from, and GlyphAtlasCompositor rescales by composite/atlas DPI. The identity and unrecorded-DPI cases are asserted too, because the ratio is 1.0 on every single-DPI page and a wrong scale there would be a product-wide regression rather than a mixed-DPI one.",
+    "P3-M7 added for GitHub #266's second cause: GlyphAtlas now refuses a crop whose peak alpha does not exceed 128, because isolateAlpha gives 128 to a pixel equidistant between text and background -- so a mask below that contains nothing predominantly text. The measured bad glyph peaked at 127. The mutation makes the predicate always-true, which is what the code did before.",
+    "P3-M7 EXPECTATION WAS OVER-DECLARED, not a guard failure. I expected it to kill EmptyAndNullMasksAreNotInk too. It does not, and cannot: the mutated line sits inside `if (a > peak)`, and for an all-transparent mask the first pixel has a == peak == 0, so the branch is never entered and the mutant is unreachable on that input. A null mask returns earlier still. The sweep reported it as a discrepancy and the discrepancy was mine -- the third time in this pipeline an expect_fail set was wrong rather than a control being weak."
+  ],
+  "mutations": [
+    {
+      "id": "P3-M1",
+      "what": "reverts the write-back target to the largest image, reopening GitHub #262's occluded write",
+      "file": "src/tre/PdfContentWriter.cpp",
+      "find": "                if (matches != 1) {\n                    return std::nullopt;\n                }\n                return info;",
+      "replace": "                if (matches != 1) {\n                    return std::nullopt;\n                }\n                return findPageImageXObject(page, document);  // MUTATION-P94-P3M1",
+      "marker": "MUTATION-P94-P3M1",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "Recomposite*:Arrangements/*:GlyphAtlasDpiRescale.*:GlyphAtlasInkRejection.*",
+      "expect_fail": [
+        "RecompositeVisiblePixelsTest.TheLargestImageIsNotTheOneUnderTheThumbnail",
+        "RecompositeVisiblePixelsTest.AnEditOverTheThumbnailChangesTheThumbnailsPixels",
+        "RecompositeMixedDpiEndToEndTest.EditingTheThumbnailCommitsAVisibleChange",
+        "Arrangements/RecompositeArrangementTest.AWriteThroughTheResolvedTargetIsVisible/150_DPI_thumbnail_over_300_DPI_photo"
+      ]
+    },
+    {
+      "id": "P3-M2",
+      "what": "makes region selection always prefer the SMALLEST overlapping image, so it is biased rather than region-aware",
+      "file": "src/tre/PdfContentWriter.cpp",
+      "find": "                    const bool better =\n                        !found || frac > bestFrac + 1e-9 ||\n                        (std::abs(frac - bestFrac) <= 1e-9 && bboxArea < bestBboxArea);",
+      "replace": "                    const bool better =\n                        !found || bboxArea < bestBboxArea;  // MUTATION-P94-P3M2",
+      "marker": "MUTATION-P94-P3M2",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "Recomposite*:Arrangements/*:GlyphAtlasDpiRescale.*:GlyphAtlasInkRejection.*",
+      "expect_fail": [
+        "RecompositeVisiblePixelsTest.ARegionMostlyOverThePhotoResolvesToThePhotoNotTheThumbnail"
+      ]
+    },
+    {
+      "id": "P3-M3",
+      "what": "neutralises the pre-write occlusion check, so a write into an image that is painted over is reported as DONE again",
+      "file": "src/tre/ImageReplacer.cpp",
+      "find": "        const auto top =\n            contentWriter_->topmostImageOverRegion(page, document, regionFitz);\n        if (!top.has_value()) return false;  // nothing covers it; no claim to make",
+      "replace": "        return false;  // MUTATION-P94-P3M3\n        const auto top =\n            contentWriter_->topmostImageOverRegion(page, document, regionFitz);\n        if (!top.has_value()) return false;",
+      "marker": "MUTATION-P94-P3M3",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "Recomposite*:Arrangements/*:GlyphAtlasDpiRescale.*:GlyphAtlasInkRejection.*",
+      "expect_fail": [
+        "RecompositeOccludedTargetTest.AnInvisibleRecompositeIsReportedAsFailure"
+      ]
+    },
+    {
+      "id": "P3-M4",
+      "what": "restores the page-spanning coordinate assumption, so an edit into a sub-page image lands offset and is clipped away",
+      "file": "src/tre/ImageReplacer.cpp",
+      "find": "        const int hiResX = static_cast<int>((editPtX - placement.x()) * imgPxPerPtX);\n        const int hiResY = static_cast<int>((editPtY - placement.y()) * imgPxPerPtY);",
+      "replace": "        const int hiResX = static_cast<int>(editPtX * imgPxPerPtX);  // MUTATION-P94-P3M4\n        const int hiResY = static_cast<int>(editPtY * imgPxPerPtY);",
+      "marker": "MUTATION-P94-P3M4",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "Recomposite*:Arrangements/*:GlyphAtlasDpiRescale.*:GlyphAtlasInkRejection.*",
+      "expect_fail": [
+        "RecompositeMixedDpiEndToEndTest.EditingTheThumbnailCommitsAVisibleChange"
+      ]
+    },
+    {
+      "id": "P3-M5",
+      "what": "makes the ambiguous dimension match GUESS the first candidate instead of bailing out",
+      "file": "src/tre/PdfContentWriter.cpp",
+      "find": "                    ++matches;\n                    if (matches > 1) break;",
+      "replace": "                    ++matches;  // MUTATION-P94-P3M5\n                    if (matches > 1) { matches = 1; break; }",
+      "marker": "MUTATION-P94-P3M5",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "Recomposite*:Arrangements/*:GlyphAtlasDpiRescale.*:GlyphAtlasInkRejection.*",
+      "expect_fail": [
+        "RecompositeOccludedTargetTest.TheFallbackTargetIsTheOccludedImage",
+        "RecompositeOccludedTargetTest.AnInvisibleRecompositeIsReportedAsFailure"
+      ]
+    },
+    {
+      "id": "P3-M6",
+      "what": "drops the atlas/composite DPI rescale, restoring GitHub #266's oversized atlas glyph",
+      "file": "src/tre/GlyphAtlasCompositor.cpp",
+      "find": "    const int atlasDpi = enrichedAtlas.sourceDpi();",
+      "replace": "    const int atlasDpi = 0;  // MUTATION-P94-P3M6\n    (void)enrichedAtlas.sourceDpi();",
+      "marker": "MUTATION-P94-P3M6",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "Recomposite*:Arrangements/*:GlyphAtlasDpiRescale.*:GlyphAtlasInkRejection.*",
+      "expect_fail": [
+        "GlyphAtlasDpiRescale.HalfDpiHalvesTheGlyph",
+        "GlyphAtlasDpiRescale.DoubleDpiDoublesTheGlyph"
+      ]
+    },
+    {
+      "id": "P3-M7",
+      "what": "accepts an inkless crop again, restoring GitHub #266's grey-block glyph",
+      "file": "src/tre/GlyphAtlas.cpp",
+      "find": "                if (peak > 128) return true;   // decided; stop scanning",
+      "replace": "                if (peak >= 0) return true;   // MUTATION-P94-P3M7",
+      "marker": "MUTATION-P94-P3M7",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "Recomposite*:Arrangements/*:GlyphAtlasDpiRescale.*:GlyphAtlasInkRejection.*",
+      "expect_fail": [
+        "GlyphAtlasInkRejection.AMaskPeakingAt127IsNotInk",
+        "GlyphAtlasInkRejection.TheBoundaryIsTheDiscriminatorsMidpoint"
+      ]
+    }
+  ]
+}

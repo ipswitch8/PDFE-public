@@ -1,0 +1,273 @@
+{
+  "tests": 24,
+  "failures": 0,
+  "disabled": 0,
+  "errors": 0,
+  "timestamp": "2026-05-23T21:45:28Z",
+  "time": "2.84s",
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "SignatureRoundTripTest",
+      "tests": 10,
+      "failures": 0,
+      "disabled": 0,
+      "errors": 0,
+      "timestamp": "2026-05-23T21:45:28Z",
+      "time": "0.86s",
+      "testsuite": [
+        {
+          "name": "SignedDocumentPassesDigestVerifyOnReopen",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_signature_roundtrip.cpp",
+          "line": 90,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:28Z",
+          "time": "0.097s",
+          "classname": "SignatureRoundTripTest"
+        },
+        {
+          "name": "SignerCommonNameSurvivesReopen",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_signature_roundtrip.cpp",
+          "line": 110,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:29Z",
+          "time": "0.08s",
+          "classname": "SignatureRoundTripTest"
+        },
+        {
+          "name": "TamperingFlippedByteFailsDigestVerify",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_signature_roundtrip.cpp",
+          "line": 146,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:29Z",
+          "time": "0.09s",
+          "classname": "SignatureRoundTripTest"
+        },
+        {
+          "name": "TamperingReportsModifiedAfterSigning",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_signature_roundtrip.cpp",
+          "line": 204,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:29Z",
+          "time": "0.091s",
+          "classname": "SignatureRoundTripTest"
+        },
+        {
+          "name": "VerifyAllSignaturesReportsCount",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_signature_roundtrip.cpp",
+          "line": 280,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:29Z",
+          "time": "0.088s",
+          "classname": "SignatureRoundTripTest"
+        },
+        {
+          "name": "ListSignaturesShowsSignedFieldAfterSave",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_signature_roundtrip.cpp",
+          "line": 298,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:29Z",
+          "time": "0.085s",
+          "classname": "SignatureRoundTripTest"
+        },
+        {
+          "name": "CountSignaturesMatchesAfterSave",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_signature_roundtrip.cpp",
+          "line": 317,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:29Z",
+          "time": "0.078s",
+          "classname": "SignatureRoundTripTest"
+        },
+        {
+          "name": "ExpiredCertReportsInvalidCertificate",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_signature_roundtrip.cpp",
+          "line": 333,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:29Z",
+          "time": "0.082s",
+          "classname": "SignatureRoundTripTest"
+        },
+        {
+          "name": "SelfSignedCertReportsSelfSigned",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_signature_roundtrip.cpp",
+          "line": 388,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:29Z",
+          "time": "0.08s",
+          "classname": "SignatureRoundTripTest"
+        },
+        {
+          "name": "IntermediateCAChainSignatureVerifies",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_signature_roundtrip.cpp",
+          "line": 442,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:29Z",
+          "time": "0.083s",
+          "classname": "SignatureRoundTripTest"
+        }
+      ]
+    },
+    {
+      "name": "EncryptionRoundTripTest",
+      "tests": 14,
+      "failures": 0,
+      "disabled": 0,
+      "errors": 0,
+      "timestamp": "2026-05-23T21:45:29Z",
+      "time": "1.979s",
+      "testsuite": [
+        {
+          "name": "Aes256EncryptionPersistsAfterReopen",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 63,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:29Z",
+          "time": "0.204s",
+          "classname": "EncryptionRoundTripTest"
+        },
+        {
+          "name": "RestrictedPermissionsSurviveSave",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 91,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:30Z",
+          "time": "0.188s",
+          "classname": "EncryptionRoundTripTest"
+        },
+        {
+          "name": "RemoveEncryptionProducesUnencrypted",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 123,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:30Z",
+          "time": "0.208s",
+          "classname": "EncryptionRoundTripTest"
+        },
+        {
+          "name": "WrongPasswordDoesNotSilentlyOpen",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 150,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:30Z",
+          "time": "0.403s",
+          "classname": "EncryptionRoundTripTest"
+        },
+        {
+          "name": "Aes128EncryptionRoundTrips",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 206,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:30Z",
+          "time": "0.009s",
+          "classname": "EncryptionRoundTripTest"
+        },
+        {
+          "name": "Rc4_40EncryptionRoundTrips",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 233,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:30Z",
+          "time": "0.006s",
+          "classname": "EncryptionRoundTripTest"
+        },
+        {
+          "name": "Rc4_128EncryptionRoundTrips",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 252,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:30Z",
+          "time": "0.007s",
+          "classname": "EncryptionRoundTripTest"
+        },
+        {
+          "name": "Rc4_40WrongPasswordFails",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 271,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:30Z",
+          "time": "0.007s",
+          "classname": "EncryptionRoundTripTest"
+        },
+        {
+          "name": "Rc4_128PermissionsSurviveRoundTrip",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 308,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:30Z",
+          "time": "0.008s",
+          "classname": "EncryptionRoundTripTest"
+        },
+        {
+          "name": "EncryptedFileBytesDifferFromUnencrypted",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 332,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:30Z",
+          "time": "0.06s",
+          "classname": "EncryptionRoundTripTest"
+        },
+        {
+          "name": "EncryptCorruptXrefRecoverableFixture",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 368,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:30Z",
+          "time": "0.195s",
+          "classname": "EncryptionRoundTripTest"
+        },
+        {
+          "name": "CopyFalsePermissionEnforcedOnReopen",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 409,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:31Z",
+          "time": "0.298s",
+          "classname": "EncryptionRoundTripTest"
+        },
+        {
+          "name": "MultipleRestrictedPermissionsRoundTrip",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 457,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:31Z",
+          "time": "0.195s",
+          "classname": "EncryptionRoundTripTest"
+        },
+        {
+          "name": "ShortPasswordAcceptedByBackend",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_encryption_roundtrip.cpp",
+          "line": 512,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-23T21:45:31Z",
+          "time": "0.184s",
+          "classname": "EncryptionRoundTripTest"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+# Binary test fixtures and assets must never be line-ending normalized:
+# with core.autocrlf=true a fresh checkout would convert LF->CRLF inside these
+# files, shifting PDF xref byte offsets / stream lengths and corrupting binary
+# assets. Marking them `binary` disables both text conversion and diff.
+# (bugfix-3e91a7c4 P2 — the ActualText crash fixture is a .pdf.)
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pfx   binary
+*.p12   binary
+*.der   binary
+*.onnx  binary
+*.traineddata binary
+*.ttf   binary
+*.otf   binary
+# F39-c (phase-47): tests/fixtures/jpx_legit_a4_300dpi.jp2 is a JPEG2000
+# codestream. Like the seeds F39 covered, it happens to contain NUL bytes, so
+# git's content heuristic protects it today — a property of its bytes, not a
+# guarantee. The rule makes it explicit, because a corrupted codestream would
+# surface as "the bound refuses a legitimate scan", i.e. as a false F39-c
+# regression rather than as a checkout problem.
+*.jp2   binary
+*.j2k   binary
+# Meta-audit follow-up F36: the XMP encoding corpus under
+# tests/fixtures/xmp_encoding/ is three transcodes (UTF-8, UTF-16LE, UTF-16BE)
+# of one packet, and its defining property is that all three decode alike.
+#
+# WHICH MEMBER THIS RULE ACTUALLY SAVES IS NOT THE OBVIOUS ONE — measured, see
+# docs/audit/meta-audit-2026-07/followup/phase-36/gitattributes-checkout-probe.md.
+# With core.autocrlf=true and NO rule, the two UTF-16 files survive a checkout
+# untouched (git's clean/smudge code treats a blob with NUL bytes as binary,
+# and every other byte of UTF-16 is NUL). It is the *UTF-8* member that is
+# rewritten: 807 -> 827 bytes, 20 LFs turned into CRLFs — which breaks the
+# transcode-set property just as thoroughly. So `*.xmp binary` is load-bearing
+# for the UTF-8 file, and for the UTF-16 files it upgrades a content HEURISTIC
+# into an explicit guarantee that an `*.xmp text` / `text=auto` rule elsewhere
+# cannot quietly override.
+#
+# The rule is a control, not a proof, so it is re-checked at run time:
+# XmpEncodingTest.FixtureCorpusIsAnExactTranscodeSet fails if it is ever lost.
+*.xmp   binary
+
+# Meta-audit follow-up F39 (backlog row D-6). Two sets of binary files that had
+# no rule and were surviving only on git's NUL-byte content heuristic:
+#
+#   1. The libFuzzer seed corpora under tests/security/fuzz/seeds/. These are
+#      synthesised JPEG2000 / JPEG / Flate codestreams and PDF fragments whose
+#      whole purpose is to be byte-exact -- a CRLF rewrite changes a declared
+#      stream length or a marker offset and the seed silently stops probing what
+#      it was built to probe. Measured 2026-08-07: all 10 fuzz_image_decode
+#      seeds contain NUL bytes, so the heuristic happens to save them today.
+#      That is a coincidence of their content, not a guarantee, and it would not
+#      survive someone adding a `text=auto` or `*.bin text` rule.
+#
+#   2. The one crash/OOM artifact committed as F39 evidence. It has NUL bytes
+#      but ALSO both LF and CR bytes, so it is exactly the shape that gets
+#      mangled the moment the heuristic is overridden.
+#
+# This is a control, not a proof. What actually guarantees seed integrity is
+# that the campaign re-derives its own results; the sha256 of every unit is
+# recorded in phase-39/corpus-manifest.md so a corrupted checkout is detectable.
+tests/security/fuzz/seeds/**            binary
+docs/audit/meta-audit-2026-07/followup/phase-39/**/oom-*    binary
+docs/audit/meta-audit-2026-07/followup/phase-39/**/crash-*  binary
+
+# Meta-audit follow-up F47 item F1 (phase-48): the two-level CA corpus under
+# tests/fixtures/crl_chain/.
+#
+# The .der and .pfx members are already covered by the *.der / *.pfx rules
+# above. The other two members are NOT, and both are byte-significant:
+#
+#   1. inter_crlsign_key.pem / inter_nocrlsign_key.pem are PEM — pure ASCII
+#      base64 with LF line endings and NO NUL bytes, so git's content heuristic
+#      does NOT protect them. With core.autocrlf=true a fresh checkout rewrites
+#      every LF to CRLF, and
+#      `python tests/fixtures/gen_two_level_ca_signer.py --check` — which
+#      compares the committed bytes against a fresh generation — would fail on
+#      a clean clone while passing in the session that wrote the files. That is
+#      the exact shape of the CRLF trap this repository has hit before, and it
+#      would read as "the fixture is not reproducible" rather than as a
+#      checkout problem.
+#
+#   2. MANIFEST.sha256 records the SHA-256 of those same canonical LF bytes, so
+#      it has to travel unnormalised alongside them or it describes a file that
+#      no longer exists.
+#
+# `-text` rather than `binary`: it disables both directions of line-ending
+# conversion, which is the whole requirement, while keeping the files
+# diffable — unlike the .der/.pfx members there is real value in seeing a PEM
+# or a manifest change in review.
+#
+# This is a control, not a proof. --check re-verifies at run time and
+# additionally tolerates CRLF on those two members, so a lost rule surfaces as
+# a readable diff rather than as a spurious reproducibility failure.
+tests/fixtures/crl_chain/*.pem            -text
+tests/fixtures/crl_chain/MANIFEST.sha256  -text

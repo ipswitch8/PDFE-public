@@ -1,0 +1,6 @@
+{
+  "page_count": 2,
+  "has_xref_repair": true,
+  "description": "PDF with one corrupted xref offset (object 1 points to 9999999999); MuPDF auto-repairs",
+  "fixture_type": "corrupt_xref_recoverable"
+}

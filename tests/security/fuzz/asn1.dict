@@ -1,0 +1,107 @@
+# libFuzzer dictionary for the DER/ASN.1 input class (phase-73).
+#
+# WHY THIS FILE EXISTS AT ALL. Every campaign in windows-fuzz.yml passed
+# `-dict=tests/security/fuzz/pdf.dict` unconditionally, which is correct for the
+# eleven PDF-bytes harnesses and actively WRONG for a DER parser: splicing
+# "endobj", "/Filter" and "%%EOF" into a length-prefixed binary encoding
+# produces inputs that d2i_* rejects at the first tag byte. A dictionary aimed
+# at the wrong format is not neutral -- it spends the mutator's budget on
+# tokens that cannot appear in a valid input.
+#
+# The entries below are the tag/length octets and the OIDs that actually occur
+# in OCSP responses, X.509 CRLs and PKCS#7 SignedData. OIDs are given as their
+# COMPLETE DER encoding (tag 06, length, body) so a splice lands a well-formed
+# object identifier rather than a naked body the parser cannot frame.
+#
+# Used by: fuzz_ocsp_response, fuzz_crl_parse, fuzz_pkcs7_verify.
+
+# --- Universal tags -------------------------------------------------
+tag_boolean="\x01\x01"
+tag_integer="\x02"
+tag_bitstring="\x03"
+tag_octetstring="\x04"
+tag_null="\x05\x00"
+tag_oid="\x06"
+tag_enumerated="\x0a\x01"
+tag_utf8string="\x0c"
+tag_sequence="\x30"
+tag_set="\x31"
+tag_printablestring="\x13"
+tag_ia5string="\x16"
+tag_utctime="\x17\x0d"
+tag_generalizedtime="\x18\x0f"
+
+# --- Context-specific / constructed tags ----------------------------
+tag_ctx0="\xa0"
+tag_ctx1="\xa1"
+tag_ctx2="\xa2"
+tag_ctx3="\xa3"
+tag_ctx0_prim="\x80"
+tag_ctx1_prim="\x81"
+
+# --- Long-form length prefixes --------------------------------------
+# The single most productive mutation surface in a length-prefixed format:
+# flipping between short and long form, and inflating a declared length past
+# the buffer, is precisely what a d2i_* bounds check has to survive.
+len_short_zero="\x30\x00"
+len_1byte="\x81"
+len_2byte="\x82"
+len_3byte="\x83"
+len_4byte="\x84"
+len_indefinite="\x80"
+len_seq_long="\x30\x82"
+len_seq_max="\x30\x84\x7f\xff\xff\xff"
+
+# --- Algorithm OIDs -------------------------------------------------
+oid_rsa_encryption="\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x01"
+oid_sha256_with_rsa="\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x0b"
+oid_sha1_with_rsa="\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x05"
+oid_sha1="\x06\x05\x2b\x0e\x03\x02\x1a"
+oid_sha256="\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01"
+oid_sha512="\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x03"
+oid_ec_public_key="\x06\x07\x2a\x86\x48\xce\x3d\x02\x01"
+
+# --- OCSP -----------------------------------------------------------
+oid_ocsp_basic="\x06\x09\x2b\x06\x01\x05\x05\x07\x30\x01\x01"
+oid_ocsp_nonce="\x06\x09\x2b\x06\x01\x05\x05\x07\x30\x01\x02"
+oid_ocsp_crl_ref="\x06\x09\x2b\x06\x01\x05\x05\x07\x30\x01\x03"
+oid_ocsp_no_check="\x06\x09\x2b\x06\x01\x05\x05\x07\x30\x01\x05"
+oid_ad_ocsp="\x06\x08\x2b\x06\x01\x05\x05\x07\x30\x01"
+# responseStatus values (ENUMERATED 0..6)
+ocsp_status_successful="\x0a\x01\x00"
+ocsp_status_malformed="\x0a\x01\x01"
+ocsp_status_internal_error="\x0a\x01\x02"
+ocsp_status_try_later="\x0a\x01\x03"
+ocsp_status_sig_required="\x0a\x01\x05"
+ocsp_status_unauthorized="\x0a\x01\x06"
+# CertStatus CHOICE selectors: good [0] IMPLICIT NULL, revoked [1], unknown [2]
+ocsp_certstatus_good="\x80\x00"
+ocsp_certstatus_revoked="\xa1"
+ocsp_certstatus_unknown="\x82\x00"
+
+# --- X.509 / CRL ----------------------------------------------------
+oid_cn="\x06\x03\x55\x04\x03"
+oid_org="\x06\x03\x55\x04\x0a"
+oid_country="\x06\x03\x55\x04\x06"
+oid_crl_number="\x06\x03\x55\x1d\x14"
+oid_crl_reason="\x06\x03\x55\x1d\x15"
+oid_invalidity_date="\x06\x03\x55\x1d\x18"
+oid_delta_crl_indicator="\x06\x03\x55\x1d\x1b"
+oid_issuing_dist_point="\x06\x03\x55\x1d\x1c"
+oid_authority_key_id="\x06\x03\x55\x1d\x23"
+oid_crl_dist_points="\x06\x03\x55\x1d\x1f"
+oid_freshest_crl="\x06\x03\x55\x1d\x2e"
+crl_version_v2="\x02\x01\x01"
+
+# --- PKCS#7 / CMS ---------------------------------------------------
+oid_pkcs7_data="\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x07\x01"
+oid_pkcs7_signed_data="\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x07\x02"
+oid_pkcs7_enveloped="\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x07\x03"
+oid_pkcs7_digested="\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x07\x05"
+oid_content_type_attr="\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x09\x03"
+oid_message_digest_attr="\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x09\x04"
+oid_signing_time_attr="\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x09\x05"
+oid_signing_cert_v2="\x06\x0b\x2a\x86\x48\x86\xf7\x0d\x01\x09\x10\x02\x2f"
+oid_timestamp_token="\x06\x0b\x2a\x86\x48\x86\xf7\x0d\x01\x09\x10\x02\x0e"
+oid_tst_info="\x06\x0b\x2a\x86\x48\x86\xf7\x0d\x01\x09\x10\x01\x04"
+pkcs7_version_v1="\x02\x01\x01"

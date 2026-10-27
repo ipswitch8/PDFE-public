@@ -1,0 +1,1163 @@
+{
+ "cluster": "C2_save_forms_persistence",
+ "totals": {
+  "files": 66,
+  "tests": 629,
+  "by_oracle": {
+   "true": 30,
+   "metamorphic": 16,
+   "proxy": 15,
+   "pseudo": 2,
+   "heuristic": 1,
+   "no-oracle-smoke": 2
+  },
+  "by_smell": {
+   "assertion-free": 6,
+   "tautological": 10,
+   "EXPECT_NO_THROW-only": 17,
+   "over-tolerant-threshold": 5,
+   "extraction-only-for-visual": 2,
+   "widget-exists-only": 8,
+   "reopens-without-error-only": 19
+  },
+  "tests_note": "corrected 636->629 to match sum(per_file.tests) and census (karen phase-1 gate finding)",
+  "oracle_token_leak_removed_from_smells": {
+   "no-oracle-smoke": 3
+  }
+ },
+ "per_file": [
+  {
+   "file": "tests/test_autosave_capture_audit.cpp",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "tests": 15,
+   "note": "By-design measurement instrument: all 15 TEST bodies use SUCCEED()/RecordProperty only (L187), ZERO EXPECT_/ASSERT_. finishRow() explicitly leaves the test green whether or not autosave captured the edit. A run where every family's capture_present==NO passes.",
+   "smells_raw": [
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_save_path_security.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "assertion-free"
+   ],
+   "tests": 6,
+   "note": "EmptyPath/NullByte/ADS are real EXPECT_THROW security gates (L37,45,55). RelativePathTraversalAllowed is EXPECT_NO_THROW-only (L67); LongPathHandledGracefully (L71) and UNCPathInSaveTarget (L86) are bare try/catch with ZERO assertions.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_xfa_save_benchmark.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 1,
+   "note": "Slow-gated benchmark. Round-trip 'correctness' is only pdf_count_pages>0 (L173); sole assertion EXPECT_TRUE(anyData) (L298). A save that corrupts every page but keeps pages>0 passes as 'round-trips clean'.",
+   "smells_raw": [
+    "reopens-without-error-only",
+    "no-oracle-smoke"
+   ]
+  },
+  {
+   "file": "tests/test_qpdf_wrapper.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 9,
+   "note": "Throw-guard tests are sound (L44,66,72). SaveToFile verifies only reopen + pageCount()==3 (L104) \u2014 a save that drops page content but preserves count passes.",
+   "smells_raw": [
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_page_integer_overflow.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "assertion-free"
+   ],
+   "tests": 6,
+   "note": "Index-boundary EXPECT_THROW tests are true (L41,48,54). RotateOutOfRangeAngle is EXPECT_NO_THROW-only (L61-74, never checks rotation); DeletePageAtInvalidIndex is a bare try/catch with ZERO assertions (L81-93).",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_portfolio.cpp",
+   "oracle": "true",
+   "smells": [
+    "tautological"
+   ],
+   "tests": 6,
+   "note": "isPortfolio true/false and embedded-file names are real (L40,93-100). But portfolioView()==\"D\" is checked identically for the portfolio fixture (L51) and the fallback default (L73) \u2014 the getter default equals the fixture value, so it cannot distinguish 'read /View/D' from 'returned spec default'.",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_replace_page.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 4,
+   "note": "UndoRestoresOriginal is a text before==restored round-trip (L78) but NEVER asserts textAfter != textBefore, so a replacePage that silently no-ops passes. ReplacePagePreservesPageCount (L40) is count-only proxy.",
+   "smells_raw": [
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_document.cpp",
+   "oracle": "true",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 18,
+   "note": "Strong open-refusal security gates (UNC/http/smb/file-scheme, L239-278). OpenNonPdfMagicBytes/OpenEmptyFile wrap EXPECT_THROW inside catch(...) (L52-57,68-73) which silently swallows a WRONG non-Pdfe exception type.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_diff.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only",
+    "tautological"
+   ],
+   "tests": 28,
+   "note": "DiffEngine unit tests (similarity/pixel-diff) are heuristic-true. CompareDialog half (10 tests, L256-306) is pure findChild existence. CompareIdenticalDocuments diffs test_3page against ITSELF (L190-202) so similarity~1.0 is tautological \u2014 a comparator hardwired to 1.0 passes.",
+   "smells_raw": [
+    "widget-exists-only",
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_page_operations.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 10,
+   "note": "Extract tests reopen output and check only pageCount() e.g. EXPECT_EQ(pageCount(),2) (L77) \u2014 never WHICH pages nor order; ExtractPages_ReverseOrder can emit forward order and pass. Error-path EXPECT_THROW tests are sound.",
+   "smells_raw": [
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_form_javascript_xss.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 7,
+   "note": "2 strong probes assert apiType==\"undefined\" (L113). 5 of 7 security tests are bare EXPECT_NO_THROW over XSS/injection/infinite-loop behavior \u2014 successful malicious execution that doesn't crash is indistinguishable from correct inert handling.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_document_search_index.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 5,
+   "note": "Search results discarded via (void)hits (L42); only oracle is EXPECT_GT(documentCount(),0). An index that builds but returns zero/wrong hits for present text passes.",
+   "smells_raw": [
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_form_data_io.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "tautological",
+    "extraction-only-for-visual"
+   ],
+   "tests": 18,
+   "note": "RoundTripXfdf/ImportXfdf are true value round-trips EXPECT_EQ(restoredField.value,testValue1) (L217). But export tests only substring-check XML shell; XfdfContainsOnlyNonEmptyValues (L344) admits it can't check content, checks '<fields>' exists, then SUCCEED().",
+   "smells_raw": [
+    "tautological",
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_form_submit.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 19,
+   "note": "Exact byte-equality on encoder output EXPECT_EQ(out,QByteArray(\"q=hello+world&k=a%26b\")) (L62) and exact allowlist normalization. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_bookmarks.cpp",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free",
+    "tautological"
+   ],
+   "tests": 8,
+   "note": "Fixtures have no outline so validation loop bodies never execute; explicit tautologies remain: EXPECT_GE(bookmarks.size(),0u) (L74) and EXPECT_GE(child->title.size(),0u) (L98) are always-true on unsigned. A broken extractor returning empty passes.",
+   "smells_raw": [
+    "assertion-free",
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_form_submitter.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 8,
+   "note": "Exact decision enums + live POST verifies exact wire body EXPECT_EQ(mock.lastBody(),body) (L150) plus status/response. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_metadata_commands.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 8,
+   "note": "execute/undo/redo verify field values EXPECT_EQ(readBack.title,\"New Test Title\") (L69) but via readMetadata on the SAME in-memory doc \u2014 never save+reopen, so disk persistence is unproven. Plus 2 NO_THROW-only tests.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_batch.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 33,
+   "note": "Engine tests assert result counts (sound), but ~20 BatchDialog tests are findChild!=nullptr existence checks; MultipleActionsExecuteSequentially only checks fileResults.size()==1 with 'May succeed or fail' comment (L133) \u2014 an action that never mutates the PDF passes.",
+   "smells_raw": [
+    "widget-exists-only",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_save_error_paths.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 4,
+   "note": "Negative-path: EXPECT_ANY_THROW AND verifies target intact EXPECT_EQ(file_size(target),originalSize) (L81), catching silent-truncation data loss. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_bookmark_panel_context_menu.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 14,
+   "note": "Menu objectName/text invariants fine, but InsertBookmarkAddsToManager only checks the boolean return, admitting 'No crash, no assertions = the seam contract holds' (L187) \u2014 a no-op insert that returns true passes despite the test name.",
+   "smells_raw": [
+    "widget-exists-only",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_form_manager.cpp",
+   "oracle": "true",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 17,
+   "note": "Set/toggle verify actual field values EXPECT_EQ(updated.value,\"Hello World\") (L136); tab-order permutation checked. ResetForm NO_THROW guards are documented mutation-verified seams. Strong.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_optimize.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only",
+    "extraction-only-for-visual"
+   ],
+   "tests": 8,
+   "note": "Nearly all oracles are success()/sizeAfter>0/reopens/pageCount. The security-named OptimizeDoesNotLeakDeletedFormFieldValues asserts only EXPECT_GT(pageCount(),0) (L194) \u2014 never checks the leak it is named for.",
+   "smells_raw": [
+    "reopens-without-error-only",
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_xmp_metadata_writer.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold",
+    "tautological"
+   ],
+   "tests": 12,
+   "note": "buildXmpPacket tests do find(\"1\")/find(\"B\")!=npos (L50-52) \u2014 a bare '1' or 'B' matches anywhere in the packet (timestamps/UUIDs), can't fail. WritePdfA_ThenDetect (L198) is a genuine strong oracle.",
+   "smells_raw": [
+    "over-tolerant-threshold",
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_bookmark_manager.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 16,
+   "note": "create/rename/move/undo verify titles+structure; CommitSurvivesSaveReload does full save+reopen EXPECT_EQ(reloaded[1]->children[0]->title,\"Section 2.1\") (L228). Model file for the cluster.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_form_field_properties_panel.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 17,
+   "note": "Verifies actual widget state/values EXPECT_EQ(combo->currentText(),\"Canada\") (L99) and signal payloads; a few stack-index-only existence checks.",
+   "smells_raw": [
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_linearization.cpp",
+   "oracle": "pseudo",
+   "smells": [],
+   "tests": 2,
+   "note": "Authoritative QPDF isLinearized() oracle with matched negative control EXPECT_FALSE isLinearized on linearize=false (L59). Flag genuinely drives behavior. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_page_commands.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 27,
+   "note": "do/undo/redo on pageCount + currentRotation are real, but Move/Import page identity checked only via widthPt/heightPt equality (L390) \u2014 a weak identity proxy when all fixture pages share a size; a mis-indexed move passes.",
+   "smells_raw": [
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_metadata_manager.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "tautological",
+    "reopens-without-error-only"
+   ],
+   "tests": 15,
+   "note": "Tests 5-10 write then read back WITHOUT save/reopen (in-memory same-path); only Test 14 persists to disk \u2014 and only the Title field. Construct/ReadMetadata_Default/ReadField_* are NO_THROW-only (L37,50,69,213,220,261).",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "tautological",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_incremental_save.cpp",
+   "oracle": "true",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 5,
+   "note": "Byte-prefix invariant is a real oracle after.compare(0,before.size(),before)==0 (L74). ThrowsWhenDocumentHasNoFilePath is mis-named \u2014 only EXPECT_NO_THROW's the happy path (L177), never exercises the throw it claims.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_formatting_run.cpp",
+   "oracle": "true",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "assertion-free"
+   ],
+   "tests": 47,
+   "note": "Exact run-boundary/family assertions dominate (L107-111). Edge cases are NO_THROW-only (L530,533,536,553,596); ReversedRange (L570) has ZERO assertions in body (comment 'should not crash' only).",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_fidelity_r3_09_form_calc.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 2,
+   "note": "Real correctness oracle EXPECT_EQ(result.value,\"5\") after calculateAll (L95) and 10+7==17 (L115); kills the fires-but-computes-nothing mutant. Skips if fixture absent.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_save.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 14,
+   "note": "save->reopen->assert pageCount/rotation/pageInfo (L168,205,301). Path-safety tests assert throw + no-stray-file. Save_AfterInsertBlank checks only count not inserted-page identity, but overall strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_incremental_save_routing.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 7,
+   "note": "Byte-level isIncrementalAppend() oracle + sessionRequiresFullRewrite taint flags (L120,164,257). Security-relevant redaction-must-full-rewrite assertion is real. FormFillSaveIsFastOnXfa is env-gated skip.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_real_form_fill.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 4,
+   "note": "3 of 4 stop at getFormFields().size()>0 (L53,70,182). Only IrsW9FieldFillAndSavePreservesValue does save+reopen+value-equality (L141), and it wraps fill/save in EXPECT_NO_THROW.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_page_ops_phase6.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "widget-exists-only",
+    "tautological",
+    "assertion-free"
+   ],
+   "tests": 9,
+   "note": "Content tests use text-extract proxy (L177). Signal tests emit the signal themselves then assert spy.count()==1 (L290-291,316-317) \u2014 tautological, real drag/reorder path never driven. DeleteLastPage ends in SUCCEED() (L149).",
+   "smells_raw": [
+    "widget-exists-only",
+    "tautological",
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_form_tool.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 11,
+   "note": "Real behavior oracles: checkbox toggles value (L115), type+commit EXPECT_EQ(after.value,\"Test\") (L223), Escape restores original (L186). FieldCreatedCallback (L303) only re-invokes the callback it set \u2014 minor.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_compare_documents_view.cpp",
+   "oracle": "pseudo",
+   "smells": [
+    "tautological",
+    "over-tolerant-threshold",
+    "reopens-without-error-only"
+   ],
+   "tests": 6,
+   "note": "Primary test diffs test_3page vs ITSELF so expectedRegions=0 -> asserts 0==0 vacuously (L68-84). OneHundredPageDiffMeasurement asserts only totalPages==100 and LOGS elapsed with no timing bound (L191-192).",
+   "smells_raw": [
+    "tautological",
+    "over-tolerant-threshold",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_xfdf_encode_decode.cpp",
+   "oracle": "metamorphic",
+   "smells": [],
+   "tests": 5,
+   "note": "Structural XML parse + save/reopen + byte-equal value round-trip incl. Unicode EXPECT_EQ(reField.value,unicode_value) (L208). Explicitly avoids substring-match weakness. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_document_save_file_lock.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 4,
+   "note": "Real mechanism oracles: EXPECT_NO_THROW vs EXPECT_ANY_THROW on save under held-DisplayList vs held-Page (L110,135) + reopen pageCount==3. Deterministic regression, well-controlled.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_form_commands.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 10,
+   "note": "execute/undo/redo value-equality in-memory (L77,85,130) \u2014 real for command logic but NEVER saves/reopens, so a set-widget-cache-but-fail-to-write-/V persistence regression stays green.",
+   "smells_raw": [
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_undo_manager.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 22,
+   "note": "Pure in-memory state oracle on a mock counter; every test asserts exact restored value EXPECT_EQ(counter_,0) after undo (L82). True state for the undo engine.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_save_operations.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 9,
+   "note": "Dominant pattern is 'save then reopen != nullptr' with no content assertion; SaveClearsDirtyPages/MultipleMarkPageDirty stop at ASSERT_NE(reopened,nullptr) (L142,187). Only SaveAsPreservesPageInfo checks a real value (width/height).",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_conditional_gc.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 6,
+   "note": "Asserts exact inspectable GC seam value EXPECT_EQ(doc->effectiveGarbageLevel(),3) (L136) and needsFullGc() per edit family. Slow XFA timing test env-gated skip.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_form_creation.cpp",
+   "oracle": "true",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 12,
+   "note": "Mostly exact in-memory state: field count deltas + type/name/rect equality (L72-75), do/undo/redo counts. Flatten-then-create tests are NO_THROW+non-crash guards (L366-384) matching their crash-regression intent.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_forms_phase5.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "widget-exists-only"
+   ],
+   "tests": 9,
+   "note": "Bimodal: strong (ResetForm asserts /DV across save+reopen L333-408; Xfdf round-trip L287) vs degenerate: SignatureWidgetTypeIsDistinct is SUCCEED+compile-time tautology (L489), PushButtonToggleNoCrash NO_THROW-only (L209), RadioGroupExclusivity never re-checks sibling radio (L176).",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "widget-exists-only",
+    "no-oracle-smoke"
+   ]
+  },
+  {
+   "file": "tests/test_page_labels_editor.cpp",
+   "oracle": "metamorphic",
+   "smells": [],
+   "tests": 10,
+   "note": "formatNumber value checks (L27-52) plus real save+reopen readback of /PageLabels style/prefix/startValue (L149-157). Asserts exact struct fields, not just reopen-ok.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_combine_files_wizard.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 7,
+   "note": "Core cases assert output page count == sum by reopening (L86-88). But WizardExposesNamedControls is widget-exists-only (L168-179) and TenTenPageCombineMeasurement only LOGs elapsed, asserts only page count (L198).",
+   "smells_raw": [
+    "widget-exists-only",
+    "no-oracle-smoke"
+   ]
+  },
+  {
+   "file": "tests/test_form_roundtrip.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "tautological"
+   ],
+   "tests": 9,
+   "note": "Model mutate->save->reopen->assert exact field value EXPECT_EQ(reField.value,\"round_trip_value\") (L89) + negative EXPECT_NE. ResetFormDoesNotRetainStale oracle is save==memory consistency, cannot detect a no-op reset on fields lacking /DV (L176-184).",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_metadata_roundtrip.cpp",
+   "oracle": "metamorphic",
+   "smells": [],
+   "tests": 7,
+   "note": "Exact-string readback after save+reopen incl. Unicode/RTL/CJK/emoji (L113) and empty-string-clears negative (L94). Strongest oracle set in cluster; fixtures ASSERT-exist (hard-fail not skip).",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_document_js_events.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 6,
+   "note": "Event-ordering tests assert exact callback sequence (L72,224) \u2014 true. But 4 of 7 are pure EXPECT_NO_THROW on fireDocumentEvent (L110,127-131,180-182) and the file admits the willSave SCRIPT side-effect is unobservable (L139-150).",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_form_field_data.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 3,
+   "note": "Enum toPdf/fromPdf round-trip (L22) + default-construction field defaults (L45-60). Pure value oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_save_structural_verify.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 2,
+   "note": "Parses saved bytes via QPDF, asserts structural check ok + startxref>=2 + file grew (L124-135) and that un-modeled features (EmbeddedFiles/AcroForm/Signature) survive by inspecting /Names,/AcroForm,/ByteRange (L238). Vacuity-guarded precondition (L208).",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_undo_after_save_crash.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 4,
+   "note": "Deterministic crash/UAF repro: NO_THROW undo + exact pageCount restored after save (L150,202); Site2 loops 3x for heap-nondeterminism. Last test ends SUCCEED() (L315) but oracle there is process-survival (a UAF crashes), legitimate for the bug class.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_page_edit_destination_integrity.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 5,
+   "note": "Content oracle: resolves bookmark/link destinations by unique per-page text marker across delete/reorder/move + full save+reopen, asserts each still points at the SAME marker and deleted targets don't dangle (L223,298,353). Survives object renumbering. Gold standard.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_autosave_capture_fixes.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 5,
+   "note": "Reopens recovery copy in a FRESH context and asserts the edit persisted via real oracles: RedactionVerifier.verify (L131), bookmark count>=before+1 (L172), PageLabel style readback (L206), layer present (L260).",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_fidelity_r3_24_edit_save_scale.cpp",
+   "oracle": "true",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 2,
+   "note": "Real content oracle: reopens decompressed stream, asserts new-first-page carries '(Page N)' and NOT '(Page 1)' (L195-201). Only first+last page verified; interior-page scramble/dup/drop survives (pageCount==500 also survives a swap). Timing/size bounds can't fail.",
+   "smells_raw": [
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_save_recompression.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 3,
+   "note": "Strongest byte oracle: byte-exact raw-stream compare after real saveAs EXPECT_EQ(after.rawBytes,jpeg) (L300) and EXPECT_EQ(after.rawBytes,before.rawBytes) (L331). No reopen-only shortcut.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_document_save_atomic.cpp",
+   "oracle": "true",
+   "smells": [
+    "reopens-without-error-only",
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 4,
+   "note": "HappyPath asserts reopened->pageCount()==4 i.e. edit persisted (L238). But the failure-branch recovery save is verified only by reopen+pageCount>0 (L166) and NO_THROW (L153) \u2014 a recovery save that writes a pre-edit file passes.",
+   "smells_raw": [
+    "reopens-without-error-only",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_autosave_matrix.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 9,
+   "note": "Strong: every cell reopens the recovery copy in a FRESH context and asserts the exact edit (oracleFormValue L227, oracleMetaTitle L235); UndoToPartial asserts kept-edit present AND undone-edit ABSENT (L774-775). Count cells use '>=baseline+editNo' so a duplication-on-snapshot passes.",
+   "smells_raw": [
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_fidelity_r3_22_xmp_info_sync.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 1,
+   "note": "Asserts Info title == V2 (L103) AND XMP contains V2 and NOT stale V1 (L109-112). Real cross-store consistency oracle on distinctive sentinels.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_autosave_recovery.cpp",
+   "oracle": "metamorphic",
+   "smells": [],
+   "tests": 5,
+   "note": "filePageContainsSpanText reopens the recovery copy and asserts the unsaved edit is present (L174) AND that the untouched source still holds the ORIGINAL and NOT the edit (L178-181). Mutation-honest.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_metadata_dialog.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "widget-exists-only",
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 7,
+   "note": "Dialog-internal set/get roundtrip is real (L154-161) but NEVER touches a Document \u2014 zero persistence coverage. Construct is NO_THROW+objectName (L54-60); HasAllWidgets is pure findChild existence (L81-91). Dialog->save wiring untested anywhere.",
+   "smells_raw": [
+    "widget-exists-only",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_command_page_rebind.cpp",
+   "oracle": "true",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 5,
+   "note": "Strong rebind/undo oracle: getAnnotations().size()==countAfterCreate-1 after post-save undo (L144). But the on-disk save is validated only by reopen+pageCount==3 (L133) \u2014 the annotation's persistence into the saved file is never checked (drop-on-disk passes).",
+   "smells_raw": [
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_autosave_sidecar_integrity.cpp",
+   "oracle": "true",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 10,
+   "note": "Very strong sidecar layer: field-by-field JSON schema + exact values (L185-203), scan returns EXACTLY one valid record excluding 5 malformed variants (L271), debounce timestamp-unchanged (L624). The recovery PDF copy itself is only reopen+pageCount checked (capture covered elsewhere).",
+   "smells_raw": [
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_save_throw_undo_safety.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 1,
+   "note": "Parametrized over 9 families. Post-throw assertion accepts BOTH a clean return AND a thrown exception as pass (undoReturnedCleanly=true in both branches, L279-286) \u2014 only a hard crash/UAF fails it, and only on an ASan build. Undo correctness never asserted.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_command_family_undo_after_save_probe.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "tautological"
+   ],
+   "tests": 1,
+   "note": "Parametrized 5 families with real do/save/undo/redo state oracles (metadata title L143, bookmark count L228, signature count L311). OCR family is self-referential: 'ocred'/'invalidated' sets are filled by the command's OWN callbacks (L246-247), so it verifies the command calls its own lambdas, not document state.",
+   "smells_raw": [
+    "tautological"
+   ]
+  }
+ ],
+ "ranked_weak_findings": [
+  {
+   "file": "tests/test_autosave_capture_audit.cpp",
+   "line": 187,
+   "test": "AutosaveCaptureAudit.* (all 15 families)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "Autosave silently fails to capture ANY edit family on crash (the exact data-loss class this project keeps shipping) and every one of the 15 tests stays green: finishRow() records capture_present=NO as passing DATA and the only statement is SUCCEED(). Zero EXPECT_/ASSERT_ in the whole file. A crash-recovery regression that drops all edits produces a green suite.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_optimize.cpp",
+   "line": 175,
+   "test": "OptimizeDoesNotLeakDeletedFormFieldValues",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Optimize (garbage=4) leaves stale/deleted form-field values or removed content embedded in the output; the test reopens and asserts only pageCount>0 (L194), so the exact data-leak the test is NAMED for ships green.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_save_throw_undo_safety.cpp",
+   "line": 286,
+   "test": "ThrownSaveStillRebindsUndoStack (9 families)",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "After a save that throws (file locked), undo() can undo the WRONG op / corrupt the page / leave inconsistent edit state and the test stays green \u2014 both a clean return and any thrown exception satisfy the oracle. Only a hard crash on an ASan build fails it; on Debug/Release a logic-corrupting rebind passes.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_compare_documents_view.cpp",
+   "line": 81,
+   "test": "HighlightCountMatchesDiffEngineOutput",
+   "oracle": "pseudo",
+   "smells": [
+    "tautological",
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "docA and docB are both test_3page.pdf (SetUp L54-57) so changedPages/expectedRegions are 0; the entire change-highlighting path is asserted only against 0==0. A dialog that computes change counts completely wrong for real differing docs passes.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_xmp_metadata_writer.cpp",
+   "line": 50,
+   "test": "BuildXmpPacket_PdfA1b",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold",
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Writer emits a malformed pdfaid part/conformance (part=3, wrong letter). Asserting only that substrings \"1\" and \"B\" appear ANYWHERE in the packet (timestamps/UUIDs contain both) cannot detect wrong/missing PDF/A identification. Same pattern L66/68,82/84,98/100,114/116,150/152.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_bookmark_panel_context_menu.cpp",
+   "line": 169,
+   "test": "InsertBookmarkAddsToManager",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "insertBookmark returns true but never inserts the node (or inserts wrong title/index). The test checks only the boolean return and explicitly gives up on the model oracle ('BookmarkPanel doesn't expose manager_', L187), so a no-op insert that returns true passes despite the test name.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_replace_page.cpp",
+   "line": 66,
+   "test": "ReplacePageCommandUndoRestoresOriginal",
+   "oracle": "metamorphic",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Captures textAfter (L68) but NEVER asserts textAfter != textBefore. If replacePage silently no-ops, textAfter==textBefore and the undo round-trip trivially passes \u2014 a page-replace that does nothing (user's replacement lost) ships green.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_metadata_manager.cpp",
+   "line": 124,
+   "test": "WriteMetadata_Roundtrip",
+   "oracle": "metamorphic",
+   "smells": [
+    "tautological",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "writeMetadata may stage 8 fields in an in-memory dict never serialized on save; readMetadata reads the same in-memory dict so all 8 EXPECT_EQ pass, yet the saved file carries no title/author/dates. Only Title is ever save/reopen-verified (Test 14).",
+   "severity": "high",
+   "confidence": "med"
+  },
+  {
+   "file": "tests/test_form_commands.cpp",
+   "line": 77,
+   "test": "SetFieldValue_ExecuteAndUndo",
+   "oracle": "metamorphic",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Value equality is checked only against the in-memory FormManager; the field is never saved and reopened. A regression where setFieldValue updates the widget cache but fails to write /V (value lost on save) passes.",
+   "severity": "high",
+   "confidence": "med"
+  },
+  {
+   "file": "tests/test_command_page_rebind.cpp",
+   "line": 133,
+   "test": "OrdinarySaveDrainsAndRebindsAnnotationCommand",
+   "oracle": "true",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "The saved file is validated only by reopen + pageCount()==3. A save that rebinds correctly but silently DROPS the created annotation from the written PDF passes (reopened doc still has 3 pages, in-memory undo still decrements). User loses their annotation on disk with a green test.",
+   "severity": "high",
+   "confidence": "med"
+  },
+  {
+   "file": "tests/test_save_operations.cpp",
+   "line": 118,
+   "test": "SaveClearsDirtyPages",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only",
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "save() could silently drop/corrupt page content (wrong text/images, lost annotations) and stay green \u2014 it only checks file exists, >0 bytes, reopens non-null (L139-142). Nothing compares any page content or object before/after.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_metadata_commands.cpp",
+   "line": 53,
+   "test": "Execute_WritesNewMetadata",
+   "oracle": "metamorphic",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Metadata set in the in-memory model but readMetadata runs on the same live doc (never reopened from disk); a save that drops the metadata edit passes.",
+   "severity": "med",
+   "confidence": "med"
+  },
+  {
+   "file": "tests/test_forms_phase5.cpp",
+   "line": 152,
+   "test": "RadioGroupExclusivity",
+   "oracle": "heuristic",
+   "smells": [],
+   "user_visible_failure_missed": "Asserts only that toggled radio B != \"Off\" (L176); never re-reads radio A to confirm it was DESELECTED. A radio group that fails to clear the sibling (the exact bug the test is named for) passes.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_forms_phase5.cpp",
+   "line": 476,
+   "test": "SignatureWidgetTypeIsDistinctFromOthers",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "no-oracle-smoke",
+    "widget-exists-only"
+   ],
+   "user_visible_failure_missed": "Sole real assertion is EXPECT_GE((int)FormFieldType::Signature,0) (L489) \u2014 a compile-time tautology \u2014 then SUCCEED(); sigCount/totalCount discarded via (void). If getFormFields mis-tags signature widgets the UI dispatches the wrong dialog and this never notices.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_page_ops_phase6.cpp",
+   "line": 290,
+   "test": "PagePanelPageMovedSignalContract",
+   "oracle": "heuristic",
+   "smells": [
+    "widget-exists-only",
+    "tautological"
+   ],
+   "user_visible_failure_missed": "The test emits pageMoved(0,2) itself then checks the spy caught (0,2); no drag-drop code path is exercised, so a broken/never-fired reorder handler in PagePanel is undetected \u2014 it only proves Qt signal plumbing works. Same for MultiSelectDelete (L316).",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_page_integer_overflow.cpp",
+   "line": 77,
+   "test": "DeletePageAtInvalidIndex",
+   "oracle": "proxy",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "Bare try/catch with ZERO assertions. DeletePageCommand at INT_MAX/-1 could delete the wrong page or silently no-op WITHOUT throwing and the test passes; it neither asserts a throw nor that page count is unchanged.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_page_operations.cpp",
+   "line": 178,
+   "test": "ExtractPages_ReverseOrder",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Pages requested reverse {2,1,0} but emitted forward; only pageCount==3 checked, so page-order not being honored ships green. Same class as ExtractPages_Multiple (L61) which can extract the wrong pages.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_document_js_events.cpp",
+   "line": 151,
+   "test": "WillSaveFiresOnFixtureWithDocLevelJs",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "A willSave/AA script that silently fails to execute passes: the test only asserts fireDocumentEvent doesn't throw (L180-182) and documents it cannot observe the script ran (L139-150). A regression disabling doc-level JS stays green.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_qpdf_wrapper.cpp",
+   "line": 81,
+   "test": "SaveToFile",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Verifies only reopen + pageCount()==3 (L104). A save that drops/mangles page content but preserves the page count passes \u2014 no content or object comparison.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_diff.cpp",
+   "line": 190,
+   "test": "CompareIdenticalDocuments",
+   "oracle": "proxy",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Compares test_3page.pdf against itself, expecting similarity~1.0 and changedPages==0. A comparator hardwired to return 1.0/0 changes (i.e. one that never detects any difference) passes this test.",
+   "severity": "med",
+   "confidence": "med"
+  },
+  {
+   "file": "tests/test_document_save_atomic.cpp",
+   "line": 161,
+   "test": "AtomicReplaceFailurePreservesOriginalAndKeepsDocUsable",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only",
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "After injected rename failure, the recovery saveAs(otherPath) is checked only by NO_THROW + reopened pageCount>0. The inserted blank page (the edit that would be lost) is never confirmed in otherPath, so a recovery save writing a PRE-EDIT file passes.",
+   "severity": "med",
+   "confidence": "med"
+  },
+  {
+   "file": "tests/test_form_data_io.cpp",
+   "line": 344,
+   "test": "XfdfContainsOnlyNonEmptyValues",
+   "oracle": "proxy",
+   "smells": [
+    "tautological",
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Export emits empty-valued fields (what the name forbids). The body admits it can't check content, checks only '<fields>' exists, then SUCCEED() \u2014 an export including empty values passes.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_batch.cpp",
+   "line": 117,
+   "test": "MultipleActionsExecuteSequentially",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "The batch action (FlattenAnnotations) silently does nothing or fails; comment 'May succeed or fail depending on file content' (L133) means it asserts only fileResults.size()==1 \u2014 an action that never mutates the PDF passes.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_page_commands.cpp",
+   "line": 390,
+   "test": "MovePageCommand_Forward",
+   "oracle": "metamorphic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "Post-move identity asserted only via widthPt/heightPt equality; test_3page.pdf pages share dimensions, so a MovePage landing at the wrong index (or not moving) yields identical dims and passes. No content/label/object identity checked.",
+   "severity": "med",
+   "confidence": "med"
+  },
+  {
+   "file": "tests/test_fidelity_r3_24_edit_save_scale.cpp",
+   "line": 195,
+   "test": "EditPersistsThroughFullRewriteSaveAtScale",
+   "oracle": "true",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "Only page 0 and last index are content-checked after a 500-page reversal. A full-rewrite bug that scrambles/duplicates/drops INTERIOR pages survives (pageCount==500 also survives a swap-without-loss).",
+   "severity": "med",
+   "confidence": "med"
+  },
+  {
+   "file": "tests/test_save_path_security.cpp",
+   "line": 71,
+   "test": "LongPathHandledGracefully / UNCPathInSaveTarget",
+   "oracle": "proxy",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "Both tests are bare try/catch with ZERO assertions (L71-96). saveAs to a 300-char or UNC path could crash-recover into a silently corrupt/partial file and the test passes as long as it neither throws nor crashes; no file-state or exception oracle.",
+   "severity": "low",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_incremental_save.cpp",
+   "line": 166,
+   "test": "ThrowsWhenDocumentHasNoFilePath",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "Name promises a throw on a path-less Document; body opens a normal doc and EXPECT_NO_THROW's saveIncremental() (L177). The defensive throw branch is never reached, so a removed guard is undetected.",
+   "severity": "low",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_bookmarks.cpp",
+   "line": 74,
+   "test": "NoBookmarks / ExtractBookmarks",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free",
+    "tautological"
+   ],
+   "user_visible_failure_missed": "EXPECT_GE(bookmarks.size(),0u) is always true on unsigned (L74); on the no-outline fixture the validation loop never runs (L35). A broken extractor returning garbage/empty passes as 'ran without crashing'.",
+   "severity": "low",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_formatting_run.cpp",
+   "line": 570,
+   "test": "EdgeCasesTest.ReversedRange",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "Applies a reversed range (7,3) with a 'should not crash' comment but contains ZERO EXPECT_/ASSERT_. A silently corrupted run list from a reversed range is never checked \u2014 only a crash fails it.",
+   "severity": "low",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_metadata_dialog.cpp",
+   "line": 63,
+   "test": "HasAllWidgets",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "user_visible_failure_missed": "Widgets can exist by objectName yet be disabled/unwired; a metadata dialog that displays fields but never pushes an EditMetadataCommand on OK (user's edit silently discarded) passes every test in this file \u2014 the dialog is never connected to a Document/save path anywhere in the suite.",
+   "severity": "low",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_command_family_undo_after_save_probe.cpp",
+   "line": 260,
+   "test": "HoldsNoRawObjAcrossFullRewriteSave/Ocr",
+   "oracle": "heuristic",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "The OCR oracle asserts invalidated.size()==3/ocred.size()==3 where those sets are filled by the command's OWN callback lambdas \u2014 it verifies the command re-invokes callbacks it was constructed with, not real document OCR state. A command firing callbacks but leaving OCR state stale passes.",
+   "severity": "low",
+   "confidence": "med"
+  }
+ ]
+}

@@ -1,0 +1,24 @@
+{
+  "pageCount": 1,
+  "isEncrypted": false,
+  "hasForm": false,
+  "hasForms": false,
+  "hasAnnotations": false,
+  "hasImages": false,
+  "pdfVersion": "1.7",
+  "fileSize": 3014,
+  "origin": "phase3-generator",
+  "category_tags": [
+    "cjk",
+    "japanese",
+    "chinese",
+    "korean",
+    "vector-text"
+  ],
+  "description": "Body text in Japanese (Hiragana+Kanji), Simplified Chinese, and Korean (Hangul).",
+  "scripts": [
+    "cjk",
+    "ascii"
+  ],
+  "contentKind": "vector-text"
+}

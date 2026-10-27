@@ -1,0 +1,941 @@
+{
+ "cluster": "C3_fonts",
+ "totals": {
+  "files": 42,
+  "tests": 643,
+  "by_oracle": {
+   "true": 8,
+   "pseudo": 6,
+   "metamorphic": 2,
+   "heuristic": 4,
+   "proxy": 19,
+   "no-oracle-smoke": 3
+  },
+  "by_smell": {
+   "assertion-free": 5,
+   "tautological": 11,
+   "EXPECT_NO_THROW-only": 7,
+   "over-tolerant-threshold": 15,
+   "extraction-only-for-visual": 16,
+   "widget-exists-only": 3,
+   "reopens-without-error-only": 5
+  },
+  "oracle_token_leak_removed_from_smells": {
+   "no-oracle-smoke": 5,
+   "proxy": 1
+  }
+ },
+ "per_file": [
+  {
+   "file": "tests/test_font_fuzz.cpp",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "tests": 8,
+   "note": "CONFIRMED genuinely assertion-free. All 8 TEST_F call fuzzFontParsing() (75-102) which opens/renders inside try{}catch(...){} with ZERO EXPECT_/ASSERT_. Only oracle = process did not segfault. Cannot detect a parser regression that renders .notdef/blank or corrupts state.",
+   "smells_raw": [
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_cnn_font_ranker.cpp",
+   "oracle": "proxy",
+   "smells": [],
+   "tests": 5,
+   "note": "All 5 assert EXPECT_TRUE(ranked.empty()) on DEGENERATE inputs only (null classifier 47, unavailable model 61, empty candidates 72, null region 82, empty text 96). The actual ranking (does a loaded model order fonts by visual similarity?) is NEVER exercised. Entire discriminative purpose untested.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_cnn_font_classifier.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 14,
+   "note": "10 cosine-math tests are exact TRUE oracles (identical==1.0 L70, orthogonal==0.0 L78). But DifferentFontLowerSimilarity uses EXPECT_LT(sim,0.99f) (L170) which is near non-discriminating: Arial vs Times can score 0.98 with a text-dominated/broken embedding and pass.",
+   "smells_raw": [
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_system_font_discovery_panose.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 8,
+   "note": "Strongest of batch A. serifFromPanoseByte1 asserts FIXED spec labels (2-10->Serif L49, 11-15->Sans L58); Times->isSerif true (96), Arial->isSerif false (121). Lone weak test EnumerationCompletes (L147) claims to exercise missing-PANOSE fallback but only asserts fonts.size()>0.",
+   "smells_raw": [
+    "no-oracle-smoke"
+   ]
+  },
+  {
+   "file": "tests/test_font_family_resolver.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "widget-exists-only"
+   ],
+   "tests": 7,
+   "note": "Positive tests assert only EXPECT_FALSE(path.empty()) (23,28,33,38). resolve('Arial') returning comic.ttf passes. Bold/Italic variants never verify the returned face is actually bold/italic. DifferentStyles explicitly refuses to assert paths differ (comment L57). GTEST_SKIP on non-Windows.",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_visual_font_ranker.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold",
+    "tautological"
+   ],
+   "tests": 5,
+   "note": "SingleCandidate asserts only visualScore in [0,1] (93-94). MultipleCandidatesSorted wraps its ONLY correctness check (Arial ranks best) inside if(arialFirst) (121-125) so a WRONG ranking silently skips the assertion and passes green.",
+   "smells_raw": [
+    "over-tolerant-threshold",
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_script_aware_font_selection.cpp",
+   "oracle": "true",
+   "smells": [
+    "extraction-only-for-visual",
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 60,
+   "note": "Dominant oracle genuine: script-detection asserts exact FontScript enum; detectSerif/Bold/Italic assert exact bool vs synthetic pixels. BUT 3 BitmapCompositorStyled tests (1233,1276,1338) assert only nonTransparent>50/>30 (bold-rendered-as-regular passes) and FontMatch_SerifQuery (583) degrades to SUCCEED/cout.",
+   "smells_raw": [
+    "no-oracle-smoke",
+    "extraction-only-for-visual",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_overlay_font_mapping.cpp",
+   "oracle": "pseudo",
+   "smells": [
+    "tautological",
+    "extraction-only-for-visual"
+   ],
+   "tests": 31,
+   "note": "Family tests assert QFontInfo::family() vs golden (blind to glyph). Size tests TAUTOLOGICAL: expectedProbePixelSize() (54-72) re-implements buildOverlayFont's probe formula verbatim then asserts equality (415,544,569,589,635) so wrong production formula passes. SetOverlayFontFamily_Persists (352) SUCCEED-only.",
+   "smells_raw": [
+    "tautological",
+    "extraction-only-for-visual",
+    "no-oracle-smoke"
+   ]
+  },
+  {
+   "file": "tests/test_font_compliance_checker.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "assertion-free",
+    "tautological",
+    "extraction-only-for-visual"
+   ],
+   "tests": 10,
+   "note": "Asserts only that checkFonts returns SOME fonts/names non-empty. ConstructDestroy (33) SUCCEED-only. AllFontsCompliant_Basic (96) = EXPECT_TRUE(x||!x) and CheckFonts_EmbeddedStatus (118) = if(isEmbedded||!isEmbedded) \u2014 literal tautologies that can never fail.",
+   "smells_raw": [
+    "assertion-free",
+    "tautological",
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_pdf_font_embedder.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 6,
+   "note": "Asserts embedFont returns has_value + resourceName starts_with('Fsub') + distinct names + nullopt on bad input. NEVER reopens the doc, verifies a FontFile stream, or renders a glyph. A resource name pointing at a dangling/empty font object passes. Below the reopens-without-error bar \u2014 no reopen at all.",
+   "smells_raw": [
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_font_matcher.cpp",
+   "oracle": "true",
+   "smells": [
+    "tautological",
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 42,
+   "note": "Plurality are real value oracles (detectProperties vs hand-computed x_size*72/dpi; estimateWeight exact enum; detectTextColor; weightClassDistance sqrt(3.6)). BUT findMatch/matchRegion proxy; VisualRanking (861,882) no-oracle-smoke; QueryEnrichment (792,818) admit 'can't inspect it directly'; weightClass maps (929-973) tautological same-cast; EmptyRegion (1129) EXPECT_NO_FATAL_FAILURE-only.",
+   "smells_raw": [
+    "proxy",
+    "tautological",
+    "no-oracle-smoke",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_font_matching.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "over-tolerant-threshold",
+    "assertion-free"
+   ],
+   "tests": 17,
+   "note": "BasicFontMatcher tests mostly assert only familyName non-empty. MatchWithWeightAndStyle (159), MatchSerifPreference (165), Bold/ItalicInferred (171,177) describe behavior in comments but assert nothing. MatchTimesAlias (136)/CourierAlias (146) OR-in find('DejaVu') so a sans font passes a serif assertion. BundledFonts (90-107) are the honest fixed-expected part. FindByFamilyStyle (65) guards EXPECT_EQ behind if(result).",
+   "smells_raw": [
+    "no-oracle-smoke",
+    "over-tolerant-threshold",
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_glyph_atlas.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ],
+   "tests": 15,
+   "note": "Fixture makeTestImage() draws IDENTICAL black rectangles for A/B/C, so glyph('A')==glyph('B') byte-for-byte; a codepoint->region mixup or .notdef render is UNDETECTABLE. Assertions are dimension/containment only. Coverage() tests (146-214) are the only genuine numeric oracles.",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_font_substitution_engine.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "tautological",
+    "over-tolerant-threshold"
+   ],
+   "tests": 6,
+   "note": "5/6 assert result.empty() on negative inputs. MultipleSpansProcessed (168) sole assertion = EXPECT_NO_THROW + EXPECT_GE(result.size(),0u) (always true for unsigned). Test5 (134) key assertion starts_with('Fsub')||!empty() is vacuous. Never asserts a specific substitute family or rendered outcome.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "tautological",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_font_metric_profile.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 27,
+   "note": "Model file. distanceTo() asserted vs spec-derived exact constants (4.0,8.0,sqrt(12)) with EXPECT_NEAR 1e-5. Expected NOT recomputed via code path. SerifPenalty_IsNotDampenedBySqrt_OldCodeRegression (481) is a real mutation-style guard. What a discriminating oracle looks like.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_glyph_synthesizer.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "tautological",
+    "over-tolerant-threshold"
+   ],
+   "tests": 34,
+   "note": "Transform tests (Synthesize_b_from_d_HFlip 195, _9_from_6_Rotate180 223) assert success/donorUsed/quality>0 \u2014 NEVER that pixels were flipped/rotated. A synth returning the donor UNCHANGED passes HFlip and Rotate180. QualityScore_GoodMatch (391) tautological: profile seeded from measure*() of the same glyph. CompositorUsesSynthesizedGlyphs (568) is the one real pixel oracle.",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "tautological",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_atlas_comparison.cpp",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "widget-exists-only",
+    "tautological",
+    "reopens-without-error-only"
+   ],
+   "tests": 47,
+   "note": "Dominated by findChild-by-accessibleName + ASSERT_NE(nullptr) (PreviewLabelsExist 267, CharsetGridExists 586). *Handled tests assert EXPECT_NE(dlg,nullptr) on a fresh new \u2014 can never be null (225,237,416,422). Charset-render tests only check pixmap().isNull()==false (615,638), blind to correct glyphs. Calibrate/metrics tests (526-558) are the few with real value oracles.",
+   "smells_raw": [
+    "widget-exists-only",
+    "tautological",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_substitute_font_selector.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ],
+   "tests": 19,
+   "note": "Known-pair tests assert filePath substring 'arial'/'times'/'cour' (164,187,245) \u2014 name oracle, blind to rendered glyphs. 8 tests wrap the whole body in if(result.has_value()) with no else (SerifGetsSerif 198, Bold 366, Italic 388) -> silent vacuous pass when no substitute found. MatchScoreIsReasonable EXPECT_LT(score,100) (283) uselessly wide. CharisSIL negative-list (526) is the best test.",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_content_stream_substitution.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 7,
+   "note": "Strongest substitution file: apply->saveAs->reopen fresh ctx->extractPlainText->assert edited present AND original gone (91,172,191). Explicitly written to kill the old EXPECT_NO_THROW failure mode (comment 43-45). Weakness: AccentedSubstitutionTextIsPresent (137) degrades to asserting ASCII skeleton 'Caf'/'sum' (152,154) so a dropped accent/tofu is NOT caught.",
+   "smells_raw": [
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_annotation_font_controls.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 10,
+   "note": "Half hardened in Phase-16, but FontSizeRange (129), FontSizeChangeEmitsSignal (210), SetAnnotationUpdatesFontControls (151), ClearHidesFontControls (241) STILL wrap all assertions in if(spinner&&isVisible())/if(fontGroup) \u2014 zero assertions execute (green) if the widget is missing/hidden. DefaultAppearancePropertyInEnum (222) asserts an enum equals itself.",
+   "smells_raw": [
+    "widget-exists-only",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_glyph_scale_adjuster.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "assertion-free",
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold"
+   ],
+   "tests": 15,
+   "note": "Same-font==1.0 (77-82) and empty/null-default (132-185) are true-ish. Everything cross-font asserts only scale in (0.5,2.0) \u2014 a 40-100% off-target scale passes (102-113). NegativeFontSizeHandled (357) sole statement is (void)result; \u2014 assertion-free.",
+   "smells_raw": [
+    "assertion-free",
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_vector_font_atlas_builder.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ],
+   "tests": 16,
+   "note": "HIGH-YIELD. Asserts atlas.contains(cp), rasterizedCount, QImage non-null + ARGB32 + size>0. NEVER asserts glyph(U'A') is the A outline vs .notdef box. Missing-codepoint reporting (162-215) and notdef-exclusion (219-230) are the only discriminating tests. Height bound \u00b110px on a 24px EM (comment admits it exceeds stated \u00b12px).",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_serif_ascender_descriptor.cpp",
+   "oracle": "pseudo",
+   "smells": [
+    "tautological"
+   ],
+   "tests": 9,
+   "note": "Best-designed of batch D. Serif classification asserts profile.isSerif==true; paired profileSerif=1/0 with identical name proves the flag drives the decision (218-241). AscenderRatio_ProfileDerived (282-285) recomputes 'expected' via the SAME clamp+fallback the production path uses \u2014 a shared bug survives, mitigated only by EXPECT_NE(actual,0.75).",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_auto_missing_glyph_resolver.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "tests": 11,
+   "note": "PARTIALLY redeemed. Most tests assert only 'a run was produced'/'one dest set'/'covers index 0'. AllReturnedRunsEncodeAssignedCodepoints (319-383) is the strong invariant: FT_Get_Char_Index(routedFont,cp)!=0 proves the destination font encodes the codepoint (non-.notdef on save). Weakness: empty-runs branch (344) uses SUCCEED() so a total-drop regression passes; heavy GTEST_SKIP on empty runs.",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_per_line_font_size_wiring.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 7,
+   "note": "Genuine value oracle: exact pt values (30.0, 11.04) at \u00b10.5, DPI-scaling relation (150==300*2), fallback logic. Tests FontMatcher::lineFontSizePt as a pure function; the actual overlay-receives-clicked-size wiring is asserted only by comment (18-20), deferred to a separate Phase-2 UI test.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_glyph_atlas_compositor.cpp",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "over-tolerant-threshold",
+    "tautological"
+   ],
+   "tests": 12,
+   "note": "9/12 tests assert only result.isNull()==false and width/height == the compose() INPUT args (dimension-echo) \u2014 a BLANK canvas of the right size passes. No verification any glyph was composited. FreeTypeFallbackNotClipped (192) and WidthReasonable (242, bound atlasRight+45) are the only real pixel oracles.",
+   "smells_raw": [
+    "over-tolerant-threshold",
+    "dimension-echo"
+   ]
+  },
+  {
+   "file": "tests/test_embedded_font_analyzer.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "assertion-free",
+    "over-tolerant-threshold"
+   ],
+   "tests": 11,
+   "note": "weightClass in [100,900], stemWeightV<0.5, xHeight<capHeight \u2014 plausibility bands, none pinned to a known font's true metrics. StemWeightMeasured (99) and XHeightCapHeightPopulated (146) skip all assertions with a std::cout note if nothing was measured (assertion-free green). AnalyzeFromFileHasPanose (220, Arial familyKind==2) is the one pseudo-golden test.",
+   "smells_raw": [
+    "assertion-free",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_glyph_harvester.cpp",
+   "oracle": "true",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold"
+   ],
+   "tests": 65,
+   "note": "In bulk the STRONGEST file: real pixel oracles (glyph.width/height bounds after clip, countOpaquePixels alpha, height-normalization to refLineH=40, DpiMatch visible vs DpiMismatch transparent). Liability concentrated in the template section (~1467-1815): ~12 assertions guarded by if(atlas.contains(X)) so absence SKIPS not fails; 1499/1810 self-document 'key invariant is no crash'; StoresNccScore (1922) admits it can't check the NCC was stored.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_vector_enriched_atlas_builder.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 12,
+   "note": "HIGH-YIELD. Recipe synthesis asserts res.success + quality>=kMinQualityThreshold + non-null (183-188); EnrichedAtlas contains('d') + non-null (205-208) \u2014 NEVER that synthesized 'd' is the mirror of 'b' or even d-shaped. quality is self-computed by the synthesizer, not independent. CalibratedStyleTransferDiffers (278) asserts only outCal!=ftGlyph \u2014 one perturbed pixel satisfies it.",
+   "smells_raw": [
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_substitution_info_model.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 11,
+   "note": "Plain-struct field round-trip (spanIndex, runSegments ordering, copy/move preserve vector). Exact-value asserts, correctly scoped as a data-model contract test. Not a glyph oracle; lowest risk, no meaningful smell.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_font_descriptor_style.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 6,
+   "note": "Asserts TextChar/TextSpan.isItalic/isBold propagate from /FontDescriptor and buildOverlayFont() sets QFont::italic()/bold(). Oracle stops at the QFont REQUEST flag \u2014 never confirms an italic/bold glyph is resolved or drawn. If no italic face installed, font.italic() stays true while overlay renders upright and the test passes.",
+   "smells_raw": [
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_tessdata_font_detection.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold"
+   ],
+   "tests": 11,
+   "note": "Dominant oracle = FontMatcher returns SOME non-empty family, confidence>0, sizePt>0. One real negative oracle (must NOT be Scheherazade for English). Tests 8-10 depend on hard-coded absolute path C:/Users/dev/...SpecimenC_Deposit_Letter.pdf, GTEST_SKIP off that one machine, mostly std::cout with a lone EXPECT(nonTransparent>0).",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_font_analysis_cache.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 7,
+   "note": "Genuine data-structure oracle: exact value equality on round-trip, LRU capacity=256 eviction, SQLite-vs-mem two-tier, cross-instance persistence. Strong for its domain; not a font-visual test. No smells.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_font_resource_persistence.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 7,
+   "note": "Byte-scans saved PDF for /Fsub1,/Fsub2,/BaseFont; tests 5&7 check reopened fontName non-empty/>=2 distinct. Honest that it's byte-level. Proves the font dict entry survived filter+GC, NOT that the Tf operator selects the right glyph or the correct face renders. 4/7 skip non-Windows.",
+   "smells_raw": [
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_embedded_font_analyzer_multiscript.cpp",
+   "oracle": "pseudo",
+   "smells": [],
+   "tests": 5,
+   "note": "Asserts coversScript() membership + exact distanceTo() penalty (EXPECT_FLOAT_EQ 0.0/8.0; EXPECT_NEAR 1e-3). Real Arial/Times cases prove supportedScripts is glyph-range-derived (Arial carries Arabic; Times lacks CJK). Tight thresholds, real derivation. Among the strongest.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_textedit_font_identity.cpp",
+   "oracle": "pseudo",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 11,
+   "note": "Best font-identity oracle in the cluster: classifies the RESOLVED .ttf via FreeType (PANOSE serif class, OS/2 fsSelection italic, usWeightClass) and asserts serif/italic/weight independently. Still file-level, not rendered-glyph. Weight tolerance \u00b1200 (band [500,900]) is loose. 5 tests Windows-gated.",
+   "smells_raw": [
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_font_matcher_per_line.cpp",
+   "oracle": "pseudo",
+   "smells": [
+    "tautological"
+   ],
+   "tests": 4,
+   "note": "Per-line sizes asserted as x_size*72/dpi (10px->2.4pt, 30px->7.2pt) \u2014 the SAME formula the code computes, so expected restates the implementation. Catches broadcast-vs-per-line and DPI-convention regressions, but cannot catch a shared systematic error in the estimator itself.",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_type3_font_builder.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 17,
+   "note": "HIGH-YIELD. Asserts Type3 dict shape (/Subtype /Type3, FontMatrix 0.001, Widths order, Encoding /Differences code->uXXXX) and that the CharProc STREAM contains d0/q/cm/BI/ID/EI/Q tokens \u2014 but NEVER decodes the inline image or renders the glyph. A CharProc drawing wrong/blank/inverted bitmap, or /Differences mapping code 1 to wrong name, passes all 17. Sibling bundler proves an NCC oracle is feasible.",
+   "smells_raw": [
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_font_matcher_per_run_script.cpp",
+   "oracle": "pseudo",
+   "smells": [],
+   "tests": 7,
+   "note": "Deterministic primitives: exact run boundaries, per-run script labels, exact distanceTo penalties (0.0 covered / 8.0 uncovered), neutral-char non-fragmentation, empty->Unknown. No glyph rendering by design. Strong logic oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_font_script_integration.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 3,
+   "note": "The meaningful coversScript()/no-penalty assertions are nested inside if(!match.fontFilePath.empty()){ if(prof.has_value()){...} }, so if the matcher returns no file path or analysis fails, the test passes on the lone non-empty-family check \u2014 vacuous-pass. FixtureLoads is near no-oracle-smoke.",
+   "smells_raw": [
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_cid_font_encoding.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "tautological",
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "tests": 8,
+   "note": "HIGH-YIELD. Tests 2&6 (CID embed) assert only no-throw + 'page still has blocks' + an 'Arial' substring \u2014 a broken CID CMap that draws wrong glyphs passes. Tests 7&8 (RangeOverflowProtection, MrangesSingleCodepointMapping) RE-IMPLEMENT the production loop inline and assert on the copy \u2014 the real CMap scanner is never invoked. Tests 1&3 round-trip extractPlainText via ToUnicode (orthogonal to the drawing CMap) so wrong-glyph-but-right-ToUnicode passes.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "tautological",
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_synthesized_type3_font_bundler.cpp",
+   "oracle": "metamorphic",
+   "smells": [],
+   "tests": 9,
+   "note": "Gold standard the two builders lack: NccAgainstSynthesizedImageIsHigh decodes the bundled CharProc's inline image back to a QImage and NCC-compares to the synthesized glyph (>=0.85). Genuine visual round-trip (synthesize->bundle->decode==synthesized). Strongest file in the cluster.",
+   "smells_raw": []
+  }
+ ],
+ "ranked_weak_findings": [
+  {
+   "file": "tests/test_font_fuzz.cpp",
+   "line": 112,
+   "test": "FontFuzzSmokeTest.* (all 8, via assertion-free helper fuzzFontParsing)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "A malformed font dict that MuPDF parses into a garbage glyph program (wrong widths, missing glyphs, silent .notdef substitution) is never detected \u2014 the harness only survives non-crash. A font-parser regression that renders 'Hello' as blank/.notdef passes green. Zero assertions = zero behavioral oracle.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_cid_font_encoding.cpp",
+   "line": 360,
+   "test": "RangeOverflowProtection / MrangesSingleCodepointMapping (393)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Labelled 'regression test for Karen QA finding #2/#4' but the production CMap-scan code is NEVER called \u2014 the test copies the loop into its own body and asserts on that copy. If the real ContentStreamEditor CMap scanner still used unsigned short (the original infinite-loop bug) or mishandled mranges, both tests stay green. Zero coverage of the fix they claim to lock.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_type3_font_builder.cpp",
+   "line": 332,
+   "test": "CharProcContentStreamIsParseable (+ SingleGlyphRoundTrip, EncodingDifferences, all 17)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Type3FontBuilder writes a CharProc whose inline image is blank, inverted, or from the wrong glyph, OR /Differences maps code 1 to the wrong Unicode name. Every test passes because they only check /Subtype is Type3 and the stream contains 'd0','BI','ID','EI'. User sees garbled/blank/wrong reconstructed Type3 text. Sibling bundler proves the NCC oracle is ~30 lines away.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_visual_font_ranker.cpp",
+   "line": 121,
+   "test": "MultipleCandidatesSortedByCombinedScore",
+   "oracle": "heuristic",
+   "smells": [
+    "tautological",
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "The ONLY ranking-correctness check (Arial should win when the region was rendered in Arial) is wrapped in if(arialFirst){...}. When the ranker is wrong and Arial does NOT rank first, the EXPECT_GT is skipped and the test passes \u2014 the assertion is neutered exactly on the failure case. User editing scanned text gets Times substituted for Arial (serif glyphs).",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_pdf_font_embedder.cpp",
+   "line": 52,
+   "test": "EmbedArialReturnsResourceName (all 6)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "embedFont allocates 'Fsub0' but writes a malformed/empty FontFile2 stream or drops the glyph program; the PDF opens but embedded text renders as .notdef/tofu. Green because the test only inspects a returned string \u2014 it never reopens the doc nor rasterizes a glyph. Below even the reopens-without-error bar.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_vector_font_atlas_builder.cpp",
+   "line": 106,
+   "test": "AtlasContainsCommonAsciiCodepoints / RasterizedGlyphsHavePremultipliedAlpha",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "A subsetting/rasterization defect that maps 'A' to the .notdef box outline (or wrong glyph index) still yields a non-null ARGB32 bitmap of positive size that atlas.contains(U'A') reports true. User sees tofu; oracle asserts only presence+format+size>0, never that the rasterized outline is the letter A.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_vector_enriched_atlas_builder.cpp",
+   "line": 205,
+   "test": "EnrichedAtlasPreSynthesizesRequestedMissing / RecipeSynthesisProducesNonNullImage (184)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "GlyphSynthesizer's b->d HFlip recipe emits a wrong/garbage/non-mirrored bitmap. Test asserts only ea.contains(U'd') + !d.isNull() + quality>=kMinQualityThreshold (self-computed by the synthesizer). User sees a malformed 'd' in edited scanned text; test stays green. No pixel comparison to a reference d or to HFlip(b).",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_glyph_atlas_compositor.cpp",
+   "line": 77,
+   "test": "AllCharsInAtlas (+ 8 dimension-echo siblings)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "compose() returns a correctly-sized but BLANK canvas (no glyphs blitted, wrong offsets, all-transparent). Asserts width==200 & height==50 which are the requested INPUTS echoed back. A compositor that draws nothing passes 9 of 12 tests. User sees empty overlay where composited glyphs should be.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_glyph_atlas.cpp",
+   "line": 11,
+   "test": "makeTestImage + BuildFromCharData / LookupExistingCharacter",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Fixture paints three IDENTICAL 15x20 black rectangles for A,B,C. If GlyphAtlas maps codepoints to wrong crop regions (stores 'C' bitmap under key 'A'), every test passes because all three bitmaps are byte-identical. An atlas rendering .notdef or the wrong glyph is indistinguishable from a correct one.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_glyph_synthesizer.cpp",
+   "line": 195,
+   "test": "Synthesize_b_from_d_HFlip / _9_from_6_Rotate180 (223)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Assertions are success/!isNull/donorUsed==U'd'/quality>0. None inspect pixels. A synthesizer that copies 'd' verbatim WITHOUT the horizontal flip produces a visibly wrong 'b' on the page yet passes. The transform \u2014 the entire point of synthesis \u2014 is never validated.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_annotation_font_controls.cpp",
+   "line": 129,
+   "test": "FontSizeRange / FontSizeChangeEmitsSignal (210) / SetAnnotationUpdatesFontControls (151)",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "user_visible_failure_missed": "if(spinner && spinner->isVisible()){ EXPECT_EQ(min,6); EXPECT_EQ(max,144); } \u2014 if the spinner is never created or hidden for FreeText (a real regression), the body is skipped and the test reports GREEN with zero assertions executed. The FreeText font-size control could be fully broken and the suite stays green.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_cnn_font_classifier.cpp",
+   "line": 170,
+   "test": "DifferentFontLowerSimilarity",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "The CNN must DISCRIMINATE Arial (sans) from Times (serif). EXPECT_LT(sim,0.99f) lets a broken/text-dominated embedding scoring ~0.98 for serif-vs-sans pass. A classifier that cannot tell serif from sans -> user gets a serif substitute for a sans source -> wrong glyphs, while the discrimination test stays green. Should assert a real margin (SameFont - DifferentFont > delta).",
+   "severity": "high",
+   "confidence": "medium"
+  },
+  {
+   "file": "tests/test_font_matching.cpp",
+   "line": 159,
+   "test": "MatchWithWeightAndStyle / MatchSerifPreference (165) / Bold/ItalicInferred (171,177)",
+   "oracle": "proxy",
+   "smells": [
+    "no-oracle-smoke"
+   ],
+   "user_visible_failure_missed": "findMatch(Arial,Bold) silently returns the Regular face; user's bold text renders non-bold. Each test states the behavior in a comment and asserts only familyName non-empty, so weight/style/serif regressions are invisible.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_font_compliance_checker.cpp",
+   "line": 96,
+   "test": "AllFontsCompliant_Basic / CheckFonts_EmbeddedStatus (118)",
+   "oracle": "proxy",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "EXPECT_TRUE(allCompliant || !allCompliant) and if(isEmbedded||!isEmbedded) are literal logical tautologies that can never fail. allFontsCompliant() could return the wrong verdict and the test passes. Zero coverage of the compliance decision the user relies on.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_script_aware_font_selection.cpp",
+   "line": 1276,
+   "test": "BitmapCompositorStyled.StyledRunsBoldUnderline_ProducesNonEmptyBitmap",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "no-oracle-smoke",
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "renderStyledText ignores the bold flag and the underline (renders plain 'Hello World'); >50 ink pixels still present so it passes. That a bold run is heavier and 'World' is underlined is never verified. Same at 1338 (italic+strikethrough) and 1233 (asserts equal SIZE only).",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_glyph_scale_adjuster.cpp",
+   "line": 102,
+   "test": "DifferentFontsScaleNonOne (+5 range-only siblings)",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "Substitute-font horizontal scale computed as 1.6x when a true width-match needs 1.05x \u2014 substituted text renders ~50% too wide/overlapping. Bound (0.5,2.0) accepts it. No golden per-string width ratio is pinned.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_overlay_font_mapping.cpp",
+   "line": 415,
+   "test": "OverrideSkippedForRealEmbeddedFont (+ 544,569,589,635)",
+   "oracle": "pseudo",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "expectedProbePixelSize() (54-72) is a line-for-line clone of buildOverlayFont's probe-scaling formula. If the production formula computes the wrong pixel size, the test recomputes the SAME wrong value and asserts equality \u2014 an overlay glyph rendered at the wrong size passes.",
+   "severity": "medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_cnn_font_ranker.cpp",
+   "line": 47,
+   "test": "CNNFontRankerTest.* (all 5)",
+   "oracle": "proxy",
+   "smells": [],
+   "user_visible_failure_missed": "Every test asserts ranked.empty() on a degenerate input; NONE loads a working classifier and checks the ranking is correct. If rankByVisualSimilarity mis-orders candidates when the model IS available, no test fails. The user-facing behavior (correct font for a scanned region) is entirely un-oracle'd.",
+   "severity": "medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_cid_font_encoding.cpp",
+   "line": 128,
+   "test": "CidFontPath_ViaEmbeddedFont / EmbeddedCidFont_HasMultiByteEncoding (317)",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "applyEditsWithSubstitution on an embedded CID font produces a stream whose 2-byte CIDs index wrong glyphs (broken Identity-H/CIDToGIDMap). Asserts only no-throw + 'page still has text blocks' + an 'Arial' substring. Extraction round-trip uses ToUnicode, so wrong-glyph-but-right-ToUnicode reads back correct while rendering garbage.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_font_script_integration.cpp",
+   "line": 112,
+   "test": "OcrRegion_SelectsCoveringFont_NoPenalty / PerRun_LatinAndArabic (160)",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "The coversScript()/no-penalty checks live inside if(!fontFilePath.empty()) + if(prof.has_value()). If the matcher regresses to an empty file path or analyzeFromFile fails, those assertions are silently skipped and the test passes \u2014 the Arabic-run-matched-to-a-Latin-font bug this file exists to catch slips through.",
+   "severity": "medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_font_family_resolver.cpp",
+   "line": 23,
+   "test": "ResolveArial_NonEmpty (+ Bold/Italic/BoldItalic 28,33,38)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "resolve('Arial') returning the WRONG file (any non-empty path, e.g. comic.ttf) passes. The Bold/Italic overloads never verify the returned face is bold/italic \u2014 resolve('Arial',true,false) could return regular arial.ttf and pass; user gets a non-bold substitute where bold was requested.",
+   "severity": "medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_auto_missing_glyph_resolver.cpp",
+   "line": 344,
+   "test": "AllReturnedRunsEncodeAssignedCodepoints (empty-runs branch)",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "If the resolver silently drops ALL unencodable codepoints (zero runs) when it should have routed them to a system font, the test takes the runs.empty() branch and calls SUCCEED(). The user's typed character renders as .notdef; the test passes as if correct. The strong FT_Get_Char_Index check only runs when runs are non-empty.",
+   "severity": "medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_embedded_font_analyzer.cpp",
+   "line": 99,
+   "test": "StemWeightMeasured / XHeightCapHeightPopulated (146)",
+   "oracle": "heuristic",
+   "smells": [
+    "assertion-free",
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "If the analyzer measures NO stem weights / NO x-height for every font (a total measurement regression), the loop finds nothing, skips all EXPECT_*, prints a cout note, and the test is green with zero assertions executed. Even with values present they're only range-bounded, not checked vs the fixture font's known metrics.",
+   "severity": "medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_font_matcher.cpp",
+   "line": 882,
+   "test": "FontMatcherVisualRanking.WithCompositorAlwaysUsesVisualRanking (+861,907)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "no-oracle-smoke"
+   ],
+   "user_visible_failure_missed": "The visual re-ranking branch could be dead code (never invoked despite setBitmapCompositor) or re-rank to a worse font, and the test passes as long as confidence>0. It explicitly declines to distinguish the visual-ranking path from metric-only, so a regression disabling visual ranking is undetectable.",
+   "severity": "medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_tessdata_font_detection.cpp",
+   "line": 353,
+   "test": "RealWorldPdf_FontDetection_SansSerif / FontSize_FitsInSpanBbox / GhostText_BboxOverlap",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "The serif-selection / font-size-capping / ghost-text bugs these target only run on one developer's machine (hard-coded C:/Users/dev/...SpecimenC.pdf); elsewhere they GTEST_SKIP, so a serif-for-sans regression or ghost-text reappearance ships undetected. Where they do run they assert only nonTransparent>0.",
+   "severity": "medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_content_stream_substitution.cpp",
+   "line": 152,
+   "test": "AccentedSubstitutionTextIsPresent",
+   "oracle": "metamorphic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "The test edits to 'Caf\u00e9 r\u00e9sum\u00e9' but asserts only the ASCII skeletons 'Caf' and 'sum' survive round-trip. The accented codepoints \u00e9 are exactly what font substitution exists to cover; if they drop to .notdef/tofu the user sees 'Caf' and this accent-specific test still passes.",
+   "severity": "medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_font_descriptor_style.cpp",
+   "line": 133,
+   "test": "BuildOverlayFont_DescriptorItalicSpan_IsItalic",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Asserts QFont::italic()/bold() REQUEST flags, not that Qt resolves an italic/bold face or the overlay renders slanted glyphs. If no italic face is installed (or synthesis disabled), font.italic() stays true while the overlay renders upright \u2014 the exact 'overlay dropped italic' complaint \u2014 and the test passes.",
+   "severity": "medium",
+   "confidence": "medium"
+  },
+  {
+   "file": "tests/test_glyph_harvester.cpp",
+   "line": 1494,
+   "test": "TemplateSelection_RejectsLowNCC / TemplatePadding_* (~5 tests)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "These name a behavior (reject low-NCC glyph / pad narrow crop) but wrap every substantive check in if(atlas.contains(X)). If the glyph is wrongly absent or wrongly unpadded, the guarded EXPECT never runs; comment at 1499 concedes 'the key invariant is no crash.' The reject/pad/score logic can regress silently.",
+   "severity": "medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_serif_ascender_descriptor.cpp",
+   "line": 282,
+   "test": "AscenderRatio_ProfileDerived_WithinTolerance",
+   "oracle": "pseudo",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Expected value is recomputed in-test using the same prof->ascender, the same synthetic fallback, and the same std::clamp(...,0.55,0.98) the production path uses. A shared bug in that clamp/fallback is invisible \u2014 actual and expected move together. Only partly caught by EXPECT_NE(actual,0.75).",
+   "severity": "low",
+   "confidence": "medium"
+  },
+  {
+   "file": "tests/test_font_matcher_per_line.cpp",
+   "line": 97,
+   "test": "DifferentXSizePerLineGivesDifferentSizes",
+   "oracle": "pseudo",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Expected per-line sizes (2.4pt, 7.2pt) are the code's own x_size*72/dpi output restated as constants. A systematic error shared by the estimator and expectation (wrong ascender/x-height model that still scales linearly) yields the wrong on-page font size for every reconstructed line yet passes.",
+   "severity": "low",
+   "confidence": "medium"
+  },
+  {
+   "file": "tests/test_system_font_discovery_panose.cpp",
+   "line": 147,
+   "test": "EnumerationCompletesWithoutCrashOnFontWithoutPanose",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "no-oracle-smoke"
+   ],
+   "user_visible_failure_missed": "The name/comment claim it validates the missing-PANOSE fallback classification, but it asserts only fonts.size()>0. If the fallback mis-classifies every no-PANOSE font (serif<->sans flipped), this test still passes. The claimed fallback-correctness oracle does not exist.",
+   "severity": "low",
+   "confidence": "high"
+  }
+ ]
+}

@@ -1,0 +1,34 @@
+{
+  "schema": "pdfe.extraction-fidelity/1",
+  "fixture": "i18n_cjk.pdf",
+  "page": 0,
+  "gap_ids": [
+    "PDF-74",
+    "PDF-79"
+  ],
+  "description": "Identity-H CID -> Unicode correctness (PDF-74). A CMap regression yields garbage or U+FFFD here while the file still opens and renders.",
+  "validation": "expected_codepoints is what extraction returns; folding it through presentation_form_folding reproduces authored_codepoints exactly and in order. Both directions are re-checked by gen_extraction_sidecars.py --check.",
+  "authored_source": "tests/fixtures/gen_i18n_render_corpus.py",
+  "forbidden_codepoints": [
+    "U+FFFD"
+  ],
+  "lines": [
+    {
+      "authored": "中文测试",
+      "authored_codepoints": [
+        "U+4E2D",
+        "U+6587",
+        "U+6D4B",
+        "U+8BD5"
+      ],
+      "expected_extracted": "中文测试",
+      "expected_codepoints": [
+        "U+4E2D",
+        "U+6587",
+        "U+6D4B",
+        "U+8BD5"
+      ],
+      "presentation_form_folding": {}
+    }
+  ]
+}

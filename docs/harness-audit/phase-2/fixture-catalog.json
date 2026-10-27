@@ -1,0 +1,2721 @@
+{
+ "totals": {
+  "fixtures": 200,
+  "benign": 98,
+  "adversarial": 102,
+  "orphan": 32,
+  "missing_referenced": 1
+ },
+ "reconciliation_vs_prior_inventory": "PRIOR coverage_inventory.json enumerates 81 fixtures (root + image_pdf/ + realworld/ structural). Disk now holds 200 PDFs. DRIFT: +119 fixtures added since prior inventory (adversarial_ambient/ 16, flaw_corpus/ 47, realworld/ downloaded IRS+arxiv+uscis+ssa 20, content-stream state-leak & render-oracle & font & OCR-variant & journey fixtures ~36). No fixtures removed: all 81 prior entries still present on disk. Prior inventory is ACCURATE for the 81 it covers but ~60% STALE by count; it also carries no benign/adversarial axis.",
+ "fixtures": [
+  {
+   "file": "tests/fixtures/image_pdf/a3_1200dpi_ocr_letter.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "OCR/TRE",
+   "consumed_by": [
+    "tests/test_source_image_dpi.cpp"
+   ],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/a3_150dpi_a4_photo.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [
+    "tests/test_source_image_dpi.cpp"
+   ],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/a3_200dpi_fax_legal.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [
+    "tests/test_source_image_dpi.cpp"
+   ],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/a3_300dpi_office_letter.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [
+    "tests/test_source_image_dpi.cpp"
+   ],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/a3_600dpi_archival_a4.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [
+    "tests/test_source_image_dpi.cpp"
+   ],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/a3_72dpi_web_letter.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [
+    "tests/test_source_image_dpi.cpp"
+   ],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/a3_mixed_dpi_5page.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [
+    "tests/test_source_image_dpi.cpp"
+   ],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_cm.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_content_stream_ctm_reset.cpp",
+    "tests/test_content_stream_multi_injector.cpp"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_cmyk.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_dangling_q.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_img_cm.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_img_cmyk.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_img_dangling_q.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_img_neg_tz.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_img_tc.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_img_tr.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_img_ts.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_img_white.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_neg_tz.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_tc.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_tr.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_ts.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/adversarial_ambient/aa_white.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/actualtext_prefix_crash.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "crash-repro",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_actualtext_extraction_crash.cpp"
+   ],
+   "generator": "make_actualtext_fixture.py"
+  },
+  {
+   "file": "tests/fixtures/adv_clip_path.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_adversarial_ambient_corpus.cpp"
+   ],
+   "generator": "gen_adversarial_ambient_corpus.py"
+  },
+  {
+   "file": "tests/fixtures/adv_cmyk_fill.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_adversarial_ambient_corpus.cpp"
+   ],
+   "generator": "gen_adversarial_ambient_corpus.py"
+  },
+  {
+   "file": "tests/fixtures/adv_dangling_q.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_adversarial_ambient_corpus.cpp"
+   ],
+   "generator": "gen_adversarial_ambient_corpus.py"
+  },
+  {
+   "file": "tests/fixtures/adv_spot_overprint.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_fidelity_r3_06_color_preservation.cpp"
+   ],
+   "generator": "gen_cmyk_identity.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/encryption/aes128.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "encrypted",
+   "product_path": "open/parse (decrypt)",
+   "consumed_by": [
+    "tests/helpers/password_dialog.py",
+    "tests/test_external_flaw_corpus.cpp",
+    "tests/test_ui_file_operations.py",
+    "tests/ui_automation/test_new_coverage_f7c2a4e8.py"
+   ],
+   "generator": "generate_phase3_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/encryption/aes256_certificate.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "encrypted",
+   "product_path": "open/parse (decrypt)",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/encryption/aes256_r5.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "encrypted",
+   "product_path": "open/parse (decrypt)",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/ambient_half_scale_page.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_image_ctm_leak.cpp"
+   ],
+   "generator": "gen_adversarial_ambient_corpus.py"
+  },
+  {
+   "file": "tests/fixtures/ambient_neg_tz_page.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_watermark_state_leak.cpp"
+   ],
+   "generator": "gen_adversarial_ambient_corpus.py"
+  },
+  {
+   "file": "tests/fixtures/ambient_white_fill.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_alignment_state_leak.cpp",
+    "tests/test_header_footer_state_leak.cpp"
+   ],
+   "generator": "gen_ambient_white_fill.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/arial_times_not_embedded.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/arial_unicode_cid_ab.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/arial_unicode_cid_en.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/dimensions/artbox_under_3.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-geometry-extreme",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/realworld/arxiv_attention.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (real-world doc)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/realworld/arxiv_bert.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (real-world doc)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/realworld/arxiv_gan.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (real-world doc)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/realworld/arxiv_resnet.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (real-world doc)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/b3_blue_ledger_300dpi.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/b3_gradient_shaded_300dpi.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/b3_halftone_news_200dpi.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [
+    "tests/test_b3_bg_classification.cpp"
+   ],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/b3_halftone_news_600dpi.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [
+    "tests/test_b3_bg_classification.cpp"
+   ],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/b3_highlighted_yellow_300dpi.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/b3_jpeg_blocky_200dpi.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/b3_textured_gray_300dpi.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [
+    "tests/test_b3_bg_classification.cpp"
+   ],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/b3_uniform_white_300dpi.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [
+    "tests/test_b3_bg_classification.cpp"
+   ],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/b3_yellowed_news_300dpi.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [
+    "tests/test_b3_bg_classification.cpp"
+   ],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/corrupt/bad_pagelabels.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "malformed-truncated-corruptxref",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/corrupt/boundingbox_invalid.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "malformed-truncated-corruptxref",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/c2_color_ledger_10page.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/c2_large_12page_600dpi.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/c2_mixed_8page.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/c2_small_6page_300dpi.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/image_pdf/c2_tiny_20page_72dpi.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/source-dpi (scanned)",
+   "consumed_by": [],
+   "generator": "gen_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/calisto_not_embedded.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/forms/checkbox_bad_appearance.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "malformed-form-appearance",
+   "product_path": "form-fill",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/realworld/cid_mixed/cid_mixed_encoding.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "exotic-cid-encoding",
+   "product_path": "render/extract",
+   "consumed_by": [],
+   "generator": "generate_realworld_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/cidfont_cmap_overflow.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/vector/clippath.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-vector-shading",
+   "product_path": "render",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/cmyk_identity.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_cmyk_identity_preservation.cpp"
+   ],
+   "generator": "gen_cmyk_identity.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/complex_ttf.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/coord_rotation_page.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render-oracle",
+   "consumed_by": [
+    "tests/_runtime/discovery_phase8/capture_clusterA.py",
+    "tests/ui_automation/test_render_coord_rotation.py"
+   ],
+   "generator": "generate_render_oracle_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/realworld/corrupt_xref/corrupt_xref_recoverable.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "corrupt-xref-recoverable",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_encryption_roundtrip.cpp",
+    "tests/test_redaction_roundtrip.cpp",
+    "tests/test_ui_file_operations.py",
+    "tests/test_ui_redaction.py"
+   ],
+   "generator": "generate_realworld_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/embedded_descriptor_style.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/text-edit (embedded font)",
+   "consumed_by": [
+    "tests/test_font_descriptor_style.cpp",
+    "tests/test_permission_enforcement.cpp",
+    "tests/test_textedit_toolbar_indicators.cpp",
+    "tests/test_textedit_ux_phase2.cpp",
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/test_ui_toolbar_style_indicators.py"
+   ],
+   "generator": "make_descriptor_style_font.py"
+  },
+  {
+   "file": "tests/fixtures/realworld/embedded_files/embedded_file_attachment.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (attachments)",
+   "consumed_by": [
+    "tests/test_ui_view_navigation.py"
+   ],
+   "generator": "generate_realworld_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/embedded_full.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/embedded_italic_serif_subset.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/text-edit (embedded font)",
+   "consumed_by": [
+    "tests/test_serif_ascender_descriptor.cpp",
+    "tests/test_textedit_font_identity.cpp",
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/test_render_oracle_zoom.py",
+    "tests/ui_automation/test_render_text_edit.py",
+    "tests/ui_automation/test_render_textedit_embedded_font.py"
+   ],
+   "generator": "make_embedded_italic_serif_subset.py"
+  },
+  {
+   "file": "tests/fixtures/embedded_longname_italic_serif.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/text-edit (embedded font)",
+   "consumed_by": [
+    "tests/test_textedit_font_identity.cpp"
+   ],
+   "generator": "make_embedded_longname_italic_serif.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/embedded_subset.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/font_ascent_descent.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/form_calc_sum.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "form-fill",
+   "consumed_by": [
+    "tests/test_fidelity_r3_09_form_calc.cpp"
+   ],
+   "generator": "gen_form_calc_sum.py"
+  },
+  {
+   "file": "tests/fixtures/realworld/form_calc/form_with_calculation_order.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "form-fill",
+   "consumed_by": [
+    "tests/test_form_roundtrip.cpp",
+    "tests/test_ui_forms.py"
+   ],
+   "generator": "generate_realworld_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/corrupt/header_version_mismatch.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "malformed-truncated-corruptxref",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/corrupt/helloworld_bad.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "malformed-truncated-corruptxref",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/hf_adversarial.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_hf_watermark_adversarial.cpp"
+   ],
+   "generator": "gen_hf_adversarial.py"
+  },
+  {
+   "file": "tests/fixtures/realworld/icc_profiles/icc_outputintent.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "compliance/icc",
+   "consumed_by": [
+    "tests/test_pdfa_roundtrip.cpp",
+    "tests/test_realworld_corpus.cpp"
+   ],
+   "generator": "generate_realworld_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/vector/indexedcs_negative_and_high.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-vector-shading",
+   "product_path": "render",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/invoice_vector_heading.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render-oracle",
+   "consumed_by": [
+    "tests/test_fidelity_r3_07_text_extraction.cpp",
+    "tests/test_vector_heading_commit.cpp",
+    "tests/test_writing_mode_autoplumb.cpp",
+    "tests/ui_automation/harness/render_drive.py",
+    "tests/ui_automation/harness/render_oracle.py",
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/test_render_oracle_proof.py",
+    "tests/ui_automation/test_ui_batch2_annotations.py",
+    "tests/ui_automation/test_ui_batch2_text_edit.py"
+   ],
+   "generator": "generate_render_oracle_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/realworld/irs_1040.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (real-world doc)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/realworld/irs_8829.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (real-world doc)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/realworld/irs_f1099misc.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "form-fill (real gov form)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py",
+    "tests/test_real_form_fill.cpp"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/realworld/irs_f1099nec.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "form-fill (real gov form)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py",
+    "tests/test_real_form_fill.cpp"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/realworld/irs_f941.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "form-fill (real gov form)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py",
+    "tests/test_real_form_fill.cpp"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/realworld/irs_i1040.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (real-world doc)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/realworld/irs_p15.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (real-world doc)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/realworld/irs_p17.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (real-world doc)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/realworld/irs_p334.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (real-world doc)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/realworld/irs_w4.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "form-fill (real gov form)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py",
+    "tests/test_real_form_fill.cpp"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/realworld/irs_w9.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "form-fill (real gov form)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py",
+    "tests/test_real_form_fill.cpp"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/journey_corpus.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (soak)",
+   "consumed_by": [
+    "tests/test_ui_journey_soak.py",
+    "tests/test_ui_save_lock_rebind.py"
+   ],
+   "generator": "make_journey_corpus.py"
+  },
+  {
+   "file": "tests/fixtures/realworld/jpeg2000/jpeg2000_image.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "exotic-image-codec-jpx",
+   "product_path": "render",
+   "consumed_by": [
+    "tests/test_image_roundtrip.cpp",
+    "tests/test_realworld_corpus.cpp"
+   ],
+   "generator": "generate_realworld_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/js_sandbox_probe.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "js-sandbox-escape",
+   "product_path": "form-js",
+   "consumed_by": [
+    "tests/test_form_javascript_xss.cpp"
+   ],
+   "generator": "gen_js_sandbox_probe.py"
+  },
+  {
+   "file": "tests/fixtures/realworld/linearized/linearized.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (linearized)",
+   "consumed_by": [
+    "tests/test_linearization.cpp"
+   ],
+   "generator": "generate_realworld_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/mediabox_offset.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-geometry-origin",
+   "product_path": "image-edit",
+   "consumed_by": [
+    "tests/test_mediabox_origin_crop.cpp"
+   ],
+   "generator": "gen_mediabox_offset.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/dimensions/mediabox_over_14400.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-geometry-extreme",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/vector/mesh_shading_empty.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-vector-shading",
+   "product_path": "render",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/mixed_content_page.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render-oracle",
+   "consumed_by": [
+    "tests/ui_automation/harness/render_drive.py",
+    "tests/ui_automation/test_render_oracle_proof.py"
+   ],
+   "generator": "generate_render_oracle_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/mixed_dpi_page.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render-oracle",
+   "consumed_by": [
+    "tests/test_image_replacer_dpi.cpp",
+    "tests/ui_automation/harness/render_drive.py",
+    "tests/ui_automation/test_render_oracle_proof.py"
+   ],
+   "generator": "generate_render_oracle_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/mixed_fonts.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/realworld/mixed_page_sizes/mixed_page_sizes.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-geometry-mixedsize",
+   "product_path": "page-ops",
+   "consumed_by": [],
+   "generator": "generate_realworld_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/mixed_size_scan.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "OCR/TRE",
+   "consumed_by": [
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/test_per_line_font_size_ui.py",
+    "tests/ui_automation/test_ui_batch2_scenarios.py"
+   ],
+   "generator": "make_mixed_size_scan.py"
+  },
+  {
+   "file": "tests/fixtures/multilingual_latin_arabic.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "exotic-script-rtl",
+   "product_path": "render",
+   "consumed_by": [
+    "tests/test_font_script_integration.cpp",
+    "tests/ui_automation/harness/render_drive.py"
+   ],
+   "generator": "generate_render_oracle_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/multipage_smalltext_edit.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_smalltext_edit_render.cpp"
+   ],
+   "generator": "make_multipage_smalltext_edit.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/corrupt/multiple_filters_length_zero.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "malformed-truncated-corruptxref",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/nav_selfcheck.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render-oracle",
+   "consumed_by": [
+    "tests/ui_automation/harness/render_drive.py",
+    "tests/ui_automation/test_render_oracle_proof.py"
+   ],
+   "generator": "generate_render_oracle_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/neg_tz_grey_text.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_content_stream_neg_tz.cpp"
+   ],
+   "generator": "gen_neg_tz_grey_text.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/encryption/no_copy.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "encrypted",
+   "product_path": "open/parse (decrypt)",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/encryption/no_printing.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "encrypted",
+   "product_path": "open/parse (decrypt)",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/encryption/no_text_access.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "encrypted",
+   "product_path": "open/parse (decrypt)",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/not_embedded_single.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/realworld/object_streams/object_streams.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (objstm)",
+   "consumed_by": [],
+   "generator": "generate_realworld_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/corrupt/one_byte_missing.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "malformed-truncated-corruptxref",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/encryption/open_password.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "encrypted",
+   "product_path": "open/parse (decrypt)",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/outbound_neighbor.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_content_stream_state_leak.cpp"
+   ],
+   "generator": "gen_outbound_neighbor.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/pdfa1a_embedded.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/corrupt/pdfjsbad1586.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "malformed-truncated-corruptxref",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/phase3_annotations_all_types.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "annotations",
+   "consumed_by": [
+    "tests/test_main_window_q_invokable.cpp",
+    "tests/test_ui_annotations.py",
+    "tests/ui_automation/dialog_openers.py"
+   ],
+   "generator": "generate_phase3_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/phase3_cjk_text.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "exotic-script-cjk",
+   "product_path": "render/extract",
+   "consumed_by": [],
+   "generator": "generate_phase3_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/phase3_cyrillic_greek.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "exotic-script",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_ui_text_editing.py"
+   ],
+   "generator": "generate_phase3_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/phase3_encrypted_aes128.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "encrypted",
+   "product_path": "open/parse (decrypt)",
+   "consumed_by": [
+    "tests/helpers/password_dialog.py",
+    "tests/test_ui_file_operations.py",
+    "tests/ui_automation/test_new_coverage_f7c2a4e8.py"
+   ],
+   "generator": "generate_phase3_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/phase3_form_all_field_types.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "form-fill",
+   "consumed_by": [
+    "tests/test_ui_forms.py"
+   ],
+   "generator": "generate_phase3_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/phase3_large_100page_image.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (large)",
+   "consumed_by": [
+    "tests/test_autosave_capture_fixes.cpp",
+    "tests/test_ui_file_operations.py"
+   ],
+   "generator": "generate_phase3_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/phase3_rtl_arabic.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "exotic-script-rtl",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_fidelity_r3_07_text_extraction.cpp"
+   ],
+   "generator": "generate_phase3_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/phase3_utf16_metadata.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "unicode-metadata",
+   "product_path": "metadata",
+   "consumed_by": [],
+   "generator": "generate_phase3_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/phase3_v14_basic.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_ui_annotations.py",
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/test_ui_text_editing.py",
+    "tests/ui_automation/matrix/generate_matrix.py"
+   ],
+   "generator": "generate_phase3_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/phase3_v20_minimal.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "version-edge-2.0",
+   "product_path": "open/parse",
+   "consumed_by": [],
+   "generator": "generate_phase3_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/dimensions/real_underflow_structure.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-geometry-extreme",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/redaction_partial_overlap.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-geometry-overlap",
+   "product_path": "redact",
+   "consumed_by": [
+    "tests/test_redaction_partial_overlap.cpp"
+   ],
+   "generator": "gen_redaction_partial.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/images/rotated_bw_ratio.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-image",
+   "product_path": "render",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/overlap/rotated_freetexts.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-vector-overlap-cycle",
+   "product_path": "render",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/realworld/rotated_pages/rotated_mixed.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-geometry-rotation",
+   "product_path": "page-ops",
+   "consumed_by": [
+    "tests/test_realworld_corpus.cpp"
+   ],
+   "generator": "generate_realworld_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/corrupt/scan_bad.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "malformed-truncated-corruptxref",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/vector/shading_extend.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-vector-shading",
+   "product_path": "render",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/simple_type3.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/smalltext_edit.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_smalltext_edit_render.cpp"
+   ],
+   "generator": "make_multipage_smalltext_edit.py"
+  },
+  {
+   "file": "tests/fixtures/realworld/ssa_sf86.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (real-world doc)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py",
+    "tests/test_conditional_gc.cpp",
+    "tests/test_incremental_save_routing.cpp"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/encryption/standard128.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "encrypted",
+   "product_path": "open/parse (decrypt)",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/encryption/standard40.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "encrypted",
+   "product_path": "open/parse (decrypt)",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/standard_fonts.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/state_leak_ts.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "hostile-ambient-state",
+   "product_path": "content-stream-edit",
+   "consumed_by": [
+    "tests/test_content_stream_state_leak.cpp"
+   ],
+   "generator": "gen_adversarial_ambient_corpus.py"
+  },
+  {
+   "file": "tests/fixtures/realworld/subsetted_fonts/subset_prefix_conflict.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-subset-prefix-conflict",
+   "product_path": "render/extract",
+   "consumed_by": [],
+   "generator": "generate_realworld_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/table_extract.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_fidelity_r3_07_text_extraction.cpp"
+   ],
+   "generator": "gen_table_extract.py"
+  },
+  {
+   "file": "tests/fixtures/test_100page.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_compare_documents_view.cpp",
+    "tests/test_ui_file_operations.py",
+    "tests/test_ui_page_operations.py",
+    "tests/test_ui_stress.py",
+    "tests/test_ui_view_navigation.py",
+    "tests/ui_automation/test_page_operations_p1.py"
+   ],
+   "generator": "generate_100page.py"
+  },
+  {
+   "file": "tests/fixtures/test_10page.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_autosave_matrix.cpp",
+    "tests/test_canvas_stale_layout.cpp",
+    "tests/test_combine_files_wizard.cpp",
+    "tests/test_journey_op99_crash.cpp",
+    "tests/test_open_close_leak_cycle.cpp",
+    "tests/test_ui_file_operations.py",
+    "tests/test_ui_page_operations.py",
+    "tests/test_ui_stress.py",
+    "tests/test_ui_view_navigation.py",
+    "tests/test_undo_after_save_crash.cpp"
+   ],
+   "generator": "make_10page_fixture.py"
+  },
+  {
+   "file": "tests/fixtures/test_3page.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/generate_fixtures.py",
+    "tests/test_alignment_injector.cpp",
+    "tests/test_alignment_pipeline.cpp",
+    "tests/test_annotation_commands.cpp",
+    "tests/test_annotation_manager.cpp",
+    "tests/test_annotation_roundtrip.cpp",
+    "tests/test_annotation_tools.cpp",
+    "tests/test_annotations_phase4.cpp",
+    "tests/test_auto_tagger.cpp",
+    "tests/test_autosave_capture_audit.cpp",
+    "tests/test_autosave_capture_fixes.cpp",
+    "tests/test_autosave_matrix.cpp",
+    "tests/test_autosave_recovery.cpp",
+    "tests/test_autosave_sidecar_integrity.cpp",
+    "tests/test_bookmark_manager.cpp",
+    "tests/test_bookmarks.cpp",
+    "tests/test_chrome_phase9.cpp",
+    "tests/test_combine_files_wizard.cpp",
+    "tests/test_command_family_undo_after_save_probe.cpp",
+    "tests/test_command_page_rebind.cpp",
+    "tests/test_compare_documents_view.cpp",
+    "tests/test_conditional_gc.cpp",
+    "tests/test_content_stream_editor.cpp",
+    "tests/test_content_stream_per_run_emission.cpp",
+    "tests/test_content_stream_tm_sign.cpp",
+    "tests/test_crop_tool.cpp",
+    "tests/test_diff.cpp",
+    "tests/test_document.cpp",
+    "tests/test_document_js_events.cpp",
+    "tests/test_document_save_atomic.cpp",
+    "tests/test_document_save_file_lock.cpp",
+    "tests/test_document_search_index.cpp",
+    "tests/test_embedded_font_analyzer.cpp",
+    "tests/test_excel_export.cpp",
+    "tests/test_export_plain_text.cpp",
+    "tests/test_fidelity_r3_20_annotation_ap.cpp",
+    "tests/test_fidelity_r3_21_print_vs_screen.cpp",
+    "tests/test_follow_link.cpp",
+    "tests/test_font_resource_persistence.cpp",
+    "tests/test_form_manager.cpp",
+    "tests/test_grayscale_converter.cpp",
+    "tests/test_header_footer.cpp",
+    "tests/test_image_exporter.cpp",
+    "tests/test_image_redaction_phase7.cpp",
+    "tests/test_incremental_save_routing.cpp",
+    "tests/test_launch_link_follow.cpp",
+    "tests/test_layers.cpp",
+    "tests/test_linearization.cpp",
+    "tests/test_link_actions.cpp",
+    "tests/test_ocr_routing_fix.cpp",
+    "tests/test_optimize.cpp",
+    "tests/test_page.cpp",
+    "tests/test_page_commands.cpp",
+    "tests/test_page_labels_editor.cpp",
+    "tests/test_page_operations.cpp",
+    "tests/test_page_ops_phase6.cpp",
+    "tests/test_page_panel_q_invokable.cpp",
+    "tests/test_panel_interaction_phase8.cpp",
+    "tests/test_pdf_canvas_q_invokable.cpp",
+    "tests/test_permission_enforcement.cpp",
+    "tests/test_print_acrobat_interop.py",
+    "tests/test_printing.cpp",
+    "tests/test_qpdf_wrapper.cpp",
+    "tests/test_render_fidelity.cpp",
+    "tests/test_replace_page.cpp",
+    "tests/test_save.cpp",
+    "tests/test_search.cpp",
+    "tests/test_search_engine_tantivy_parity.cpp",
+    "tests/test_security_phase8.cpp",
+    "tests/test_signature_manager.cpp",
+    "tests/test_stamp_and_watermark.cpp",
+    "tests/test_text_color_and_replace.cpp",
+    "tests/test_text_edit_clipboard.cpp",
+    "tests/test_text_edit_commands.cpp",
+    "tests/test_text_edit_integration.cpp",
+    "tests/test_text_edit_save_roundtrip.cpp",
+    "tests/test_text_edit_selection_render.cpp",
+    "tests/test_text_edit_tool.cpp",
+    "tests/test_text_edit_undo_after_save.cpp",
+    "tests/test_text_edit_undo_chain.cpp",
+    "tests/test_text_edit_width_scaling.cpp",
+    "tests/test_text_extraction.cpp",
+    "tests/test_text_selector.cpp",
+    "tests/test_textedit_tm_regression.cpp",
+    "tests/test_thumbnail_cache_cancel.cpp",
+    "tests/test_thumbnails.cpp",
+    "tests/test_tile_renderer.cpp",
+    "tests/test_ui_annotations.py",
+    "tests/test_ui_annotations_smoke.py",
+    "tests/test_ui_autosave_recovery.py",
+    "tests/test_ui_chrome_smoke.py",
+    "tests/test_ui_clipboard_dragdrop.cpp",
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/test_ui_encryption_signatures.py",
+    "tests/test_ui_file_operations.py",
+    "tests/test_ui_page_operations.py",
+    "tests/test_ui_page_ops_smoke.py",
+    "tests/test_ui_pages_default_dock.py",
+    "tests/test_ui_pdfcanvas_accessible_text.cpp",
+    "tests/test_ui_preferences_chrome.py",
+    "tests/test_ui_redaction.py",
+    "tests/test_ui_security_smoke.py",
+    "tests/test_ui_stress.py",
+    "tests/test_ui_text_edit.py",
+    "tests/test_ui_text_edit_ctrl_a.py",
+    "tests/test_ui_text_edit_selection.py",
+    "tests/test_ui_text_edit_smoke.py",
+    "tests/test_ui_text_edit_undo.py",
+    "tests/test_ui_text_editing.py",
+    "tests/test_ui_view_navigation.py",
+    "tests/test_vector_heading_commit.cpp",
+    "tests/test_vector_subset_detector.cpp",
+    "tests/test_watermark_extended.cpp",
+    "tests/test_word_export.cpp",
+    "tests/ui_automation/dialog_openers.py",
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/matrix/triage.py",
+    "tests/ui_automation/test_annotations_p1.py",
+    "tests/ui_automation/test_broader_phase_post.py",
+    "tests/ui_automation/test_canvas_coords_p2.py",
+    "tests/ui_automation/test_canvas_phase3.py",
+    "tests/ui_automation/test_canvas_phase4.py",
+    "tests/ui_automation/test_critical_flows_p0.py",
+    "tests/ui_automation/test_dialog_reachability_p0.py",
+    "tests/ui_automation/test_features_phase7.py",
+    "tests/ui_automation/test_final_phase8.py",
+    "tests/ui_automation/test_misc_phase_post.py",
+    "tests/ui_automation/test_missing_features_phase6.py",
+    "tests/ui_automation/test_new_coverage_f7c2a4e8.py",
+    "tests/ui_automation/test_page_operations_p1.py",
+    "tests/ui_automation/test_phase7_new_features.py",
+    "tests/ui_automation/test_preflight_phase_post.py",
+    "tests/ui_automation/test_remaining_preconditions_phase5.py",
+    "tests/ui_automation/test_security_compliance_p1.py",
+    "tests/ui_automation/test_security_e1_e4.py",
+    "tests/ui_automation/test_ui_alt_text.py",
+    "tests/ui_automation/test_ui_batch1_actions.py",
+    "tests/ui_automation/test_ui_batch3_actions.py",
+    "tests/ui_automation/test_ui_batch3_preferences.py",
+    "tests/ui_automation/test_ui_bookmark_panel.py",
+    "tests/ui_automation/test_ui_comment_panel.py",
+    "tests/ui_automation/test_ui_dialog_coverage.py",
+    "tests/ui_automation/test_ui_encryption_flows.py",
+    "tests/ui_automation/test_ui_encryption_flows_wad.py",
+    "tests/ui_automation/test_ui_file_dialog_flows.py",
+    "tests/ui_automation/test_ui_file_dialog_flows_wad.py",
+    "tests/ui_automation/test_ui_ltv.py",
+    "tests/ui_automation/test_ui_ocr_all_pages.py",
+    "tests/ui_automation/test_ui_recent_files.py",
+    "tests/ui_automation/test_ui_search_replace.py",
+    "tests/ui_automation/test_ui_theme.py",
+    "tests/ui_automation/test_ui_view_rotate.py",
+    "tests/ui_automation/test_winappdriver_smoke.py"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/test_blank.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/security/runner/test_av_baseline.py",
+    "tests/test_auto_missing_glyph_resolver.cpp",
+    "tests/test_document.cpp",
+    "tests/test_image_replacer_dpi.cpp",
+    "tests/test_ocr_routing_fix.cpp",
+    "tests/test_region_reconstructor.cpp",
+    "tests/test_source_image_dpi.cpp",
+    "tests/test_synthesized_type3_font_bundler.cpp",
+    "tests/test_type3_font_builder.cpp",
+    "tests/test_ui_annotations.py",
+    "tests/test_ui_page_operations.py",
+    "tests/test_ui_text_editing.py",
+    "tests/test_vector_subset_detector.cpp",
+    "tests/ui_automation/test_critical_flows_p0.py",
+    "tests/ui_automation/test_new_coverage_f7c2a4e8.py"
+   ],
+   "generator": "generate_pdfa_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/test_dest_integrity.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "page-ops",
+   "consumed_by": [
+    "tests/test_page_edit_destination_integrity.cpp"
+   ],
+   "generator": "generate_dest_integrity_pdf.py"
+  },
+  {
+   "file": "tests/fixtures/test_doc_js.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "embedded-javascript",
+   "product_path": "form-js",
+   "consumed_by": [
+    "tests/test_compat_workflows.py",
+    "tests/test_document_js_events.cpp",
+    "tests/test_ui_js_sandbox.py"
+   ],
+   "generator": "make_doc_js_fixture.py"
+  },
+  {
+   "file": "tests/fixtures/test_encrypted_aes256.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "encrypted",
+   "product_path": "open/parse (decrypt)",
+   "consumed_by": [
+    "tests/helpers/password_dialog.py",
+    "tests/test_encryption_manager.cpp",
+    "tests/test_malicious_pdf_advanced.cpp",
+    "tests/test_security_audit.cpp",
+    "tests/test_security_phase8.cpp",
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/test_ui_encryption_signatures.py",
+    "tests/test_ui_file_operations.py",
+    "tests/ui_automation/dialog_openers.py",
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/test_critical_flows_p0.py",
+    "tests/ui_automation/test_security_compliance_p1.py",
+    "tests/ui_automation/test_ui_batch3_flows.py"
+   ],
+   "generator": "generate_encrypted_pdfs.py"
+  },
+  {
+   "file": "tests/fixtures/test_encrypted_no_print_copy.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "permission-restricted",
+   "product_path": "open/parse (permissions)",
+   "consumed_by": [
+    "tests/helpers/password_dialog.py",
+    "tests/ui_automation/test_features_phase7.py",
+    "tests/ui_automation/test_remaining_preconditions_phase5.py",
+    "tests/ui_automation/test_security_compliance_p1.py"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/test_encrypted_owner_only.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "permission-restricted",
+   "product_path": "open/parse (permissions)",
+   "consumed_by": [
+    "tests/helpers/password_dialog.py",
+    "tests/test_encryption_manager.cpp",
+    "tests/ui_automation/test_security_compliance_p1.py"
+   ],
+   "generator": "generate_encrypted_pdfs.py"
+  },
+  {
+   "file": "tests/fixtures/test_encrypted_restricted.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "encrypted",
+   "product_path": "open/parse (decrypt)",
+   "consumed_by": [
+    "tests/helpers/password_dialog.py",
+    "tests/test_encryption_manager.cpp",
+    "tests/test_ui_encryption_signatures.py"
+   ],
+   "generator": "generate_encrypted_pdfs.py"
+  },
+  {
+   "file": "tests/fixtures/test_form.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_autosave_capture_audit.cpp",
+    "tests/test_autosave_matrix.cpp",
+    "tests/test_calculation_order.cpp",
+    "tests/test_certification_signatures.cpp",
+    "tests/test_conditional_gc.cpp",
+    "tests/test_dialog_widget_audit_phase2.cpp",
+    "tests/test_embedded_font_analyzer.cpp",
+    "tests/test_form_commands.cpp",
+    "tests/test_form_data_io.cpp",
+    "tests/test_form_javascript_xss.cpp",
+    "tests/test_form_manager.cpp",
+    "tests/test_form_roundtrip.cpp",
+    "tests/test_form_tool.cpp",
+    "tests/test_forms_phase5.cpp",
+    "tests/test_incremental_save_routing.cpp",
+    "tests/test_javascript_engine.cpp",
+    "tests/test_malicious_pdf_security.cpp",
+    "tests/test_optimize.cpp",
+    "tests/test_pdf_canvas_q_invokable.cpp",
+    "tests/test_save_structural_verify.cpp",
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/test_ui_file_operations.py",
+    "tests/test_ui_forms.py",
+    "tests/test_ui_forms_smoke.py",
+    "tests/test_ui_stress.py",
+    "tests/test_xfdf_encode_decode.cpp",
+    "tests/ui_automation/dialog_openers.py",
+    "tests/ui_automation/harness/render_drive.py",
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/test_canvas_coords_p2.py",
+    "tests/ui_automation/test_canvas_phase4.py",
+    "tests/ui_automation/test_critical_flows_p0.py",
+    "tests/ui_automation/test_features_phase7.py",
+    "tests/ui_automation/test_final_phase8.py",
+    "tests/ui_automation/test_form_fields_p1.py",
+    "tests/ui_automation/test_forms_palette_phase_post.py",
+    "tests/ui_automation/test_missing_features_phase6.py",
+    "tests/ui_automation/test_precondition_panels_phase4.py",
+    "tests/ui_automation/test_remaining_preconditions_phase5.py",
+    "tests/ui_automation/test_render_text_edit.py",
+    "tests/ui_automation/test_ui_batch2_annotations.py",
+    "tests/ui_automation/test_ui_batch2_forms.py",
+    "tests/ui_automation/test_ui_calc_order.py",
+    "tests/ui_automation/test_ui_dialog_coverage.py",
+    "tests/ui_automation/test_ui_file_dialog_flows.py",
+    "tests/ui_automation/test_ui_file_dialog_flows_wad.py",
+    "tests/ui_automation/test_ui_form_palette.py",
+    "tests/ui_automation/test_ui_statusbar.py"
+   ],
+   "generator": "generate_form_with_dv.py"
+  },
+  {
+   "file": "tests/fixtures/test_form_js.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "embedded-javascript",
+   "product_path": "form-js",
+   "consumed_by": [
+    "tests/test_forms_phase5.cpp",
+    "tests/test_ui_forms.py"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/test_form_with_dv.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_autosave_matrix.cpp",
+    "tests/test_forms_phase5.cpp",
+    "tests/test_ui_forms.py",
+    "tests/ui_automation/matrix/triage.py",
+    "tests/ui_automation/test_form_fields_p1.py",
+    "tests/ui_automation/test_remaining_preconditions_phase5.py"
+   ],
+   "generator": "generate_form_with_dv.py"
+  },
+  {
+   "file": "tests/fixtures/test_form_with_pushbutton.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_forms_phase5.cpp",
+    "tests/ui_automation/test_precondition_panels_phase4.py"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/test_fullpage_image.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "image-edit",
+   "consumed_by": [
+    "tests/test_image_redaction_phase7.cpp",
+    "tests/test_text_edit_undo_chain.cpp",
+    "tests/test_tre_undo_after_save.cpp",
+    "tests/ui_automation/test_canvas_phase3.py",
+    "tests/ui_automation/test_new_coverage_f7c2a4e8.py",
+    "tests/ui_automation/test_precondition_panels_phase4.py"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/test_landscape.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/generate_fixtures.py",
+    "tests/test_ui_file_operations.py",
+    "tests/test_ui_page_operations.py",
+    "tests/test_ui_view_navigation.py"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/test_link_types.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (links)",
+   "consumed_by": [
+    "tests/test_ui_view_navigation.py",
+    "tests/ui_automation/test_follow_link_phase_post.py"
+   ],
+   "generator": "generate_link_types_pdf.py"
+  },
+  {
+   "file": "tests/fixtures/test_multipage.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_ui_canvas_coords_sendinput.py",
+    "tests/test_ui_canvas_functional_sendinput.py",
+    "tests/test_ui_canvas_sendinput.py",
+    "tests/test_ui_sendinput.py",
+    "tests/ui_automation/conftest.py"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/test_multisize.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/generate_fixtures.py",
+    "tests/test_ui_file_operations.py",
+    "tests/test_ui_page_operations.py",
+    "tests/test_ui_view_navigation.py",
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/test_critical_flows_p0.py"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/test_multispan.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/generate_fixtures.py",
+    "tests/test_text_edit_pipeline.cpp",
+    "tests/test_ui_annotations.py",
+    "tests/test_ui_text_editing.py",
+    "tests/ui_automation/harness/render_drive.py",
+    "tests/ui_automation/test_render_redaction.py"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/test_ocr_clean.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "OCR/TRE",
+   "consumed_by": [
+    "tests/test_e2e_integration.cpp",
+    "tests/test_fidelity_r3_08_ocr_wer.cpp",
+    "tests/test_ui_text_editing.py"
+   ],
+   "generator": "generate_ocr_variants.py"
+  },
+  {
+   "file": "tests/fixtures/test_ocr_multicol.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "OCR/TRE",
+   "consumed_by": [],
+   "generator": "generate_ocr_variants.py"
+  },
+  {
+   "file": "tests/fixtures/test_ocr_skewed.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "OCR/TRE",
+   "consumed_by": [
+    "tests/test_fidelity_r3_08_ocr_wer.cpp"
+   ],
+   "generator": "generate_ocr_variants.py"
+  },
+  {
+   "file": "tests/fixtures/test_ocr_text.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "OCR/TRE",
+   "consumed_by": [
+    "tests/test_cid_font_encoding.cpp",
+    "tests/test_image_text_edit_display.cpp",
+    "tests/test_ocr_routing_fix.cpp",
+    "tests/test_redaction_edge_cases.cpp",
+    "tests/test_textedit_tm_regression.cpp"
+   ],
+   "generator": "create_ocr_fixture.py"
+  },
+  {
+   "file": "tests/fixtures/test_pdf_with_images.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "image-edit",
+   "consumed_by": [
+    "tests/test_autosave_capture_audit.cpp",
+    "tests/test_autosave_matrix.cpp",
+    "tests/test_exif_stripper.cpp",
+    "tests/test_grayscale_converter.cpp",
+    "tests/test_image_commands.cpp",
+    "tests/test_image_content_editor.cpp",
+    "tests/test_image_flow_oracle.cpp",
+    "tests/test_image_manager.cpp",
+    "tests/test_image_redaction_phase7.cpp",
+    "tests/test_image_roundtrip.cpp",
+    "tests/test_image_tool.cpp",
+    "tests/test_image_undo_after_save.cpp",
+    "tests/test_ocr_routing_fix.cpp",
+    "tests/test_save_throw_undo_safety.cpp",
+    "tests/test_ui_image_redaction_smoke.py",
+    "tests/ui_automation/dialog_openers.py",
+    "tests/ui_automation/test_canvas_phase4.py"
+   ],
+   "generator": "generate_test_images.py"
+  },
+  {
+   "file": "tests/fixtures/test_pdfa_1b.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "compliance/pdfa",
+   "consumed_by": [
+    "tests/test_security_phase8.cpp",
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/matrix/triage.py",
+    "tests/ui_automation/test_critical_flows_p0.py",
+    "tests/ui_automation/test_security_compliance_p1.py",
+    "tests/ui_automation/test_ui_batch3_scenarios.py"
+   ],
+   "generator": "generate_pdfa_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/test_pdfa_2a.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "compliance/pdfa",
+   "consumed_by": [
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/ui_automation/test_security_compliance_p1.py"
+   ],
+   "generator": "generate_pdfa_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/test_pdfa_2b.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "compliance/pdfa",
+   "consumed_by": [
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/test_security_compliance_p1.py"
+   ],
+   "generator": "generate_pdfa_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/test_pdfa_2u.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "compliance/pdfa",
+   "consumed_by": [
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/ui_automation/test_security_compliance_p1.py"
+   ],
+   "generator": "generate_pdfa_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/test_pdfa_3b.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "compliance/pdfa",
+   "consumed_by": [
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/ui_automation/test_security_compliance_p1.py"
+   ],
+   "generator": "generate_pdfa_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/test_pdfua.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "compliance/pdfa",
+   "consumed_by": [
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/test_security_compliance_p1.py"
+   ],
+   "generator": "generate_pdfa_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/test_portfolio.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "portfolio-collection",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_portfolio.cpp",
+    "tests/test_save_structural_verify.cpp",
+    "tests/test_ui_view_navigation.py",
+    "tests/ui_automation/test_misc_phase_post.py"
+   ],
+   "generator": "generate_portfolio_pdf.py"
+  },
+  {
+   "file": "tests/fixtures/test_redaction.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "redact",
+   "consumed_by": [
+    "tests/test_autosave_capture_audit.cpp",
+    "tests/test_autosave_capture_fixes.cpp",
+    "tests/test_autosave_matrix.cpp",
+    "tests/test_conditional_gc.cpp",
+    "tests/test_fidelity_r3_23_image_redaction.cpp",
+    "tests/test_image_redaction_phase7.cpp",
+    "tests/test_incremental_save_routing.cpp",
+    "tests/test_redaction_apply.cpp",
+    "tests/test_redaction_apply_pending_edit.cpp",
+    "tests/test_redaction_commands.cpp",
+    "tests/test_redaction_completeness.cpp",
+    "tests/test_redaction_edge_cases.cpp",
+    "tests/test_redaction_manager.cpp",
+    "tests/test_redaction_roundtrip.cpp",
+    "tests/test_redaction_verifier.cpp",
+    "tests/test_signature_security_phase2.cpp",
+    "tests/test_ui_redaction.py",
+    "tests/test_ui_redaction_roundtrip.py",
+    "tests/test_ui_stress.py",
+    "tests/ui_automation/test_security_e1_e4.py"
+   ],
+   "generator": "generate_test_redaction_pdf.py"
+  },
+  {
+   "file": "tests/fixtures/test_scanned.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "OCR/TRE",
+   "consumed_by": [
+    "tests/test_autosave_capture_audit.cpp",
+    "tests/test_autosave_matrix.cpp",
+    "tests/test_content_stream_tm_sign.cpp",
+    "tests/test_image_replacer.cpp",
+    "tests/test_image_replacer_dpi.cpp",
+    "tests/test_image_text_edit_display.cpp",
+    "tests/test_ocr_language_routing.cpp",
+    "tests/test_ocr_pipeline.cpp",
+    "tests/test_ocr_routing_fix.cpp",
+    "tests/test_pdf_content_writer.cpp",
+    "tests/test_region_reconstructor.cpp",
+    "tests/test_tessdata_font_detection.cpp",
+    "tests/test_tre_commands.cpp",
+    "tests/test_tre_state_leak.cpp",
+    "tests/test_tre_undo_after_save.cpp",
+    "tests/test_ui_file_operations.py",
+    "tests/test_ui_text_editing.py",
+    "tests/test_ui_view_navigation.py",
+    "tests/test_unified_text_edit.cpp",
+    "tests/test_vector_subset_detector.cpp",
+    "tests/ui_automation/harness/render_drive.py",
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/test_canvas_click_subsystems.py",
+    "tests/ui_automation/test_canvas_click_tre.py",
+    "tests/ui_automation/test_precondition_panels_phase4.py",
+    "tests/ui_automation/test_remaining_preconditions_phase5.py",
+    "tests/ui_automation/test_text_formatting_p2.py",
+    "tests/ui_automation/test_ui_batch2_images.py"
+   ],
+   "generator": "generate_test_scanned_pdf.py"
+  },
+  {
+   "file": "tests/fixtures/test_scanned_with_ocr.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "OCR/TRE",
+   "consumed_by": [
+    "tests/test_ui_text_editing.py",
+    "tests/ui_automation/harness/render_drive.py",
+    "tests/ui_automation/test_canvas_click_subsystems.py",
+    "tests/ui_automation/test_canvas_click_tre.py",
+    "tests/ui_automation/test_precondition_panels_phase4.py",
+    "tests/ui_automation/test_remaining_preconditions_phase5.py"
+   ],
+   "generator": "make_mixed_size_scan.py"
+  },
+  {
+   "file": "tests/fixtures/test_signed.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "sign/verify",
+   "consumed_by": [
+    "tests/test_e2e_integration.cpp",
+    "tests/test_fixture_corpus.cpp",
+    "tests/test_incremental_save.cpp",
+    "tests/test_ltv_dss_writer.cpp",
+    "tests/test_ocsp_crl_parser.cpp",
+    "tests/test_save_structural_verify.cpp",
+    "tests/test_security_phase8.cpp",
+    "tests/test_signature_real_workflow.py",
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/test_ui_encryption_signatures.py",
+    "tests/test_ui_forms.py",
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/test_security_compliance_p1.py",
+    "tests/ui_automation/test_ui_batch3_flows.py",
+    "tests/ui_automation/test_ui_batch3_scenarios.py",
+    "tests/ui_automation/test_ui_ltv.py"
+   ],
+   "generator": "generate_signed_pdf.py"
+  },
+  {
+   "file": "tests/fixtures/test_single.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/generate_fixtures.py",
+    "tests/test_alignment_e2e.cpp",
+    "tests/test_alt_text.cpp",
+    "tests/test_alt_text_dialog.cpp",
+    "tests/test_attachment_panel.cpp",
+    "tests/test_attachments.cpp",
+    "tests/test_auto_missing_glyph_resolver.cpp",
+    "tests/test_auto_tagger.cpp",
+    "tests/test_autosave_capture_audit.cpp",
+    "tests/test_autosave_matrix.cpp",
+    "tests/test_batch.cpp",
+    "tests/test_bookmarks.cpp",
+    "tests/test_certification_signatures.cpp",
+    "tests/test_cid_font_encoding.cpp",
+    "tests/test_combine_files_wizard.cpp",
+    "tests/test_comment_panel_threading.cpp",
+    "tests/test_comment_threading.cpp",
+    "tests/test_compare_documents_view.cpp",
+    "tests/test_compat_workflows.py",
+    "tests/test_compliance_dialog.cpp",
+    "tests/test_compliance_manager.cpp",
+    "tests/test_content_stream_substitution.cpp",
+    "tests/test_content_stream_tagger.cpp",
+    "tests/test_content_stream_tm_sign.cpp",
+    "tests/test_coord_mapper_rotation.cpp",
+    "tests/test_coordinate_diagnostic.cpp",
+    "tests/test_coordinate_transform.cpp",
+    "tests/test_dialog_widget_audit_phase2.cpp",
+    "tests/test_docmdp_byterange.cpp",
+    "tests/test_e2e_integration.cpp",
+    "tests/test_encrypt_ocsp_phase3.cpp",
+    "tests/test_encryption_manager.cpp",
+    "tests/test_encryption_roundtrip.cpp",
+    "tests/test_export_plain_text.cpp",
+    "tests/test_fidelity_r3_19_pdfa_independent.cpp",
+    "tests/test_fidelity_r3_22_xmp_info_sync.cpp",
+    "tests/test_file_attachment_annotation.cpp",
+    "tests/test_find_replace.cpp",
+    "tests/test_font_compliance_checker.cpp",
+    "tests/test_font_substitution_engine.cpp",
+    "tests/test_form_creation.cpp",
+    "tests/test_gap102_residuals.cpp",
+    "tests/test_grayscale_converter.cpp",
+    "tests/test_hidpi_render.cpp",
+    "tests/test_icc_profile_manager.cpp",
+    "tests/test_image_commands.cpp",
+    "tests/test_image_manager.cpp",
+    "tests/test_image_stamp.cpp",
+    "tests/test_image_text_edit_display.cpp",
+    "tests/test_incremental_save.cpp",
+    "tests/test_invisible_and_certification_signatures.cpp",
+    "tests/test_ltv_dss_writer.cpp",
+    "tests/test_ltv_responder_validation.cpp",
+    "tests/test_ltv_validator.cpp",
+    "tests/test_malicious_pdf_security.cpp",
+    "tests/test_measure.cpp",
+    "tests/test_metadata_commands.cpp",
+    "tests/test_metadata_manager.cpp",
+    "tests/test_metadata_roundtrip.cpp",
+    "tests/test_ocr_pipeline.cpp",
+    "tests/test_ocr_routing_fix.cpp",
+    "tests/test_ocsp_crl_parser.cpp",
+    "tests/test_ocsp_crl_validation.cpp",
+    "tests/test_optimize.cpp",
+    "tests/test_overlay_font_mapping.cpp",
+    "tests/test_page_integer_overflow.cpp",
+    "tests/test_page_ops_phase6.cpp",
+    "tests/test_path_roundtrips.cpp",
+    "tests/test_pdf_canvas_q_invokable.cpp",
+    "tests/test_pdf_content_writer.cpp",
+    "tests/test_pdf_font_embedder.cpp",
+    "tests/test_pdfa_converter.cpp",
+    "tests/test_pdfa_roundtrip.cpp",
+    "tests/test_pdfa_validator.cpp",
+    "tests/test_pdfua_converter.cpp",
+    "tests/test_performance_stress.cpp",
+    "tests/test_permission_enforcement.cpp",
+    "tests/test_pkcs7_roundtrip.cpp",
+    "tests/test_portfolio.cpp",
+    "tests/test_preflight_fix_all.cpp",
+    "tests/test_preflight_open.cpp",
+    "tests/test_preflight_xplatform.cpp",
+    "tests/test_prohibited_feature_scanner.cpp",
+    "tests/test_redaction_completeness.cpp",
+    "tests/test_render_fidelity.cpp",
+    "tests/test_replace_page.cpp",
+    "tests/test_save_error_paths.cpp",
+    "tests/test_save_operations.cpp",
+    "tests/test_save_path_security.cpp",
+    "tests/test_search_performance.cpp",
+    "tests/test_security_audit.cpp",
+    "tests/test_select_tool_enhanced.cpp",
+    "tests/test_sign_dialog.cpp",
+    "tests/test_signature_commands.cpp",
+    "tests/test_signature_manager.cpp",
+    "tests/test_signature_roundtrip.cpp",
+    "tests/test_signature_security_phase2.cpp",
+    "tests/test_stamp_tokens.cpp",
+    "tests/test_stress_investigation.cpp",
+    "tests/test_structure_tree_builder.cpp",
+    "tests/test_text_edit_pipeline.cpp",
+    "tests/test_thumbnails.cpp",
+    "tests/test_toolbar_toggles.cpp",
+    "tests/test_tre_coord_mapper.cpp",
+    "tests/test_tsa_real_endpoint.cpp",
+    "tests/test_ui_annotations.py",
+    "tests/test_ui_canvas_coords_sendinput.py",
+    "tests/test_ui_canvas_functional_sendinput.py",
+    "tests/test_ui_canvas_sendinput.py",
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/test_ui_e2e_workflows.py",
+    "tests/test_ui_encryption_signatures.py",
+    "tests/test_ui_file_operations.py",
+    "tests/test_ui_harness_smoke.py",
+    "tests/test_ui_hidden_widgets_e2e.py",
+    "tests/test_ui_leak_detection.py",
+    "tests/test_ui_menu_full_walk.py",
+    "tests/test_ui_page_operations.py",
+    "tests/test_ui_preferences_chrome.py",
+    "tests/test_ui_redaction.py",
+    "tests/test_ui_sendinput.py",
+    "tests/test_ui_stress.py",
+    "tests/test_ui_text_editing.py",
+    "tests/test_ui_view_navigation.py",
+    "tests/test_uncovered_dialogs.cpp",
+    "tests/test_unified_text_edit.cpp",
+    "tests/test_validation_request.cpp",
+    "tests/test_view_rotation.cpp",
+    "tests/test_xmp_metadata_writer.cpp",
+    "tests/ui_automation/test_canvas_click_tre.py",
+    "tests/ui_automation/test_canvas_coords_p2.py",
+    "tests/ui_automation/test_canvas_phase3.py",
+    "tests/ui_automation/test_critical_flows_p0.py",
+    "tests/ui_automation/test_harness_self_test.py",
+    "tests/ui_automation/test_misc_phase_post.py",
+    "tests/ui_automation/test_page_operations_p1.py",
+    "tests/ui_automation/test_remaining_preconditions_phase5.py",
+    "tests/ui_automation/test_text_formatting_p2.py",
+    "tests/ui_automation/test_ui_ocr_all_pages.py",
+    "tests/ui_harness/core/launch.py",
+    "tests/visual/test_canvas_pyautogui_regression.py",
+    "tests/visual/test_visual_baselines.py"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/batch_output/test_single.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "save/rewrite (batch output copy)",
+   "consumed_by": [
+    "tests/generate_fixtures.py",
+    "tests/test_alignment_e2e.cpp",
+    "tests/test_alt_text.cpp",
+    "tests/test_alt_text_dialog.cpp",
+    "tests/test_attachment_panel.cpp",
+    "tests/test_attachments.cpp",
+    "tests/test_auto_missing_glyph_resolver.cpp",
+    "tests/test_auto_tagger.cpp",
+    "tests/test_autosave_capture_audit.cpp",
+    "tests/test_autosave_matrix.cpp",
+    "tests/test_batch.cpp",
+    "tests/test_bookmarks.cpp",
+    "tests/test_certification_signatures.cpp",
+    "tests/test_cid_font_encoding.cpp",
+    "tests/test_combine_files_wizard.cpp",
+    "tests/test_comment_panel_threading.cpp",
+    "tests/test_comment_threading.cpp",
+    "tests/test_compare_documents_view.cpp",
+    "tests/test_compat_workflows.py",
+    "tests/test_compliance_dialog.cpp",
+    "tests/test_compliance_manager.cpp",
+    "tests/test_content_stream_substitution.cpp",
+    "tests/test_content_stream_tagger.cpp",
+    "tests/test_content_stream_tm_sign.cpp",
+    "tests/test_coord_mapper_rotation.cpp",
+    "tests/test_coordinate_diagnostic.cpp",
+    "tests/test_coordinate_transform.cpp",
+    "tests/test_dialog_widget_audit_phase2.cpp",
+    "tests/test_docmdp_byterange.cpp",
+    "tests/test_e2e_integration.cpp",
+    "tests/test_encrypt_ocsp_phase3.cpp",
+    "tests/test_encryption_manager.cpp",
+    "tests/test_encryption_roundtrip.cpp",
+    "tests/test_export_plain_text.cpp",
+    "tests/test_fidelity_r3_19_pdfa_independent.cpp",
+    "tests/test_fidelity_r3_22_xmp_info_sync.cpp",
+    "tests/test_file_attachment_annotation.cpp",
+    "tests/test_find_replace.cpp",
+    "tests/test_font_compliance_checker.cpp",
+    "tests/test_font_substitution_engine.cpp",
+    "tests/test_form_creation.cpp",
+    "tests/test_gap102_residuals.cpp",
+    "tests/test_grayscale_converter.cpp",
+    "tests/test_hidpi_render.cpp",
+    "tests/test_icc_profile_manager.cpp",
+    "tests/test_image_commands.cpp",
+    "tests/test_image_manager.cpp",
+    "tests/test_image_stamp.cpp",
+    "tests/test_image_text_edit_display.cpp",
+    "tests/test_incremental_save.cpp",
+    "tests/test_invisible_and_certification_signatures.cpp",
+    "tests/test_ltv_dss_writer.cpp",
+    "tests/test_ltv_responder_validation.cpp",
+    "tests/test_ltv_validator.cpp",
+    "tests/test_malicious_pdf_security.cpp",
+    "tests/test_measure.cpp",
+    "tests/test_metadata_commands.cpp",
+    "tests/test_metadata_manager.cpp",
+    "tests/test_metadata_roundtrip.cpp",
+    "tests/test_ocr_pipeline.cpp",
+    "tests/test_ocr_routing_fix.cpp",
+    "tests/test_ocsp_crl_parser.cpp",
+    "tests/test_ocsp_crl_validation.cpp",
+    "tests/test_optimize.cpp",
+    "tests/test_overlay_font_mapping.cpp",
+    "tests/test_page_integer_overflow.cpp",
+    "tests/test_page_ops_phase6.cpp",
+    "tests/test_path_roundtrips.cpp",
+    "tests/test_pdf_canvas_q_invokable.cpp",
+    "tests/test_pdf_content_writer.cpp",
+    "tests/test_pdf_font_embedder.cpp",
+    "tests/test_pdfa_converter.cpp",
+    "tests/test_pdfa_roundtrip.cpp",
+    "tests/test_pdfa_validator.cpp",
+    "tests/test_pdfua_converter.cpp",
+    "tests/test_performance_stress.cpp",
+    "tests/test_permission_enforcement.cpp",
+    "tests/test_pkcs7_roundtrip.cpp",
+    "tests/test_portfolio.cpp",
+    "tests/test_preflight_fix_all.cpp",
+    "tests/test_preflight_open.cpp",
+    "tests/test_preflight_xplatform.cpp",
+    "tests/test_prohibited_feature_scanner.cpp",
+    "tests/test_redaction_completeness.cpp",
+    "tests/test_render_fidelity.cpp",
+    "tests/test_replace_page.cpp",
+    "tests/test_save_error_paths.cpp",
+    "tests/test_save_operations.cpp",
+    "tests/test_save_path_security.cpp",
+    "tests/test_search_performance.cpp",
+    "tests/test_security_audit.cpp",
+    "tests/test_select_tool_enhanced.cpp",
+    "tests/test_sign_dialog.cpp",
+    "tests/test_signature_commands.cpp",
+    "tests/test_signature_manager.cpp",
+    "tests/test_signature_roundtrip.cpp",
+    "tests/test_signature_security_phase2.cpp",
+    "tests/test_stamp_tokens.cpp",
+    "tests/test_stress_investigation.cpp",
+    "tests/test_structure_tree_builder.cpp",
+    "tests/test_text_edit_pipeline.cpp",
+    "tests/test_thumbnails.cpp",
+    "tests/test_toolbar_toggles.cpp",
+    "tests/test_tre_coord_mapper.cpp",
+    "tests/test_tsa_real_endpoint.cpp",
+    "tests/test_ui_annotations.py",
+    "tests/test_ui_canvas_coords_sendinput.py",
+    "tests/test_ui_canvas_functional_sendinput.py",
+    "tests/test_ui_canvas_sendinput.py",
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/test_ui_e2e_workflows.py",
+    "tests/test_ui_encryption_signatures.py",
+    "tests/test_ui_file_operations.py",
+    "tests/test_ui_harness_smoke.py",
+    "tests/test_ui_hidden_widgets_e2e.py",
+    "tests/test_ui_leak_detection.py",
+    "tests/test_ui_menu_full_walk.py",
+    "tests/test_ui_page_operations.py",
+    "tests/test_ui_preferences_chrome.py",
+    "tests/test_ui_redaction.py",
+    "tests/test_ui_sendinput.py",
+    "tests/test_ui_stress.py",
+    "tests/test_ui_text_editing.py",
+    "tests/test_ui_view_navigation.py",
+    "tests/test_uncovered_dialogs.cpp",
+    "tests/test_unified_text_edit.cpp",
+    "tests/test_validation_request.cpp",
+    "tests/test_view_rotation.cpp",
+    "tests/test_xmp_metadata_writer.cpp",
+    "tests/ui_automation/test_canvas_click_tre.py",
+    "tests/ui_automation/test_canvas_coords_p2.py",
+    "tests/ui_automation/test_canvas_phase3.py",
+    "tests/ui_automation/test_critical_flows_p0.py",
+    "tests/ui_automation/test_harness_self_test.py",
+    "tests/ui_automation/test_misc_phase_post.py",
+    "tests/ui_automation/test_page_operations_p1.py",
+    "tests/ui_automation/test_remaining_preconditions_phase5.py",
+    "tests/ui_automation/test_text_formatting_p2.py",
+    "tests/ui_automation/test_ui_ocr_all_pages.py",
+    "tests/ui_harness/core/launch.py",
+    "tests/visual/test_canvas_pyautogui_regression.py",
+    "tests/visual/test_visual_baselines.py"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/test_taggable_rich.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "compliance/tagging",
+   "consumed_by": [
+    "tests/test_ui_compliance_accessibility.py"
+   ],
+   "generator": "generate_taggable_rich_pdf.py"
+  },
+  {
+   "file": "tests/fixtures/test_tagged_multipage.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "compliance/tagging",
+   "consumed_by": [
+    "tests/test_struct_tree_preservation.cpp"
+   ],
+   "generator": "generate_tagged_multipage_pdf.py"
+  },
+  {
+   "file": "tests/fixtures/test_tampered.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "tampered-signature",
+   "product_path": "sign/verify",
+   "consumed_by": [
+    "tests/test_fixture_corpus.cpp",
+    "tests/test_ui_encryption_signatures.py"
+   ],
+   "generator": "generate_signed_pdf.py"
+  },
+  {
+   "file": "tests/fixtures/test_timestamped.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "sign/verify",
+   "consumed_by": [
+    "tests/test_tsa_fixture.cpp"
+   ],
+   "generator": "generate_timestamped_pdf.py"
+  },
+  {
+   "file": "tests/fixtures/test_unsigned_sigfield.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "sign/verify",
+   "consumed_by": [
+    "tests/test_signature_real_workflow.py",
+    "tests/test_ui_encryption_signatures.py",
+    "tests/test_ui_forms.py",
+    "tests/ui_automation/matrix/generate_matrix.py",
+    "tests/ui_automation/test_critical_flows_p0.py",
+    "tests/ui_automation/test_security_compliance_p1.py"
+   ],
+   "generator": "generate_ca_signed_pdf.py"
+  },
+  {
+   "file": "tests/fixtures/test_with_bookmarks.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_autosave_capture_audit.cpp",
+    "tests/test_autosave_capture_fixes.cpp",
+    "tests/test_autosave_matrix.cpp",
+    "tests/ui_automation/dialog_openers.py"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/test_with_freetext_annot.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_main_window_q_invokable.cpp",
+    "tests/test_ui_annotations.py",
+    "tests/test_ui_compliance_accessibility.py",
+    "tests/test_ui_file_operations.py",
+    "tests/ui_automation/dialog_openers.py",
+    "tests/ui_automation/test_canvas_coords_p2.py",
+    "tests/ui_automation/test_canvas_phase3.py",
+    "tests/ui_automation/test_final_phase8.py",
+    "tests/ui_automation/test_precondition_panels_phase4.py",
+    "tests/ui_automation/test_ui_alt_text.py",
+    "tests/visual/test_visual_baselines.py"
+   ],
+   "generator": null
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/vector/text_clip_cff_cid.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-vector-shading",
+   "product_path": "render",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/text_ligature.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "typography-ligature-edge",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_fidelity_r3_07_text_extraction.cpp"
+   ],
+   "generator": "gen_ligature_fixture.py"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/vector/tiling_pattern_large_steps.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-vector-shading",
+   "product_path": "render",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/overlap/type3_content_stream_cycle.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-vector-overlap-cycle",
+   "product_path": "render",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/realworld/unicode_metadata/unicode_metadata.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "unicode-metadata",
+   "product_path": "metadata",
+   "consumed_by": [
+    "tests/test_metadata_roundtrip.cpp"
+   ],
+   "generator": "generate_realworld_fixtures.py"
+  },
+  {
+   "file": "tests/fixtures/realworld/uscis_i9.pdf",
+   "class": "benign",
+   "adversarial_trait": "",
+   "product_path": "open/parse (real-world doc)",
+   "consumed_by": [
+    "tests/scripts/assemble_realworld_corpus.py"
+   ],
+   "generator": "assemble_realworld_corpus.py (downloaded)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/corrupt/xref_command_missing.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "malformed-truncated-corruptxref",
+   "product_path": "open/parse",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/fonts/zero_descent.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "font-edge-missing-cid",
+   "product_path": "render/extract",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  },
+  {
+   "file": "tests/fixtures/flaw_corpus/overlap/zerowidthline.pdf",
+   "class": "adversarial",
+   "adversarial_trait": "edge-vector-overlap-cycle",
+   "product_path": "render",
+   "consumed_by": [
+    "tests/test_external_flaw_corpus.cpp"
+   ],
+   "generator": "(external curated corpus, no repo generator)"
+  }
+ ],
+ "orphan_fixtures": [
+  "tests/fixtures/adversarial_ambient/aa_cmyk.pdf",
+  "tests/fixtures/adversarial_ambient/aa_dangling_q.pdf",
+  "tests/fixtures/adversarial_ambient/aa_img_cm.pdf",
+  "tests/fixtures/adversarial_ambient/aa_img_cmyk.pdf",
+  "tests/fixtures/adversarial_ambient/aa_img_dangling_q.pdf",
+  "tests/fixtures/adversarial_ambient/aa_img_neg_tz.pdf",
+  "tests/fixtures/adversarial_ambient/aa_img_tc.pdf",
+  "tests/fixtures/adversarial_ambient/aa_img_tr.pdf",
+  "tests/fixtures/adversarial_ambient/aa_img_ts.pdf",
+  "tests/fixtures/adversarial_ambient/aa_img_white.pdf",
+  "tests/fixtures/adversarial_ambient/aa_neg_tz.pdf",
+  "tests/fixtures/adversarial_ambient/aa_tc.pdf",
+  "tests/fixtures/adversarial_ambient/aa_tr.pdf",
+  "tests/fixtures/adversarial_ambient/aa_ts.pdf",
+  "tests/fixtures/adversarial_ambient/aa_white.pdf",
+  "tests/fixtures/image_pdf/b3_blue_ledger_300dpi.pdf",
+  "tests/fixtures/image_pdf/b3_gradient_shaded_300dpi.pdf",
+  "tests/fixtures/image_pdf/b3_highlighted_yellow_300dpi.pdf",
+  "tests/fixtures/image_pdf/b3_jpeg_blocky_200dpi.pdf",
+  "tests/fixtures/image_pdf/c2_color_ledger_10page.pdf",
+  "tests/fixtures/image_pdf/c2_large_12page_600dpi.pdf",
+  "tests/fixtures/image_pdf/c2_mixed_8page.pdf",
+  "tests/fixtures/image_pdf/c2_small_6page_300dpi.pdf",
+  "tests/fixtures/image_pdf/c2_tiny_20page_72dpi.pdf",
+  "tests/fixtures/phase3_cjk_text.pdf",
+  "tests/fixtures/phase3_utf16_metadata.pdf",
+  "tests/fixtures/phase3_v20_minimal.pdf",
+  "tests/fixtures/realworld/cid_mixed/cid_mixed_encoding.pdf",
+  "tests/fixtures/realworld/mixed_page_sizes/mixed_page_sizes.pdf",
+  "tests/fixtures/realworld/object_streams/object_streams.pdf",
+  "tests/fixtures/realworld/subsetted_fonts/subset_prefix_conflict.pdf",
+  "tests/fixtures/test_ocr_multicol.pdf"
+ ],
+ "missing_referenced_fixtures": [
+  "specimen_a_green.pdf (expected at tests/fixtures/specimen_a_green.pdf; referenced by tests/test_ui_specimen_a_green_subset.py and tests/diagnose_live_toolbar_font.py; absent -> test falls back / xfails P-G-INFRA-1 = silent skip)"
+ ]
+}

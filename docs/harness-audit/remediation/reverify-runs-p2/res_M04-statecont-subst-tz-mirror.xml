@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="9" failures="1" disabled="0" errors="0" time="0.102" timestamp="2026-07-28T13:35:23.103" name="AllTests">
+  <testsuite name="ContentStreamSubstitutionTest" tests="9" failures="1" disabled="0" skipped="0" errors="0" time="0.101" timestamp="2026-07-28T13:35:23.105">
+    <testcase name="EmptySubstitutionsDelegatesToApplyEdits" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="225" status="run" result="completed" time="0.018" timestamp="2026-07-28T13:35:23.105" classname="ContentStreamSubstitutionTest" />
+    <testcase name="NullPageIsNoOp" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="242" status="run" result="completed" time="0.005" timestamp="2026-07-28T13:35:23.123" classname="ContentStreamSubstitutionTest" />
+    <testcase name="NullDocIsNoOp" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="254" status="run" result="completed" time="0.004" timestamp="2026-07-28T13:35:23.129" classname="ContentStreamSubstitutionTest" />
+    <testcase name="EmptyModificationsIsNoOp" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="266" status="run" result="completed" time="0.01" timestamp="2026-07-28T13:35:23.133" classname="ContentStreamSubstitutionTest" />
+    <testcase name="AccentedSubstitutionTextIsPresent" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="279" status="run" result="completed" time="0.011" timestamp="2026-07-28T13:35:23.144" classname="ContentStreamSubstitutionTest" />
+    <testcase name="BackwardCompatibleEditLands" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="301" status="run" result="completed" time="0.011" timestamp="2026-07-28T13:35:23.156" classname="ContentStreamSubstitutionTest" />
+    <testcase name="ScaledSubstitutionEditLands" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="320" status="run" result="completed" time="0.011" timestamp="2026-07-28T13:35:23.167" classname="ContentStreamSubstitutionTest" />
+    <testcase name="PerRunSubstitutionEditNotMirroredKeepsColor" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="343" status="run" result="completed" time="0.014" timestamp="2026-07-28T13:35:23.179" classname="ContentStreamSubstitutionTest">
+      <failure message="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp:352&#x0A;Expected: (q.ur.x) &gt; (q.ul.x), actual: 166.66 vs 180&#x0A;edited glyph is horizontally MIRRORED (quad ur.x &lt;= ul.x) — substitution path leaked hScale=-100&#x0A;" type=""><![CDATA[C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp:352
+Expected: (q.ur.x) > (q.ul.x), actual: 166.66 vs 180
+edited glyph is horizontally MIRRORED (quad ur.x <= ul.x) — substitution path leaked hScale=-100
+]]></failure>
+      <failure message="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp:355&#x0A;Expected: (rb.edited.back().quad.ul.x) &gt; (rb.edited.front().quad.ul.x), actual: 105.54 vs 180&#x0A;edited run advances right-to-left — text is mirrored&#x0A;" type=""><![CDATA[C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp:355
+Expected: (rb.edited.back().quad.ul.x) > (rb.edited.front().quad.ul.x), actual: 105.54 vs 180
+edited run advances right-to-left — text is mirrored
+]]></failure>
+    </testcase>
+    <testcase name="LegacySubstitutionEditFullSizeKeepsColor" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="372" status="run" result="completed" time="0.012" timestamp="2026-07-28T13:35:23.193" classname="ContentStreamSubstitutionTest" />
+  </testsuite>
+</testsuites>

@@ -1,0 +1,453 @@
+# ---------------------------------------------------------------------------
+# ensure-build-tree — make `build/vs2022` present, or fail loudly saying why.
+#
+# WHY THIS EXISTS. Every downstream job in windows-validation.yml consumes
+# `build/vs2022`, and until now it survived between jobs ONLY because they all
+# landed on the SAME machine and checked out with `clean: false`. That is a
+# single-runner property, and it is the one thing that had to change before a
+# second runner could safely be registered: the moment a second machine carries
+# `pdfe-windows`, GitHub may route core-tests / ui-e2e / render to a host that
+# never built, where `build/vs2022` simply does not exist. Those jobs would not
+# be slower — they would FAIL, with a message about a missing exe that names the
+# symptom and not the cause.
+#
+# AUTOMATIC, NOT OPT-IN. There is deliberately no `reuse_published_build`-style
+# switch here. An opt-in restore is a restore that is off on the run where it was
+# needed. The semantics are: present -> proceed; absent -> restore; cannot
+# restore -> fail with a message that says which of the five reasons applied.
+#
+# THE FIVE REFUSALS. Four are inherited unchanged from the `build` job's restore
+# (no marker / wrong-commit marker / incomplete restore / nothing published),
+# because this action feeds the SAME verification code path rather than teaching
+# a second source that would have to be re-proved against it. The fifth is new
+# and is the cold-machine case itself: nothing in the workspace, nothing in the
+# local store, and nothing published as an artifact for this commit.
+#
+# WHAT IT DOES NOT DO, stated so it is not read as more than it is:
+#   * It restores a RUNTIME CLOSURE, not a configured CMake tree. A job that
+#     runs `cmake --build` (i.e. `release`) cannot be served by this and must
+#     stay co-located with `build` via the `pdfe-builder` label.
+#   * The artifact leg only functions when `publish_build_artifact` was enabled
+#     on the run that produced the build, which needs artifact quota this
+#     account does not currently have. Without it, a cold machine fails LOUDLY
+#     and correctly rather than silently testing nothing.
+#
+# THE ORDER OF SOURCES, and why R2 sits where it does:
+#
+#     workspace  ->  local per-SHA store  ->  Cloudflare R2  ->  GitHub artifact
+#
+# The first two are free and same-machine. R2 comes THIRD because it is the
+# first source that works for a machine which has never built — and it is
+# preferred over the artifact leg because artifacts are bounded by a quota this
+# account has already exhausted, while R2 gives 10 GB-month and, decisively,
+# ZERO EGRESS. The runners are a mix of local and remote machines, so a LAN
+# share was rejected: it serves only half of them, and half a transport means a
+# second restore path to keep in step with this one.
+#
+# The artifact leg is kept rather than replaced, so a machine with no R2
+# configuration behaves exactly as it did before R2 existed.
+# ---------------------------------------------------------------------------
+name: Ensure build tree
+description: >-
+  Guarantee build/vs2022 holds the runtime closure for this commit — from the
+  workspace, the local per-SHA store, or the published artifact — or fail loudly.
+
+inputs:
+  store-key:
+    description: >-
+      Directory name under C:\pdfe-build-store identifying this closure. The
+      commit SHA, optionally suffixed (e.g. `<sha>-debug`) when a job needs a
+      closure narrower than the full one.
+    required: true
+  artifact-name:
+    description: Name of the published artifact carrying the same closure.
+    required: true
+  required-files:
+    description: >-
+      Newline-separated paths, relative to build/vs2022, that this job actually
+      consumes. Both the workspace probe and the post-restore completeness check
+      use this list — so "restored" can never mean "created an empty directory",
+      and the check is scoped to what the CALLER needs rather than to a
+      one-size list that would either over- or under-constrain it.
+    required: true
+  github-token:
+    description: Token used for the cross-run artifact lookup and download.
+    required: true
+  workflow-path:
+    description: >-
+      The workflow file an accepted artifact must have been produced by. Matched
+      against the producing run's `path`, NOT its display name — names are
+      editable and reusable, so a name match is not an identity check.
+    required: false
+    default: .github/workflows/windows-validation.yml
+
+outputs:
+  source:
+    description: >-
+      Where the build tree came from — workspace, local-store, r2, or artifact.
+    value: ${{ steps.probe.outputs.source == 'workspace' && 'workspace' || steps.restore.outputs.source }}
+
+runs:
+  using: composite
+  steps:
+    - name: Probe the workspace for an existing build tree
+      id: probe
+      shell: pwsh
+      env:
+        PDFE_REQUIRED_FILES: ${{ inputs.required-files }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $dest = Join-Path $env:GITHUB_WORKSPACE 'build\vs2022'
+        $need = @($env:PDFE_REQUIRED_FILES -split "`n" | ForEach-Object { $_.Trim() } |
+                  Where-Object { $_ -ne '' })
+        if ($need.Count -eq 0) {
+          # A caller that asks for nothing would make the probe vacuously true
+          # and the completeness check vacuously satisfied -- i.e. it would
+          # disable this action while appearing to use it.
+          throw "ensure-build-tree: required-files is empty. Name the files this job consumes."
+        }
+        # THE COMMIT MARKER IS CHECKED FIRST, and it is not optional.
+        #
+        # File existence alone is NOT evidence the tree belongs to this commit.
+        # Every checkout in this lane uses `clean: false` (deliberately -- it is
+        # what preserves build/ between jobs), and build/ is gitignored, so a
+        # workspace RETAINS the tree from whatever commit last built there. On a
+        # machine that builds every run that is harmless: the build overwrites
+        # it. On a CONSUME-ONLY machine, which never builds, the tree can be
+        # from any earlier commit -- and an existence-only probe would report
+        # "already present" and hand the job a previous commit's binaries to
+        # test this commit's source against.
+        #
+        # That is precisely the wrong-commit failure refusal 2 exists to
+        # prevent, and the workspace fast path skipped it entirely. It is latent
+        # on one machine and becomes live the moment a second runner is added --
+        # i.e. exactly when this action starts mattering.
+        $stamp = Join-Path $dest '.pdfe-commit'
+        $have = if (Test-Path $stamp) { (Get-Content $stamp -Raw).Trim() } else { "" }
+        $missing = @($need | Where-Object { -not (Test-Path (Join-Path $dest $_)) })
+
+        if ($have -ne "$env:GITHUB_SHA") {
+          if ($have) {
+            Write-Host "workspace build tree is from commit $have, not $env:GITHUB_SHA -- refusing it and restoring."
+          } else {
+            Write-Host "workspace build tree has no .pdfe-commit stamp, so its commit cannot be established -- restoring."
+          }
+          "source=" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+        } elseif ($missing.Count -eq 0) {
+          Write-Host "build tree present in the workspace and stamped $env:GITHUB_SHA (same-machine fast path)."
+          "source=workspace" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+        } else {
+          Write-Host "workspace build tree is for the right commit but incomplete; will restore. Missing:"
+          $missing | ForEach-Object { Write-Host "  $_" }
+          "source=" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+        }
+
+    - name: Probe the LOCAL per-SHA store
+      id: local_probe
+      if: ${{ steps.probe.outputs.source != 'workspace' }}
+      shell: pwsh
+      env:
+        PDFE_STORE_KEY: ${{ inputs.store-key }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $store = Join-Path 'C:\pdfe-build-store' $env:PDFE_STORE_KEY
+        $hit = Test-Path (Join-Path $store 'published-sha.txt')
+        Write-Host ("local store {0}: {1}" -f $store, $(if ($hit) { 'HIT' } else { 'MISS (cold machine)' }))
+        "local_hit=$($hit.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+    - name: Restore from Cloudflare R2 (works for local AND remote runners)
+      id: r2
+      # WHY R2 AND NOT A LAN SHARE. The runners are a MIX of local and remote
+      # machines. A share serves only the local ones, so it would need a second
+      # transport for the rest -- and two restore paths are two things to drift
+      # apart. R2 serves both identically: 10 GB-month free, and critically
+      # ZERO EGRESS COST, which is the property that matters when the closure is
+      # ~2.5 GB raw (~1 GB compressed) and every consumer pulls it.
+      #
+      # ORDERED BEFORE THE GITHUB-ARTIFACT LEG deliberately. Artifacts are
+      # capped by a quota this account has already exhausted; R2 is not. The
+      # artifact leg stays as a fallback rather than being deleted, so a machine
+      # with no R2 configuration behaves exactly as it does today.
+      #
+      # CREDENTIALS COME FROM MACHINE-LEVEL ENVIRONMENT ONLY -- never a
+      # workflow `secrets:` block, never a committed file. On a self-hosted
+      # runner the machine is the trust boundary, and putting them in workflow
+      # secrets would expose them to every job in the repository including ones
+      # that have no business writing to the build store. Set on each runner:
+      #     PDFE_R2_ENDPOINT, PDFE_R2_BUCKET           (configuration)
+      #     PDFE_R2_ACCESS_KEY_ID, PDFE_R2_SECRET_ACCESS_KEY  (credentials)
+      #
+      # PROVENANCE, and what R2 does NOT give us. `download-artifact` supplied
+      # a fork check, a head_sha match and producing-workflow identity for free;
+      # an object store supplies none of that. What replaces them:
+      #   * the object key is SHA-scoped, so a wrong-commit object cannot be
+      #     addressed by accident;
+      #   * the downloaded store is fed to the SAME verifier as every other
+      #     source, and refusal 2 compares `published-sha.txt` against
+      #     GITHUB_SHA. READ THE NEXT PARAGRAPH BEFORE RELYING ON THAT;
+      #   * write access is held only by machines carrying the credentials, and
+      #     this workflow is `workflow_dispatch`-only, so a fork cannot publish;
+      #   * CONSUME-ONLY MACHINES MUST HOLD READ-ONLY, BUCKET-SCOPED TOKENS.
+      #     This is the load-bearing control, not a recommendation.
+      #
+      # WHAT THE MARKER DOES NOT DO, corrected after the phase-3 security-audit
+      # gate FAILED this phase for overstating it. An earlier version of this
+      # comment called the marker check "the actual integrity check". It is not,
+      # against a hostile writer: `published-sha.txt` travels INSIDE the zip
+      # that writer controls -- the publish step writes it and then compresses
+      # the whole store -- so an attacker with bucket write sets it to whatever
+      # SHA they are impersonating. The check proves the writer labelled their
+      # own payload consistently, and nothing about who they are.
+      #
+      # It DOES catch accidental mis-keying and corruption, which are real. The
+      # defence against a hostile writer is credential scoping: only builders
+      # can write, and a compromised builder already controls its own output.
+      # Anything stronger needs a second trust root -- a signing key held by the
+      # build job and verified here -- which is a larger change than this
+      # transport swap and is recorded in docs/ci/r2-build-store.md as the
+      # upgrade path rather than implied to exist.
+      if: ${{ steps.probe.outputs.source != 'workspace' && steps.local_probe.outputs.local_hit != 'true' }}
+      shell: pwsh
+      env:
+        PDFE_STORE_KEY: ${{ inputs.store-key }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $endpoint = $env:PDFE_R2_ENDPOINT
+        $bucket   = $env:PDFE_R2_BUCKET
+        $keyId    = $env:PDFE_R2_ACCESS_KEY_ID
+        $secret   = $env:PDFE_R2_SECRET_ACCESS_KEY
+        $configured = @($endpoint, $bucket) | Where-Object { $_ }
+        $creds      = @($keyId, $secret)    | Where-Object { $_ }
+
+        # NOT CONFIGURED AT ALL is a legitimate state -- a machine that has
+        # never been given R2 settings falls through to the artifact leg, which
+        # is exactly today's behaviour. Silence here is correct.
+        if ($configured.Count -eq 0 -and $creds.Count -eq 0) {
+          Write-Host "R2 not configured on this machine; falling through to the artifact leg."
+          "hit=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          exit 0
+        }
+
+        # PARTIAL CONFIGURATION IS THE DANGEROUS STATE, and it fails CLOSED and
+        # LOUD. Half-set R2 settings mean somebody intended this machine to use
+        # R2 and it will not -- so it would silently rebuild or silently fall to
+        # an exhausted-quota artifact leg, and the operator would conclude R2
+        # "does not work" rather than "was never finished". Never a quiet skip.
+        if ($configured.Count -ne 2 -or $creds.Count -ne 2) {
+          Write-Host "::error::R2 is PARTIALLY configured on this machine, which is never intentional."
+          Write-Host "  PDFE_R2_ENDPOINT          set: $([bool]$endpoint)"
+          Write-Host "  PDFE_R2_BUCKET            set: $([bool]$bucket)"
+          Write-Host "  PDFE_R2_ACCESS_KEY_ID     set: $([bool]$keyId)"
+          Write-Host "  PDFE_R2_SECRET_ACCESS_KEY set: $([bool]$secret)"
+          Write-Error "Refusing to continue with a half-configured build store. Set all four machine-level variables, or none."
+          exit 1
+        }
+
+        if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {
+          Write-Host "::error::R2 is configured on this machine but the AWS CLI is not installed, so the store cannot be read."
+          Write-Error "aws CLI not found; install it or unset the PDFE_R2_* variables."
+          exit 1
+        }
+
+        $store  = Join-Path 'C:\pdfe-build-store' $env:PDFE_STORE_KEY
+        $objKey = "pdfe-build/$env:PDFE_STORE_KEY.zip"
+        $zip    = Join-Path $env:RUNNER_TEMP "pdfe-r2-$env:PDFE_STORE_KEY.zip"
+        $env:AWS_ACCESS_KEY_ID     = $keyId
+        $env:AWS_SECRET_ACCESS_KEY = $secret
+        $env:AWS_DEFAULT_REGION    = 'auto'
+
+        # A MISS IS NOT AN ERROR. Nothing published for this commit yet is the
+        # ordinary case on a first run, and it must fall through to the artifact
+        # leg rather than fail. Distinguishing a miss from a broken
+        # configuration is the whole reason this is not one big try/catch.
+        $probe = aws s3api head-object --endpoint-url $endpoint --bucket $bucket --key $objKey 2>&1
+        if ($LASTEXITCODE -ne 0) {
+          if ("$probe" -match '(?i)404|Not Found|NoSuchKey') {
+            Write-Host "no R2 object for this commit ($objKey); falling through to the artifact leg."
+            "hit=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            exit 0
+          }
+          # Auth failure, bad endpoint, network -- a CONFIGURED store that does
+          # not answer is broken, not absent, and saying so is the point.
+          Write-Host "::error::R2 is configured but unreachable or refused the request. This is a broken store, not a cache miss."
+          Write-Host "$probe"
+          Write-Error "R2 head-object failed for $objKey."
+          exit 1
+        }
+
+        Write-Host "R2 object found: $objKey -- downloading"
+        aws s3 cp "s3://$bucket/$objKey" $zip --endpoint-url $endpoint --only-show-errors
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "R2 download failed for $objKey after head-object succeeded."
+          exit 1
+        }
+        New-Item -ItemType Directory -Path $store -Force | Out-Null
+        Expand-Archive -Path $zip -DestinationPath $store -Force
+        Remove-Item $zip -Force -ErrorAction SilentlyContinue
+
+        # Deliberately NOT verified here. The download populates the same store
+        # directory every other source writes, and the shared verification step
+        # below applies all five refusals to it unchanged -- including the
+        # commit-marker check, which catches accidental mis-keying and
+        # corruption but is NOT a defence against a hostile writer (the marker
+        # ships inside this very zip; see the step header). Teaching this step
+        # its own verifier would be a second thing to keep correct.
+        Write-Host "R2 store materialised at $store; the shared verifier decides whether to trust it."
+        "hit=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+    - name: Locate the artifact-published build for this commit
+      id: find
+      # Constrained deliberately: the lookup is attack surface, and the same
+      # constraints the `build` job's lookup applies are applied here rather
+      # than being loosened because this path is more convenient.
+      #   * name is exactly the requested artifact name
+      #   * not expired
+      #   * producing run's head_sha == this commit
+      #   * not fork-originated (repository_id == head_repository_id)
+      #   * producing run is THIS workflow FILE, not a same-named workflow
+      # Finding nothing leaves run_id empty; the restore step below then fails
+      # loudly with the cold-machine message. Fail-closed, never fail-open.
+      if: ${{ steps.probe.outputs.source != 'workspace' && steps.local_probe.outputs.local_hit != 'true' && steps.r2.outputs.hit != 'true' }}
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        PDFE_ARTIFACT_NAME: ${{ inputs.artifact-name }}
+        PDFE_WORKFLOW_PATH: ${{ inputs.workflow-path }}
+      run: |
+        $ErrorActionPreference = 'Continue'
+        $want = $env:PDFE_ARTIFACT_NAME
+        $runId = ""
+        try {
+          $json = gh api "repos/$env:GITHUB_REPOSITORY/actions/artifacts?per_page=100" 2>$null | ConvertFrom-Json
+          $cands = @($json.artifacts | Where-Object {
+            $_.name -eq $want -and
+            -not $_.expired -and
+            $_.workflow_run -and
+            $_.workflow_run.head_sha -eq $env:GITHUB_SHA -and
+            $_.workflow_run.repository_id -eq $_.workflow_run.head_repository_id
+          } | Sort-Object { [datetime]$_.created_at } -Descending)
+
+          foreach ($c in $cands) {
+            $rid = $c.workflow_run.id
+            $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$rid" 2>$null | ConvertFrom-Json
+            if ($run -and $run.path -eq $env:PDFE_WORKFLOW_PATH) {
+              $runId = "$rid"
+              Write-Host "accepted artifact '$want' from run $rid (head_sha and workflow file verified)"
+              break
+            }
+            Write-Host "  rejected run $rid -- produced by $($run.path), not $env:PDFE_WORKFLOW_PATH"
+          }
+          if (-not $runId) {
+            Write-Host "no artifact named '$want' passed every constraint."
+          }
+        } catch {
+          Write-Host "artifact lookup failed: $($_.Exception.Message)"
+        }
+        "run_id=$runId" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+    - name: Fetch the published build from ARTIFACTS (cold machine only)
+      # Populates exactly the directory the local publish writes, so the
+      # verification step below is the SAME code for both sources and every
+      # refusal it enforces applies identically to an artifact-sourced store.
+      if: ${{ steps.probe.outputs.source != 'workspace' && steps.local_probe.outputs.local_hit != 'true' && steps.r2.outputs.hit != 'true' && steps.find.outputs.run_id != '' }}
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: C:\pdfe-build-store\${{ inputs.store-key }}
+        # run-id + github-token are what make this CROSS-RUN. Without them v4
+        # searches the CURRENT run only, and this whole path is inert.
+        run-id: ${{ steps.find.outputs.run_id }}
+        github-token: ${{ inputs.github-token }}
+
+    - name: Restore and verify the build tree
+      id: restore
+      if: ${{ steps.probe.outputs.source != 'workspace' }}
+      shell: pwsh
+      env:
+        PDFE_STORE_KEY: ${{ inputs.store-key }}
+        PDFE_ARTIFACT_NAME: ${{ inputs.artifact-name }}
+        PDFE_REQUIRED_FILES: ${{ inputs.required-files }}
+        PDFE_LOCAL_HIT: ${{ steps.local_probe.outputs.local_hit }}
+        PDFE_R2_HIT: ${{ steps.r2.outputs.hit }}
+        PDFE_FOUND_RUN: ${{ steps.find.outputs.run_id }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $dest  = Join-Path $env:GITHUB_WORKSPACE 'build\vs2022'
+        $store = Join-Path 'C:\pdfe-build-store' $env:PDFE_STORE_KEY
+
+        # REFUSALS 4 AND 5, which share this one code path. Both gate agents
+        # asked why the numbering jumps from 3 to 5, so it is written down:
+        # refusal 4 ("nothing published for this commit") and refusal 5 ("this
+        # machine is cold") are the SAME trigger here -- the store is absent
+        # after all four sources were tried -- and they are told apart by the
+        # `if ($env:PDFE_FOUND_RUN)` branch below, which produces the distinct
+        # message. Separate numbers, one check, two messages.
+        #
+        # The cold-machine case. Distinguished from the three
+        # below because the operator action differs: this one is "nothing was
+        # published for this commit", not "what was published is untrustworthy".
+        if (-not (Test-Path $store)) {
+          Write-Host "::error::This job needs build/vs2022 and this machine does not have it."
+          Write-Host "  * the workspace has no usable build tree (this machine did not build this commit)"
+          Write-Host "  * there is no local store at $store"
+          if ($env:PDFE_FOUND_RUN) {
+            Write-Host "  * an artifact WAS located but the download produced nothing"
+          } else {
+            Write-Host "  * no artifact named '$env:PDFE_ARTIFACT_NAME' was published for this commit"
+            Write-Host "    -> the producing run must be dispatched with publish_build_artifact set."
+          }
+          Write-Error "no build tree available for $env:GITHUB_SHA on this machine."
+          exit 1
+        }
+
+        # REFUSAL 1 -- no marker. The marker is written LAST by the publish, so
+        # its absence means an interrupted or partial publish.
+        $marker = Join-Path $store 'published-sha.txt'
+        if (-not (Test-Path $marker)) {
+          Write-Error "$store has no published-sha.txt marker; refusing to trust it."
+          exit 1
+        }
+
+        # REFUSAL 2 -- wrong commit. The store is keyed by SHA so this cannot
+        # happen by construction, and is checked anyway: "keyed by SHA" is an
+        # assumption about a directory name, and this is the one failure that
+        # would make every downstream test green against code not under test.
+        $publishedSha = (Get-Content $marker -Raw).Trim()
+        if ($publishedSha -ne "$env:GITHUB_SHA") {
+          Write-Error "store says it was built from $publishedSha but this run is $env:GITHUB_SHA. Refusing to test one commit's binaries against another commit's source."
+          exit 1
+        }
+
+        New-Item -ItemType Directory -Path $dest -Force | Out-Null
+        $src = if ($env:PDFE_LOCAL_HIT -eq 'true') { 'local store' }
+               elseif ($env:PDFE_R2_HIT -eq 'true') { 'Cloudflare R2' }
+               else { 'downloaded artifact' }
+        Write-Host "Restoring from $store ($src)"
+        Copy-Item "$store\*" $dest -Recurse -Force
+
+        # REFUSAL 3 -- incomplete. Proves the restore produced what THIS job
+        # consumes, rather than reporting success for an empty directory.
+        $need = @($env:PDFE_REQUIRED_FILES -split "`n" | ForEach-Object { $_.Trim() } |
+                  Where-Object { $_ -ne '' })
+        if ($need.Count -eq 0) {
+          throw "ensure-build-tree: required-files is empty; the completeness check would be vacuous."
+        }
+        $missing = @($need | Where-Object { -not (Test-Path (Join-Path $dest $_)) })
+        if ($missing.Count -gt 0) {
+          Write-Error "restore incomplete - missing: $($missing -join ', ')"
+          exit 1
+        }
+        foreach ($f in $need) {
+          $p = Join-Path $dest $f
+          Write-Host ("  ok {0,-12} {1}" -f ((Get-Item $p).Length), $f)
+        }
+        $label = if ($env:PDFE_LOCAL_HIT -eq 'true') { 'local-store' }
+                 elseif ($env:PDFE_R2_HIT -eq 'true') { 'r2' }
+                 else { 'artifact' }
+        # Stamp it, so the NEXT job on this machine can take the
+        # workspace fast path instead of restoring again -- and so that
+        # a later run on a DIFFERENT commit is refused rather than
+        # silently accepted.
+        "$env:GITHUB_SHA" | Out-File -FilePath (Join-Path $dest '.pdfe-commit') -Encoding ascii
+        "source=$label" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+        Write-Host "Build tree restored from $label and verified for $env:GITHUB_SHA."

@@ -1,0 +1,210 @@
+--- a/source/fitz/filter-jbig2.c
++++ b/source/fitz/filter-jbig2.c
+@@ -23,6 +23,134 @@
+ #include "mupdf/fitz.h"
+ 
+ #include <jbig2.h>
++#include <string.h>
++
++/*
++ * PDFE SEC-56 security gate: JBIG2 decoding is DISABLED BY DEFAULT.
++ *
++ * jbig2dec has a long history of memory-safety CVEs in the generic-region and
++ * symbol-dictionary decoders (CVE-2016-9601, CVE-2017-7885/7975/9216,
++ * CVE-2020-12268, CVE-2023-46361 ...), and, exactly as for JPX (#50, see
++ * 0001-pdfe-jpx-decode-gate.patch), MuPDF's setjmp-based fz_try/fz_catch cannot
++ * trap a heap corruption once it has happened. PDFE therefore refuses to feed
++ * JBIG2 bytes to jbig2dec at all unless the user has explicitly opted in via
++ * the Security preference, which calls fz_pdfe_set_jbig2_enabled(1).
++ *
++ * While the gate is CLOSED nothing in this file calls jbig2_ctx_new(),
++ * jbig2_data_in() or jbig2_complete_page(): the PDF /JBIG2Decode filter is
++ * replaced by a placeholder stream of all-1 bits (see below) and the JBIG2
++ * globals stream is not parsed either. Defined outside every feature guard so
++ * the setter is always linkable from PDFE (src/core/Jbig2SecurityGate.h).
++ */
++static int fz_pdfe_jbig2_enabled_flag = 0;
++
++/*
++ * Placeholder counter. This is the LOAD-BEARING TEST ORACLE for the gate, and
++ * it exists because "it did not crash" cannot distinguish a held gate from a
++ * regressed one -- the underlying corruption is probabilistic, and a JBIG2
++ * image that decodes cleanly looks identical to one that was never decoded if
++ * all you check is that rendering returned. This counter is incremented
++ * exactly once per placeholder substitution, so a test can assert that the
++ * placeholder path -- and not jbig2dec -- produced the pixels.
++ */
++static int fz_pdfe_jbig2_placeholder_hits = 0;
++
++void fz_pdfe_set_jbig2_enabled(int enabled)
++{
++	fz_pdfe_jbig2_enabled_flag = enabled ? 1 : 0;
++}
++
++int fz_pdfe_get_jbig2_enabled(void)
++{
++	return fz_pdfe_jbig2_enabled_flag;
++}
++
++int fz_pdfe_jbig2_placeholder_count(void)
++{
++	return fz_pdfe_jbig2_placeholder_hits;
++}
++
++void fz_pdfe_reset_jbig2_placeholder_count(void)
++{
++	fz_pdfe_jbig2_placeholder_hits = 0;
++}
++
++/* Shared with load-jbig2.c, which gates the standalone (non-PDF) JBIG2 image
++ * loader against the same flag and reports through the same counter. */
++void fz_pdfe_jbig2_note_placeholder(void)
++{
++	fz_pdfe_jbig2_placeholder_hits++;
++}
++
++/*
++ * THE PLACEHOLDER STREAM.
++ *
++ * The PDF /JBIG2Decode filter is a STREAM filter, not a whole-image codec like
++ * JPXDecode, so the gate cannot return a 1x1 pixmap the way fz_load_jpx does:
++ * the caller (fz_decomp_image_from_stream) has already committed to a pixmap of
++ * the /Width x /Height declared in the image dictionary and simply reads
++ * height*stride bytes out of this stream.
++ *
++ * So the gated filter emits 1 bits. This file's real decoder emits
++ * page->data[x] ^ 0xff, i.e. it inverts jbig2dec's "1 = black" convention into
++ * DeviceGray's "0 = black", so a byte of 0xff is eight WHITE pixels and an
++ * all-0xff stream is a blank image. For an /ImageMask, fz_decomp_image_from_stream
++ * inverts again and 0xff becomes fully transparent -- i.e. nothing is painted.
++ * Either way the result is a neutral, ink-free area, and PDFE draws its
++ * explanatory overlay on top of it (PdfCanvas::paintJbig2Placeholders).
++ *
++ * Note what the alternative would have been: returning an empty stream. That
++ * looks simpler, but fz_decomp_image_from_stream pads a short read with ZERO
++ * bytes, and zero is BLACK -- a gated page would come out as solid black
++ * rectangles, and a gated /ImageMask would paint solid ink over the page.
++ *
++ * THE BYTE BOUND exists so that a consumer which reads this stream to EOF --
++ * fz_read_all() via pdf_load_stream(), for instance, on a save or an
++ * optimize pass -- terminates instead of spinning forever on an infinite
++ * generator. 128 MiB is the smallest power-of-two cap that cannot truncate a
++ * plausible bilevel scan: the largest such page PDFE is expected to render is
++ * ISO A0 at 600 dpi, 19866 x 28087 at 1 bit per pixel = 2484 bytes of stride
++ * x 28087 rows = 69,768,108 bytes (66.5 MiB), i.e. 52% of the cap. A stream
++ * larger than the cap is padded with zeroes by the caller, which is the same
++ * treatment any truncated image gets.
++ */
++#define FZ_PDFE_JBIG2_PLACEHOLDER_MAX_BYTES ((int64_t)134217728)
++
++typedef struct
++{
++	int64_t remaining;
++	unsigned char buffer[4096];
++} fz_pdfe_jbig2_placeholder;
++
++static int
++next_jbig2_placeholder(fz_context *ctx, fz_stream *stm, size_t len)
++{
++	fz_pdfe_jbig2_placeholder *state = stm->state;
++	size_t n;
++
++	if (state->remaining <= 0)
++		return EOF;
++
++	if (len == 0 || len > sizeof(state->buffer))
++		len = sizeof(state->buffer);
++	if ((int64_t)len > state->remaining)
++		len = (size_t)state->remaining;
++
++	n = len;
++	memset(state->buffer, 0xff, n);
++	state->remaining -= (int64_t)n;
++
++	stm->rp = state->buffer;
++	stm->wp = state->buffer + n;
++	stm->pos += (int64_t)n;
++	return *stm->rp++;
++}
++
++static void
++close_jbig2_placeholder(fz_context *ctx, void *state_)
++{
++	fz_free(ctx, state_);
++}
+ 
+ typedef struct
+ {
+@@ -174,6 +302,13 @@ fz_load_jbig2_globals(fz_context *ctx, fz_buffer *buf)
+ 	if (buf == NULL || buf->data == NULL || buf->len == 0)
+ 		return NULL;
+ 
++	/* PDFE SEC-56: the /JBIG2Globals stream is attacker-controlled and is fed
++	 * straight to jbig2_data_in() below, so it is gated too. Returning NULL is
++	 * the same thing MuPDF does for an absent globals stream, and the gated
++	 * filter never consults them anyway. */
++	if (!fz_pdfe_jbig2_enabled_flag)
++		return NULL;
++
+ 	globals = fz_malloc_struct(ctx, fz_jbig2_globals);
+ 
+ 	globals->alloc.ctx = ctx;
+@@ -219,6 +354,17 @@ fz_open_jbig2d(fz_context *ctx, fz_stream *chain, fz_jbig2_globals *globals, int
+ 	fz_jbig2d *state = NULL;
+ 	Jbig2Options options;
+ 
++	/* PDFE SEC-56: while the gate is closed, substitute the blank placeholder
++	 * stream and never construct a jbig2dec context at all. */
++	if (!fz_pdfe_jbig2_enabled_flag)
++	{
++		fz_pdfe_jbig2_placeholder *ph =
++			fz_malloc_struct(ctx, fz_pdfe_jbig2_placeholder);
++		ph->remaining = FZ_PDFE_JBIG2_PLACEHOLDER_MAX_BYTES;
++		fz_pdfe_jbig2_placeholder_hits++;
++		return fz_new_stream(ctx, ph, next_jbig2_placeholder, close_jbig2_placeholder);
++	}
++
+ 	fz_var(state);
+ 
+ 	state = fz_malloc_struct(ctx, fz_jbig2d);
+--- a/source/fitz/load-jbig2.c
++++ b/source/fitz/load-jbig2.c
+@@ -26,6 +26,13 @@
+ 
+ #include <jbig2.h>
+ 
++/* PDFE SEC-56: the JBIG2 decode gate. The flag and the placeholder counter live
++ * in filter-jbig2.c (which carries the full rationale); this file gates the
++ * standalone (non-PDF) JBIG2 image loader against the same flag so that BOTH
++ * doors into jbig2dec are shut by the one preference. */
++int fz_pdfe_get_jbig2_enabled(void);
++void fz_pdfe_jbig2_note_placeholder(void);
++
+ struct info
+ {
+ 	int width, height;
+@@ -89,6 +96,24 @@ jbig2_read_image(fz_context *ctx, struct info *jbig2, const unsigned char *buf,
+ 	struct fz_jbig2_allocator allocator;
+ 	fz_pixmap *pix = NULL;
+ 
++	/* PDFE SEC-56: JBIG2 decoding disabled -- report a 1x1 gray placeholder
++	 * without entering jbig2dec, mirroring fz_load_jpx under the #50 gate. */
++	if (!fz_pdfe_get_jbig2_enabled())
++	{
++		fz_pdfe_jbig2_note_placeholder();
++		jbig2->cspace = fz_device_gray(ctx);
++		jbig2->width = 1;
++		jbig2->height = 1;
++		jbig2->xres = 96;
++		jbig2->yres = 96;
++		jbig2->pages = 1;
++		if (only_metadata || subimage < 0)
++			return NULL;
++		pix = fz_new_pixmap(ctx, jbig2->cspace, 1, 1, NULL, 0);
++		fz_clear_pixmap_with_value(ctx, pix, 224);
++		return pix;
++	}
++
+ 	allocator.super.alloc = fz_jbig2_alloc;
+ 	allocator.super.free = fz_jbig2_free;
+ 	allocator.super.realloc = fz_jbig2_realloc;

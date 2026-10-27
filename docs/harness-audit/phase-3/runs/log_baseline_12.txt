@@ -1,0 +1,84 @@
+Note: Google Test filter = RedactionVerifierTest.*:RedactionVerifierFailPathTest.*
+[==========] Running 15 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 10 tests from RedactionVerifierTest
+[ RUN      ] RedactionVerifierTest.ConstructDestroy
+[       OK ] RedactionVerifierTest.ConstructDestroy (1 ms)
+[ RUN      ] RedactionVerifierTest.VerifyUnmodifiedPdf
+[       OK ] RedactionVerifierTest.VerifyUnmodifiedPdf (13 ms)
+[ RUN      ] RedactionVerifierTest.CheckSingleRevision_UnmodifiedPdf
+[       OK ] RedactionVerifierTest.CheckSingleRevision_UnmodifiedPdf (6 ms)
+[ RUN      ] RedactionVerifierTest.CheckNoOrphanStreams_UnmodifiedPdf
+[       OK ] RedactionVerifierTest.CheckNoOrphanStreams_UnmodifiedPdf (6 ms)
+[ RUN      ] RedactionVerifierTest.CheckTextRemoved_EmptyRegions
+[       OK ] RedactionVerifierTest.CheckTextRemoved_EmptyRegions (2 ms)
+[ RUN      ] RedactionVerifierTest.CheckTextRemoved_NoTextInRegion
+[       OK ] RedactionVerifierTest.CheckTextRemoved_NoTextInRegion (9 ms)
+[ RUN      ] RedactionVerifierTest.VerifyResult_HasCorrectFields
+[       OK ] RedactionVerifierTest.VerifyResult_HasCorrectFields (10 ms)
+[ RUN      ] RedactionVerifierTest.CheckSingleRevision_Invalid
+[       OK ] RedactionVerifierTest.CheckSingleRevision_Invalid (0 ms)
+[ RUN      ] RedactionVerifierTest.CheckNoOrphanStreams_Invalid
+[       OK ] RedactionVerifierTest.CheckNoOrphanStreams_Invalid (0 ms)
+[ RUN      ] RedactionVerifierTest.FullVerification_UnmodifiedPdf
+[       OK ] RedactionVerifierTest.FullVerification_UnmodifiedPdf (11 ms)
+[----------] 10 tests from RedactionVerifierTest (63 ms total)
+
+[----------] 5 tests from RedactionVerifierFailPathTest
+[ RUN      ] RedactionVerifierFailPathTest.CheckSingleRevision_NonPdfFile_ReturnsFalse
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: can't find PDF header
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: file is damaged
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: can't find startxref
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: Attempting to reconstruct cross-reference table
+[       OK ] RedactionVerifierFailPathTest.CheckSingleRevision_NonPdfFile_ReturnsFalse (2 ms)
+[ RUN      ] RedactionVerifierFailPathTest.CheckNoOrphanStreams_NonPdfFile_ReturnsFalse
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: can't find PDF header
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: file is damaged
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: can't find startxref
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: Attempting to reconstruct cross-reference table
+[       OK ] RedactionVerifierFailPathTest.CheckNoOrphanStreams_NonPdfFile_ReturnsFalse (2 ms)
+[ RUN      ] RedactionVerifierFailPathTest.CheckTextRemoved_EmptyRegions_NonPdfFile_ReturnsTrue
+[       OK ] RedactionVerifierFailPathTest.CheckTextRemoved_EmptyRegions_NonPdfFile_ReturnsTrue (1 ms)
+[ RUN      ] RedactionVerifierFailPathTest.CheckTextRemoved_NonEmptyRegions_NonPdfFile_ThrowsOrReturnsFalse
+warning: unknown PDF version: 0.0
+warning: garbage bytes before version marker
+syntax error: expected object number
+format error: cannot find startxref
+warning: trying to repair broken xref
+warning: repairing PDF document
+warning: UNHANDLED EXCEPTION!
+format error: no objects found
+[       OK ] RedactionVerifierFailPathTest.CheckTextRemoved_NonEmptyRegions_NonPdfFile_ThrowsOrReturnsFalse (3 ms)
+[ RUN      ] RedactionVerifierFailPathTest.FullVerify_NonPdfFile_ReturnsFailure
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: can't find PDF header
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: file is damaged
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: can't find startxref
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: Attempting to reconstruct cross-reference table
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: can't find PDF header
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: file is damaged
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: can't find startxref
+WARNING: C:\Users\dev\AppData\Local\Temp\4\test_redaction_verifier_stub_not_a_pdf.txt: Attempting to reconstruct cross-reference table
+[       OK ] RedactionVerifierFailPathTest.FullVerify_NonPdfFile_ReturnsFailure (3 ms)
+[----------] 5 tests from RedactionVerifierFailPathTest (12 ms total)
+
+[----------] Global test environment tear-down
+
+============ ADVERSARIAL-AMBIENT GAP REGISTER (content-stream-continuity phase-1 discovery) ============
+injector               hostile_op   injected  neighbor  probed   notes
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+CONFIRMED corrupting cells (probed AND injected_ok==false OR neighbor_ok==false):
+cells=0 probed=0 confirmed_corrupt=0
+====================================================================================================
+
+[AdversarialAmbient] no cells this run (filtered subset) — leaving gap-register.json intact
+
+================ AUTOSAVE CAPTURE GAP REGISTER (phase-1 discovery) ================
+family                 undoAP dirty    autosave  capture  restore  probed 
+------------------------------------------------------------------------------------
+====================================================================================
+GAP = probed family whose edit is NOT captured by autosave (capture_present == NO).
+
+[AutosaveCaptureAudit] no audit rows this run (filtered subset) — leaving gap-register.json intact
+[==========] 15 tests from 2 test suites ran. (78 ms total)
+[  PASSED  ] 15 tests.

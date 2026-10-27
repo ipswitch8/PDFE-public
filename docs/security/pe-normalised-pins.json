@@ -1,0 +1,255 @@
+{
+  "_comment": "Normalised SHA-256 pins for PE images whose bytes legitimately move. Produced by tools/gate/pin_pe_normalised.py; see that file for which fields are masked and why, and for the measurement showing a plain hash cannot work here. Keyed by repo-relative PATH, not filename: the same library ships at several paths with different content. Valid for repeated builds of the same tree with the same toolchain -- NOT across machines, because __FILE__ embeds the absolute source path.",
+  "_pdfe_exe_deliberately_absent": "pdfe.exe is NOT pinned here, on purpose. Its normalised hash changes on every legitimate change to linked code, i.e. most commits, so a committed snapshot of it would go red for ordinary work with no way to tell that apart from a nondeterministic build -- the noisy_guard_masks_everything shape, and a guard that reds routinely gets silenced. The karen gate failed phase-11 of pipeline p96-open-issues for exactly that. GitHub #298's reproducibility property is instead asserted by building TWICE and comparing the two outputs to each other, in tests/test_pe_rebuild_determinism.py -- no snapshot, so nothing to go stale. The entries that remain are vcpkg-cache-sourced DLLs, whose bytes are stable until a cache entry changes.",
+  "files": {
+    "build/vs2022/bin/Debug/jpeg62.dll": {
+      "mask_build_strings": true,
+      "masked_regions": [
+        {
+          "length": 4,
+          "offset": 272,
+          "why": "coff-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 352,
+          "why": "optional-header-checksum"
+        },
+        {
+          "length": 4,
+          "offset": 1108228,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 1108256,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 1108284,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 1108312,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 20,
+          "offset": 1109400,
+          "why": "codeview-guid-and-age"
+        },
+        {
+          "length": 36,
+          "offset": 1110292,
+          "why": "repro-content-hash"
+        }
+      ],
+      "normalised_sha256": "57cc9ab6a9b6f26f89c4efdd12d8b4a06b899fa789039b02636e90df0cf9035d",
+      "size": 1153024
+    },
+    "build/vs2022/bin/Debug/libcrypto-3-x64.dll": {
+      "mask_build_strings": true,
+      "masked_regions": [
+        {
+          "length": 4,
+          "offset": 272,
+          "why": "coff-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 352,
+          "why": "optional-header-checksum"
+        },
+        {
+          "length": 34,
+          "offset": 5816168,
+          "why": "built-on-string"
+        },
+        {
+          "length": 4,
+          "offset": 6582052,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 6582080,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 6582108,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 6582136,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 20,
+          "offset": 6588900,
+          "why": "codeview-guid-and-age"
+        },
+        {
+          "length": 36,
+          "offset": 6589688,
+          "why": "repro-content-hash"
+        }
+      ],
+      "normalised_sha256": "65296396fd35d197eaf57b99c460f50caac72c49634cb343bca053fce3894d90",
+      "size": 7231488
+    },
+    "build/vs2022/vcpkg_installed/x64-windows-repro/bin/jpeg62.dll": {
+      "mask_build_strings": true,
+      "masked_regions": [
+        {
+          "length": 4,
+          "offset": 272,
+          "why": "coff-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 352,
+          "why": "optional-header-checksum"
+        },
+        {
+          "length": 4,
+          "offset": 643076,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 643104,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 643132,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 643160,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 20,
+          "offset": 643364,
+          "why": "codeview-guid-and-age"
+        },
+        {
+          "length": 36,
+          "offset": 644144,
+          "why": "repro-content-hash"
+        }
+      ],
+      "normalised_sha256": "691688225872601ef1dcfaf3510a78e2fd1dca62e4e6e2f0df6b5ac5b85901a8",
+      "size": 684032
+    },
+    "build/vs2022/vcpkg_installed/x64-windows-repro/bin/libcrypto-3-x64.dll": {
+      "mask_build_strings": true,
+      "masked_regions": [
+        {
+          "length": 4,
+          "offset": 280,
+          "why": "coff-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 360,
+          "why": "optional-header-checksum"
+        },
+        {
+          "length": 34,
+          "offset": 4165600,
+          "why": "built-on-string"
+        },
+        {
+          "length": 4,
+          "offset": 4753908,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 4753936,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 4753964,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 4753992,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 20,
+          "offset": 4757448,
+          "why": "codeview-guid-and-age"
+        },
+        {
+          "length": 36,
+          "offset": 4758124,
+          "why": "repro-content-hash"
+        }
+      ],
+      "normalised_sha256": "ef0dd8da58f8eea45f6bd302ed3305ed18fc5068bd6f21d89e66562c1607d0ab",
+      "size": 5328384
+    },
+    "build/vs2022/vcpkg_installed/x64-windows-repro/bin/turbojpeg.dll": {
+      "mask_build_strings": true,
+      "masked_regions": [
+        {
+          "length": 4,
+          "offset": 288,
+          "why": "coff-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 368,
+          "why": "optional-header-checksum"
+        },
+        {
+          "length": 4,
+          "offset": 780180,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 780208,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 780236,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 4,
+          "offset": 780264,
+          "why": "debug-entry-timedatestamp"
+        },
+        {
+          "length": 20,
+          "offset": 780452,
+          "why": "codeview-guid-and-age"
+        },
+        {
+          "length": 36,
+          "offset": 781236,
+          "why": "repro-content-hash"
+        }
+      ],
+      "normalised_sha256": "237791b279a8de45b1f238efca0b5ca7b7b553c9a546f47e1ab20ab3648de6f7",
+      "size": 828928
+    }
+  },
+  "toolchain": {
+    "cl": "unavailable",
+    "platform": "Windows-2019Server-10.0.17763-SP0"
+  }
+}

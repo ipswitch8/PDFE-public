@@ -1,0 +1,7 @@
+# Blocked row triage — total 4 rows
+# medium-feature: 4
+test_id,phase_origin,subsystem,element,bucket,remediation_phase,reason
+txt_color_red,phase-9,TextEdit,txt_color_red,medium-feature,phase-6,add textColorButton to TextEditToolBar
+txt_color_blue,phase-9,TextEdit,txt_color_blue,medium-feature,phase-6,add textColorButton to TextEditToolBar
+txt_color_green,phase-9,TextEdit,txt_color_green,medium-feature,phase-6,add textColorButton to TextEditToolBar
+txt_color_custom,phase-9,TextEdit,txt_color_custom,medium-feature,phase-6,add textColorButton to TextEditToolBar

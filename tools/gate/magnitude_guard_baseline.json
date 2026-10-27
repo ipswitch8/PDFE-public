@@ -1,0 +1,595 @@
+{
+  "_what": "Adjudicated shape matches for the magnitude-guard sweep (PERF-02 / F37).",
+  "_read_this_first": [
+    "Every `if (<numeric-literal comparison>) { ... EXPECT_/ASSERT_ ... }` in tests/**/*.cpp",
+    "is listed here with a written reason. tools/gate/check_magnitude_guard.py fails when a",
+    "SUSPECT match (non-zero threshold, no asserting else branch) appears that is not listed,",
+    "and also fails when a listed entry matches nothing any more -- so a fixed guard cannot",
+    "leave a stale allowance behind that silently re-accepts a different guard later.",
+    "",
+    "Entries are keyed on file + whitespace-normalised condition + ordinal, NOT on line",
+    "numbers and NOT on raw bytes: line numbers move whenever anything above a guard is",
+    "edited, and core.autocrlf=true means the tracked bytes differ between checkouts.",
+    "",
+    "The two guards F27 actually FIXED (d85ec1d) are deliberately absent -- see _f27_fixed.",
+    "Adding a new entry here is a review decision, not a formality. Write the reason."
+  ],
+  "_f27_fixed": [
+    {
+      "file": "tests/test_fidelity_r3_24_edit_save_scale.cpp",
+      "condition_before_fix": "small > 0.02",
+      "note": "50-page baseline measures ~0.0145s, so the EXPECT_LT(big/small, 15.0) never ran. Guard deleted; replaced by a measured scaling-exponent bound. No longer a shape match."
+    },
+    {
+      "file": "tests/test_performance_stress.cpp",
+      "condition_before_fix": "sec100 > 0.05",
+      "note": "100-page open measures ~12-16ms, so the ratio assertion never ran. Guard deleted; assertion unconditional. No longer a shape match."
+    }
+  ],
+  "_i273_fixed": [
+    {
+      "file": "tests/test_chrome_phase9.cpp",
+      "condition_before_fix": "spy.count() == 1",
+      "ordinal": 0,
+      "note": "The signal count was already asserted by EXPECT_EQ on the line above; the `if` existed only because EXPECT_ continues past a failure and takeFirst() would then run on an empty list. Promoted to ASSERT_EQ and the body made unconditional, so the emitted position is now always checked."
+    },
+    {
+      "file": "tests/test_cli.cpp",
+      "condition_before_fix": "positionalArgs.size() == 1",
+      "ordinal": 0,
+      "note": "Same shape: the count was asserted with EXPECT_EQ, then re-tested in an `if` purely to keep .at(0) in range. Promoted to ASSERT_EQ; the argument-value check now always runs."
+    },
+    {
+      "file": "tests/test_content_stream_editor.cpp",
+      "condition_before_fix": "countOccurrences(beforePlain, targetOriginalUtf8) == 1",
+      "ordinal": 0,
+      "note": "Gated on the edited text being unique on the page so a coincidental repeat could not misfire. The intent was right but as a runtime `if` it meant a drifting fixture silently disarmed the check. Uniqueness is a fact about a controlled fixture PDF, so it is now an ASSERT_EQ precondition and the real property is checked unconditionally."
+    },
+    {
+      "file": "tests/test_oracle_standard.cpp",
+      "condition_before_fix": "found.size() == 1",
+      "ordinal": 0,
+      "note": "Gated the location check on there being exactly one definition, so a helper with TWO definitions — the state the guard exists to catch — had neither copy examined. Replaced with a loop over every definition found, which checks all of them on every path. Deliberately not ASSERT_: it sits inside a loop over all helper names and a fatal assertion would stop reporting the rest."
+    },
+    {
+      "file": "tests/test_realworld_external_corpus.cpp",
+      "condition_before_fix": "pageCount > 1",
+      "ordinal": 0,
+      "note": "Gated the last-page render on the document being multi-page, so every single-page file in the corpus asserted nothing. No condition is needed: for a one-page file pageCount-1 is 0, a valid index. Made unconditional, and the pageCount precondition promoted to ASSERT_GT so a zero-page document cannot reach createDisplayList(-1)."
+    },
+    {
+      "file": "tests/test_text_edit_tool.cpp",
+      "condition_before_fix": "document->pageCount() > 1",
+      "ordinal": 0,
+      "note": "Gated the second setPage on the fixture being multi-page. The fixture is test_3page.pdf, so its page count is a fact to assert rather than a condition to hope for. ASSERT_GT on the count, then setPage(1) unconditionally."
+    },
+    {
+      "file": "tests/test_text_selector.cpp",
+      "condition_before_fix": "result.quads.size() > 1",
+      "ordinal": 0,
+      "note": "This was a TAUTOLOGY: `if (quads.size() > 1) EXPECT_GT(quads.size(), 1)` restated its own guard and could never fail, while the whole body being gated meant a selection capturing zero or one quad asserted nothing in a test named MultiLineSelection. The 250pt span is deliberate, so the multi-line property is now asserted unconditionally."
+    },
+    {
+      "file": "tests/test_ui_suite_path_hygiene.cpp",
+      "condition_before_fix": "!user.empty() && user.size() >= 3",
+      "ordinal": 0,
+      "note": "SECURITY-RELEVANT. Gated the account-name leak assertion on the name being determinable and >= 3 characters, so on a host where GetUserNameW fails or the name is very short, the check that a committed artifact carries no account name passed WITHOUT LOOKING. Both cases are unusable input, not a satisfied property, so they now FAIL via ASSERT_. The name is also no longer interpolated into the failure message — offset and length only — because a leak check that prints what it hunts becomes the next producer in CI logs."
+    },
+    {
+      "file": "tests/test_ui_suite_path_hygiene.cpp",
+      "condition_before_fix": "!user.empty() && user.size() >= 3",
+      "ordinal": 1,
+      "note": "Second instance of the same defect in the same file, same remedy. See the ordinal-0 entry above."
+    }
+  ],
+  "entries": [
+    {
+      "file": "tests/test_bookmarks.cpp",
+      "condition": "node->destination.pageIndex >= 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold availability guard: a bookmark with no resolved destination has pageIndex -1. Cannot become permanently false as hardware gets faster."
+    },
+    {
+      "file": "tests/test_build_output_account_name_controls.cpp",
+      "condition": "concessions > 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold presence guard, not a measurement magnitude: it asks whether the allowlist holds any real (non-underscore) entry before requiring each one to carry a 'max' cap. With zero concessions there is nothing to cap, so the requirement is vacuously satisfied rather than skipped, and the allowlist is deliberately empty (GitHub #199/#272) — a state the surrounding case asserts separately. Cannot become permanently false as hardware gets faster. Proven to discriminate: an uncapped real entry reddens the case, a capped one does not, an empty allowlist passes."
+    },
+    {
+      "file": "tests/test_calculation_order.cpp",
+      "condition": "names.size() < 2",
+      "ordinal": 0,
+      "classification": "suspect-accepted",
+      "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (at least two form fields to reorder), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
+    },
+    {
+      "file": "tests/test_calculation_order.cpp",
+      "condition": "names.size() < 2",
+      "ordinal": 1,
+      "classification": "suspect-accepted",
+      "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (at least two form fields to reorder), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
+    },
+    {
+      "file": "tests/test_compare_documents_view.cpp",
+      "condition": "changed == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_coord_mapper_rotation.cpp",
+      "condition": "!document_ || document_->pageCount() == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_embedded_font_analyzer.cpp",
+      "condition": "p.stemWeightV > 0.0f",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold availability guard: stem weight is 0 when the analyzer could not derive one."
+    },
+    {
+      "file": "tests/test_embedded_font_analyzer.cpp",
+      "condition": "p.xHeight > 0.0f && p.capHeight > 0.0f",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold availability guard on two derived metrics that are 0 when unavailable."
+    },
+    {
+      "file": "tests/test_external_flaw_corpus.cpp",
+      "condition": "gr.intactCount > 0 && !gr.cutInsidePageDict",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold availability guard plus a DERIVED structural predicate, both computed from the generator's recorded byte offsets (GitHub #29). `intactCount > 0` asks whether the truncation left any whole page to recover; `!cutInsidePageDict` asks whether every surviving object is syntactically parseable. Neither depends on timing or machine speed, and the suspended case is not silent -- it prints an explicit [ INFO ] line naming the pages that were not recovered."
+    },
+    {
+      "file": "tests/test_external_flaw_corpus.cpp",
+      "condition": "pages >= 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold AVAILABILITY guard (GitHub #29 graded truncation corpus). `pages` is -1 when the truncated document did not open at all; the block only asserts about a page count that exists. Nothing about hardware speed can make it permanently false, and the rejected case is adjudicated separately by assertion (d) in the same helper."
+    },
+    {
+      "file": "tests/test_f19_doc_claim_guards.cpp",
+      "condition": "m.blocked == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold: branches on a count being empty, not on a threshold being exceeded."
+    },
+    {
+      "file": "tests/test_f19_doc_claim_guards.cpp",
+      "condition": "n > 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold AND both-paths: `n` is a count of evalImageCell call sites passing expectWidth=0, and the else branch asserts the complementary EXPECT_FALSE. Exempt twice over."
+    },
+    {
+      "file": "tests/test_fidelity_r3_21_print_vs_screen.cpp",
+      "condition": "document->pageCount() < 2",
+      "ordinal": 0,
+      "classification": "suspect-accepted",
+      "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (a two-page document), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
+    },
+    {
+      "file": "tests/test_fixture_corpus.cpp",
+      "condition": "missing > 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_font_compliance_checker.cpp",
+      "condition": "document_->pageCount() == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_font_fuzz.cpp",
+      "condition": "::GetEnvironmentVariableA(\" \", nullptr, 0) == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_font_matcher.cpp",
+      "condition": "match.confidence < 0.5f",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "GitHub #273: relabelled from suspect-accepted. The condition survived, but the assertion no longer depends on it -- the fallback branch checks the metric-compatible family list and the high-confidence branch checks that a sans request did not resolve a serif face. Both paths assert, so the detector classifies it benign on its own merits and no human concession is being carried."
+    },
+    {
+      "file": "tests/test_font_matcher.cpp",
+      "condition": "match.confidence < 0.5f",
+      "ordinal": 1,
+      "classification": "benign",
+      "reason": "GitHub #273: relabelled from suspect-accepted. Serif mirror of ordinal 0 -- both paths now assert, so this is benign rather than an accepted concession."
+    },
+    {
+      "file": "tests/test_font_matcher.cpp",
+      "condition": "match.confidence < 0.5f",
+      "ordinal": 2,
+      "classification": "benign",
+      "reason": "GitHub #273: relabelled from suspect-accepted. FallbackToArial, same remedy as ordinals 0 and 1 -- the high-confidence branch asserts the resolved face is not from the opposite family, so both paths assert."
+    },
+    {
+      "file": "tests/test_font_program_fuzz.cpp",
+      "condition": "doc && doc->pageCount() > 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold availability guard on a fuzzed document that may legitimately fail to open."
+    },
+    {
+      "file": "tests/test_form_commands.cpp",
+      "condition": "cbIdx < 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_form_commands.cpp",
+      "condition": "choiceIdx < 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_form_commands.cpp",
+      "condition": "choiceIdx < 0",
+      "ordinal": 1,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_form_commands.cpp",
+      "condition": "textIdx < 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_form_commands.cpp",
+      "condition": "textIdx < 0",
+      "ordinal": 1,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_form_commands.cpp",
+      "condition": "textIdx < 0",
+      "ordinal": 2,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_form_commands.cpp",
+      "condition": "textIdx < 0",
+      "ordinal": 3,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_form_commands.cpp",
+      "condition": "textIdx < 0",
+      "ordinal": 4,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_form_commands.cpp",
+      "condition": "textIndices.size() < 2",
+      "ordinal": 0,
+      "classification": "suspect-accepted",
+      "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (two editable text fields in test_form.pdf), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
+    },
+    {
+      "file": "tests/test_form_tool_document_closing.cpp",
+      "condition": "tool_->selectedFieldIndex() < 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_form_tool_document_closing.cpp",
+      "condition": "tool_->selectedFieldIndex() < 0",
+      "ordinal": 1,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_form_tool_document_closing.cpp",
+      "condition": "tool_->selectedFieldIndex() < 0",
+      "ordinal": 2,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_forms_phase5.cpp",
+      "condition": "firstText >= 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold: found/not-found sentinel."
+    },
+    {
+      "file": "tests/test_forms_phase5.cpp",
+      "condition": "idx < 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold: not-found sentinel. Named in the PERF-02 row as one of the ordinary data guards."
+    },
+    {
+      "file": "tests/test_forms_phase5.cpp",
+      "condition": "idx < 0",
+      "ordinal": 1,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_forms_phase5.cpp",
+      "condition": "textIdx < 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_full_rewrite_staging_hardening.cpp",
+      "condition": "ok.load() < 2",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "GitHub #273: relabelled from suspect-accepted. An else branch now asserts that both staging errors are empty when both writers succeeded, so the success path is checked rather than assumed. Benign by structure, not by concession."
+    },
+    {
+      "file": "tests/test_hidpi_render.cpp",
+      "condition": "!doc || doc->pageCount() <= 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_high_contrast.cpp",
+      "condition": "ratio >= 4.5",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Both-paths: the else branch also asserts, so no path is silent. This is the case F27 recorded by hand at test_high_contrast.cpp:158; the both-paths exemption is what mechanises that judgement."
+    },
+    {
+      "file": "tests/test_ime_input_phase76.cpp",
+      "condition": "tool_->spanCountForTesting() <= 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_javascript_engine.cpp",
+      "condition": "textIdx < 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_javascript_engine.cpp",
+      "condition": "textIdx < 0",
+      "ordinal": 1,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_javascript_engine.cpp",
+      "condition": "textIdx < 0",
+      "ordinal": 2,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_ocr_language_routing.cpp",
+      "condition": "!document_ || document_->pageCount() == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_page.cpp",
+      "condition": "pageCount < 2",
+      "ordinal": 0,
+      "classification": "suspect-accepted",
+      "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (a two-page document), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
+    },
+    {
+      "file": "tests/test_page_edit_destination_integrity.cpp",
+      "condition": "linkPage2 >= 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold: resolved/unresolved destination sentinel."
+    },
+    {
+      "file": "tests/test_printing.cpp",
+      "condition": "document->pageCount() < 2",
+      "ordinal": 0,
+      "classification": "suspect-accepted",
+      "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (a two-page document), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
+    },
+    {
+      "file": "tests/test_real_form_fill.cpp",
+      "condition": "checked == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_real_form_fill.cpp",
+      "condition": "textFieldIdx < 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_redaction_apply_pending_edit.cpp",
+      "condition": "model.spanCount() == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_redaction_apply_pending_edit.cpp",
+      "condition": "preModel.spanCount() == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_search.cpp",
+      "condition": "document->pageCount() < 2",
+      "ordinal": 0,
+      "classification": "suspect-accepted",
+      "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (a two-page document), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
+    },
+    {
+      "file": "tests/test_signature_fuzz_wiring_phase73.cpp",
+      "condition": "c.p.filename().string().rfind(\" \", 0) == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Type dispatch, not a magnitude gate, and not a conditional assertion: this is an if/ELSE where BOTH branches assert EXPECT_FALSE(...parseBytes(...)). The filename prefix selects which parser a malformed seed is fed to (ocsp_* -> OcspResponseParser, everything else -> CrlParser). Every seed in the corpus is asserted on exactly one path; none is skipped. No threshold, nothing hardware-dependent."
+    },
+    {
+      "file": "tests/test_source_image_dpi.cpp",
+      "condition": "tested == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_source_image_dpi.cpp",
+      "condition": "tested == 0",
+      "ordinal": 1,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_stress_investigation.cpp",
+      "condition": "baselineMB == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_stress_investigation.cpp",
+      "condition": "baselineMB > 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "The canonical availability guard from the PERF-02 row: getWorkingSetMB() is always non-zero for a live process on Windows and a `return 0` stub elsewhere, so the guard suppresses an assertion only about a measurement the platform cannot provide. Verified live, not inert, in F27."
+    },
+    {
+      "file": "tests/test_stress_investigation.cpp",
+      "condition": "ci < 5 && i == checkpoints[ci]",
+      "ordinal": 0,
+      "classification": "suspect-accepted",
+      "reason": "Loop bookkeeping, not a threshold: `ci < 5` bounds the checkpoint array index and the assertion fires at every one of the five checkpoints. Measurement availability is handled separately and correctly by GTEST_SKIP on baselineMB == 0 above."
+    },
+    {
+      "file": "tests/test_substitute_font_selector.cpp",
+      "condition": "candidates.size() < 2",
+      "ordinal": 0,
+      "classification": "suspect-accepted",
+      "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (two substitution candidates to sort), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
+    },
+    {
+      "file": "tests/test_text_edit_integration.cpp",
+      "condition": "document->pageCount() < 2",
+      "ordinal": 0,
+      "classification": "suspect-accepted",
+      "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (a two-page document), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
+    },
+    {
+      "file": "tests/test_text_edit_undo_chain.cpp",
+      "condition": "model_->spanCount() < 2",
+      "ordinal": 0,
+      "classification": "suspect-accepted",
+      "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (two text spans on page 0), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
+    },
+    {
+      "file": "tests/test_text_edit_width_scaling.cpp",
+      "condition": "newLen > 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold division-by-zero guard, so not PERF-02's class. SEE THE F37 DISPOSITIONS -- newLen is hard-coded to 0 four lines above, so the guarded EXPECT_GT is unreachable and the test only ever takes the SUCCEED() else path. Inert, but inert by a literal constant rather than by hardware speed: a different defect, recorded rather than fixed under a sweep-mechanisation phase."
+    },
+    {
+      "file": "tests/test_text_edit_width_scaling.cpp",
+      "condition": "oldText.size() <= 1",
+      "ordinal": 0,
+      "classification": "suspect-accepted",
+      "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (an original string longer than one character), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
+    },
+    {
+      "file": "tests/test_text_extraction.cpp",
+      "condition": "ch.codepoint > 32",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "GitHub #273: relabelled from suspect-accepted. The else branch now asserts a non-negative font size for control and space glyphs, so every glyph is checked on some path. Benign by structure."
+    },
+    {
+      "file": "tests/test_text_extraction.cpp",
+      "condition": "document->pageCount() < 2",
+      "ordinal": 0,
+      "classification": "suspect-accepted",
+      "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (a two-page document), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
+    },
+    {
+      "file": "tests/test_textedit_tm_regression.cpp",
+      "condition": "editedModel.spanCount() > 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold availability guard. Named in the PERF-02 row as one of the ordinary data guards."
+    },
+    {
+      "file": "tests/test_textedit_tm_regression.cpp",
+      "condition": "model.spanCount() == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_tre_coord_mapper.cpp",
+      "condition": "!document || document->pageCount() == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_validation_request.cpp",
+      "condition": "failedSpy.count() > 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold: branches on whether a failure signal arrived at all."
+    },
+    {
+      "file": "tests/test_validation_request.cpp",
+      "condition": "failedSpy.count() > 0",
+      "ordinal": 1,
+      "classification": "benign",
+      "reason": "Same as ordinal 0, second occurrence in the same file: zero-threshold branch on whether a failure signal arrived at all."
+    },
+    {
+      "file": "tests/test_vector_subset_detector.cpp",
+      "condition": "verifiedFixtures == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Benign shape match recorded for completeness: "
+    }
+  ],
+  "_ownership": {
+    "owner": "harness",
+    "disposition": "permanent-acceptance",
+    "issue": "https://github.com/ipswitch8/PDFE/issues/143",
+    "recorded": "2026-09-07",
+    "review_by": "2027-03-07",
+    "population_at_record": 31,
+    "why_permanent": "These 31 are ADJUDICATED shape matches, not defects: each was read and found to be a legitimate numeric-literal comparison guarding an assertion, which is why the file calls them 'adjudicated' rather than 'known-bad'. There is nothing to burn down -- driving this to 0 would mean deleting correct tests. This differs from reachability_skip_baseline.json, where each entry IS a test not asserting, and from GitHub #118, where each entry IS a leak on an error path.",
+    "what_would_change_this": "A new entry is NOT automatically acceptable. The guard fails on growth so every addition is a deliberate edit; the reviewer's job is to adjudicate the new match the same way these 31 were, not to add it.",
+    "review_trigger": "If the population grows past ~40 without a recorded adjudication per entry, the 'adjudicated' claim has stopped being true and this disposition should be revisited."
+  }
+}

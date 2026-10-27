@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="27" failures="0" disabled="0" errors="0" time="0.172" timestamp="2026-07-28T14:47:36.750" name="AllTests">
+  <testsuite name="FormManagerTest" tests="17" failures="0" disabled="0" skipped="0" errors="0" time="0.061" timestamp="2026-07-28T14:47:36.752">
+    <testcase name="GetFormFieldsOnPageWithForms" file="tests/test_form_manager.cpp" line="46" status="run" result="completed" time="0.007" timestamp="2026-07-28T14:47:36.752" classname="FormManagerTest" />
+    <testcase name="GetFormFieldsOnPageWithoutForms" file="tests/test_form_manager.cpp" line="65" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:47:36.759" classname="FormManagerTest" />
+    <testcase name="GetFormFieldByIndex" file="tests/test_form_manager.cpp" line="74" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:47:36.762" classname="FormManagerTest" />
+    <testcase name="GetFormFieldByIndex_Invalid" file="tests/test_form_manager.cpp" line="88" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:47:36.767" classname="FormManagerTest" />
+    <testcase name="HitTestFormField" file="tests/test_form_manager.cpp" line="95" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:47:36.771" classname="FormManagerTest" />
+    <testcase name="HitTestMiss" file="tests/test_form_manager.cpp" line="109" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:47:36.775" classname="FormManagerTest" />
+    <testcase name="SetTextFieldValue" file="tests/test_form_manager.cpp" line="117" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:47:36.778" classname="FormManagerTest" />
+    <testcase name="ToggleCheckbox" file="tests/test_form_manager.cpp" line="139" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:47:36.782" classname="FormManagerTest" />
+    <testcase name="HasFormFields_True" file="tests/test_form_manager.cpp" line="164" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:47:36.786" classname="FormManagerTest" />
+    <testcase name="HasFormFields_False" file="tests/test_form_manager.cpp" line="171" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:47:36.790" classname="FormManagerTest" />
+    <testcase name="NullPageThrows" file="tests/test_form_manager.cpp" line="178" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:47:36.792" classname="FormManagerTest" />
+    <testcase name="GetTabOrder" file="tests/test_form_manager.cpp" line="187" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:47:36.795" classname="FormManagerTest" />
+    <testcase name="FormFieldDataHasType" file="tests/test_form_manager.cpp" line="204" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:47:36.799" classname="FormManagerTest" />
+    <testcase name="ResetForm_NoWidgets_NocrashNullGuard" file="tests/test_form_manager.cpp" line="242" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:47:36.802" classname="FormManagerTest" />
+    <testcase name="ResetForm_WithWidgets_NocrashNullGuard" file="tests/test_form_manager.cpp" line="251" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:47:36.805" classname="FormManagerTest" />
+    <testcase name="ResetTxWidgetFromObj_NullFieldObj_GuardReturnsFalse" file="tests/test_form_manager.cpp" line="282" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:47:36.808" classname="FormManagerTest" />
+    <testcase name="ResetTxWidgetFromObj_NonNullFieldObj_ReturnsTrueEntersBody" file="tests/test_form_manager.cpp" line="298" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:47:36.811" classname="FormManagerTest" />
+  </testsuite>
+  <testsuite name="Phase5FormsTest" tests="10" failures="0" disabled="0" skipped="0" errors="0" time="0.108" timestamp="2026-07-28T14:47:36.814">
+    <testcase name="TextFieldValueCommitsAndPersists" file="tests/test_forms_phase5.cpp" line="127" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:47:36.814" classname="Phase5FormsTest" />
+    <testcase name="RadioGroupExclusivity" file="tests/test_forms_phase5.cpp" line="152" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:47:36.817" classname="Phase5FormsTest" />
+    <testcase name="PushButtonToggleNoCrash" file="tests/test_forms_phase5.cpp" line="186" status="run" result="completed" time="0.005" timestamp="2026-07-28T14:47:36.820" classname="Phase5FormsTest" />
+    <testcase name="JavaScriptValidateEventReturnsBoolean" file="tests/test_forms_phase5.cpp" line="219" status="run" result="completed" time="0.015" timestamp="2026-07-28T14:47:36.826" classname="Phase5FormsTest" />
+    <testcase name="XfdfRoundTripPreservesFieldValues" file="tests/test_forms_phase5.cpp" line="264" status="run" result="completed" time="0.005" timestamp="2026-07-28T14:47:36.841" classname="Phase5FormsTest" />
+    <testcase name="ResetFormRestoresDefaultValues" file="tests/test_forms_phase5.cpp" line="294" status="run" result="completed" time="0.043" timestamp="2026-07-28T14:47:36.847" classname="Phase5FormsTest" />
+    <testcase name="ResetFormRestoresCheckboxDefaultOnState" file="tests/test_forms_phase5.cpp" line="425" status="run" result="completed" time="0.012" timestamp="2026-07-28T14:47:36.891" classname="Phase5FormsTest" />
+    <testcase name="FlattenFormRemovesInteractiveWidgets" file="tests/test_forms_phase5.cpp" line="490" status="run" result="completed" time="0.013" timestamp="2026-07-28T14:47:36.904" classname="Phase5FormsTest" />
+    <testcase name="HostAllowlistBlocksDisallowedHosts" file="tests/test_forms_phase5.cpp" line="524" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:47:36.917" classname="Phase5FormsTest" />
+    <testcase name="SignatureWidgetTypeIsDistinctFromOthers" file="tests/test_forms_phase5.cpp" line="551" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:47:36.920" classname="Phase5FormsTest" />
+  </testsuite>
+</testsuites>

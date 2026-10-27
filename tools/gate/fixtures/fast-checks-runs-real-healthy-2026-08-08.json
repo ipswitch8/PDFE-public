@@ -1,0 +1,98 @@
+[
+  {
+    "conclusion": "success",
+    "createdAt": "2026-08-08T21:38:28Z",
+    "databaseId": 31279793516,
+    "event": "push",
+    "headBranch": "master",
+    "name": "Fast Checks",
+    "startedAt": "2026-08-08T21:38:28Z",
+    "status": "completed",
+    "updatedAt": "2026-08-08T21:39:08Z",
+    "workflowName": "Fast Checks"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-08-08T13:51:59Z",
+    "databaseId": 31260555634,
+    "event": "push",
+    "headBranch": "master",
+    "name": "Fast Checks",
+    "startedAt": "2026-08-08T13:51:59Z",
+    "status": "completed",
+    "updatedAt": "2026-08-08T13:52:35Z",
+    "workflowName": "Fast Checks"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-08-08T12:16:14Z",
+    "databaseId": 31256851169,
+    "event": "push",
+    "headBranch": "master",
+    "name": "Fast Checks",
+    "startedAt": "2026-08-08T12:16:14Z",
+    "status": "completed",
+    "updatedAt": "2026-08-08T12:16:48Z",
+    "workflowName": "Fast Checks"
+  },
+  {
+    "conclusion": "failure",
+    "createdAt": "2026-08-08T09:09:40Z",
+    "databaseId": 31249966163,
+    "event": "push",
+    "headBranch": "master",
+    "name": "Fast Checks",
+    "startedAt": "2026-08-08T09:09:40Z",
+    "status": "completed",
+    "updatedAt": "2026-08-08T09:10:04Z",
+    "workflowName": "Fast Checks"
+  },
+  {
+    "conclusion": "failure",
+    "createdAt": "2026-08-08T05:36:32Z",
+    "databaseId": 31242065496,
+    "event": "push",
+    "headBranch": "master",
+    "name": "Fast Checks",
+    "startedAt": "2026-08-08T05:36:32Z",
+    "status": "completed",
+    "updatedAt": "2026-08-08T05:36:53Z",
+    "workflowName": "Fast Checks"
+  },
+  {
+    "conclusion": "failure",
+    "createdAt": "2026-08-08T03:45:39Z",
+    "databaseId": 31237918394,
+    "event": "push",
+    "headBranch": "master",
+    "name": "Fast Checks",
+    "startedAt": "2026-08-08T03:45:39Z",
+    "status": "completed",
+    "updatedAt": "2026-08-08T03:46:03Z",
+    "workflowName": "Fast Checks"
+  },
+  {
+    "conclusion": "failure",
+    "createdAt": "2026-08-07T22:06:56Z",
+    "databaseId": 31222642352,
+    "event": "push",
+    "headBranch": "master",
+    "name": "Fast Checks",
+    "startedAt": "2026-08-07T22:06:56Z",
+    "status": "completed",
+    "updatedAt": "2026-08-07T22:07:12Z",
+    "workflowName": "Fast Checks"
+  },
+  {
+    "conclusion": "failure",
+    "createdAt": "2026-08-07T20:34:18Z",
+    "databaseId": 31216441288,
+    "event": "push",
+    "headBranch": "master",
+    "name": "Fast Checks",
+    "startedAt": "2026-08-07T20:34:18Z",
+    "status": "completed",
+    "updatedAt": "2026-08-07T20:34:35Z",
+    "workflowName": "Fast Checks"
+  }
+]

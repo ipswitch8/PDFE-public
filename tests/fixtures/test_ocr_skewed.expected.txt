@@ -1,0 +1,1 @@
+Rotated and noisy page. Tesseract should still extract most of this. Line two continues the content.

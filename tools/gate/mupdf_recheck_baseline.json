@@ -1,0 +1,48 @@
+{
+  "_what_this_is": [
+    "The committed statement of which MuPDF the `fuzz_document_open` recursion-DoS",
+    "finding was last confirmed against. Read by tools/gate/check_mupdf_bump_recheck.py,",
+    "which FAILS the build when either pin below stops matching vcpkg.json -- that is",
+    "GitHub #139's resolution-path step 2 ('on a MuPDF bump, re-run fuzz_document_open",
+    "to confirm') made into a control that cannot be silently passed.",
+    "",
+    "Do NOT edit these values to make a red build green. Their only value is that a",
+    "human ran the harness. Run it, record what happened in the",
+    "PDFE-SEC-MUPDF-RECURSION-DOS entry of tests/docs/known_issues.md, then update here."
+  ],
+
+  "declared_floor": "1.26.10#1",
+  "builtin_baseline": "15e5f3820f0370f1ba7150853762cec0688cd396",
+
+  "last_recheck": {
+    "date": "2026-06-18",
+    "harness": "fuzz_document_open",
+    "mupdf_version_at_the_time": "1.26.10",
+    "outcome": "REPRODUCES -- stack exhaustion on a pathologically deep/cyclic page graph. Contained at the app layer by the pdfe_preflight child process; not fixed upstream.",
+    "evidence": "tests/docs/known_issues.md section PDFE-SEC-MUPDF-RECURSION-DOS"
+  },
+
+  "_honest_limits_of_this_record": [
+    "1. THE PINS BELOW WERE ADOPTED 2026-10-09 WITHOUT A NEW HARNESS RUN. The",
+    "   recorded recheck is the original 2026-06-18 run that FOUND the defect. The",
+    "   pins are being written down now because nothing had ever written them down,",
+    "   which is the gap #139 names -- not because the harness was re-run today.",
+    "",
+    "2. The port revision has moved since that run: the finding was against MuPDF",
+    "   1.26.10, and this triplet currently has 1.26.10#4 installed (measured from",
+    "   vcpkg_installed/x64-windows-repro/share/libmupdf/vcpkg.spdx.json). Port",
+    "   revisions are usually packaging-only, but that is an assumption and this",
+    "   record does not assert it. If it matters, re-run the harness.",
+    "",
+    "3. The guard pins the manifest's DECLARED FLOOR and BASELINE SHA, not the",
+    "   resolved version. It therefore reddens on a baseline bump that leaves",
+    "   libmupdf untouched. That is deliberate over-triggering: resolving the",
+    "   baseline needs a configured vcpkg and a network, which a fast check has",
+    "   neither of. The guard's remedy message states this so the extra cost is",
+    "   visible rather than mysterious.",
+    "",
+    "4. #139's step 1 -- reporting the reproducer to Artifex/MuPDF upstream -- is a",
+    "   human action outside any repository. No guard here covers it, and none",
+    "   pretends to. It remains open in the issue."
+  ]
+}

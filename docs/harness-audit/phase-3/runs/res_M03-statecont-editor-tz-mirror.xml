@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="2" failures="1" disabled="0" errors="0" time="0.038" timestamp="2026-07-28T02:04:49.539" name="AllTests">
+  <testsuite name="NegTzGreyTextEdit" tests="2" failures="1" disabled="0" skipped="0" errors="0" time="0.035" timestamp="2026-07-28T02:04:49.542">
+    <testcase name="PreservesOriginalFillColor" file="tests/test_content_stream_neg_tz.cpp" line="114" status="run" result="completed" time="0.021" timestamp="2026-07-28T02:04:49.542" classname="NegTzGreyTextEdit" />
+    <testcase name="ReplacementNotMirrored" file="tests/test_content_stream_neg_tz.cpp" line="134" status="run" result="completed" time="0.014" timestamp="2026-07-28T02:04:49.563" classname="NegTzGreyTextEdit">
+      <failure message="tests/test_content_stream_neg_tz.cpp:140&#10;Expected: (q.ur.x) &gt; (q.ul.x), actual: 166.66 vs 180&#10;first edited glyph is horizontally mirrored (quad ur.x &lt;= ul.x)&#10;" type="">tests/test_content_stream_neg_tz.cpp:140
+Expected: (q.ur.x) &gt; (q.ul.x), actual: 166.66 vs 180
+first edited glyph is horizontally mirrored (quad ur.x &lt;= ul.x)
+</failure>
+      <failure message="tests/test_content_stream_neg_tz.cpp:144&#10;Expected: (glyphs.back().quad.ul.x) &gt; (glyphs.front().quad.ul.x), actual: 105.54 vs 180&#10;edited run advances right-to-left -- text is mirrored&#10;" type="">tests/test_content_stream_neg_tz.cpp:144
+Expected: (glyphs.back().quad.ul.x) &gt; (glyphs.front().quad.ul.x), actual: 105.54 vs 180
+edited run advances right-to-left -- text is mirrored
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

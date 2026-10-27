@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="2" failures="2" disabled="0" errors="0" time="0.027" timestamp="2026-07-28T12:51:08.896" name="AllTests">
+  <testsuite name="RedactionPartialOverlap" tests="2" failures="2" disabled="0" skipped="0" errors="0" time="0.025" timestamp="2026-07-28T12:51:08.899">
+    <testcase name="PartiallyOverlappingLeftoverTextIsDetected" file="tests/test_redaction_partial_overlap.cpp" line="67" status="run" result="completed" time="0.016" timestamp="2026-07-28T12:51:08.899" classname="RedactionPartialOverlap">
+      <failure message="tests/test_redaction_partial_overlap.cpp:85&#10;Value of: clear&#10;  Actual: true&#10;Expected: false&#10;partial-overlap leftover text was not detected -- full-containment check missed a glyph straddling the redaction boundary (security false-negative)&#10;" type="">tests/test_redaction_partial_overlap.cpp:85
+Value of: clear
+  Actual: true
+Expected: false
+partial-overlap leftover text was not detected -- full-containment check missed a glyph straddling the redaction boundary (security false-negative)
+</failure>
+    </testcase>
+    <testcase name="FullyContainedTextStillDetected" file="tests/test_redaction_partial_overlap.cpp" line="93" status="run" result="completed" time="0.008" timestamp="2026-07-28T12:51:08.916" classname="RedactionPartialOverlap">
+      <failure message="tests/test_redaction_partial_overlap.cpp:104&#10;Value of: verifier.checkTextRemoved(fixture(), {full})&#10;  Actual: true&#10;Expected: false&#10;fully-contained leftover text must still be detected&#10;" type="">tests/test_redaction_partial_overlap.cpp:104
+Value of: verifier.checkTextRemoved(fixture(), {full})
+  Actual: true
+Expected: false
+fully-contained leftover text must still be detected
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

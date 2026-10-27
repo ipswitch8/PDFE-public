@@ -1,0 +1,54 @@
+{
+ "_accepted_files_note": "path -> occurrence count. EMPTY as of 2026-10-19: a file present in the tree must contain ZERO occurrences. Re-populating this map is how an occurrence gets accepted, and doing so should cite a decision.",
+ "_decision": "SCRUBBED 2026-10-19. This REVERSES the decision recorded here on 2026-09-07, which was 'EXTEND THE GUARD AS A RATCHET; DO NOT SCRUB'. The reversal is deliberate and owner-approved, not an oversight, and the superseded reasoning is preserved below rather than deleted.",
+ "_enforced_at_emission_too": "A scan alone would keep catching generated files after they land. tests/scripts/sanitize_gtest_xml.py strips the JUnit `hostname` attribute, so the producer stops emitting it rather than the guard repeatedly reporting it. That remains the more important half: the 2026-09-07 record notes that machine-generated growth took occurrences from 0 to 9 AFTER a history rewrite, twice, without a human noticing.",
+ "_matching_rule": "Tokenise into maximal runs of letters and digits, lower-case them, and hash each token and each space-joined adjacent pair. A two-part machine name is matched as a pair, which is still found inside a longer runner name built around it -- preserving the property the old substring match was chosen for, and additionally normalising separators.",
+ "_population_after_scrub": {
+  "excludes": "nothing. Superseded 2026-10-24: the needle is hashed, HOSTNAME_SELF_EXEMPT is removed, and the three files that used to be excluded are now scanned like any other -- a strictly larger population. The previous text read 'the three HOSTNAME_SELF_EXEMPT files, which must name the host to police it'.",
+  "files": 0,
+  "measured": "2026-10-19",
+  "occurrences": 0
+ },
+ "_population_at_record": {
+  "files": 36,
+  "occurrences": 54
+ },
+ "_scope_correction": "The phase named the RUNNER name (47 occurrences / 29 files). The needle here is the BARE machine name, which occurred 68 times across 38 files -- the runner name embeds it. Scrubbing only the longer runner-name form would have left 21 occurrences and this ratchet would still have fired. Both were replaced: the runner name became `pdfe-runner-01` and the bare machine name `BUILDHOST`. The longer form is deliberately not written out anywhere in the tree, including here, so that a search for it returns zero.",
+ "_superseded_reasoning_2026_09_07": {
+  "_decision": "EXTEND THE GUARD AS A RATCHET; DO NOT SCRUB HISTORY. Recorded 2026-09-07 for GitHub #146, which asked for a decision either way rather than continued silence.",
+  "_note_on_the_last_line": "'The population may shrink freely' is what made this scrub compatible with the ratchet mechanism itself -- only the DECISION needed reversing, not the guard.",
+  "_why_ratchet_and_not_a_scrub": [
+   "MEASURED, NOT ASSUMED: the host name is load-bearing NOWHERE. All 55 occurrences across 37 tracked files are prose -- docstrings, workflow comments, audit narrative -- plus exactly one self-test fixture value in check_runner_label_coverage.py. Runners are selected by LABELS (self-hosted, Windows, X64, pdfe-windows, pdfe-builder) in `runs-on:`, never by host name. The issue listed six files as 'plausibly load-bearing'; reading them shows none is.",
+   "So a scrub is technically possible. It is still the wrong trade: ~25 of the files are historical audit and disposition documents, and rewriting narrative evidence to remove a machine label damages the record for a small gain. This repo keeps those documents precisely because they say what was true on the day.",
+   "A host name is also not a personal identifier. The account name is a person (and their email local-part); two history rewrites were proportionate for that. The bare name identifies a machine, and the repo already publishes far more specific operational detail about that machine in tools/runner-deployment/.",
+   "The real risk is GROWTH, and specifically MACHINE-GENERATED growth. ConformanceChecker::flushConformanceRecord() has already written host identity into a tracked docs/ file on every suite run, taking occurrences from 0 to 9 AFTER a history rewrite. During phase 9 of this same pipeline a committed pytest artifact added another (a JUnit `hostname` attribute pytest emits automatically). Neither was noticed by a human. A ratchet catches exactly that class.",
+   "So: existing occurrences are accepted and named here; new ones fail. The population may shrink freely."
+  ]
+ },
+ "_what": "Zero-tolerance ratchet for the self-hosted runner's HOST NAME in tracked files (GitHub #146). check_tracked_path_hygiene.py enforces that the build ACCOUNT name never appears anywhere; this file is the host-name counterpart. As of 2026-10-19 the accepted population is EMPTY: the host name has been scrubbed from every tracked file except the three that must name it to police it, so any occurrence is now a failure.",
+ "_why_a_length_is_stored": "PERFORMANCE, and it costs nothing real. Hashing every token of every tracked file cost 66 s per run (9.9M tokens over 3,596 files) and timed out the fast-checks pytest batch at exit 124. `n` is the character length of the hashed string, so the matcher skips any token or pair of a different length without hashing it -- which eliminates well over 90% of the calls. It does not weaken anything meaningfully: a sha256 of a short lower-case token is brute-forceable in seconds whether or not its length is written down, so hashing here buys protection from CASUAL READING of a tracked file, not protection from a determined search. That is the same property scrub_needles.json has always had, stated plainly rather than implied.",
+ "_why_hashed": "Converted 2026-10-24. The plaintext host name is gone from this file. A guard that names what it forbids reintroduces it -- the same reason scrub_needles.json has always been hashed. Verify a needle with: sha256 of the LOWER-CASED token, or of two adjacent tokens joined by a single space, UTF-8. This is the scrub guard's tokenising rule, reused so the two halves of this checker cannot disagree.",
+ "_why_the_2026_09_07_decision_was_reversed": [
+  "The 2026-09-07 reasoning was sound ON ITS OWN TERMS and is kept in full under `_superseded_reasoning_2026_09_07`. It weighed a machine label against the damage of rewriting ~25 historical audit documents, and concluded the label was not worth it.",
+  "WHAT CHANGED IS THE CONTEXT, NOT THE REASONING. That decision was taken for a PRIVATE repository, where the host name is visible only to people who already have the machine. pub-readiness is preparing this repository to be made PUBLIC (GitHub #200), which converts 'a machine label in an audit document' into permanent public operational detail about a named build host.",
+  "The pipeline's phase-5 criterion asked for 0 hits, which directly contradicted this file. Rather than let a register row silently override an issue-tracked decision -- the repository's own rule is that the issue wins -- the conflict was put to the owner with both sides and the measured population. The owner chose to scrub.",
+  "The 2026-09-07 claim that the name is load-bearing NOWHERE was re-verified before scrubbing, not taken on trust: every occurrence in tools/ops/*.ps1, the workflows and the gate scripts is a comment, docstring or self-test fixture value. Runners are still selected by LABELS in `runs-on:`, never by host name. One self-test fixture value in check_runner_label_coverage.py was updated with the rest and the suite stayed green."
+ ],
+ "_why_the_names_are_listed_here_rather_than_read_from_the_environment": "DCA 0047. The account check takes its needle from USERNAME/USER/LOGNAME at run time; on the GitHub ubuntu runner that is `USER=runner`, which matched 365 tracked files in a repo full of runner tooling, went red for five commits, and hid four real failures underneath. Deriving a host-name needle from COMPUTERNAME would repeat that exactly -- the CI host is not this host. The names are therefore an explicit, reviewable list.",
+ "_why_this_file_still_names_the_host": "IT NO LONGER DOES. Superseded 2026-10-24: the needle is hashed, so the baseline, the checker and the checker's tests all stop naming the host and HOSTNAME_SELF_EXEMPT is removed. The previous text read 'a ratchet needs its needle', which was true of a PLAINTEXT needle only.",
+ "accepted_files": {},
+ "disposition": "scrubbed (accepted population is empty; any occurrence outside the three self-exempt files fails)",
+ "hostname_needles": [
+  {
+   "form": "adjacent-pair",
+   "label": "build-host",
+   "n": 6,
+   "sha256": "8d8bddb2261ee509549075af4fe99733d77b9ab9e698abce78a0b910276d8766"
+  }
+ ],
+ "issue": "https://github.com/ipswitch8/PDFE/issues/146",
+ "owner": "harness",
+ "recorded": "2026-09-07",
+ "review_by": "2027-03-07",
+ "revised": "2026-10-24"
+}

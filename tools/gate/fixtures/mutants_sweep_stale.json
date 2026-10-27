@@ -1,0 +1,30 @@
+{
+  "_comment": "F31/R-24 discriminating control (STALE half): FX11's find-string is deliberately the anchor M11 used BEFORE the PDF-68 rewrite ('return maxGeneration == 0;'), which does not exist in tools/gate/fixtures/mutant_sweep_target.cpp. tools/gate/mutation_kill.py --dry-run must therefore report FX11 as FAIL, still report FX10 as PASS (the sweep is per-mutant, not wholesale), and exit 2. Paired with mutants_sweep_current.json, which must PASS. See tools/gate/test_mutation_manifest_sweep.py.",
+  "build": {
+    "cmake": "cmake",
+    "build_preset": "debug-vs2022",
+    "test_exe": "build/vs2022/bin/Debug/pdfe_tests.exe"
+  },
+  "mutants": [
+    {
+      "id": "FX10-sweep-still-current",
+      "file": "tools/gate/fixtures/mutant_sweep_target.cpp",
+      "find": "    return generation == 0;",
+      "replace": "    return true;",
+      "target": "pdfe_tests",
+      "killing_test": "SweepFixture.SingleLine",
+      "expected": "killed",
+      "note": "Present: proves the sweep reports PASS/FAIL per mutant rather than failing the whole manifest."
+    },
+    {
+      "id": "FX11-sweep-stale-anchor",
+      "file": "tools/gate/fixtures/mutant_sweep_target.cpp",
+      "find": "        return maxGeneration == 0;",
+      "replace": "        return true;",
+      "target": "pdfe_tests",
+      "killing_test": "SweepFixture.StaleAnchor",
+      "expected": "killed",
+      "note": "ABSENT ON PURPOSE. This is verbatim the anchor that made the real mutants.json red in CI before F31 re-anchored M11."
+    }
+  ]
+}

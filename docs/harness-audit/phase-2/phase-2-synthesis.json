@@ -1,0 +1,215 @@
+{
+ "phase": "phase-2-rtm-and-input-domain",
+ "generated_note": "Synthesis of rtm.json + fixture-catalog.json + hostile-input-matrix.json. FIND-AND-DOCUMENT; no product/test code changed.",
+ "rtm_totals": {
+  "capabilities": 87,
+  "none": 0,
+  "happy_path_only": 68,
+  "has_negative_or_boundary": 18,
+  "strong_visual": 1,
+  "note": "87 enumerated user-facing capability rows (some rows bundle sub-features). coverage_class distribution recomputed from the actual array (validator phase-2 gate fix): strong-with-visual-oracle=1 (redaction, and even that is conditionally GTEST_SKIP-gated); has-negative-or-boundary=18; happy-path-only=68; none=0 (every shipped feature has at least one test file -- the gap is oracle STRENGTH not test EXISTENCE). Roadmap/out-of-scope items (public-key encryption, scanner input, Office/HTML import, Read Out Loud, spell-check, reading-order editor, Portfolio, Action-wizard) are NOT counted as gaps (unimplemented by design). Phase-1 classified 147/402 files (36.6%) / 1712/4365 tests (39.2%) weak-oracle; this RTM localizes that weakness onto VISUAL and SECURITY-ENFORCEMENT capabilities."
+ },
+ "fixture_totals": {
+  "fixtures": 200,
+  "benign": 98,
+  "adversarial": 102,
+  "orphan": 32,
+  "missing_referenced": 1
+ },
+ "hostile_input_totals": {
+  "classes": 38,
+  "nonzero": 28,
+  "partial": 6,
+  "zero": 4
+ },
+ "headline": {
+  "capabilities": 87,
+  "coverage_none": 0,
+  "coverage_happy_path_only": 68,
+  "coverage_has_negative_or_boundary": 18,
+  "coverage_strong_visual": 1,
+  "central_finding": "none=0: every shipped feature has >=1 test file; the gap is oracle STRENGTH not test EXISTENCE. Only 1 of 87 capabilities have a strong visual/artifact oracle; 68 are happy-path-only. This localizes Phase-1's 36.6%-weak-oracle result onto the visual + security-enforcement capabilities where a user or attacker would actually notice.",
+  "fixtures_benign": 98,
+  "fixtures_adversarial": 102,
+  "fixtures_orphan": 32,
+  "hostile_classes_zero": 4,
+  "hostile_classes_partial": 6,
+  "hostile_classes_nonzero": 28
+ },
+ "zero_coverage_hostile_classes": [
+  "sheared / skewed CTM in content-stream",
+  "0-page document (empty page tree)",
+  "10k-page document (upper scale boundary)",
+  "combining marks / ZWJ / grapheme clusters"
+ ],
+ "top_uncovered_capabilities": [
+  {
+   "capability": "Redaction \u2014 true content removal (confidentiality)",
+   "coverage_class": "strong-with-visual-oracle-but-conditionally-skipped",
+   "user_impact": "High",
+   "why": "The only oracles that prove the secret is gone from the saved decompressed stream (completeness:67, image_redaction_phase7:428) GTEST_SKIP under fixture fallback; verifier.checkTextRemoved is never asserted FALSE. A redaction that paints a box but leaves Tj operators intact can ship GREEN \u2014 a data-disclosure defect."
+  },
+  {
+   "capability": "Malformed-PDF sandbox / CVE neutralization",
+   "coverage_class": "has-negative-or-boundary (no-throw-only oracle)",
+   "user_impact": "High",
+   "why": "cve_replay: 21 CVE replays with 1 timing assertion around a catch-all try/catch; ProcessSpawnAttemptBlocked / GoToRRemotePathRejected / DataUriNotExecuted assert only no-throw. A regression re-enabling NTLM leak / /AA JS exec / font PostScript / SSRF ships green \u2014 none asserts the attack was neutralized."
+  },
+  {
+   "capability": "Signature trust-chain + tamper detection + LTV forged-GOOD",
+   "coverage_class": "has-negative-or-boundary (weak/broken negatives)",
+   "user_impact": "High",
+   "why": "Cert trust is never positively validated (self-signed satisfies every predicate); the tamper test has an operator-precedence bug that may write a no-op; no test rejects a GOOD OCSP from an untrusted responder. A signature from an attacker-controlled issuer is indistinguishable from a trusted one."
+  },
+  {
+   "capability": "Edit existing text \u2014 visual correctness",
+   "coverage_class": "has-negative-or-boundary (extraction-only oracle)",
+   "user_impact": "High",
+   "why": "The edit path is visual but oracles are extraction-present; mirror/invisible/white/wrong-glyph/wrong-position edits and neighbour-span clobbering (the shipped ambient-state-leak class) all pass. MultiplePageEdits has zero assertions; the adversarial-ambient corpus test is SUCCEED()-only."
+  },
+  {
+   "capability": "Text alignment (Left/Center/Right/Justify)",
+   "coverage_class": "happy-path-only (visual feature, no geometry oracle)",
+   "user_impact": "High",
+   "why": "Every alignment test uses extractPlainText().find(); position/x-offset is never asserted \u2014 text drawn left when Center/Right requested passes. Justify has a substring bug making fully un-justified output pass."
+  },
+  {
+   "capability": "TRE scanned-text reconstruction \u2014 visual correctness",
+   "coverage_class": "happy-path-only (visual, no render/re-extract oracle)",
+   "user_impact": "High",
+   "why": "Reconstruction writes new glyphs into the content stream but nothing renders/re-extracts the output; the 'critical' Y-flip coord-mapper tests are tautological (never call the product mapper). Wrong/garbled/mirrored/off-page reconstructed text ships green."
+  },
+  {
+   "capability": "Image resize / rotate / crop (CTM)",
+   "coverage_class": "has-negative-or-boundary (no-op indistinguishable)",
+   "user_impact": "High",
+   "why": "Success is asserted via return bool / non-null display list; a wrong CTM producing a mirrored or HALF-SIZE image (a bug class this subsystem has repeatedly hit) is indistinguishable from correct. Only image_ctm_leak/mediabox_origin_crop pin geometry."
+  },
+  {
+   "capability": "Autosave / crash-recovery capture",
+   "coverage_class": "happy-path-only (assertion-free probe)",
+   "user_impact": "High",
+   "why": "autosave_capture_audit (15 edit families) is SUCCEED()-only with ZERO EXPECT/ASSERT \u2014 finishRow() records capture_present=NO as passing data. A crash-recovery regression that drops all edits produces a green suite (the exact data-loss class this project keeps shipping)."
+  },
+  {
+   "capability": "Full-text search \u2014 non-empty result correctness",
+   "coverage_class": "happy-path-only (tautological oracle)",
+   "user_impact": "High",
+   "why": "BasicSearch/SearchPage_FindsText assert totalMatches()>=0 (a tautology); quad/hit checks are in loops that run zero times when empty. Broken indexing returning zero hits for text actually on the page is invisible."
+  },
+  {
+   "capability": "OCR recognition quality",
+   "coverage_class": "happy-path-only",
+   "user_impact": "High",
+   "why": "OcrOnScannedPdf asserts hocr non-empty + blocks>0; gibberish recognition passes because no known word from the fixture is checked. RenderPageAt300Dpi accepts >100px so a DPI regression silently degrades OCR input."
+  },
+  {
+   "capability": "Permission enforcement \u2014 residual (re-encryption path / new downstream consumers)",
+   "coverage_class": "has-negative-or-boundary (main surface covered; residual narrow)",
+   "user_impact": "Med",
+   "why": "CORRECTED (karen phase-2 gate): the main copy/print restriction surface IS enforced by real behavioral tests in test_permission_enforcement.cpp (engine + UI refusal, mutation-killable). Residual gap is narrow: test_encryption_roundtrip.cpp::CopyFalsePermissionEnforcedOnReopen is flag-read-only, and saveEncrypted's re-encryption path / future downstream consumers ignoring PermissionFlags have no enforcement test. Re-scoped from High to Med; not a rewrite-existing-tests item."
+  },
+  {
+   "capability": "Optimize \u2014 deleted-content leak",
+   "coverage_class": "happy-path-only",
+   "user_impact": "Med",
+   "why": "OptimizeDoesNotLeakDeletedFormFieldValues asserts only pageCount>0 after reopen \u2014 the named leak (stale/deleted form-field values remaining embedded after garbage=4) ships green."
+  }
+ ],
+ "consolidated_adversarial_fixture_backlog": [
+  {
+   "class": "sheared / skewed CTM",
+   "fixture_to_add": "adversarial_ambient/aa_shear.pdf + aa_img_shear.pdf \u2014 leave a live off-diagonal `1 0.4 0 1 0 0 cm` (and a rotate variant) at top level under the EDITME/KEEPME + blue-Im0 pattern, matching gen_adversarial_ambient_corpus.py",
+   "product_path": "ContentStreamEditor / AlignmentInjector / HeaderFooterEngine / Watermark / TRE writeTextBlock / Image insert+resize (feed via the existing test_content_stream_adversarial_ambient.cpp ops[] list \u2014 add 'shear' to the vector)",
+   "oracle": "glyph-quad parallelogram check: assert the injected line's top and bottom edges stay horizontal (ul.y ~= ur.y) and the glyph is not slanted beyond a threshold; pixel-ink in the intended upright ROI",
+   "failure_caught": "an injector that fails to reset a sheared ambient CTM emits slanted/parallelogram text or images \u2014 the direct geometric sibling of the shipped -100 Tz mirror bug this whole audit exists to prevent",
+   "priority": "High"
+  },
+  {
+   "class": "rotated pages \u2014 edit paths",
+   "fixture_to_add": "reuse realworld/rotated_pages/rotated_mixed.pdf (0/90/180/270) or add rotated_edit_page.pdf with a known EDITME span + KEEPME neighbour on a /Rotate 90 and a /Rotate 270 page",
+   "product_path": "ContentStreamEditor inline edit + ImageContentEditor + RedactionEngine on a /Rotate 90/270 page, then saveAs + reopen",
+   "oracle": "render the reopened page (which applies /Rotate) and assert via glyph-quad + pixel-ink that the edited text lands upright and at the expected on-screen position (not rotated/mirrored/offset by the page rotation)",
+   "failure_caught": "misplaced or rotated edits when a user edits text/images or redacts on a rotated page \u2014 a very common real workflow with no current landing-position oracle",
+   "priority": "High"
+  },
+  {
+   "class": "MediaBox non-zero origin \u2014 inline edit + redact",
+   "fixture_to_add": "reuse mediabox_offset.pdf ([100 100 700 900]); add an EDITME span + a redaction target at known PDF coords inside the offset box",
+   "product_path": "ContentStreamEditor inline edit + RedactionEngine under a non-zero-origin MediaBox, saveAs + reopen",
+   "oracle": "colour-at-known-coordinate (as in test_mediabox_origin_crop.cpp): the edit/redaction must hit the intended offset coordinate, not (coord - origin) or (coord + origin)",
+   "failure_caught": "off-by-origin edit/redaction placement on offset-MediaBox PDFs (the ambient corpus uses a 0-origin box, so inline edit + redact under offset origin are blind despite crop/HF being covered)",
+   "priority": "Med"
+  },
+  {
+   "class": "ToUnicode-absent extraction + redaction-by-search",
+   "fixture_to_add": "fonts/no_tounicode_simple.pdf \u2014 a simple-font page with a known ASCII string and NO /ToUnicode (force encoding-table fallback)",
+   "product_path": "Page::extractPlainText + redaction-by-text-search (RedactionEngine find-and-cover)",
+   "oracle": "assert the known string is recovered legibly from extraction; assert a redaction-by-search on that string actually covers the glyphs (pixel check) \u2014 not merely that extraction did not throw",
+   "failure_caught": "silent garbage extraction and, more seriously, a SECURITY false-negative where redaction-by-search misses text on a ToUnicode-absent page because extraction returned wrong codepoints",
+   "priority": "Med"
+  },
+  {
+   "class": "combining marks / ZWJ / grapheme clusters",
+   "fixture_to_add": "i18n/grapheme_clusters.pdf \u2014 text with combining diacritics (e + U+0301), a ZWJ emoji sequence, and a Devanagari/Thai cluster",
+   "product_path": "TextEditTool caret movement + backspace/delete + selection, and Page::extractPlainText normalization",
+   "oracle": "caret/backspace operate on whole grapheme clusters (deleting one visual char removes the full cluster, no dangling combining mark); extraction round-trips codepoints without splitting/reordering",
+   "failure_caught": "delete-half-a-cluster corruption, caret desync, or a crash on multi-codepoint clusters in the editor \u2014 a classic i18n editing bug class",
+   "priority": "Med"
+  },
+  {
+   "class": "0-page document",
+   "fixture_to_add": "corrupt/zero_page.pdf \u2014 valid catalog + /Pages with /Count 0 and empty /Kids",
+   "product_path": "Document::open then every page(0)-assuming path: first-page render, thumbnail strip build, autosave capture, saveAs",
+   "oracle": "open returns a document with pageCount()==0 and NONE of the downstream paths crash/UB (they must guard the empty case and no-op or show an empty state)",
+   "failure_caught": "null/OOB access when the app assumes at least one page exists \u2014 crash on a legally-empty document (low boundary of the page-count partition)",
+   "priority": "Med"
+  },
+  {
+   "class": "image-edit injectors under ambient state (hard oracle)",
+   "fixture_to_add": "none \u2014 fixtures exist (adversarial_ambient/aa_img_*.pdf); convert the SUCCEED-only measurement cells in test_content_stream_adversarial_ambient.cpp into ASSERTing tests for ImageInsert/Resize/Rotate/Crop + TRE",
+   "product_path": "ImageManager insert / ImageContentEditor resize\u00b7rotate\u00b7crop / TRE PdfContentWriter under each of the 8 hostile ops",
+   "oracle": "the existing evalImageCell/evalTextCell booleans (present, correct width, upright, neighbor_ok) promoted to EXPECT_TRUE for the cells known-good, gap-registered for the rest",
+   "failure_caught": "an image or TRE injector that leaks/drops ambient state corrupts the inserted image (halved, mirrored, invisible) with only a SUCCEED probe recording it as data \u2014 no red test today",
+   "priority": "Med"
+  },
+  {
+   "class": "CJK content-preservation extraction",
+   "fixture_to_add": "none \u2014 phase3_cjk_text.pdf exists; add a consumer test",
+   "product_path": "Page::extractPlainText on phase3_cjk_text.pdf",
+   "oracle": "Unicode-block-membership oracle mirroring RtlScriptsPreservedByUnicodeBlock: assert CJK codepoints (Hiragana U+3040-309F, Katakana U+30A0-30FF, CJK Unified U+4E00-9FFF, Hangul U+AC00-D7AF) survive and FFFD does not dominate",
+   "failure_caught": "a regression that drops or mangles CJK to '?' would pass today (unlike RTL, CJK has no content oracle)",
+   "priority": "Med"
+  },
+  {
+   "class": "incremental-update chain \u2014 latest-object-wins",
+   "fixture_to_add": "structure/incremental_shadow.pdf \u2014 object N defined in revision 1, redefined (different content) in revision 2 via appended xref + /Prev",
+   "product_path": "Document::open then extract/render",
+   "oracle": "assert the SECOND (newest) definition of the shadowed object is the one used (content/render matches revision 2), proving PDFE honours update order",
+   "failure_caught": "reading a stale/earlier object revision from a multi-update file (wrong content shown), and validates the /Prev chain is walked newest-first",
+   "priority": "Low"
+  },
+  {
+   "class": "deeply nested arrays",
+   "fixture_to_add": "corrupt/deeply_nested_array.pdf \u2014 a 1000-level nested array (companion to the existing 100-level dict)",
+   "product_path": "Document::open",
+   "oracle": "bounded-time + no-crash (matching DeeplyNestedDictionaryHandled)",
+   "failure_caught": "stack-overflow on deep array recursion (only dict nesting is currently guarded)",
+   "priority": "Low"
+  },
+  {
+   "class": "10k-page scale boundary",
+   "fixture_to_add": "generate_10kpage.py -> test_10000page.pdf (text-only, kept out of git via .gitignore + generator, like image_pdf/)",
+   "product_path": "open + page-list/thumbnail virtualization + saveAs",
+   "oracle": "open time and per-page navigation stay within a perf budget; thumbnails lazy-load; saveAs GC completes bounded",
+   "failure_caught": "O(n^2) page-list build, eager thumbnail rendering, or save-GC blowup at the upper page-count boundary",
+   "priority": "Low"
+  }
+ ],
+ "cross_validation": [
+  "RTM none=0 + strong_visual=1 corroborates Phase-1 (147/402 files weak-oracle); the weakness is concentrated on visual + security-enforcement features.",
+  "Fixture danger-zones (paths fed ONLY benign inputs: OCR/TRE, scanned-render, PDF/A tagging, save/rewrite) match the hostile-input PARTIAL/ZERO classes and the RTM happy-path-only rows.",
+  "Sheared/skewed-CTM = ZERO fixture coverage is the direct untested sibling of the -100 Tz mirror bug this audit exists for; the adversarial-ambient corpus has half-SCALE cm but no shear.",
+  "flaw_corpus (47 adversarial fixtures) all feed ONE open-only smoke test -> adversarial breadth exists but adversarial DEPTH per product-path is thin (an open-parse pass is not a save/redact/render pass)."
+ ]
+}

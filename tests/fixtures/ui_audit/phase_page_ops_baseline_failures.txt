@@ -1,0 +1,66 @@
+Phase 6 — page-ops subsystem baseline failure log
+==================================================
+
+Tests added: tests/test_page_ops_phase6.cpp (9 P0 cases),
+             tests/test_ui_page_ops_smoke.py (2 cases).
+
+─────────────────────────────────────────────────────────────────────
+RED BASELINE
+─────────────────────────────────────────────────────────────────────
+
+Initial run after writing the 9 P0 tests:
+  PASSED: 8
+  FAILED: 1 (Phase6PageOpsTest.DeleteLastPageIsNoOpOrErrorsCleanly)
+
+Failure: EXPECT_NO_THROW caught a PdfeException("Cannot delete the
+last page"). The production code throws a clean exception with a
+descriptive message when DeletePageCommand is invoked on a
+single-page document — which is the CORRECT behavior per the audit
+row UI-PG-03 ("errors / no-ops"). The test was over-strict.
+
+─────────────────────────────────────────────────────────────────────
+FIX
+─────────────────────────────────────────────────────────────────────
+
+Test rewritten to:
+- Catch the expected exception explicitly (looking for "last page"
+  or "Cannot delete" in the message).
+- Assert the page count remains at 1 regardless of which path the
+  implementation took (throw or no-op).
+- SUCCEED with metadata indicating which behavior was observed.
+
+Production code unchanged. The contract was always met; the test had
+the wrong expectation.
+
+─────────────────────────────────────────────────────────────────────
+GREEN STATE
+─────────────────────────────────────────────────────────────────────
+
+[==========] 9 tests from Phase6PageOpsTest ran.
+[  PASSED  ] 9 tests
+[  FAILED  ] 0 tests
+
+Coverage map (P0 -> test):
+  UI-PG-01  RotatePageUpdatesRotationModulo360            PASS
+  UI-PG-03  DeleteLastPageIsNoOpOrErrorsCleanly           PASS
+  UI-PG-04  DeletePageUndoRestoresContent                 PASS
+  UI-PG-06  ImportPagesIncreasesPageCount                 PASS
+  UI-PG-07  ImportPagesPreservesContent                   PASS
+  UI-PG-11  DeletePageRangeNonContiguous                  PASS
+  UI-PG-13  PagePanelPageMovedSignalContract              PASS
+  UI-PG-14  PagePanelMultiSelectDeleteSignalCarriesAllIndices  PASS
+  UI-PG-17  DeletePageReducesCountSuchThatClampIsPossible PASS
+
+Production source changed in Phase 6: NONE.
+  All 9 P0 contracts are satisfied by current src/core/PageCommands.cpp,
+  src/core/PageOperations.cpp, and src/ui/PagePanel.cpp.
+
+Suite delta: +9 active C++ tests, +2 Python smoke tests, 0 failures.
+
+==================================================================
+Phase 10 closeout annotation (2026-04-29)
+==================================================================
+Status: ALL FAILURES RESOLVED.
+Phase that fixed: phase-6 (commit 8b43e10 — page-ops cycle).
+Locked-by tests: tests/test_page_ops_phase6.cpp.
+Deferrals to D1: P1 rows enumerated above.

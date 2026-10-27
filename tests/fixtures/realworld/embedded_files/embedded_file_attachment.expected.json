@@ -1,0 +1,7 @@
+{
+  "page_count": 1,
+  "has_xref_repair": false,
+  "description": "PDF with EmbeddedFiles name-tree containing nested.pdf (a complete mini-PDF)",
+  "fixture_type": "embedded_file_attachment",
+  "attachment_name": "nested.pdf"
+}

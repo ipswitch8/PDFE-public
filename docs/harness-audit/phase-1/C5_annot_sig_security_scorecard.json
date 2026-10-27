@@ -1,0 +1,1323 @@
+{
+ "cluster": "C5_annot_sig_security",
+ "method": "Adversarial oracle audit; harness treated as defendant. Every file read in full across 5 parallel batches. Oracle taxonomy {true|pseudo|metamorphic|heuristic|proxy|no-oracle-smoke}; 7 smell patterns counted with file:line.",
+ "totals": {
+  "files": 62,
+  "tests": 657,
+  "by_oracle": {
+   "true": {
+    "files": 21,
+    "tests": 249
+   },
+   "metamorphic": {
+    "files": 5,
+    "tests": 44
+   },
+   "heuristic": {
+    "files": 3,
+    "tests": 19
+   },
+   "proxy": {
+    "files": 30,
+    "tests": 333
+   },
+   "no-oracle-smoke": {
+    "files": 3,
+    "tests": 12
+   },
+   "pseudo": {
+    "files": 0,
+    "tests": 0
+   }
+  },
+  "by_smell": {
+   "assertion-free": 7,
+   "tautological": 25,
+   "EXPECT_NO_THROW-only": 15,
+   "over-tolerant-threshold": 16,
+   "extraction-only-for-visual": 15,
+   "widget-exists-only": 26,
+   "reopens-without-error-only": 10
+  },
+  "security_headline": "Positive content-forgery IS caught (real tamper->INVALID metamorphic tests exist in test_signature_roundtrip.cpp:146/204 and test_signature_security_phase2.cpp:235). The security ROT is in the trust/policy/attack-neutralization layers: (1) 21 named-CVE replays whose sole oracle is a wall-clock bound around a catch-all try/catch; (2) certificate trust-chain never positively validated (all fixtures self-signed -> assertions are tautological ORs); (3) DocMDP enforcement only grep-checked for byte presence, no disallowed-edit-is-flagged test; (4) OCSP/CRL freshness 'rejection' tests masked by a permanently-UntrustedChain fixture (two tests' own comments concede it); (5) hostile-JS/SSRF/redaction tests assert neutralization in their NAMES but only prove no-crash.",
+  "oracle_token_leak_removed_from_smells": {
+   "heuristic": 1,
+   "proxy": 3,
+   "no-oracle-smoke": 1
+  }
+ },
+ "per_file": [
+  {
+   "file": "tests/test_cve_replay.cpp",
+   "oracle": "proxy",
+   "tests": 21,
+   "skip_sites": 0,
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold"
+   ],
+   "note": "21 named-CVE replays share one oracle (verifySafeOpen:62 = EXPECT_LT timing bound around a catch-all try/catch at 57-59). Proves nothing about neutralization.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_pkcs7_fuzz.cpp",
+   "oracle": "no-oracle-smoke",
+   "tests": 4,
+   "skip_sites": 1,
+   "smells": [
+    "assertion-free",
+    "tautological"
+   ],
+   "note": "3 assertion-free bodies (127/134/140); sole EXPECT is corpus-size>=3 (tautology). PKCS7 verify path exercised, nothing about output/safety asserted.",
+   "smells_raw": [
+    "assertion-free",
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_malicious_pdf_advanced.cpp",
+   "oracle": "proxy",
+   "tests": 30,
+   "skip_sites": 4,
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold"
+   ],
+   "note": "7 hostile-JS-API tests (651) are NO_THROW-only despite names promising 'Blocked/Rejected'. Only the 4 encryption tests (467-534) are TRUE oracles.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_malicious_pdf_security.cpp",
+   "oracle": "proxy",
+   "tests": 11,
+   "skip_sites": 3,
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only",
+    "extraction-only-for-visual"
+   ],
+   "note": "GoToR(211)/DataUri(249)/JsSubmitForm(487) NO_THROW-only; RedactionClearsUndoEvidence(179) greps for '/UndoStack' not the secret. SelfSignedCertReportedAsUntrusted(422) is genuine TRUE.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only",
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_prohibited_feature_scanner.cpp",
+   "oracle": "heuristic",
+   "tests": 9,
+   "skip_sites": 1,
+   "smells": [
+    "widget-exists-only",
+    "tautological",
+    "assertion-free"
+   ],
+   "note": "Negative-only: every assert = clean doc reports NOTHING. Zero positive-detection. A no-op scanner passes all 9.",
+   "smells_raw": [
+    "widget-exists-only",
+    "tautological",
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_path_security.cpp",
+   "oracle": "true",
+   "tests": 34,
+   "skip_sites": 0,
+   "smells": [
+    "tautological"
+   ],
+   "note": "STRONGEST file. Lexical UNC/file/scheme classifier with concrete TRUE/FALSE per input, mutation-killable. Only gap: dispatcher call site tested by predicate proxy (237).",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_process_mitigations.cpp",
+   "oracle": "true",
+   "tests": 6,
+   "skip_sites": 0,
+   "smells": [
+    "widget-exists-only",
+    "assertion-free"
+   ],
+   "note": "DEP/ASLR/ImageLoad/StrictHandle query real GetProcessMitigationPolicy + assert bits. CfgStatusQueryable(80) is SUCCEED-only smoke.",
+   "smells_raw": [
+    "widget-exists-only",
+    "assertion-free"
+   ]
+  },
+  {
+   "file": "tests/test_security_audit.cpp",
+   "oracle": "heuristic",
+   "tests": 6,
+   "skip_sites": 4,
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "note": "Timing side-channel EXPECT_LT(ratio,5.0) at 72 (comment intends 2x). Disclosure oracles are 3-token blocklists (97/127). Unicode-path tests (184/222) genuine.",
+   "smells_raw": [
+    "over-tolerant-threshold",
+    "heuristic"
+   ]
+  },
+  {
+   "file": "tests/test_security_phase8.cpp",
+   "oracle": "proxy",
+   "tests": 8,
+   "skip_sites": 2,
+   "smells": [
+    "tautological",
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "note": "SaveIncremental(145) claims to lock signature byte-range but only checks file-exists. EncryptionManagerSurfacesPermissions(339) is a codec self-round-trip. ConvertToPdfA(253) decent.",
+   "smells_raw": [
+    "tautological",
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_permission_enforcement.cpp",
+   "oracle": "true",
+   "tests": 16,
+   "skip_sites": 0,
+   "smells": [
+    "widget-exists-only"
+   ],
+   "note": "STRONGEST security file. Real enforcement: password-strip THROWS + file not created (162), exporter returns false + no file (225), clipboard sentinel unchanged on copy-deny (434), print refuses before render. Positive controls + toggle-cleared negatives.",
+   "smells_raw": [
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_pkcs7_bridge.cpp",
+   "oracle": "proxy",
+   "tests": 8,
+   "skip_sites": 2,
+   "smells": [
+    "assertion-free",
+    "widget-exists-only",
+    "EXPECT_NO_THROW-only"
+   ],
+   "note": "Verifier constructed + vtable-non-null (119), never runs check_digest/check_certificate on content. PFX DN read is real. No tamper case.",
+   "smells_raw": [
+    "assertion-free",
+    "widget-exists-only",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_pkcs7_roundtrip.cpp",
+   "oracle": "heuristic",
+   "tests": 4,
+   "skip_sites": 0,
+   "smells": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ],
+   "note": "Has negatives (empty + 128-zero-byte -> digestValid=false) but garbage is all-zeros (structurally invalid). Valid path asserts only certChain non-empty, never digestValid=true. Size window 100..100000 (197).",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_signature_commands.cpp",
+   "oracle": "proxy",
+   "tests": 10,
+   "skip_sites": 1,
+   "smells": [
+    "tautological",
+    "assertion-free",
+    "widget-exists-only"
+   ],
+   "note": "Undo/redo command pattern; countSignatures() delta is sole oracle. No signing/verification exercised.",
+   "smells_raw": [
+    "tautological",
+    "assertion-free",
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_signature_manager.cpp",
+   "oracle": "proxy",
+   "tests": 25,
+   "skip_sites": 19,
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "note": "SignAndVerify(289)/VerifyAllSignatures(330) assert digestValid=true (positive half); VerifyUnsignedField(391) real negative. But SignField(242)/SaveIncremental(416) NO_THROW-only. No byte-tamper negative here.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_signature_data.cpp",
+   "oracle": "true",
+   "tests": 19,
+   "skip_sites": 0,
+   "smells": [
+    "tautological"
+   ],
+   "note": "POD/value-object unit tests; isFullyValid() rollup correctly tested per false axis. No crypto (not this layer's job).",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_signature_roundtrip.cpp",
+   "oracle": "metamorphic",
+   "tests": 10,
+   "skip_sites": 3,
+   "smells": [
+    "reopens-without-error-only",
+    "over-tolerant-threshold"
+   ],
+   "note": "TamperingFlippedByte(146)+ReportsModified(204) are REAL sign->valid/tamper->invalid. BUT cert-trust tests (expired/self-signed/intermediate 375/425/484) use 4-way ORs a self-signed cert satisfies unconditionally + SUCCEED escape hatches. Trust-chain never positively verified.",
+   "smells_raw": [
+    "reopens-without-error-only",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_signature_panel.cpp",
+   "oracle": "proxy",
+   "tests": 8,
+   "skip_sites": 1,
+   "smells": [
+    "widget-exists-only",
+    "tautological",
+    "extraction-only-for-visual"
+   ],
+   "note": "'Signed'/'Unsigned' column reflects a bool the test set (79), not a verification result. Panel showing 'Signed' for a tampered sig would pass.",
+   "smells_raw": [
+    "widget-exists-only",
+    "tautological",
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_signature_security_phase2.cpp",
+   "oracle": "metamorphic",
+   "tests": 5,
+   "skip_sites": 1,
+   "smells": [
+    "tautological",
+    "reopens-without-error-only"
+   ],
+   "note": "TamperedPkcs7Rejected(235) solid. BUT TamperedPkcs7NotFullyValid(310) has operator-precedence defect '&b == 0' (never null) -> always writes 0x00; if target byte already 0x00 the tamper is a no-op.",
+   "smells_raw": [
+    "tautological",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_certification_signatures.cpp",
+   "oracle": "metamorphic",
+   "tests": 12,
+   "skip_sites": 4,
+   "smells": [
+    "widget-exists-only"
+   ],
+   "note": "Content-tamper->Invalid tested for P1/P2/P3 (real). BUT DocMDP semantic enforcement never tested negatively: no test that a DISALLOWED edit under P1/P2 is FLAGGED. Presence-only via fileContains('/DocMDP','/P N').",
+   "smells_raw": [
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_invisible_and_certification_signatures.cpp",
+   "oracle": "proxy",
+   "tests": 8,
+   "skip_sites": 2,
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "extraction-only-for-visual",
+    "widget-exists-only",
+    "tautological"
+   ],
+   "note": "Entirely no-throw + grep-for-marker. Not one verifySignature call. Cryptographically-broken invisible /Sig would pass all 8.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "extraction-only-for-visual",
+    "widget-exists-only",
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_docmdp_byterange.cpp",
+   "oracle": "metamorphic",
+   "tests": 3,
+   "skip_sites": 1,
+   "smells": [
+    "widget-exists-only"
+   ],
+   "note": "Negative-byte-range regression guard; CertByteRangeValid(53)+ApprovalNoDocMdp(134) assert digestValid=true on reopen. Positive-only, no tamper here.",
+   "smells_raw": [
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_content_stream_tm_sign.cpp",
+   "oracle": "true",
+   "tests": 17,
+   "skip_sites": 2,
+   "smells": [
+    "tautological"
+   ],
+   "note": "MISFILED for crypto audit: 'Tm sign' = numeric sign of text-matrix Tm.d (upside-down-text bug), NOT digital signatures. Strong algebraic/round-trip oracles. Zero security relevance.",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_ltv_responder_validation.cpp",
+   "oracle": "proxy",
+   "tests": 7,
+   "skip_sites": 2,
+   "smells": [
+    "over-tolerant-threshold",
+    "tautological",
+    "EXPECT_NO_THROW-only"
+   ],
+   "note": "7-day OCSP boundary 'rejected' = EXPECT_NE(LtvValidated) masked by always-UntrustedChain self-signed path. 'Accepted' = EXPECT_NE(InvalidSignature) (near anything). No revoked->REVOKED here.",
+   "smells_raw": [
+    "over-tolerant-threshold",
+    "tautological",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_ltv_dss_writer.cpp",
+   "oracle": "proxy",
+   "tests": 10,
+   "skip_sites": 3,
+   "smells": [
+    "tautological",
+    "reopens-without-error-only"
+   ],
+   "note": "Structural /DSS writer coverage (dict/VRI/byte-prefix). WriteMultipleCerts(291) 'distinct' certs are byte-identical (dup ^= 0x00 no-op). Honestly structural, no revocation semantics claimed.",
+   "smells_raw": [
+    "tautological",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_ltv_validator.cpp",
+   "oracle": "true",
+   "tests": 5,
+   "skip_sites": 1,
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "note": "STRONGEST LTV file. RevokedCertReturnsRevoked(464) EXPECT_EQ(Revoked). VerifiesLtvWithDss(388) requires explicit trust anchor + good OCSP. CustomTrustAnchor(533) has empty-store control. GAP: no forged-GOOD-untrusted-responder negative.",
+   "smells_raw": [
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_tsa_real_endpoint.cpp",
+   "oracle": "no-oracle-smoke",
+   "tests": 3,
+   "skip_sites": 3,
+   "smells": [
+    "tautological",
+    "extraction-only-for-visual",
+    "EXPECT_NO_THROW-only"
+   ],
+   "note": "isTsaReachable(39) only checks a local file exists (never touches network). Timestamp-token OID result is LOGGED not asserted (146) - 'bonus best-effort'. TSA timestamping could be wholly broken, file stays green.",
+   "smells_raw": [
+    "tautological",
+    "extraction-only-for-visual",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_tsa_fixture.cpp",
+   "oracle": "proxy",
+   "tests": 6,
+   "skip_sites": 1,
+   "smells": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ],
+   "note": "DocTimeStamp token 'valid ASN.1' = first byte==0x30 only (76). Token never parsed, TSA sig never checked, imprint never matched to /ByteRange digest. Garbage-but-0x30-prefixed token passes.",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_tsa_and_taborder.cpp",
+   "oracle": "proxy",
+   "tests": 35,
+   "skip_sites": 0,
+   "smells": [
+    "tautological",
+    "widget-exists-only"
+   ],
+   "note": "REAL VALUE: SSRF-guard negatives against real TsaClient (LocalhostRejected 170, LoopbackIp 178, MetadataEndpoint 185 169.254.169.254, FileScheme 193, FtpScheme 200). TSA response-parse tests (82/139) are OpenSSL i2d/d2i self-round-trips (never call TsaClient).",
+   "smells_raw": [
+    "tautological",
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_ocsp_crl_validation.cpp",
+   "oracle": "proxy",
+   "tests": 7,
+   "skip_sites": 2,
+   "smells": [
+    "tautological",
+    "over-tolerant-threshold"
+   ],
+   "note": "StaleRevokedOcspStillHonoured(322) genuine EXPECT_EQ(Revoked). BUT staleness/expiry ACCEPT-vs-REJECT tests (279/303/362/385) all EXPECT_NE(LtvValidated) on permanently-untrusted chain; own comments (283-284) concede 'both end up UntrustedChain'. FIX-OCSP-VALIDATOR guards don't guard the fix.",
+   "smells_raw": [
+    "tautological",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_ocsp_crl_parser.cpp",
+   "oracle": "proxy",
+   "tests": 6,
+   "skip_sites": 6,
+   "smells": [
+    "reopens-without-error-only",
+    "EXPECT_NO_THROW-only"
+   ],
+   "note": "Parser round-trip only. Fixture OCSP always GOOD, CRL empty-revoked-list. No test that a revoked serial is surfaced as revoked.",
+   "smells_raw": [
+    "reopens-without-error-only",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_encrypt_ocsp_phase3.cpp",
+   "oracle": "proxy",
+   "tests": 5,
+   "skip_sites": 3,
+   "smells": [
+    "tautological"
+   ],
+   "note": "OCSP unknown/stale/expired all EXPECT_NE(LtvValidated) masked by untrusted chain (330/349/369). Encrypt-metadata tests (253/281) genuine round-trips.",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_sign_dialog.cpp",
+   "oracle": "true",
+   "tests": 11,
+   "skip_sites": 4,
+   "smells": [
+    "widget-exists-only",
+    "extraction-only-for-visual"
+   ],
+   "note": "Enforces signing params: SIG02(280) asserts digestValid+Okay+!modifiedAfterSigning; SIG03(358) wrong password cannot yield verifying /Sig; empty-password accepted-count==0 (130). Strong.",
+   "smells_raw": [
+    "widget-exists-only",
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_sign_dialog_geometry.cpp",
+   "oracle": "no-oracle-smoke",
+   "tests": 5,
+   "skip_sites": 1,
+   "smells": [
+    "widget-exists-only",
+    "over-tolerant-threshold"
+   ],
+   "note": "Pure geometry/reparent structural guards (findChild!=null, height<=600). Legit for RDP-fit purpose; no signature semantics.",
+   "smells_raw": [
+    "widget-exists-only",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_forms_designer.cpp",
+   "oracle": "proxy",
+   "tests": 6,
+   "skip_sites": 0,
+   "smells": [
+    "widget-exists-only"
+   ],
+   "note": "Toolbar/palette structural wiring (QAction!=null, dragDropMode). FieldTypeActionsAreExclusive(54) asserts real QActionGroup exclusivity. No crypto (included for completeness).",
+   "smells_raw": [
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_encryption_manager.cpp",
+   "oracle": "true",
+   "tests": 23,
+   "skip_sites": 0,
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "note": "BEST encryption file. REAL negatives: WrongPassword_Throws(262), Authenticate_Wrong->level 0 (316). AES-256 asserts version=5/rev=6/method=AES-256 (281). Permission asserts are read-back proxy though.",
+   "smells_raw": [
+    "proxy",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_encryption_roundtrip.cpp",
+   "oracle": "true",
+   "tests": 14,
+   "skip_sites": 0,
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold"
+   ],
+   "note": "Strong AES/RC4 keyLength+method round-trips. WrongPasswordDoesNotSilentlyOpen(151) real. BUT every 'permission enforced' test (410/458) is a getPermissions() flag echo; Rc4_40WrongPasswordFails(295) accepts isEncrypted==true as rejection (near-tautological).",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold",
+    "proxy"
+   ]
+  },
+  {
+   "file": "tests/test_encryption_settings.cpp",
+   "oracle": "proxy",
+   "tests": 13,
+   "skip_sites": 0,
+   "smells": [
+    "tautological"
+   ],
+   "note": "Pure POD struct/bitmask setter/getter echoes. Only the PDF permission-bit constants (68-79) lock a real truth. High assert count, ~zero power to catch a crypto defect (honestly scoped though).",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_encryption_dialog.cpp",
+   "oracle": "proxy",
+   "tests": 12,
+   "skip_sites": 1,
+   "smells": [
+    "widget-exists-only",
+    "tautological"
+   ],
+   "note": "AlgorithmMapping tests (336/349/362) are combo-index->enum echoes. GENUINE value: PasswordMismatch(154/199) asserts OK disabled + 'do not match' label; PasswordStrength(375). SetUp GTEST_SKIP skips ALL if no QApplication.",
+   "smells_raw": [
+    "widget-exists-only",
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_b2_measured_width.cpp",
+   "oracle": "metamorphic",
+   "tests": 14,
+   "skip_sites": 11,
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "note": "Not annotation/crypto. Real metamorphic: DPI/font-size ~2x scaling, W>2*i, bad-font->0. 11 GTEST_SKIP -> inert on font-less CI.",
+   "smells_raw": [
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_annotation_color_seam.cpp",
+   "oracle": "proxy",
+   "tests": 6,
+   "skip_sites": 6,
+   "smells": [
+    "extraction-only-for-visual",
+    "widget-exists-only"
+   ],
+   "note": "Color asserted on data model (currentData().color, 36), annotation never rendered. Real signal-emission guards (no-emit-on-same 57, invalid-color-ignored 111). All GTEST_SKIP without QApplication.",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_measure.cpp",
+   "oracle": "true",
+   "tests": 22,
+   "skip_sites": 1,
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "note": "Strong TRUE math: 3-4-5 distance, shoelace area, winding invariance, unit conversions, area scale SQUARED (156). ParseRejectsMissingTag(188) negative. Save/reload uses semantic tag extraction (appropriate).",
+   "smells_raw": [
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_stamp_and_watermark.cpp",
+   "oracle": "proxy",
+   "tests": 11,
+   "skip_sites": 1,
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "widget-exists-only",
+    "extraction-only-for-visual"
+   ],
+   "note": "Dominantly widget-exists + no-throw. StampSurvivesSaveAndReload(105) is a bare annotation-count oracle; no geometry/contents/appearance. SetColor(38) SUCCEED-only.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only",
+    "widget-exists-only",
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_stamp_tokens.cpp",
+   "oracle": "true",
+   "tests": 12,
+   "skip_sites": 1,
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "note": "Genuine string-transform oracles: {date}/{author} resolution, multiple-occurrence, empty-author, passthrough. End-to-end proves no literal {author}/{date} survives. Solid.",
+   "smells_raw": [
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_hf_watermark_adversarial.cpp",
+   "oracle": "true",
+   "tests": 3,
+   "skip_sites": 0,
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "note": "STRONG placement oracle: asserts device-space center-x via fitz stext bbox against non-zero MediaBox origin (85); font-collision test inspects page /Font dict to prove body Courier preserved + Helvetica added.",
+   "smells_raw": [
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_watermark_extended.cpp",
+   "oracle": "proxy",
+   "tests": 8,
+   "skip_sites": 3,
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "note": "TEXT page-range logic genuinely tested. BUT IMAGE-watermark tests near-empty: RespectsPageRange(186) asserts nothing about the range; OpensCleanly(160) reopen-smoke. Image presence never pixel-verified (text-extraction blind to raster).",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "no-oracle-smoke",
+    "reopens-without-error-only"
+   ]
+  },
+  {
+   "file": "tests/test_watermark_state_leak.cpp",
+   "oracle": "true",
+   "tests": 2,
+   "skip_sites": 0,
+   "smells": [],
+   "note": "Strong geometric: detects horizontal mirror via stext quad direction against adversarial -100 Tz fixture; UntouchedNeighborUnchanged(124) asserts neighbor glyph argb/x/y/advance unchanged. No smells.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_image_stamp.cpp",
+   "oracle": "true",
+   "tests": 9,
+   "skip_sites": 1,
+   "smells": [
+    "tautological"
+   ],
+   "note": "GOLD-STANDARD visual oracle: renders page + counts red-dominant pixels (218), re-renders after reopen (256). RejectsNullImage(312) real negative. Library import/retrieve (88) is echo.",
+   "smells_raw": [
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_comment_panel_context_menu.cpp",
+   "oracle": "proxy",
+   "tests": 4,
+   "skip_sites": 0,
+   "smells": [
+    "widget-exists-only",
+    "tautological"
+   ],
+   "note": "Menu built via helper (no real right-click). All asserts = objectName/label existence. Reply/Delete could be wired to nothing and all 4 pass.",
+   "smells_raw": [
+    "widget-exists-only",
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_comment_panel.cpp",
+   "oracle": "proxy",
+   "tests": 12,
+   "skip_sites": 0,
+   "smells": [
+    "widget-exists-only",
+    "EXPECT_NO_THROW-only",
+    "tautological"
+   ],
+   "note": "SetAnnotationPopulatesFields(122-191) genuine. NavigateToAnnotationSignal(213) asserts count==0 (NOT emitted); real emission deferred to python. Rest existence/no-throw.",
+   "smells_raw": [
+    "widget-exists-only",
+    "EXPECT_NO_THROW-only",
+    "tautological"
+   ]
+  },
+  {
+   "file": "tests/test_comment_panel_threading.cpp",
+   "oracle": "true",
+   "tests": 4,
+   "skip_sites": 1,
+   "smells": [],
+   "note": "STRONGEST comment UI: flatten() walks real QTreeWidget, asserts reply depth > parent depth (user-visible nesting). Reply path has direct-emit fallback (167).",
+   "smells_raw": [
+    "proxy"
+   ]
+  },
+  {
+   "file": "tests/test_comment_threading.cpp",
+   "oracle": "true",
+   "tests": 5,
+   "skip_sites": 1,
+   "smells": [],
+   "note": "/IRT reply-chain saved/reopened/re-resolved via getInReplyTo back to parent index (135). Genuine roundtrip re-parse. Error paths EXPECT_THROW.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_sticky_note_popup.cpp",
+   "oracle": "proxy",
+   "tests": 15,
+   "skip_sites": 1,
+   "smells": [
+    "extraction-only-for-visual",
+    "assertion-free",
+    "widget-exists-only"
+   ],
+   "note": "PositionFlip(204/216) real flip semantics. BUT ColorTheming(169) checks stylesheet string not pixels; ReadOnlyDoesNotEmitChanges(359) never asserts changedSpy.count()==0 (name lies).",
+   "smells_raw": [
+    "extraction-only-for-visual",
+    "assertion-free",
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_attachment_panel.cpp",
+   "oracle": "proxy",
+   "tests": 6,
+   "skip_sites": 1,
+   "smells": [
+    "widget-exists-only"
+   ],
+   "note": "SetDocumentPopulatesTree(78) checks row text. Extract/Delete buttons only enable-state proxy; panel never actually extracts/deletes (byte-level in test_attachments.cpp).",
+   "smells_raw": [
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_attachment_panel_mainwindow_integration.cpp",
+   "oracle": "proxy",
+   "tests": 4,
+   "skip_sites": 0,
+   "smells": [
+    "widget-exists-only"
+   ],
+   "note": "DockVisibilityChangedSyncsToggleAction(73-79) real signal-wiring oracle. Rest construction existence.",
+   "smells_raw": [
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_attachments.cpp",
+   "oracle": "true",
+   "tests": 14,
+   "skip_sites": 1,
+   "smells": [
+    "over-tolerant-threshold",
+    "widget-exists-only"
+   ],
+   "note": "STRONG. ExtractRoundTripIsByteExact(190). Path-traversal ACTUALLY asserted: sanitizeFilename strips ../ (66-91), extract() confined via weakly_canonical prefix (220). ListReportsSize(236) accepts -1 OR count.",
+   "smells_raw": [
+    "over-tolerant-threshold",
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_file_attachment_annotation.cpp",
+   "oracle": "true",
+   "tests": 6,
+   "skip_sites": 1,
+   "smells": [
+    "tautological",
+    "EXPECT_NO_THROW-only"
+   ],
+   "note": "STRONG. RetrieveEmbeddedPayloadByteExact(117) round-trips 256 binary bytes incl NUL; SaveAndReopen re-reads payload (176). ToolStoresConfiguration(211) is setter/getter echo.",
+   "smells_raw": [
+    "tautological",
+    "EXPECT_NO_THROW-only"
+   ]
+  },
+  {
+   "file": "tests/test_annotation_tools.cpp",
+   "oracle": "proxy",
+   "tests": 8,
+   "skip_sites": 8,
+   "smells": [
+    "assertion-free",
+    "EXPECT_NO_THROW-only",
+    "tautological",
+    "widget-exists-only"
+   ],
+   "note": "HighlightFromSelection(129): assertion guarded by 'if(annotationWasCreated)'; empty selection -> no annotation -> zero assertions -> broken tool ships green. Tools verified only by callback-fired + type enum, never geometry/render. 8 GTEST_SKIP.",
+   "smells_raw": [
+    "assertion-free",
+    "EXPECT_NO_THROW-only",
+    "tautological",
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_annotation_roundtrip.cpp",
+   "oracle": "true",
+   "tests": 12,
+   "skip_sites": 0,
+   "smells": [
+    "over-tolerant-threshold",
+    "widget-exists-only"
+   ],
+   "note": "Real mutate->save->reopen->re-query. BUT /Rect geometry NEVER asserted after any roundtrip (only type/contents/color) -> rect could shift and all 12 pass. Ink only checks stroke count>=1 (185). Delete/modify negatives good.",
+   "smells_raw": [
+    "over-tolerant-threshold",
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_annotation_manager.cpp",
+   "oracle": "proxy",
+   "tests": 14,
+   "skip_sites": 0,
+   "smells": [
+    "tautological",
+    "over-tolerant-threshold"
+   ],
+   "note": "Setter/getter echo against live AnnotationData model, no persistence/render (138/159/182). Acceptable unit layer (roundtrip+AP files cover persistence). Error paths genuine.",
+   "smells_raw": [
+    "tautological",
+    "over-tolerant-threshold"
+   ]
+  },
+  {
+   "file": "tests/test_annotation_commands.cpp",
+   "oracle": "true",
+   "tests": 10,
+   "skip_sites": 0,
+   "smells": [
+    "widget-exists-only"
+   ],
+   "note": "Solid undo/redo behavioral oracle: counts AND contents/color revert-and-reapply (174/231). Merge-by-key maps to real typing-coalesce. Good file.",
+   "smells_raw": [
+    "widget-exists-only"
+   ]
+  },
+  {
+   "file": "tests/test_annotations_phase4.cpp",
+   "oracle": "proxy",
+   "tests": 9,
+   "skip_sites": 4,
+   "smells": [
+    "tautological",
+    "over-tolerant-threshold",
+    "widget-exists-only",
+    "extraction-only-for-visual"
+   ],
+   "note": "Resize(262)/Paste(508) tests self-invoke the callback they assert fired (real drag path bypassed). FreeTextDefaultAppearance(346) asserts daFontName non-empty + daFontSize>0 only; set Helv/14.0/red never checked (daColor untested). StickyNotePlacement stronger.",
+   "smells_raw": [
+    "tautological",
+    "over-tolerant-threshold",
+    "widget-exists-only",
+    "extraction-only-for-visual"
+   ]
+  },
+  {
+   "file": "tests/test_fidelity_r3_20_annotation_ap.cpp",
+   "oracle": "true",
+   "tests": 5,
+   "skip_sites": 0,
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "note": "BEST annotation oracle: reopens with FRESH raw MuPDF ctx, walks pdf_first_annot, asserts each carries real /AP/N XObject with non-degenerate /BBox overlapping /Rect in device space. Kills 'round-trips as data, paints as nothing'. Not appearance CONTENT (color/path).",
+   "smells_raw": [
+    "extraction-only-for-visual"
+   ]
+  }
+ ],
+ "ranked_weak_findings": [
+  {
+   "file": "tests/test_cve_replay.cpp",
+   "line": 62,
+   "test": "verifySafeOpen (all 21 CVE replays)",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "A regression re-introducing any of 21 replayed CVEs -- connecting to the attacker SMB share (CVE-2018-4993 NTLM leak), executing embedded /AA JavaScript (CVE-2021-30560), running injected font PostScript (CVE-2024-4367) -- ships GREEN as long as Document::open returns within 5-10s and doesn't throw. The catch-all try/catch (57-59) even hides an outright throw. No test asserts the attack was neutralized.",
+   "severity": "Critical",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_malicious_pdf_advanced.cpp",
+   "line": 651,
+   "test": "ProcessSpawnAttemptBlocked",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "If MuJS were ever wired to a launch/openDoc transport, app.launchURL('file:///C:/Windows/System32/calc.exe') would spawn a process and this test still passes -- the only oracle is that fireKeystrokeEvent doesn't throw and pageCount() survives. The name promises a block it never verifies.",
+   "severity": "Critical",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_prohibited_feature_scanner.cpp",
+   "line": 39,
+   "test": "NoEncryption/NoJavaScript/NoExternalReferences_FreshDoc + ScanAll_*",
+   "oracle": "heuristic",
+   "smells": [
+    "widget-exists-only",
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Entire suite only asserts the scanner reports NOTHING on a clean fixture. A ProhibitedFeatureScanner that is broken and never detects encryption/JavaScript/external-refs (always returns false/empty) passes every test -> PDF/A compliance scanning silently passes non-compliant documents with zero test failing.",
+   "severity": "High",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_signature_roundtrip.cpp",
+   "line": 425,
+   "test": "SelfSignedCertReportsSelfSigned / ExpiredCertReportsInvalidCertificate / IntermediateCAChainSignatureVerifies",
+   "oracle": "proxy",
+   "smells": [
+    "over-tolerant-threshold",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Certificate trust-chain is NEVER positively validated. Every fixture is self-signed and MuPDF has no system trust-store (noted at 481), so certificateStatus is always non-Okay. The cert-trust tests assert only 'non-Okay OR !certValid OR !isFullyValid', which a self-signed cert satisfies unconditionally -> a signature from an untrusted/attacker-controlled issuer is indistinguishable from a trusted one; a broken trust check is never caught. Plus SUCCEED() early-returns and GTEST_SKIPs.",
+   "severity": "High",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_certification_signatures.cpp",
+   "line": 175,
+   "test": "P1/P2/P3_DocMDPBytesPresent + FormFillPreserves / AnnotationPreserves",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "user_visible_failure_missed": "DocMDP permission ENFORCEMENT is never tested negatively. /DocMDP + /P N are only grep-checked in bytes; the only behavioral tests confirm ALLOWED changes keep the digest valid. There is NO test that a DISALLOWED change (content edit/annotation under P1 NoChanges, content change under P2 FormFillOnly) is FLAGGED as a violation. If enforcement silently permitted forbidden edits, all certification tests stay green while the guarantee is void.",
+   "severity": "High",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_ocsp_crl_validation.cpp",
+   "line": 279,
+   "test": "StaleOcspResponseRejectedByValidityCheck / FutureOcspResponseRejected / ExpiredCrlRejected / ExpiredCrlDoesNotCountAsRevocationEvidence",
+   "oracle": "proxy",
+   "smells": [
+    "tautological",
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "OCSP staleness / CRL nextUpdate-expiry enforcement could be silently removed and these FIX-OCSP-VALIDATOR regression tests still pass, because the self-signed cert with useTrustAnchors=false yields UntrustedChain in ALL cases -> EXPECT_NE(LtvValidated) never depends on the freshness check (the tests' own comments 283-284 concede 'both end up as UntrustedChain'). A signature backed only by a 30-day-stale/expired revocation response could be accepted as fresh in production.",
+   "severity": "High",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_signature_security_phase2.cpp",
+   "line": 310,
+   "test": "TamperedPkcs7NotFullyValid",
+   "oracle": "proxy",
+   "smells": [
+    "tautological",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "The tamper-injection line has an operator-precedence defect: 'f.write(&b == 0 ? \"\\x01\" : \"\\x00\", 1)' evaluates '&b == 0' (address of a stack var, never null) as always-false, so it unconditionally writes 0x00. If the byte at the 75% offset is already 0x00 the mutation is a no-op and the test asserts !isFullyValid() on an UNMODIFIED validly-signed doc -> a genuinely-broken verifier returning isFullyValid=true fails only by luck of the target byte. A tamper test that may not tamper is security theatre.",
+   "severity": "High",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_tsa_real_endpoint.cpp",
+   "line": 146,
+   "test": "SignWithDigiCertTsaProducesTimestampToken",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "extraction-only-for-visual",
+    "tautological"
+   ],
+   "user_visible_failure_missed": "The RFC-3161 timestamp-token OID presence is only printed to stdout, never asserted ('bonus best-effort'), and the reachability gate merely checks a local file exists rather than the network. TSA timestamping could be completely non-functional (no token ever embedded) and this real-endpoint test still passes -> an unsigned-time signature presents as timestamped to users.",
+   "severity": "High",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_ltv_validator.cpp",
+   "line": 342,
+   "test": "VerifiesLtvDocumentWithDss (forged-GOOD-responder gap)",
+   "oracle": "true",
+   "smells": [],
+   "user_visible_failure_missed": "No test asserts a GOOD OCSP response signed by an UNTRUSTED/arbitrary responder is rejected. Fixtures self-sign the OCSP with the same cert and the code comment (341-342) states verifyWith 'doesn't gate on OCSP signer trust, only the certStatus value'. An attacker who strips the real revoked-status responder and injects a self-signed GOOD OCSP into /DSS would be reported as validly revocation-checked. Revoked-path oracle is genuine; the forged-GOOD negative is missing.",
+   "severity": "High",
+   "confidence": "Medium"
+  },
+  {
+   "file": "tests/test_malicious_pdf_security.cpp",
+   "line": 179,
+   "test": "RedactionClearsUndoEvidence",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only",
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "A redaction that visually masks but leaves the underlying text/glyphs recoverable in the saved PDF passes, because the only content oracle is absence of the literal string '/UndoStack'. The actual redacted secret is never searched for in the output bytes or extracted text.",
+   "severity": "High",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_malicious_pdf_security.cpp",
+   "line": 211,
+   "test": "GoToRRemotePathRejected / DataUriNotExecuted / JsSubmitFormNotAvailable",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "SSRF via /GoToR UNC to an attacker SMB share (NTLM leak), an auto-navigable data:text/html script, or a re-exposed submitForm/exportDataObject exfil API would all still pass -- each oracle is only that open/render/fireKeystroke didn't throw. Names promise 'Rejected/NotExecuted/NotAvailable' the tests never verify.",
+   "severity": "High",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_encryption_roundtrip.cpp",
+   "line": 410,
+   "test": "CopyFalsePermissionEnforcedOnReopen (+ MultipleRestrictedPermissionsRoundTrip 458)",
+   "oracle": "proxy",
+   "smells": [
+    "proxy"
+   ],
+   "user_visible_failure_missed": "NO test in any encryption file proves a permission-restricted operation is actually blocked. Every 'permission' assertion is a getPermissions() bitmask read-back. If a downstream copy/print path ignored the flag, or saveEncrypted wrote permission bits without binding them to the crypto dict, the user's copy/print restriction would silently not be enforced and all tests still pass. The test name literally says 'Enforced' while only reading the flag.",
+   "severity": "High",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_watermark_extended.cpp",
+   "line": 186,
+   "test": "ImageWatermarkRespectsPageRange",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "no-oracle-smoke"
+   ],
+   "user_visible_failure_missed": "An image watermark applied to EVERY page (range filter broken) or to NO page passes: the only assertions are Document::open!=null and pageCount==3. The named even-pages-only contract is asserted nowhere -> a logo could be stamped on confidential pages meant to be excluded, suite green.",
+   "severity": "High",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_annotation_tools.cpp",
+   "line": 129,
+   "test": "HighlightFromSelection",
+   "oracle": "proxy",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "The highlight/text-markup tool never actually selects text (empty quads), so no annotation is created on drag -- the user drags over text and gets nothing. The only type assertion is inside 'if(annotationWasCreated)', so the completely-broken tool passes with zero assertions.",
+   "severity": "High",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_annotations_phase4.cpp",
+   "line": 346,
+   "test": "FreeTextDefaultAppearancePersistsThroughSave",
+   "oracle": "proxy",
+   "smells": [
+    "over-tolerant-threshold",
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "After save/reopen a FreeText box shows the wrong font, wrong size, or lost text color: the test set Helv/14.0/red but only asserts daFontName non-empty and daFontSize>0, and never checks daColor. Garbage-but-non-empty DA ships green.",
+   "severity": "High",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_pkcs7_fuzz.cpp",
+   "line": 140,
+   "test": "RepeatedParsingDoesNotLeak (+ 3 assertion-free bodies)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "A memory leak or heap-corruption in the PKCS7 signature-verification path (the code that decides whether a signature is trusted) is not caught -- the test loops 100x and asserts nothing; there is no allocation/RSS measurement despite the name. A signature-forgery or parser-OOB regression ships green as long as the process survives.",
+   "severity": "Medium",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_pkcs7_bridge.cpp",
+   "line": 115,
+   "test": "CreateVerifier (whole file)",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only",
+    "assertion-free",
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "The PKCS#7 verifier is constructed and its vtable pointers checked non-null, but check_digest/check_certificate are NEVER invoked on real content. A verifier whose check_digest always returned 'valid' passes every test in this file. No tamper/negative crypto case at this layer.",
+   "severity": "Medium",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_invisible_and_certification_signatures.cpp",
+   "line": 85,
+   "test": "InvisibleFlagSignsSuccessfully (all 8)",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "extraction-only-for-visual",
+    "widget-exists-only"
+   ],
+   "user_visible_failure_missed": "Entire file's oracle is 'signing did not throw' plus grep-for-marker ('/Type/Sig','/DocMDP','/P 2'). No verifySignature is ever called. An invisible signature that reports VALID but whose digest is wrong passes all eight -- invisible signatures are a notable forgery/repudiation surface precisely because there's no visible appearance to prompt scrutiny.",
+   "severity": "Medium",
+   "confidence": "Medium"
+  },
+  {
+   "file": "tests/test_security_phase8.cpp",
+   "line": 145,
+   "test": "SaveIncrementalProducesFile",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Header states this locks signature byte-range preservation (UI-SIG-12), but a saveIncremental that corrupts or rewrites existing signature byte-ranges passes as long as it writes a non-empty file -> a broken incremental save that invalidates prior signatures ships green.",
+   "severity": "Medium",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_annotation_roundtrip.cpp",
+   "line": 69,
+   "test": "AnnotationRoundTripTest (whole file - /Rect gap)",
+   "oracle": "true",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "An annotation's position/size (/Rect) shifts or collapses on save -- a sticky note/shape reopens in the wrong place -- and every roundtrip test still passes, because no test asserts the reopened annotation's rect/geometry (only type, contents, color). Ink additionally only checks stroke count>=1, not the path.",
+   "severity": "Medium",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_tsa_fixture.cpp",
+   "line": 76,
+   "test": "CachedTokenIsValidAsn1SignedData / FileContainsDocTimeStampDict",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "The DocTimeStamp fixture token is validated only by first-byte 0x30 and string/hex greps; the TimeStampToken is never parsed, its TSA signature never checked, its message imprint never matched to the /ByteRange digest. A corrupted/mismatched timestamp that still begins with a SEQUENCE tag passes -> document-timestamp integrity regressions invisible.",
+   "severity": "Medium",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_tsa_and_taborder.cpp",
+   "line": 82,
+   "test": "TimeStampReqConstructionValid / RejectedStatusDetected",
+   "oracle": "proxy",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "These 'TSA response parsing' tests rebuild request/response with raw OpenSSL and round-trip i2d/d2i WITHOUT ever invoking PDFE's TsaClient parsing/verification. They validate OpenSSL, not PDFE -- a bug in PDFE's own TSA response handling (e.g. failing to detect a status=2 rejection) is not exercised.",
+   "severity": "Medium",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_encrypt_ocsp_phase3.cpp",
+   "line": 349,
+   "test": "StaleOcspDataNotLtvValidated / ExpiredCrlNotLtvValidated / OcspUnknownStatusTreatedAsNonGood",
+   "oracle": "proxy",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Same masked-by-UntrustedChain pattern: OCSP 'unknown' handling and stale/expired rejection asserted only via EXPECT_NE(LtvValidated) on a chain never trustable -> a regression treating 'unknown' as 'good' or ignoring staleness would not be caught.",
+   "severity": "Medium",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_security_audit.cpp",
+   "line": 72,
+   "test": "PasswordCheckTimingNotLeakingFirstByte",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "A genuine per-byte password-comparison timing side-channel with up to a 4.9x timing ratio passes (code allows 5.0x though the comment intends 2x). Conversely wall-clock noise over 5 iterations makes it flaky -- neither reliably catches a real oracle nor holds a tight bound.",
+   "severity": "Medium",
+   "confidence": "Medium"
+  },
+  {
+   "file": "tests/test_annotations_phase4.cpp",
+   "line": 260,
+   "test": "SelectToolResizeWiringPushesModifyCommand / AnnotationPastedCallbackCreatesNewAnnotation",
+   "oracle": "proxy",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Drag-resizing an annotation handle (or paste) produces no undo entry / no geometry change because the real SelectTool drag/paste path is broken: the test manually calls tool.annotationMoved(...)/annotationPasted(...) itself then asserts that callback fired. The production mouse path is never executed.",
+   "severity": "Medium",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_comment_panel_context_menu.cpp",
+   "line": 52,
+   "test": "MenuHasReplyAndDeleteActions",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only",
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Right-click Reply or Delete in the comment panel does nothing (action not connected): the QActions exist with the right labels but wired to nothing. All four tests assert only objectName/label existence -> the dead menu ships green.",
+   "severity": "Medium",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_stamp_and_watermark.cpp",
+   "line": 105,
+   "test": "StampSurvivesSaveAndReload",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Stamp persistence proven only by counting annotations of type==Stamp (before+1==after). A stamp round-tripping at the wrong rect, with lost contents, or with no visible appearance stream would count and pass -> user's stamp could reopen blank or misplaced, suite green.",
+   "severity": "Medium",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_sticky_note_popup.cpp",
+   "line": 359,
+   "test": "ReadOnlyDoesNotEmitChanges",
+   "oracle": "proxy",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "A read-only sticky-note popup still fires contentsChanged and silently mutates a locked annotation: despite its name, the test never asserts changedSpy.count()==0 -- only checks isReadOnly()==true. The no-emit guarantee is untested.",
+   "severity": "Low",
+   "confidence": "High"
+  },
+  {
+   "file": "tests/test_encryption_settings.cpp",
+   "line": 226,
+   "test": "WithAes256 (whole file)",
+   "oracle": "proxy",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "13 tests are PermissionFlags/EncryptionSettings/EncryptionInfo struct+bitmask echoes; they cannot detect any actual encryption defect (wrong algorithm applied, key not derived, password not bound). High assert density gives a false impression of crypto coverage; only bit-constant asserts (68-79) lock a real spec truth. Risk = mis-attributed coverage.",
+   "severity": "Low",
+   "confidence": "High"
+  }
+ ]
+}

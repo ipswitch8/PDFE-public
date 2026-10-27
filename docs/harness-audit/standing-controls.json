@@ -1,0 +1,108 @@
+{
+ "phase": "phase-5-capstone-standing-controls",
+ "generated_note": "Standing controls (durable, class-level defenses) each tied to the Register IDs it prevents recurrence of. These replace one-off instance patches. FIND-AND-DOCUMENT.",
+ "controls": [
+  {
+   "id": "SC-a",
+   "name": "Adversarial-ambient fixture corpus x every injector, with pixel/quad oracles",
+   "what": "A committed corpus of PDFs carrying HOSTILE ambient state (sheared/skewed CTM, rotated pages, non-zero-origin MediaBox, leaked Tz/Tc/Tw/Ts/Tr/color) fed through every page-content injector (ContentStreamEditor, AlignmentInjector, HeaderFooterEngine, Watermark, TRE writeTextBlock, Image insert/resize/rotate/crop, RedactionEngine). Oracles are render-based: glyph-quad parallelogram/orientation checks, pixel-ink in the intended upright ROI, colour-at-known-coordinate, and unconditional decompressed-byte-absence for redaction. Extends the existing gen_adversarial_ambient_corpus.py / test_content_stream_adversarial_ambient.cpp by promoting the SUCCEED-only measurement cells to ASSERTs and adding the missing 'shear' op.",
+   "closes_register_ids": [
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06",
+    "R-07",
+    "R-33",
+    "R-34"
+   ],
+   "effort": "M-L (fixtures + a shared render/quad oracle helper; reuses existing corpus generator and eval helpers)"
+  },
+  {
+   "id": "SC-b",
+   "name": "Oracle standard (visual feature => visual/quad oracle; ban weak-oracle smells)",
+   "what": "A written, lint-enforceable standard: (1) any test of a visual/positional feature must assert a rendered glyph-quad/pixel property, never extraction presence; (2) ban lone EXPECT_NO_THROW, lone SUCCEED()/assertion-free bodies, tautological predicates (EXPECT_TRUE(x||!x), EXPECT_GE(unsigned,0)), and self-reimplementation (algorithm copied into the test body); (3) security verifiers require POSITIVE detection (assert the check returns FALSE on a genuine leak/violation), not TRUE-on-clean-only; (4) regression tests must call the production symbol under test.",
+   "closes_register_ids": [
+    "R-03",
+    "R-14",
+    "R-16",
+    "R-18",
+    "R-19",
+    "R-20",
+    "R-21",
+    "R-22",
+    "R-12",
+    "R-13"
+   ],
+   "effort": "S-M (author the standard + a heuristic lint over test sources; remediate flagged files incrementally)"
+  },
+  {
+   "id": "SC-c",
+   "name": "Mutation-kill CI gate with a REAL mutant set + enforced floor",
+   "what": "Replace the green-by-construction 3-mutant tools/gate/mutants.json with the phase-3 16-mutant set (must include the 10 survivors: M04/M05/M06/M07 state-continuity, M08/M09/M16 save-routing, M11 redaction confidentiality, M13 forms button-reset, M15 font-scale). Enforce a kill-rate floor (start at the current killable baseline, ratchet up); a NEW survivor fails the build. Contrast: today mutation-kill.yml can only report 100% on 3 pre-fixed lines while the real kill-rate is 37.5%.",
+   "closes_register_ids": [
+    "R-24",
+    "R-02",
+    "R-05",
+    "R-08",
+    "R-10",
+    "R-11"
+   ],
+   "effort": "M (port the phase-3 apply/build/run/revert harness into the CI manifest; wire the floor check)"
+  },
+  {
+   "id": "SC-d",
+   "name": "Coverage floor enforced (not best-effort)",
+   "what": "Remove continue-on-error:true from the OpenCppCoverage->Cobertura step; treat the tool's absence as a hard error; enforce a per-subsystem coverage floor that FAILS the build on regression. Coverage stops being a decorative artifact that can never fail.",
+   "closes_register_ids": [
+    "R-32",
+    "R-27"
+   ],
+   "effort": "S-M (config change + baseline capture + floor thresholds per subsystem)"
+  },
+  {
+   "id": "SC-e",
+   "name": "Mandatory escaped-defect -> DCA -> class-test loop (make governance real)",
+   "what": "Promote check_dca.py/check_dca_presence.py from workflow_dispatch-only governance.yml to a required per-commit merge gate: any bug-fix commit must add a DCA record (docs/audit/dca/NNNN-*.md) AND a class-level test, or the build fails. Ends the reactive posture where 70 of 72 fixes escaped with no test.",
+   "closes_register_ids": [
+    "R-26",
+    "R-31"
+   ],
+   "effort": "M (wire the existing checkers into the required PR lane; define the base-ref automatically instead of manual supply)"
+  },
+  {
+   "id": "SC-f",
+   "name": "Live RTM enforcement (matrix 'pass' = ran AND asserted, not a rebuilt CSV)",
+   "what": "A matrix cell is green only if its owning test RAN and executed >=1 behavioral assertion in the SAME CI run that produced the CSV. Forbid rebuilding the matrix from committed green; make row writes owner-only (kill the last-write-wins clobber at conftest.py:85/575); dialog-reachability rows require a real render, not objectName-in-.cpp.",
+   "closes_register_ids": [
+    "R-28"
+   ],
+   "effort": "M (rework the conftest matrix recorder + CI check that the CSV is freshly produced by the run being evaluated)"
+  },
+  {
+   "id": "SC-g",
+   "name": "De-skip-wall the UI visual oracles + fix self-seeding goldens",
+   "what": "Route menu/tool activation through the testToolActivatePipe (invoke_action) with result-pipe readback instead of UIA FindAll (defeats the gap_a14 hang that silently skips ~472 sites). Replace regen-from-current goldens with committed CORRECTNESS goldens from a trusted reference; assert against known-correct baselines (catch mirror/wrong-zoom/tofu/wrong-icon), not merely 'differs from before'. Add an ASan destruction-under-active-state matrix.",
+   "closes_register_ids": [
+    "R-27",
+    "R-29",
+    "R-20",
+    "R-04",
+    "R-35"
+   ],
+   "effort": "L (unwind the skip wall, produce trusted goldens, add lifecycle matrix)"
+  },
+  {
+   "id": "SC-h",
+   "name": "Re-enable per-commit CI triggers (currently dispatch/nightly-only)",
+   "what": "Restore push/PR auto-triggers for at least a fast lane (build + changed-subsystem core tests + mutation-kill on the touched subsystem), keeping the full suite nightly. Queue on the single self-hosted runner rather than dropping. Keep the JUnit sum-of-failures check as a required, non-removable step with a deliberately-failing sentinel self-test.",
+   "closes_register_ids": [
+    "R-25",
+    "R-30",
+    "R-36",
+    "R-37"
+   ],
+   "effort": "M (workflow triggers + a fast-lane job + runner queue discipline)"
+  }
+ ]
+}

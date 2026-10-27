@@ -1,0 +1,368 @@
+# ---------------------------------------------------------------------------
+# Windows Sanitizer (MSVC AddressSanitizer)
+#
+# Native Windows ASan build using MSVC /fsanitize=address. Self-hosted
+# pdfe-windows runner only; the clang-cl variant (still selectable via
+# the windows-vs2022-asan preset) is not used by CI because of the
+# CI-LIMITATION-CLANG-CL-ASAN-RUNTIME-WIN 0xC0000135 loader bug — see
+# tests/docs/known_issues.md for the full rationale.
+#
+# Scope: Phase 4 of pipeline f3c91a2e closes GAP-C1, GAP-D6, GAP-D7,
+# GAP-X1 by running a security-focused gtest subset under MSVC ASan.
+# Meta-audit follow-up F4 (gap SEC-16) put that subset back on an
+# automatic trigger — see the `on:` block for the cadence and the
+# slot rationale.
+#
+# Filter rationale: the subset covers every code path an attacker can
+# reach (malicious PDF parsing, encryption/permission bypass,
+# redaction completeness, embedded JavaScript) without consuming the
+# 2-4x ASan runtime overhead the full 3911-test suite would need.
+# Option A (sharding) stays in reserve via the clang-cl preset in
+# CMakePresets.json if a future finding requires the full suite.
+# ---------------------------------------------------------------------------
+
+name: Windows Sanitizer (MSVC ASan)
+
+on:
+  # WEEKLY SCHEDULE + manual dispatch (meta-audit follow-up F4, gap SEC-16).
+  #
+  # PUSH IS STILL DELIBERATELY ABSENT. The push-to-master auto-trigger was
+  # intentionally removed 2026-07-20 so a 6-hour ASan build+test could not be
+  # kicked off by every commit and monopolise the single self-hosted
+  # pdfe-windows runner. That reasoning is unchanged and is respected here:
+  # nothing below re-adds `push:` or `pull_request:`.
+  #
+  # What DID change is the failure mode the removal left behind. Defects #47
+  # (SelectTool stale page_) and #48 (TextMarkupTool self-delete UAF) were
+  # ASan-ONLY finds — no non-ASan run of the suite could see them — and after
+  # 2026-07-20 the only lane that could find their successors fired solely
+  # when a human remembered to click dispatch. A detector that runs only on
+  # recall is not a detector. A bounded weekly run restores automatic coverage
+  # without restoring the per-commit cost.
+  #
+  # SLOT: Sunday 18:00 UTC. Chosen to be un-collidable with the other
+  # scheduled lanes on the shared runner:
+  #   windows-fuzz.yml       '30 3 * * *'  daily 03:30 UTC, timeout 600 min
+  #                                        -> worst case occupies 03:30-13:30
+  #   windows-validation.yml '20 4 * * *'  daily 04:20 UTC
+  #   macos-validation.yml   '0 6 * * 1'   Mondays 06:00 UTC (macOS runner —
+  #                                        different host, cannot contend)
+  # This job's timeout is 360 min, so an 18:00 UTC start finishes by 00:00 UTC
+  # at the very worst — a clear 3.5 h margin before the 03:30 fuzz nightly and
+  # entirely outside the 03:30-13:30 daily busy band. Sunday keeps the runner
+  # free for the weekday validation nightlies, and the minute (:00) differs
+  # from both :30 and :20 so even a same-hour drift in GitHub's scheduler
+  # cannot line the three up on the same minute.
+  schedule:
+    - cron: '0 18 * * 0'
+  # Manual dispatch retained for on-demand investigation runs:
+  #   gh workflow run windows-sanitizer.yml
+  workflow_dispatch:
+
+concurrency:
+  # Keyed on event_name as well as ref (F4): two scheduled runs still cannot
+  # pile up on the single-capacity runner, but the weekly schedule can no
+  # longer cancel a human's in-progress investigation dispatch (or vice
+  # versa) — before the schedule existed, ref alone was sufficient.
+  group: windows-sanitizer-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  msvc-asan-windows:
+    name: MSVC ASan (security gtest subset)
+    # Self-hosted runner — same pdfe-windows host as windows-validation.yml.
+    # The clang_rt.asan_dynamic-x86_64.dll shipped with VS 2022 lives
+    # under VS/VC/Tools/MSVC/<ver>/bin/Hostx64/x64/ and is on PATH via
+    # ilammy/msvc-dev-cmd; the binary loads it at startup without the
+    # clang-cl variant's 0xC0000135 failure (verified 2026-05-02 and
+    # again 2026-06-10).
+    runs-on: [self-hosted, Windows, X64, pdfe-windows]
+    # Generous timeout: vcpkg ASan build is slower than the non-ASan
+    # build (instrumented compile time), and the security subset under
+    # ASan adds 2-4x runtime overhead. Leave headroom.
+    timeout-minutes: 360
+
+    env:
+      VCPKG_FEATURE_FLAGS: manifests,binarycaching
+      VCPKG_DEFAULT_TRIPLET: x64-windows
+      # Persistent LOCAL binary cache first (self-hosted box, stable disk), then
+      # x-gha. Restores prebuilt ports by exact ABI hash from C:\vcpkg-bincache so
+      # a build no longer needs to re-download/rebuild deps (immune to upstream
+      # download outages on an x-gha miss). Hermetic; matches windows-fuzz/validation.
+      VCPKG_BINARY_SOURCES: 'clear;files,C:\vcpkg-bincache,readwrite;x-gha,readwrite'
+      # Local vcpkg ASSET (source-distfile) cache — serves a port's source archive
+      # from C:\vcpkg-assets by SHA512 before hitting the authoritative URL, so an
+      # upstream tarball that drifted from vcpkg's pinned hash (e.g. codeberg mujs
+      # 1.3.8) no longer breaks the build. Misses still download normally. See
+      # windows-validation.yml.
+      X_VCPKG_ASSET_SOURCES: 'clear;x-azurl,file:///C:/vcpkg-assets,,readwrite'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Export GitHub Actions cache env (for vcpkg x-gha)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up vcpkg (manifest mode)
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 15e5f3820f0370f1ba7150853762cec0688cd396
+
+      - name: Configure (windows-vs2022-msvc-asan preset)
+        shell: pwsh
+        run: |
+          cmake --preset windows-vs2022-msvc-asan
+
+      - name: Build pdfe_tests (debug-vs2022-msvc-asan preset)
+        shell: pwsh
+        run: |
+          cmake --build --preset debug-vs2022-msvc-asan --target pdfe_tests --parallel 4
+
+      - name: Run security-focused gtest subset under ASan
+        # The filter mirrors Phase 4 acceptance criterion (security
+        # subset) but expanded to match the actual suite names in
+        # pdfe_tests (verified via --gtest_list_tests on 2026-06-10):
+        #   MaliciousPdfTest.*      — test_malicious_pdf_security.cpp + advanced
+        #   SecurityAudit.*         — test_security_audit.cpp
+        #   Encryption*.*           — EncryptionManagerTest, EncryptionSettingsTest, EncryptionInfoTest, EncryptionDialogTest
+        #   Redaction*.*            — 12 redaction-related suites
+        #   Phase8SecurityTest.*    — Phase-8 encryption/permission integration
+        #   Phase7RedactionTest.*   — Phase-7 redaction lifecycle
+        #   E2ERedaction.*          — end-to-end redaction workflows
+        #   PathSecurity.*          — UNC/path-traversal defenses
+        #   JavaScriptEngineTest.*  — embedded JS sandbox isolation
+        #   JsSandboxSecurityTest.* — JS sandbox escape defenses
+        #   SignatureSecurityTest.* — signature tamper / byte-range
+        #   Pkcs7FuzzSmokeTest.*    — PKCS#7 parser fuzz harness
+        #   FontFuzzSmokeTest.*     — font parser fuzz harness (high-
+        #                             value heap-overflow surface)
+        #   Pkcs7BridgeTest.* / Pkcs7RoundTripTest.* — PKCS#7 parsing
+        #   CertEnforcementTest.* / CertificationSignatureTest.* /
+        #     InvisibleSignatureTest.* — signature cert paths
+        #   SignatureVerifyResultTest.* / SignatureManagerTest.* —
+        #     verification result handling
+        #   PermissionFlagsTest.*   — permission-bit enforcement
+        #
+        # The signature + fuzz suites were added 2026-06-11 after the
+        # Phase 4 security-audit gate (pipeline f3c91a2e) flagged that
+        # the original filter missed the signature-tamper and font/
+        # PKCS7 parser attack surfaces — exactly where heap overflows
+        # are historically found.
+        #
+        # ASAN_OPTIONS rationale:
+        #   halt_on_error=0   — let every finding print, don't abort early
+        #   abort_on_error=0  — don't abort the process on a finding (we
+        #                       want post-run summary)
+        #   detect_leaks=0    — leak checking is too noisy for Qt/MuPDF
+        #                       in a single-process Debug exe; the gap
+        #                       checklist tracks per-page leaks separately
+        #   print_stacktrace=1 — make findings actionable
+        #
+        # We DON'T pass exitcode=0: a true ASan finding should fail
+        # the job. The 2026-05-02 PASS run validated that the subset
+        # exits 0 with no findings under these options.
+        shell: pwsh
+        run: |
+          $buildBin = "$env:GITHUB_WORKSPACE\build\vs2022-msvc-asan\bin\Debug"
+          $vcpkgDbg = "$env:GITHUB_WORKSPACE\build\vs2022-msvc-asan\vcpkg_installed\x64-windows\debug\bin"
+          $vcpkgRel = "$env:GITHUB_WORKSPACE\build\vs2022-msvc-asan\vcpkg_installed\x64-windows\bin"
+          $env:PATH = "$buildBin;$vcpkgDbg;$vcpkgRel;$env:PATH"
+
+          $testExe = Join-Path $buildBin "pdfe_tests.exe"
+          if (-not (Test-Path $testExe)) {
+            Write-Error "pdfe_tests.exe not found at $testExe"
+            exit 1
+          }
+
+          # Timestamped output dir under tests/security/reports/sanitizers/
+          $stamp = (Get-Date -AsUTC).ToString("yyyyMMddTHHmmssZ")
+          $outDir = "$env:GITHUB_WORKSPACE\tests\security\reports\sanitizers\run_${stamp}_msvc_ci"
+          New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+
+          # ASAN_OPTIONS — set here (not in step env:) so we can route
+          # log_path. Hardening from the Phase 4 security-audit gate
+          # (GAP-NEW-3): MSVC ASan writes findings to stderr, and a
+          # PowerShell *>&1 stream merge could in principle de-interleave
+          # a finding out of stdout.log. log_path makes ASan ALSO write
+          # every finding to <base>.<pid> files, giving a capture path
+          # independent of the stdout merge. We scan BOTH below.
+          #
+          # CRITICAL: ASAN_OPTIONS uses ':' as its option separator, so
+          # log_path MUST NOT contain a Windows drive-letter colon
+          # (log_path=C:\... makes ASan abort with "expected '=' in
+          # ASAN_OPTIONS" — observed in run 27335387496, sha c94ed4b,
+          # which gave 0 tests + exit 1). Use a COLON-FREE RELATIVE
+          # base; ASan writes it relative to the process CWD
+          # (GITHUB_WORKSPACE). We collect + relocate the files after.
+          #   halt_on_error=0   — print every finding, don't abort early
+          #   abort_on_error=0  — don't abort the process on a finding
+          #   detect_leaks=0    — leak checking too noisy for Qt/MuPDF
+          #   print_stacktrace=1 — make findings actionable
+          $asanLogBase = "asan_ci_finding"
+          $env:ASAN_OPTIONS = "halt_on_error=0:print_stacktrace=1:detect_leaks=0:abort_on_error=0:log_path=$asanLogBase"
+
+          #   TileConcurrencyStress.* — coverage-expansion C-01 tile-pipeline
+          #                             race stress. ASan instruments the exact
+          #                             get/put/evict/QImage-copy window the
+          #                             8-thread storm hammers, upgrading the
+          #                             in-suite invariant checks to real
+          #                             UAF/heap-corruption detection under a
+          #                             concurrent workload.
+          $filter = "MaliciousPdfTest.*:SecurityAudit.*:Encryption*.*:Redaction*.*:Phase8SecurityTest.*:Phase7RedactionTest.*:E2ERedaction.*:PathSecurity.*:JavaScriptEngineTest.*:JsSandboxSecurityTest.*:SignatureSecurityTest.*:Pkcs7FuzzSmokeTest.*:FontFuzzSmokeTest.*:Pkcs7BridgeTest.*:Pkcs7RoundTripTest.*:CertEnforcementTest.*:CertificationSignatureTest.*:InvisibleSignatureTest.*:SignatureVerifyResultTest.*:SignatureManagerTest.*:PermissionFlagsTest.*:TileConcurrencyStress.*"
+
+          $stdoutLog = "$outDir\stdout.log"
+          $xmlPath   = "$outDir\results.xml"
+          Write-Host "Filter: $filter"
+          Write-Host "ASAN_OPTIONS: $env:ASAN_OPTIONS"
+
+          & $testExe `
+            "--gtest_filter=$filter" `
+            --gtest_color=no `
+            --gtest_brief=1 `
+            "--gtest_output=xml:$xmlPath" `
+            *>&1 | Tee-Object -FilePath $stdoutLog
+          $rc = $LASTEXITCODE
+          Write-Host "pdfe_tests exit code: $rc"
+
+          # Count ASan findings: ASan prints '==<pid>==ERROR:' for each
+          # finding. Scan BOTH the merged stdout.log AND the dedicated
+          # log_path files so a finding cannot be missed if PowerShell's
+          # *>&1 merge drops/reorders the stderr line. ASan wrote the
+          # log_path files into the CWD ($GITHUB_WORKSPACE) as
+          # asan_ci_finding.<pid>; collect, scan, then relocate them
+          # into $outDir for the artifact.
+          $findings = 0
+          if (Test-Path $stdoutLog) {
+            $findings += (Select-String -Path $stdoutLog -Pattern "==\d+==ERROR:").Count
+          }
+          $asanLogFiles = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Filter "$asanLogBase.*" -File -ErrorAction SilentlyContinue
+          foreach ($alf in $asanLogFiles) {
+            $findings += (Select-String -Path $alf.FullName -Pattern "==\d+==ERROR:").Count
+            Move-Item $alf.FullName (Join-Path $outDir $alf.Name) -Force -ErrorAction SilentlyContinue
+          }
+          Write-Host "ASan findings (stdout + log_path files): $findings"
+          Write-Host "ASan log_path files: $($asanLogFiles.Count)"
+
+          # Sanity: ASAN_OPTIONS parse failure ('expected ... in
+          # ASAN_OPTIONS') means the binary never ran the tests. Detect
+          # it explicitly so a malformed-options regression can't look
+          # like a clean pass.
+          if (Test-Path $stdoutLog) {
+            $optErr = Select-String -Path $stdoutLog -Pattern "in ASAN_OPTIONS" -SimpleMatch:$false
+            if ($optErr) {
+              Write-Error "ASAN_OPTIONS parse error — tests did NOT run: $($optErr.Line)"
+              $rc = 1
+            }
+          }
+
+          # Defense-in-depth (matches windows-validation.yml): pdfe_tests
+          # has exited 0 with failing tests present in the XML before
+          # (run 27446597142). A failing security-subset assertion must
+          # not ride a green exit code. Parse results.xml and promote $rc
+          # on any failures/errors so the verdict below catches it.
+          if (Test-Path $xmlPath) {
+            [xml]$gx = Get-Content -LiteralPath $xmlPath
+            $gtestFailures = [int]$gx.testsuites.failures + [int]$gx.testsuites.errors
+            if ($gtestFailures -gt 0) {
+              Write-Host "::error::gtest reported $gtestFailures failure(s)/error(s) in results.xml"
+              $gx.SelectNodes('//testcase[failure or error]') |
+                ForEach-Object { Write-Host "  FAILED: $($_.classname).$($_.name)" }
+              $rc = 1
+            }
+          } else {
+            Write-Error "results.xml not produced — cannot verify subset results"
+            $rc = 1
+          }
+
+          # Build summary.md for THIS run. Avoid PS here-strings — their
+          # column-0 body lines conflict with YAML run: | block indent.
+          $verdict = if ($rc -eq 0 -and $findings -eq 0) { "PASS" } else { "FAIL" }
+          $perRunLines = @(
+            "# Sanitizer run $stamp (MSVC ASan, CI)",
+            "",
+            "**Verdict:** $verdict",
+            "**Trigger:** ${env:GITHUB_EVENT_NAME} (workflow run ${env:GITHUB_RUN_ID})",
+            "**Commit:** ${env:GITHUB_SHA}",
+            "",
+            "| Metric | Value |",
+            "|---|---:|",
+            "| gtest exit | $rc |",
+            "| ASan findings (==N==ERROR: lines) | $findings |",
+            "| Filter | ``$filter`` |",
+            "| Preset | windows-vs2022-msvc-asan |",
+            "| Runner | self-hosted pdfe-windows |",
+            "",
+            "## Logs",
+            "",
+            "- ``stdout.log`` — full gtest stdout (incl. ASan reports if any)",
+            "- ``results.xml`` — JUnit XML for the subset"
+          )
+          Set-Content -Path "$outDir\summary.md" -Value ($perRunLines -join "`r`n") -Encoding utf8
+
+          # Overwrite top-level summary.md to reflect THIS run.
+          $topLines = @(
+            "# Sanitizer run summary (most recent CI run)",
+            "",
+            "**Verdict:** $verdict",
+            "**Run dir:** ``tests/security/reports/sanitizers/run_${stamp}_msvc_ci/``",
+            "**Workflow run:** ${env:GITHUB_SERVER_URL}/${env:GITHUB_REPOSITORY}/actions/runs/${env:GITHUB_RUN_ID}",
+            "",
+            "| Metric | Value |",
+            "|---|---:|",
+            "| Total findings | $findings |",
+            "| Non-suppressed | $findings |",
+            "| gtest exit     | $rc |",
+            "| Preset         | windows-vs2022-msvc-asan |",
+            "",
+            "See the run dir for ``stdout.log``, ``results.xml``, and the per-run ``summary.md``."
+          )
+          Set-Content -Path "$env:GITHUB_WORKSPACE\tests\security\reports\sanitizers\summary.md" -Value ($topLines -join "`r`n") -Encoding utf8
+
+          # Surface a step summary block for the run page.
+          "## MSVC ASan run $stamp" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          "- Verdict: **$verdict**" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          "- gtest exit: $rc" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          "- ASan findings: $findings" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          if ($findings -gt 0) {
+            "" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            "### ASan finding excerpts" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            Select-String -Path $stdoutLog -Pattern "^==\d+==ERROR:" -Context 0,5 |
+              Select-Object -First 10 |
+              ForEach-Object { $_.Line; $_.Context.PostContext } |
+              Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          }
+
+          # Fail the job on any finding OR non-zero gtest exit. The
+          # acceptance criterion is "zero non-suppressed findings, or
+          # each finding is filed as a new gap item" — failing here
+          # forces that triage to happen before the next merge.
+          if ($verdict -eq "FAIL") {
+            Write-Error "Sanitizer run produced FAIL verdict (gtest exit=$rc, findings=$findings)"
+            exit 1
+          }
+
+      - name: Upload sanitizer artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-sanitizer-logs
+          path: |
+            tests/security/reports/sanitizers/run_*_msvc_ci/**
+            tests/security/reports/sanitizers/summary.md
+            build/vs2022-msvc-asan/*.log
+          if-no-files-found: ignore
+          retention-days: 14

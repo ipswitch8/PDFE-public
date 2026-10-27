@@ -1,0 +1,155 @@
+{
+ "task": "Remediate the PDFE test-harness flaws identified by the phase-5 adversarial-audit capstone (docs/harness-audit/flaws-register.json). Convert ~35 class-level weak-oracle / coverage / input-domain / process findings into real behavioral oracles and enforced standing controls, ordered by Register severity and ROI. This is the IMPLEMENTATION pipeline; the capstone itself performed no remediation. Strict test-first per family; every phase gated. Do NOT relax or skip any oracle to make a suite pass (SIMPLIFY=FAIL / SKIP=FAIL) -- fix the product or the oracle.",
+ "source_artifacts": [
+  "docs/harness-audit/flaws-register.json",
+  "docs/harness-audit/dca.json",
+  "docs/harness-audit/standing-controls.json",
+  "docs/harness-audit/phase-3/mutation-report.json"
+ ],
+ "phases": [
+  {
+   "id": "phase-1",
+   "name": "Confidentiality + save-routing survivors (highest severity, live-confirmed)",
+   "description": "Close the two Critical confidentiality gaps and the 0%-kill-rate save subsystem first, because phase-3 proved these are live-escapable (M11, M08/M09/M16 SURVIVED). Add an UNCONDITIONAL decompressed-stream byte-absence + extraction-absence redaction oracle (no skip-on-fixture-fallback); add a RedactionVerifier fail-path test asserting checkTextRemoved/checkSingleRevision return FALSE on a genuine multi-revision leak (kills M11). Add save/rewrite oracles: object-count/dedup (gc=3 removes duplicates, kills M09), written-file byte-absence for optimize deleted-content (R-23), and a recovery-path size/perf budget (kills M08/M16). Add save-artifact content oracle (created annotation/edit present in written bytes, R-21).",
+   "targets_register_ids": [
+    "R-02",
+    "R-08",
+    "R-21",
+    "R-23",
+    "R-15"
+   ],
+   "acceptance_criteria": [
+    "The redacted-secret byte-absence + extraction-absence oracles run UNCONDITIONALLY (no GTEST_SKIP on fixture fallback) and FAIL on a fixture that leaves Tj operators intact",
+    "A new RedactionVerifierFailPath test asserts checkTextRemoved==false and checkSingleRevision==false on a genuine leaky/multi-revision fixture (re-running phase-3 mutant M11 now KILLS it)",
+    "Save-path tests assert object dedup on gc=3 and absence of deleted-content bytes in the optimized/saved stream (re-running M08/M09/M16 now KILLS them, or they are documented as perf-only with a size/latency budget oracle that fails on regression)",
+    "No product source regressions; full gtest suite green; JUnit XML parsed (not exit code)"
+   ],
+   "gate_agents": [
+    "karen",
+    "test-runner",
+    "validator",
+    "security-audit"
+   ]
+  },
+  {
+   "id": "phase-2",
+   "name": "Content-stream / TRE / image visual oracles (adversarial-ambient corpus, SC-a)",
+   "description": "Stand up SC-a: a committed adversarial-ambient fixture corpus (sheared/skewed CTM, rotated pages, non-zero MediaBox origin) plus a shared render/glyph-quad oracle helper, fed through ContentStreamEditor, AlignmentInjector, HeaderFooter, Watermark, TRE writeTextBlock, and image insert/resize/rotate/crop. Promote the SUCCEED-only cells in test_content_stream_adversarial_ambient.cpp to ASSERTs; add the missing 'shear' op. Rewrite the tautological Y-flip coord-mapper tests to call the product mapper. This kills phase-3 M04/M05/M06/M07 and covers the seed-1/3 mirror class at the render level.",
+   "targets_register_ids": [
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06",
+    "R-07",
+    "R-33",
+    "R-14"
+   ],
+   "acceptance_criteria": [
+    "Adversarial-ambient corpus committed (shear/rotate/mediabox-offset variants) and referenced by injector tests with pixel/quad oracles (upright, on-page, non-white, correct size band, correct alignment x-offset, colour-at-coordinate)",
+    "Re-running phase-3 mutants M04, M05, M06, M07 now KILLS each (documented in a re-run report)",
+    "test_tre_coord_mapper tests call mapper_->pdfToPixel/pixelRectToPdf and fail if the product mapper inverts Y",
+    "No self-reimplementation remains in the touched files (regression tests call production symbols)"
+   ],
+   "gate_agents": [
+    "karen",
+    "test-runner",
+    "validator"
+   ]
+  },
+  {
+   "id": "phase-3",
+   "name": "Fonts + forms + autosave visual/persistence oracles",
+   "description": "Pin golden per-string width ratios (kills M15) and NCC/pixel-compare synthesized glyphs to references; assert a real serif-vs-sans discrimination margin. Save+reopen every form/metadata assertion and add a checkbox/radio Reset-Form /DV-restore case (kills M13). Convert autosave_capture_audit's finishRow() data into EXPECT_TRUE(capture_present) per family (R-09). Add an OCR known-word oracle (R-17).",
+   "targets_register_ids": [
+    "R-10",
+    "R-11",
+    "R-09",
+    "R-17",
+    "R-18"
+   ],
+   "acceptance_criteria": [
+    "Re-running phase-3 mutants M15 and M13 now KILLS each",
+    "autosave_capture_audit fails when any of the 15 families records capture_present=NO (no remaining SUCCEED-only bodies in the file)",
+    "Form/metadata round-trips assert values via save+reopen, not in-memory dict only",
+    "OCR pipeline asserts a known fixture word appears in the hOCR"
+   ],
+   "gate_agents": [
+    "karen",
+    "test-runner",
+    "validator"
+   ]
+  },
+  {
+   "id": "phase-4",
+   "name": "Security oracles: CVE-neutralization, signature trust-chain, tamper/revocation",
+   "description": "Replace no-throw-only security oracles with positive-neutralization oracles: no outbound socket/UNC attempt (mock transport spy), no process spawn (deny hook that FAILs if invoked), no JS side-effect (canary); remove the catch-all try/catch. Introduce a real trust anchor + a genuinely-trusted chained cert fixture and assert trusted=>Okay AND untrusted=>non-Okay; fix the tamper test's operator-precedence no-op to deterministically flip a byte and assert detection; make OCSP/CRL freshness enforcement observable independent of trust state; assert the RFC-3161 TSA token OID is embedded; add a DocMDP-violation-flagged negative and a forged-GOOD-OCSP rejection.",
+   "targets_register_ids": [
+    "R-01",
+    "R-12",
+    "R-13",
+    "R-22"
+   ],
+   "acceptance_criteria": [
+    "Each replayed CVE / malicious-PDF negative asserts the attack was NEUTRALIZED (no socket/UNC/process/JS side-effect), not merely no-throw; the catch-all try/catch is removed",
+    "Signature trust tests assert BOTH a trusted cert reports Okay and an untrusted one reports non-Okay; DocMDP disallowed-change is flagged; forged-GOOD OCSP is rejected",
+    "The tamper test deterministically modifies a byte and fails a verifier that returns isFullyValid=true",
+    "ProhibitedFeatureScanner flags a positive-detection fixture (encryption/JS/external-ref present)"
+   ],
+   "gate_agents": [
+    "karen",
+    "test-runner",
+    "validator",
+    "security-audit"
+   ]
+  },
+  {
+   "id": "phase-5",
+   "name": "Make standing gates real (mutation gate, coverage floor, DCA loop, live RTM, CI triggers)",
+   "description": "Institutionalize the controls so the classes cannot silently re-escape: swap the 3-mutant stub for the phase-3 16-mutant manifest with an enforced kill-rate floor (SC-c); enforce a per-subsystem coverage floor and make tool-absence a hard error (SC-d); promote the escaped-defect->DCA->class-test loop to a required per-commit gate (SC-e); enforce live RTM so a matrix cell is green only if the owning test ran AND asserted in the same run, with owner-only writes (SC-f); re-enable per-commit/PR CI triggers with a non-removable JUnit sum-of-failures check + failing sentinel (SC-h).",
+   "targets_register_ids": [
+    "R-24",
+    "R-32",
+    "R-26",
+    "R-31",
+    "R-28",
+    "R-25",
+    "R-30",
+    "R-36",
+    "R-37"
+   ],
+   "acceptance_criteria": [
+    "mutation-kill.yml runs the 16-mutant set and FAILS on any new survivor; the floor is enforced (a demo mutant that survives fails the build)",
+    "Coverage step can fail the build (continue-on-error removed, floor enforced, tool-absence is a hard error)",
+    "A bug-fix commit lacking a DCA record + class-level test FAILS the required gate",
+    "The UI matrix cannot be rebuilt from committed green; a cell is green only when its owning test ran+asserted in the evaluated run; SKIP cannot clobber a proven pass",
+    "Per-commit/PR triggers restored for a fast lane; a deliberately-failing sentinel test fails the build via JUnit parse"
+   ],
+   "gate_agents": [
+    "karen",
+    "validator",
+    "test-runner"
+   ]
+  },
+  {
+   "id": "phase-6",
+   "name": "UI de-skip-wall, correctness goldens, destruction-under-active-state",
+   "description": "Route menu/tool activation through testToolActivatePipe (invoke_action) with result-pipe readback to defeat the gap_a14 hang and un-skip the ~472 silent-zero UI sites (SC-g); replace self-seeding regen goldens with committed correctness goldens from a trusted reference so mirror/wrong-zoom/tofu/wrong-icon are caught; add a visual/icon oracle for toolbar buttons (seed-4 wrong-icons). Add the ASan destruction-under-active-state matrix (close window / destroy document while each edit family + tool is active) to catch the seed-2 mid-edit teardown UAF.",
+   "targets_register_ids": [
+    "R-27",
+    "R-29",
+    "R-20",
+    "R-35"
+   ],
+   "acceptance_criteria": [
+    "UI visual/behavioral tests execute (not skip) on the Server-2019 CI runner via the pipe route; skip count for silent-zero-protection drops materially from ~472",
+    "Committed correctness goldens fail on a deliberately mirrored/half-size/wrong-icon render (not merely 'changed')",
+    "A destruction-under-active-state ASan test exists per edit family + tool and passes with clean teardown (and would fail on a reintroduced ~MainWindow UAF)"
+   ],
+   "gate_agents": [
+    "karen",
+    "test-runner",
+    "validator"
+   ]
+  }
+ ]
+}

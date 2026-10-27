@@ -1,0 +1,37 @@
+
+================================================================
+                  Commercial Licensing Addendum
+================================================================
+
+PDFE is dual-licensed.
+
+OPTION A — GNU Affero General Public License, Version 3 (AGPL-3.0)
+Free of charge for personal, educational, internal-business, and
+open-source use. The terms above (sections 0 through 17 of the
+AGPL) apply in full. In particular, if you modify PDFE and run
+the modified version on a server that interacts with users over
+a network, you must offer those users the corresponding source
+code under the same AGPL terms.
+
+OPTION B — Commercial License (separate agreement)
+A commercial license is required if any of the following apply:
+  * You redistribute PDFE, modified or unmodified, as part of a
+    closed-source / proprietary product or bundled software.
+  * You sublicense PDFE or any derivative work to a third party
+    on terms that differ from the AGPL.
+  * You incorporate PDFE into a proprietary derivative work and
+    distribute the result outside your organization.
+  * You operate PDFE as a hosted service for paying users without
+    making the corresponding source available under AGPL Section 13.
+
+The commercial license preserves the AGPL grant for non-commercial
+users; commercial licensees gain redistribution rights without the
+AGPL's source-availability obligation.
+
+For commercial licensing inquiries, terms, and pricing, contact:
+        inquiries@itwerx.net
+
+This addendum does not weaken or restrict the AGPL grant for any
+user who chooses Option A. It only describes the alternative
+Option B made available by the copyright holder.
+================================================================

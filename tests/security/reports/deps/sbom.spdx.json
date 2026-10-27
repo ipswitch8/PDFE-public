@@ -1,0 +1,2970 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "name": "PDFE",
+  "documentNamespace": "https://github.com/itwerx/PDFE/sbom-20260912T094652Z",
+  "creationInfo": {
+    "created": "2026-09-12T09:46:52Z",
+    "creators": [
+      "Tool: pdfe-gen_sbom"
+    ]
+  },
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "comment": "SCOPE: vcpkg and cargo dependencies only. PDFE additionally ships third-party binaries committed into the repository (tests/fixtures/tessdata/*.traineddata) which are NOT enumerated here; see THIRD-PARTY-NOTICES.md for their provenance, licence and checksums. This document's silence about an artifact is not evidence of its absence. Rationale: docs/security/supply-chain-scope-decision.md (GitHub #177).",
+  "packages": [
+    {
+      "filesAnalyzed": false,
+      "name": "brotli",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.2.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/brotli@1.2.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-brotli-1.2.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "bzip2",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.8",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/bzip2@1.0.8",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-bzip2-1.0.8"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "curl",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "8.18.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/curl@8.18.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-curl-8.18.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "dbus",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.16.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/dbus@1.16.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-dbus-1.16.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "double-conversion",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "3.4.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/double-conversion@3.4.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-double-conversion-3.4.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "egl-registry",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2025-05-27",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/egl-registry@2025-05-27",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-egl-registry-2025-05-27"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "expat",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.7.4",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/expat@2.7.4",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-expat-2.7.4"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "freetype",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.13.3",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/freetype@2.13.3",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-freetype-2.13.3"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "giflib",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "5.2.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/giflib@5.2.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-giflib-5.2.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "gtest",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.17.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/gtest@1.17.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-gtest-1.17.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "gumbo",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.12.3",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/gumbo@0.12.3",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-gumbo-0.12.3"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "harfbuzz",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "12.3.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/harfbuzz@12.3.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-harfbuzz-12.3.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "icu",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "78.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/icu@78.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-icu-78.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "jbig2dec",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.20",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/jbig2dec@0.20",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-jbig2dec-0.20"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "leptonica",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.87.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/leptonica@1.87.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-leptonica-1.87.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "libarchive",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "3.8.5",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/libarchive@3.8.5",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-libarchive-3.8.5"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "libjpeg-turbo",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "3.1.3",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/libjpeg-turbo@3.1.3",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-libjpeg-turbo-3.1.3"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "liblzma",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "5.8.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/liblzma@5.8.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-liblzma-5.8.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "libmupdf",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.26.10",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/libmupdf@1.26.10",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-libmupdf-1.26.10"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "libpng",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.6.54",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/libpng@1.6.54",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-libpng-1.6.54"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "libpq",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "16.9",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/libpq@16.9",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-libpq-16.9"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "libwebp",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.6.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/libwebp@1.6.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-libwebp-1.6.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "lz4",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.10.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/lz4@1.10.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-lz4-1.10.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "md4c",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.5.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/md4c@0.5.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-md4c-0.5.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "mujs",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.3.8",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/mujs@1.3.8",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-mujs-1.3.8"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "opengl",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2022-12-04",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/opengl@2022-12-04",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-opengl-2022-12-04"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "opengl-registry",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2026-01-26",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/opengl-registry@2026-01-26",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-opengl-registry-2026-01-26"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "openjpeg",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.5.4",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/openjpeg@2.5.4",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-openjpeg-2.5.4"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "openssl",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "3.6.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/openssl@3.6.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-openssl-3.6.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "pcre2",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "10.47",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/pcre2@10.47",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-pcre2-10.47"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "pkgconf",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.5.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/pkgconf@2.5.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-pkgconf-2.5.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "pugixml",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.15",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/pugixml@1.15",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-pugixml-1.15"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "qpdf",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "12.3.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/qpdf@12.3.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-qpdf-12.3.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "qtbase",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "6.10.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/qtbase@6.10.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-qtbase-6.10.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "qtsvg",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "6.10.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/qtsvg@6.10.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-qtsvg-6.10.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "qttools",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "6.10.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/qttools@6.10.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-qttools-6.10.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "sqlite3",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "3.51.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/sqlite3@3.51.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-sqlite3-3.51.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "tesseract",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "5.5.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/tesseract@5.5.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-tesseract-5.5.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "tiff",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "4.7.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/tiff@4.7.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-tiff-4.7.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "vcpkg-cmake",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2024-04-23",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/vcpkg-cmake@2024-04-23",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-vcpkg-cmake-2024-04-23"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "vcpkg-cmake-config",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2024-05-23",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/vcpkg-cmake-config@2024-05-23",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-vcpkg-cmake-config-2024-05-23"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "vcpkg-cmake-get-vars",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2025-05-29",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/vcpkg-cmake-get-vars@2025-05-29",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-vcpkg-cmake-get-vars-2025-05-29"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "vcpkg-make",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2026-01-01",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/vcpkg-make@2026-01-01",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-vcpkg-make-2026-01-01"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "vcpkg-pkgconfig-get-modules",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2024-04-03",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/vcpkg-pkgconfig-get-modules@2024-04-03",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-vcpkg-pkgconfig-get-modules-2024-04-03"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "vcpkg-tool-meson",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.9.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/vcpkg-tool-meson@1.9.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-vcpkg-tool-meson-1.9.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "zlib",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.3.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/zlib@1.3.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-zlib-1.3.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "zstd",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.5.7",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:vcpkg/zstd@1.5.7",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-vcpkg-zstd-1.5.7"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "aho-corasick",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.1.4",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/aho-corasick@1.1.4",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-aho-corasick-1.1.4"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "allocator-api2",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.21",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/allocator-api2@0.2.21",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-allocator-api2-0.2.21"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "anyhow",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.102",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/anyhow@1.0.102",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-anyhow-1.0.102"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "arc-swap",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.9.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/arc-swap@1.9.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-arc-swap-1.9.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "async-trait",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.1.89",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/async-trait@0.1.89",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-async-trait-0.1.89"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "autocfg",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.5.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/autocfg@1.5.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-autocfg-1.5.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "base64",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.22.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/base64@0.22.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-base64-0.22.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "bitflags",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.11.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/bitflags@2.11.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-bitflags-2.11.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "bitpacking",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.9.3",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/bitpacking@0.9.3",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-bitpacking-0.9.3"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "bon",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "3.9.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/bon@3.9.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-bon-3.9.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "bon-macros",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "3.9.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/bon-macros@3.9.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-bon-macros-3.9.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "bumpalo",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "3.20.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/bumpalo@3.20.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-bumpalo-3.20.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "byteorder",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.5.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/byteorder@1.5.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-byteorder-1.5.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "cc",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.2.61",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/cc@1.2.61",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-cc-1.2.61"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "census",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.4.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/census@0.4.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-census-0.4.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "cfg-if",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.4",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/cfg-if@1.0.4",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-cfg-if-1.0.4"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "crc32fast",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.5.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/crc32fast@1.5.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-crc32fast-1.5.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "crossbeam-channel",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.5.15",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/crossbeam-channel@0.5.15",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-crossbeam-channel-0.5.15"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "crossbeam-deque",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.8.6",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/crossbeam-deque@0.8.6",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-crossbeam-deque-0.8.6"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "crossbeam-epoch",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.9.18",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/crossbeam-epoch@0.9.18",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-crossbeam-epoch-0.9.18"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "crossbeam-utils",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.8.21",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/crossbeam-utils@0.8.21",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-crossbeam-utils-0.8.21"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "crunchy",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.4",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/crunchy@0.2.4",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-crunchy-0.2.4"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "darling",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.23.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/darling@0.23.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-darling-0.23.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "darling_core",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.23.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/darling_core@0.23.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-darling-core-0.23.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "darling_macro",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.23.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/darling_macro@0.23.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-darling-macro-0.23.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "datasketches",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/datasketches@0.2.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-datasketches-0.2.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "deranged",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.5.8",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/deranged@0.5.8",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-deranged-0.5.8"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "downcast-rs",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.0.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/downcast-rs@2.0.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-downcast-rs-2.0.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "either",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.15.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/either@1.15.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-either-1.15.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "equivalent",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/equivalent@1.0.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-equivalent-1.0.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "erased-serde",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.4.10",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/erased-serde@0.4.10",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-erased-serde-0.4.10"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "errno",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.3.14",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/errno@0.3.14",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-errno-0.3.14"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "fastdivide",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.4.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/fastdivide@0.4.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-fastdivide-0.4.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "fastrand",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.4.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/fastrand@2.4.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-fastrand-2.4.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "find-msvc-tools",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.1.9",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/find-msvc-tools@0.1.9",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-find-msvc-tools-0.1.9"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "fnv",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.7",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/fnv@1.0.7",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-fnv-1.0.7"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "foldhash",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.1.5",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/foldhash@0.1.5",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-foldhash-0.1.5"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "foldhash",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/foldhash@0.2.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-foldhash-0.2.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "fs4",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.13.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/fs4@0.13.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-fs4-0.13.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "futures-core",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.3.32",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/futures-core@0.3.32",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-futures-core-0.3.32"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "futures-macro",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.3.32",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/futures-macro@0.3.32",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-futures-macro-0.3.32"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "futures-task",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.3.32",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/futures-task@0.3.32",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-futures-task-0.3.32"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "futures-util",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.3.32",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/futures-util@0.3.32",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-futures-util-0.3.32"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "getrandom",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.3.4",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/getrandom@0.3.4",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-getrandom-0.3.4"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "getrandom",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.4.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/getrandom@0.4.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-getrandom-0.4.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "hashbrown",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.15.5",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/hashbrown@0.15.5",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-hashbrown-0.15.5"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "hashbrown",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.16.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/hashbrown@0.16.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-hashbrown-0.16.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "hashbrown",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.17.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/hashbrown@0.17.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-hashbrown-0.17.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "heck",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.5.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/heck@0.5.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-heck-0.5.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "htmlescape",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.3.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/htmlescape@0.3.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-htmlescape-0.3.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "id-arena",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.3.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/id-arena@2.3.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-id-arena-2.3.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "ident_case",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/ident_case@1.0.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-ident-case-1.0.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "indexmap",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.14.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/indexmap@2.14.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-indexmap-2.14.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "inventory",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.3.24",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/inventory@0.3.24",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-inventory-0.3.24"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "itertools",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.14.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/itertools@0.14.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-itertools-0.14.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "itoa",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.18",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/itoa@1.0.18",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-itoa-1.0.18"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "jobserver",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.1.34",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/jobserver@0.1.34",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-jobserver-0.1.34"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "js-sys",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.3.95",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/js-sys@0.3.95",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-js-sys-0.3.95"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "leb128fmt",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.1.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/leb128fmt@0.1.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-leb128fmt-0.1.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "levenshtein_automata",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/levenshtein_automata@0.2.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-levenshtein-automata-0.2.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "libc",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.186",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/libc@0.2.186",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-libc-0.2.186"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "linux-raw-sys",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.12.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/linux-raw-sys@0.12.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-linux-raw-sys-0.12.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "log",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.4.29",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/log@0.4.29",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-log-0.4.29"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "lru",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.16.4",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/lru@0.16.4",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-lru-0.16.4"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "lz4_flex",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.13.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/lz4_flex@0.13.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-lz4-flex-0.13.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "measure_time",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.9.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/measure_time@0.9.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-measure-time-0.9.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "memchr",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.8.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/memchr@2.8.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-memchr-2.8.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "memmap2",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.9.10",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/memmap2@0.9.10",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-memmap2-0.9.10"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "minimal-lexical",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/minimal-lexical@0.2.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-minimal-lexical-0.2.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "murmurhash32",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.3.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/murmurhash32@0.3.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-murmurhash32-0.3.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "nom",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "7.1.3",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/nom@7.1.3",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-nom-7.1.3"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "num-conv",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/num-conv@0.2.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-num-conv-0.2.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "num-traits",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.19",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/num-traits@0.2.19",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-num-traits-0.2.19"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "once_cell",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.21.4",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/once_cell@1.21.4",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-once-cell-1.21.4"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "oneshot",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.1.13",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/oneshot@0.1.13",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-oneshot-0.1.13"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "ordered-float",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "5.3.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/ordered-float@5.3.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-ordered-float-5.3.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "ownedbytes",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.9.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/ownedbytes@0.9.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-ownedbytes-0.9.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "pin-project-lite",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.17",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/pin-project-lite@0.2.17",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-pin-project-lite-0.2.17"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "pkg-config",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.3.33",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/pkg-config@0.3.33",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-pkg-config-0.3.33"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "powerfmt",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/powerfmt@0.2.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-powerfmt-0.2.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "prettyplease",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.37",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/prettyplease@0.2.37",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-prettyplease-0.2.37"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "proc-macro2",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.106",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/proc-macro2@1.0.106",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-proc-macro2-1.0.106"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "quote",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.45",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/quote@1.0.45",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-quote-1.0.45"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "r-efi",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "5.3.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/r-efi@5.3.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-r-efi-5.3.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "r-efi",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "6.0.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/r-efi@6.0.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-r-efi-6.0.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "rayon",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.12.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/rayon@1.12.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-rayon-1.12.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "rayon-core",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.13.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/rayon-core@1.13.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-rayon-core-1.13.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "regex",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.12.3",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/regex@1.12.3",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-regex-1.12.3"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "regex-automata",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.4.14",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/regex-automata@0.4.14",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-regex-automata-0.4.14"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "regex-syntax",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.8.10",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/regex-syntax@0.8.10",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-regex-syntax-0.8.10"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "rust-stemmers",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.2.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/rust-stemmers@1.2.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-rust-stemmers-1.2.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "rustc-hash",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.1.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/rustc-hash@2.1.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-rustc-hash-2.1.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "rustix",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.1.4",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/rustix@1.1.4",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-rustix-1.1.4"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "rustversion",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.22",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/rustversion@1.0.22",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-rustversion-1.0.22"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "semver",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.28",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/semver@1.0.28",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-semver-1.0.28"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "serde",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.228",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/serde@1.0.228",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-serde-1.0.228"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "serde_core",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.228",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/serde_core@1.0.228",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-serde-core-1.0.228"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "serde_derive",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.228",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/serde_derive@1.0.228",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-serde-derive-1.0.228"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "serde_json",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.149",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/serde_json@1.0.149",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-serde-json-1.0.149"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "shlex",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.3.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/shlex@1.3.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-shlex-1.3.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "sketches-ddsketch",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.4.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/sketches-ddsketch@0.4.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-sketches-ddsketch-0.4.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "slab",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.4.12",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/slab@0.4.12",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-slab-0.4.12"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "smallvec",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.15.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/smallvec@1.15.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-smallvec-1.15.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "stable_deref_trait",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.2.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/stable_deref_trait@1.2.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-stable-deref-trait-1.2.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "strsim",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.11.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/strsim@0.11.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-strsim-0.11.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "syn",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.0.117",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/syn@2.0.117",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-syn-2.0.117"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "tantivy",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.26.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/tantivy@0.26.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-tantivy-0.26.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "tantivy-bitpacker",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.10.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/tantivy-bitpacker@0.10.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-tantivy-bitpacker-0.10.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "tantivy-columnar",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.7.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/tantivy-columnar@0.7.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-tantivy-columnar-0.7.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "tantivy-common",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.11.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/tantivy-common@0.11.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-tantivy-common-0.11.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "tantivy-fst",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.5.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/tantivy-fst@0.5.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-tantivy-fst-0.5.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "tantivy-query-grammar",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.26.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/tantivy-query-grammar@0.26.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-tantivy-query-grammar-0.26.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "tantivy-sstable",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.7.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/tantivy-sstable@0.7.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-tantivy-sstable-0.7.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "tantivy-stacker",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.7.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/tantivy-stacker@0.7.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-tantivy-stacker-0.7.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "tantivy-tokenizer-api",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.7.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/tantivy-tokenizer-api@0.7.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-tantivy-tokenizer-api-0.7.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "tantivy_bridge",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.1.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/tantivy_bridge@0.1.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-tantivy-bridge-0.1.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "tempfile",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "3.27.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/tempfile@3.27.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-tempfile-3.27.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "thiserror",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.0.18",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/thiserror@2.0.18",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-thiserror-2.0.18"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "thiserror-impl",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.0.18",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/thiserror-impl@2.0.18",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-thiserror-impl-2.0.18"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "time",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.3.47",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/time@0.3.47",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-time-0.3.47"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "time-core",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.1.8",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/time-core@0.1.8",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-time-core-0.1.8"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "time-macros",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.27",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/time-macros@0.2.27",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-time-macros-0.2.27"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "typeid",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.3",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/typeid@1.0.3",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-typeid-1.0.3"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "typetag",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.21",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/typetag@0.2.21",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-typetag-0.2.21"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "typetag-impl",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.21",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/typetag-impl@0.2.21",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-typetag-impl-0.2.21"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "unicode-ident",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.24",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/unicode-ident@1.0.24",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-unicode-ident-1.0.24"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "unicode-xid",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.6",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/unicode-xid@0.2.6",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-unicode-xid-0.2.6"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "utf8-ranges",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.5",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/utf8-ranges@1.0.5",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-utf8-ranges-1.0.5"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "uuid",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.23.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/uuid@1.23.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-uuid-1.23.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wasip2",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.3+wasi-0.2.9",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wasip2@1.0.3+wasi-0.2.9",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wasip2-1.0.3-wasi-0.2.9"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wasip3",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.4.0+wasi-0.3.0-rc-2026-01-06",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wasip3@0.4.0+wasi-0.3.0-rc-2026-01-06",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wasip3-0.4.0-wasi-0.3.0-rc-2026-01-06"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wasm-bindgen",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.118",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wasm-bindgen@0.2.118",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wasm-bindgen-0.2.118"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wasm-bindgen-macro",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.118",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wasm-bindgen-macro@0.2.118",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wasm-bindgen-macro-0.2.118"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wasm-bindgen-macro-support",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.118",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wasm-bindgen-macro-support@0.2.118",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wasm-bindgen-macro-support-0.2.118"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wasm-bindgen-shared",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.118",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wasm-bindgen-shared@0.2.118",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wasm-bindgen-shared-0.2.118"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wasm-encoder",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.244.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wasm-encoder@0.244.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wasm-encoder-0.244.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wasm-metadata",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.244.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wasm-metadata@0.244.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wasm-metadata-0.244.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wasmparser",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.244.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wasmparser@0.244.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wasmparser-0.244.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "winapi",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.3.9",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/winapi@0.3.9",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-winapi-0.3.9"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "winapi-i686-pc-windows-gnu",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.4.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/winapi-i686-pc-windows-gnu@0.4.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-winapi-i686-pc-windows-gnu-0.4.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "winapi-x86_64-pc-windows-gnu",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.4.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/winapi-x86_64-pc-windows-gnu@0.4.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-winapi-x86-64-pc-windows-gnu-0.4.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "windows-link",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.2.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/windows-link@0.2.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-windows-link-0.2.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "windows-sys",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.59.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/windows-sys@0.59.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-windows-sys-0.59.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "windows-sys",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.61.2",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/windows-sys@0.61.2",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-windows-sys-0.61.2"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "windows-targets",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.52.6",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/windows-targets@0.52.6",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-windows-targets-0.52.6"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "windows_aarch64_gnullvm",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.52.6",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/windows_aarch64_gnullvm@0.52.6",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-windows-aarch64-gnullvm-0.52.6"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "windows_aarch64_msvc",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.52.6",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/windows_aarch64_msvc@0.52.6",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-windows-aarch64-msvc-0.52.6"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "windows_i686_gnu",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.52.6",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/windows_i686_gnu@0.52.6",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-windows-i686-gnu-0.52.6"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "windows_i686_gnullvm",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.52.6",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/windows_i686_gnullvm@0.52.6",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-windows-i686-gnullvm-0.52.6"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "windows_i686_msvc",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.52.6",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/windows_i686_msvc@0.52.6",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-windows-i686-msvc-0.52.6"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "windows_x86_64_gnu",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.52.6",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/windows_x86_64_gnu@0.52.6",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-windows-x86-64-gnu-0.52.6"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "windows_x86_64_gnullvm",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.52.6",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/windows_x86_64_gnullvm@0.52.6",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-windows-x86-64-gnullvm-0.52.6"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "windows_x86_64_msvc",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.52.6",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/windows_x86_64_msvc@0.52.6",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-windows-x86-64-msvc-0.52.6"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wit-bindgen",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.51.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wit-bindgen@0.51.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wit-bindgen-0.51.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wit-bindgen",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.57.1",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wit-bindgen@0.57.1",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wit-bindgen-0.57.1"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wit-bindgen-core",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.51.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wit-bindgen-core@0.51.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wit-bindgen-core-0.51.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wit-bindgen-rust",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.51.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wit-bindgen-rust@0.51.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wit-bindgen-rust-0.51.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wit-bindgen-rust-macro",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.51.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wit-bindgen-rust-macro@0.51.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wit-bindgen-rust-macro-0.51.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wit-component",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.244.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wit-component@0.244.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wit-component-0.244.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "wit-parser",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.244.0",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/wit-parser@0.244.0",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-wit-parser-0.244.0"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "zmij",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "1.0.21",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/zmij@1.0.21",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-zmij-1.0.21"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "zstd",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "0.13.3",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/zstd@0.13.3",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-zstd-0.13.3"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "zstd-safe",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "7.2.4",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/zstd-safe@7.2.4",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-zstd-safe-7.2.4"
+    },
+    {
+      "filesAnalyzed": false,
+      "name": "zstd-sys",
+      "downloadLocation": "NOASSERTION",
+      "versionInfo": "2.0.16+zstd.1.5.7",
+      "externalRefs": [
+        {
+          "referenceLocator": "pkg:cargo/zstd-sys@2.0.16+zstd.1.5.7",
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl"
+        }
+      ],
+      "SPDXID": "SPDXRef-cargo-zstd-sys-2.0.16-zstd.1.5.7"
+    }
+  ],
+  "dataLicense": "CC0-1.0"
+}

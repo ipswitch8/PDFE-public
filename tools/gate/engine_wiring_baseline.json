@@ -1,0 +1,88 @@
+{
+  "_what": "Classes the TEST SUITE exercises that the product cannot reach from src/main.cpp. Read by tools/gate/check_engine_wiring.py, the standing control for test-gap class C-BELOW (docs/audit/test-gap-classes.md section 3).",
+  "_rules": [
+    "This is a RATCHET, not an amnesty. A NEW unreachable class fails the build.",
+    "A baselined class that BECOMES reachable must be REMOVED from here, or the guard fails. A list that only grows is the 0023 shape: a control reporting 'class closed' about its own list rather than about the property.",
+    "Every entry states WHICH kind it is, in its `kind` field. The vocabulary is defined and ENFORCED in check_engine_wiring.py (BASELINE_KINDS) and is deliberately not copied here: this line used to enumerate the kinds, nothing read it, and prose that no code reads is where a claim rots. GitHub #259.",
+    "An entry that admits a real gap is not resolved by being listed here: it must carry an `issue` field, which the checker requires."
+  ],
+  "_established": "2026-09-23, pipeline p91-test-gap-classes phase-3.",
+  "_how_verified": "Reachability is a TRANSITIVE CLOSURE from src/main.cpp over CODE references, with comments and string literals stripped first. The first version of this sweep was neither, and the phase-3 claim-check gate caught both errors: ImageExporter was called reachable on two mentions that were both prose inside // comments, and WordExporter on a real call from ExcelExporter.cpp -- itself dead. Both made the guard UNDER-report. Correcting them took the population from 10 to 18. Sibling counts are still cited below where they distinguish an admitted gap from code the product outgrew.",
+  "ScopedPrinterCount": {
+    "kind": "deliberate-test-only-seam",
+    "declared_in": "src/core/PrintDeviceSeam.h",
+    "reason": "The header says so in its own first lines: 'test-only injection seam for Windows printer ENUMERATION' (pipeline p84-remaining-open phase-5, GitHub #78 / WIN-28). Production is supposed to never reference it. Correctly flagged by a lexical rule; correctly not a defect."
+  },
+  "PdfCanvasAccessible": {
+    "kind": "lexical-false-positive",
+    "declared_in": "src/ui/PdfCanvasAccessible.h",
+    "reason": "It IS reachable, through a free factory function rather than by name: src/main.cpp:101 calls QAccessible::installFactory(pdfe::ui::pdfCanvasAccessibleFactory), and that factory constructs the class. The guard matches CLASS names, so a class reached only via a registered factory function is exactly the documented over-report. Not a defect and must not be treated as one."
+  },
+  "DeletePageCommand": {
+    "kind": "superseded",
+    "declared_in": "src/core/PageCommands.h",
+    "reason": "MainWindow::onDeletePages constructs DeletePageRangeCommand unconditionally -- there is no single-page branch -- so one page is handled as a range of one. That justification now has oracles behind it: tests/test_page_commands.cpp DeletePageRangeCommand_SingleIndex_{DeletesThatPageOnly,UndoRestoresThePage,RedoDeletesItAgain}, added because every pre-existing range test used a two-element vector and the size-1 path (the everyday UI case) was asserted by nothing.",
+    "issue": 253
+  },
+  "ExcelExporter": {
+    "kind": "admitted-gap",
+    "declared_in": "src/exports/ExcelExporter.h",
+    "reason": "No code in src/ references it outside its own pair, and 34 test mentions. It is the origin of the dead export island: WordExporter and ZipWriter are reachable ONLY from here, so all three fall together. A comment at src/ui/PdfCanvasAccessible.cpp:145 asserts 'exporters (Word/Excel/Image/PlainText) already enforce' a copy-permission property -- a claim about three components nothing can run.",
+    "issue": 253
+  },
+  "WordExporter": {
+    "kind": "admitted-gap",
+    "declared_in": "src/exports/WordExporter.h",
+    "reason": "Its only code reference is ExcelExporter.cpp calling WordExporter::escapeXml -- a real call from a caller nothing can reach. This is the case that proved a depth-1 rule insufficient: dead code referencing dead code forms a closed island that reads as two live components. Of the four exporters only PlainTextExporter has a production caller (src/ui/MainWindow.cpp:7270, wired to the Export Plain Text menu action).",
+    "issue": 253
+  },
+  "ImageExporter": {
+    "kind": "admitted-gap",
+    "declared_in": "src/exports/ImageExporter.h",
+    "reason": "Zero code references. Its only two mentions outside its own pair are prose inside // comments (src/core/AtomicFileReplace.h:14 and src/core/Document.cpp:532), which the first version of this sweep counted as call sites. A comment naming a component is not a call to it.",
+    "issue": 253
+  },
+  "ZipWriter": {
+    "kind": "admitted-gap",
+    "declared_in": "src/exports/MiniZip.h",
+    "reason": "Referenced only by ExcelExporter.cpp and WordExporter.cpp, both themselves unreachable. The third member of the dead export island; it falls with them and would become reachable the moment either is wired.",
+    "issue": 253
+  },
+  "FontSubstitutionEngine": {
+    "kind": "admitted-gap",
+    "declared_in": "src/fonts/FontSubstitutionEngine.h",
+    "reason": "Zero code references anywhere in src/ outside its own pair. Every hit is a CMakeLists entry, a comment, or an #include of the header -- and including a header is not using the class (the same distinction that moved DeleteFormFieldCommand into this list). This is Metric-Compatible Font Substitution, a headline item of the TRE architecture, and no user action reaches it.",
+    "issue": 253
+  },
+  "GlyphScaleAdjuster": {
+    "kind": "admitted-gap",
+    "declared_in": "src/fonts/GlyphScaleAdjuster.h",
+    "reason": "Referenced only by FontSubstitutionEngine, itself unreachable. Falls with it rather than independently, and would become reachable if the substitution engine were wired.",
+    "issue": 253
+  },
+  "BundledFonts": {
+    "kind": "admitted-gap",
+    "declared_in": "src/core/BundledFonts.h",
+    "reason": "Referenced only by BasicFontMatcher.cpp, itself unreachable -- a two-member dead island alongside a live path. It falls with BasicFontMatcher rather than independently, so its disposition is whatever that one's turns out to be, and that is now decision-pending rather than DELETE. Note FontResolver's setBundledFontsDir() / bundledFontsDir() are a DIFFERENT mechanism -- a directory path, not this class -- so the live path does not depend on it.",
+    "issue": 253
+  },
+  "BasicFontMatcher": {
+    "kind": "admitted-gap",
+    "declared_in": "src/core/BasicFontMatcher.h",
+    "reason": "Exact-PostScript-name and alias font matching, 3 test mentions, no production caller. GitHub #253 recorded this as 'probably superseded by the TRE FontMatcher -- NOT VERIFIED'. That guess is wrong about WHICH class: tre::FontMatcher matches from a RASTERISED IMAGE (detectProperties, script runs, bitmap/CNN ranking) and has no bare-name entry point, and fonts::SubstituteFontSelector::findSubstitute needs a FontMetricProfile measured from an EMBEDDED font -- precisely what the name-only case lacks. The nearest live equivalent is fonts::FontResolver (resolveFontPath / resolveStandard14 / substitutionChain), reachable from MainWindow.cpp, PdfAConverter.cpp, SubstituteFontSelector.cpp and tre/FontMatcher.cpp. BUT SUPERSESSION IS NOT ESTABLISHED, and an earlier version of this entry overclaimed it as 'VERIFIED' with 'Disposition: DELETE'. The phase-4 claim-check gate FAILED the phase for that, correctly: nothing tests the equivalence, and the interfaces are NOT equivalent. BasicFontMatcher::findMatch returns a FontMetrics -- postScriptName, familyName, styleName, weight, style, isSerif, isMonospace, unitsPerEm, ascender, descender, xHeight, capHeight, filePath -- whereas every FontResolver entry point returns a bare std::string path (or a vector of them). A consumer that needs METRICS is not served by a PATH, so the two answer different questions from the same input. The original comparison looked at the inputs and ignored the outputs. DISPOSITION: decision pending, same status as the twelve entries in section 3 of docs/audit/unreachable-class-dispositions-2026-10.md. Deleting it requires first establishing that nothing wants the metrics, which is a product/engineering question nobody has answered.",
+    "issue": 253,
+    "verified": "2026-10-08: NOT superseded by tre::FontMatcher (wrong class, per #253's guess). Whether fonts::FontResolver supersedes it is UNRESOLVED -- FontResolver returns a path, BasicFontMatcher returns FontMetrics."
+  },
+  "TilePrefetcher": {
+    "kind": "admitted-gap",
+    "declared_in": "src/rendering/TilePrefetcher.h",
+    "reason": "36 test mentions and no production caller -- nothing in src/ prefetches at all; the only other mention of prefetching is a comment in src/tre/ImageReplacer.h. Notable because DCA 0004 found and fixed a real unlocked-shared-member concurrency defect here, work done on a component the product cannot run. 0004's own severity note says 'production drives prefetch from the UI thread only', which is not true: production drives no prefetch.",
+    "issue": 253
+  },
+  "StartupTimer": {
+    "kind": "admitted-gap",
+    "declared_in": "src/app/StartupTimer.h",
+    "reason": "Records labelled startup checkpoints; nothing in src/ constructs it, so no startup timing is collected in the shipping app. 6 test mentions.",
+    "issue": 253
+  }
+}

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- GAP-A15 (R-30) SENTINEL (green pole): a clean GoogleTest JUnit report. The
+     fast-checks lane runs tools/gate/check_junit_xml.py against this and REQUIRES
+     exit 0 — proving the checker is not simply always-red. Together with
+     sentinel_red.xml this pins both poles of the false-green defense. -->
+<testsuites tests="2" failures="0" errors="0" name="AllTests">
+  <testsuite name="SentinelSuite" tests="2" failures="0" errors="0">
+    <testcase name="PassingCaseA" classname="SentinelSuite" status="run"/>
+    <testcase name="PassingCaseB" classname="SentinelSuite" status="run"/>
+  </testsuite>
+</testsuites>

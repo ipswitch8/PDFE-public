@@ -1,0 +1,132 @@
+{
+  "pipeline": "p94-open-issues phase-1 (GitHub #241, GitHub #243)",
+  "mutations": [
+    {
+      "id": "M1",
+      "what": "restores the per-activation QAction lambdas that captured a raw FormTool* (the #243 defect)",
+      "file": "src/ui/MainWindow.cpp",
+      "find": "        // Default to text field creation. This one is safe to call directly:",
+      "replace": "        // MUTATION-P94-M1: pre-fix per-activation captured-pointer connection\n        connect(formSignatureAction_, &QAction::triggered, this, [formToolRaw]() {\n            formToolRaw->setCreationFieldType(pdfe::forms::FormFieldType::Signature);\n        });\n        connect(formRadioButtonAction_, &QAction::triggered, this, [formToolRaw]() {\n            formToolRaw->setCreationFieldType(pdfe::forms::FormFieldType::RadioButton);\n        });\n        // Default to text field creation. This one is safe to call directly:",
+      "marker": "MUTATION-P94-M1",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "FormToolActionLifetimeTest.*",
+      "expect_fail": [
+        "FormToolActionLifetimeTest.TriggerReachesTheLiveToolAfterRepeatedActivation",
+        "FormToolActionLifetimeTest.TheRadioButtonHandleTargetsOnlyTheLiveTool",
+        "FormToolActionLifetimeTest.FieldTypeActionWithNoLiveToolChangesNothing"
+      ]
+    },
+    {
+      "id": "M2",
+      "what": "makes the secondary write only the FIRST path into the request",
+      "file": "src/app/SingleInstanceGuard.cpp",
+      "find": "        for (const QString& filePath : filePaths) {\n            payload.append(filePath.toUtf8());",
+      "replace": "        // MUTATION-P94-M2: only the first path is written\n        for (const QString& filePath : QStringList{filePaths.first()}) {\n            payload.append(filePath.toUtf8());",
+      "marker": "MUTATION-P94-M2",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "MultiDocumentOpenTest.*",
+      "expect_fail": [
+        "MultiDocumentOpenTest.TheGuardForwardsEveryPathNotJustTheFirst"
+      ]
+    },
+    {
+      "id": "M3",
+      "what": "removes the same-file window reuse, i.e. drops the R3-02 concurrent-save guarantee",
+      "file": "src/app/WindowManager.cpp",
+      "find": "    if (pdfe::ui::MainWindow* existing = byPath_.value(key, nullptr)) {\n        raiseWindow(existing);\n        return existing;\n    }",
+      "replace": "    // MUTATION-P94-M3: same-file reuse removed\n    if (false) { if (pdfe::ui::MainWindow* existing = byPath_.value(key, nullptr)) {\n        raiseWindow(existing);\n        return existing;\n    } }",
+      "marker": "MUTATION-P94-M3",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "MultiDocumentOpenTest.*",
+      "expect_fail": [
+        "MultiDocumentOpenTest.ADropContainingADuplicateOpensItOnce",
+        "MultiDocumentOpenTest.ASelectionWithADuplicateOpensOneWindowPerFile",
+        "MultiDocumentOpenTest.TheSameFileInDifferentCaseRaisesTheExistingWindow",
+        "MultiDocumentOpenTest.TheSameFileNamedDifferentlyStillRaisesTheExistingWindow",
+        "MultiDocumentOpenTest.TheSameFileTwiceRaisesTheExistingWindow"
+      ]
+    },
+    {
+      "id": "M5",
+      "what": "restores show()-after-openFile(), so a failing open shows a modal with no window behind it",
+      "file": "src/app/WindowManager.cpp",
+      "find": "    target->show();\n    target->openFile(filePath);",
+      "replace": "    // MUTATION-P94-M5: pre-fix ordering\n    target->openFile(filePath);\n    target->show();",
+      "marker": "MUTATION-P94-M5",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "MultiDocumentOpenTest.*",
+      "expect_fail": [
+        "MultiDocumentOpenTest.TheWindowIsOnScreenWhileTheOpenFailureDialogIsUp"
+      ]
+    },
+    {
+      "id": "M6",
+      "what": "makes dropEvent open only the first dropped file even when the window manager routes drops",
+      "file": "src/ui/MainWindow.cpp",
+      "find": "        if (dropRoutingDelegated_) {",
+      "replace": "        if (false) {  // MUTATION-P94-M6: drop routes only the first file",
+      "marker": "MUTATION-P94-M6",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "MultiDocumentOpenTest.*",
+      "expect_fail": [
+        "MultiDocumentOpenTest.AMultiFileDropOpensEveryDroppedPdf"
+      ]
+    },
+    {
+      "id": "M4",
+      "what": "restores main.cpp's positionalArguments().first() \u2014 the line GitHub #241 names",
+      "file": "src/main.cpp",
+      "find": "        for (const QString& file : cliFiles) {\n            windowManager.openPath(file);\n        }",
+      "replace": "        // MUTATION-P94-M4: pre-fix first-argument-only behaviour\n        windowManager.openPath(cliFiles.first());",
+      "marker": "MUTATION-P94-M4",
+      "targets": [
+        "pdfe"
+      ],
+      "pytest": "tests/test_ui_multi_file_open.py",
+      "filter": "",
+      "expect_fail": [
+        "test_two_files_on_the_command_line_open_two_windows"
+      ]
+    },
+    {
+      "id": "M7",
+      "what": "stops WindowManager telling its windows that it routes drops",
+      "file": "src/app/WindowManager.cpp",
+      "find": "    window->setDropRoutingDelegated(true);",
+      "replace": "    window->setDropRoutingDelegated(false);  // MUTATION-P94-M7",
+      "marker": "MUTATION-P94-M7",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "MultiDocumentOpenTest.*",
+      "expect_fail": [
+        "MultiDocumentOpenTest.AMultiFileDropOpensEveryDroppedPdf"
+      ]
+    },
+    {
+      "id": "M8",
+      "what": "makes the primary's receiver emit only the FIRST terminated line (the original #241 receiver defect)",
+      "file": "src/app/SingleInstanceGuard.cpp",
+      "find": "                emit fileOpenRequested(filePath);\n                term = buffer->indexOf(kTerminator);",
+      "replace": "                emit fileOpenRequested(filePath);\n                break;  // MUTATION-P94-M8: receiver stops at the first line\n                term = buffer->indexOf(kTerminator);",
+      "marker": "MUTATION-P94-M8",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "MultiDocumentOpenTest.*",
+      "expect_fail": [
+        "MultiDocumentOpenTest.TheGuardForwardsEveryPathNotJustTheFirst"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+%PDF-1.3
+%¿÷¢þ
+1 0 obj
+<< /AcroForm << /CO [ 2 0 R ] /Fields [ 3 0 R 4 0 R 2 0 R ] /NeedAppearances true >> /Pages 5 0 R /Type /Catalog >>
+endobj
+2 0 obj
+<< /AA << /C << /JS (var a=this.getField\("field1"\).value; var b=this.getField\("field2"\).value; event.value = \(a==""?0:Number\(a\)\)+\(b==""?0:Number\(b\)\);) /S /JavaScript >> >> /FT /Tx /Ff 0 /P 6 0 R /Rect [ 72 640 220 660 ] /Subtype /Widget /T (field3) /Type /Annot /V () >>
+endobj
+3 0 obj
+<< /FT /Tx /Ff 0 /P 6 0 R /Rect [ 72 700 220 720 ] /Subtype /Widget /T (field1) /Type /Annot /V () >>
+endobj
+4 0 obj
+<< /FT /Tx /Ff 0 /P 6 0 R /Rect [ 72 670 220 690 ] /Subtype /Widget /T (field2) /Type /Annot /V () >>
+endobj
+5 0 obj
+<< /Count 1 /Kids [ 6 0 R ] /Type /Pages >>
+endobj
+6 0 obj
+<< /Annots [ 3 0 R 4 0 R 2 0 R ] /Contents 7 0 R /MediaBox [ 0 0 612 792 ] /Parent 5 0 R /Resources << >> /Type /Page >>
+endobj
+7 0 obj
+<< /Length 0 /Filter /FlateDecode >>
+stream
+
+endstream
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000015 00000 n 
+0000000146 00000 n 
+0000000444 00000 n 
+0000000561 00000 n 
+0000000678 00000 n 
+0000000737 00000 n 
+0000000873 00000 n 
+trailer << /Root 1 0 R /Size 8 /ID [<c56b6f040960726cf7ad9a084e32bf26><c56b6f040960726cf7ad9a084e32bf26>] >>
+startxref
+943
+%%EOF

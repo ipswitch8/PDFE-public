@@ -1,0 +1,338 @@
+[
+ {
+  "file": "tests/test_font_fuzz.cpp",
+  "subsystem": "fonts",
+  "tests": 8,
+  "assertions": 0,
+  "assert_density": 0.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_cnn_font_ranker.cpp",
+  "subsystem": "fonts",
+  "tests": 5,
+  "assertions": 5,
+  "assert_density": 1.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_font_family_resolver.cpp",
+  "subsystem": "fonts",
+  "tests": 7,
+  "assertions": 8,
+  "assert_density": 1.14,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_system_font_discovery_panose.cpp",
+  "subsystem": "fonts",
+  "tests": 8,
+  "assertions": 10,
+  "assert_density": 1.25,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_cnn_font_classifier.cpp",
+  "subsystem": "fonts",
+  "tests": 14,
+  "assertions": 18,
+  "assert_density": 1.29,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_script_aware_font_selection.cpp",
+  "subsystem": "fonts",
+  "tests": 60,
+  "assertions": 81,
+  "assert_density": 1.35,
+  "gtest_skip_sites": 7
+ },
+ {
+  "file": "tests/test_overlay_font_mapping.cpp",
+  "subsystem": "fonts",
+  "tests": 32,
+  "assertions": 44,
+  "assert_density": 1.38,
+  "gtest_skip_sites": 5
+ },
+ {
+  "file": "tests/test_font_compliance_checker.cpp",
+  "subsystem": "fonts",
+  "tests": 10,
+  "assertions": 14,
+  "assert_density": 1.4,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_pdf_font_embedder.cpp",
+  "subsystem": "fonts",
+  "tests": 6,
+  "assertions": 10,
+  "assert_density": 1.67,
+  "gtest_skip_sites": 11
+ },
+ {
+  "file": "tests/test_font_matcher.cpp",
+  "subsystem": "fonts",
+  "tests": 42,
+  "assertions": 74,
+  "assert_density": 1.76,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_font_matching.cpp",
+  "subsystem": "fonts",
+  "tests": 17,
+  "assertions": 30,
+  "assert_density": 1.76,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_glyph_atlas.cpp",
+  "subsystem": "fonts",
+  "tests": 15,
+  "assertions": 27,
+  "assert_density": 1.8,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_font_substitution_engine.cpp",
+  "subsystem": "fonts",
+  "tests": 6,
+  "assertions": 11,
+  "assert_density": 1.83,
+  "gtest_skip_sites": 6
+ },
+ {
+  "file": "tests/test_font_metric_profile.cpp",
+  "subsystem": "fonts",
+  "tests": 27,
+  "assertions": 55,
+  "assert_density": 2.04,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_glyph_synthesizer.cpp",
+  "subsystem": "fonts",
+  "tests": 34,
+  "assertions": 71,
+  "assert_density": 2.09,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_atlas_comparison.cpp",
+  "subsystem": "fonts",
+  "tests": 47,
+  "assertions": 99,
+  "assert_density": 2.11,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_substitute_font_selector.cpp",
+  "subsystem": "fonts",
+  "tests": 19,
+  "assertions": 41,
+  "assert_density": 2.16,
+  "gtest_skip_sites": 10
+ },
+ {
+  "file": "tests/test_visual_font_ranker.cpp",
+  "subsystem": "fonts",
+  "tests": 5,
+  "assertions": 11,
+  "assert_density": 2.2,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_content_stream_substitution.cpp",
+  "subsystem": "fonts",
+  "tests": 7,
+  "assertions": 17,
+  "assert_density": 2.43,
+  "gtest_skip_sites": 7
+ },
+ {
+  "file": "tests/test_annotation_font_controls.cpp",
+  "subsystem": "fonts",
+  "tests": 10,
+  "assertions": 25,
+  "assert_density": 2.5,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_glyph_scale_adjuster.cpp",
+  "subsystem": "fonts",
+  "tests": 15,
+  "assertions": 39,
+  "assert_density": 2.6,
+  "gtest_skip_sites": 15
+ },
+ {
+  "file": "tests/test_vector_font_atlas_builder.cpp",
+  "subsystem": "fonts",
+  "tests": 16,
+  "assertions": 43,
+  "assert_density": 2.69,
+  "gtest_skip_sites": 16
+ },
+ {
+  "file": "tests/test_serif_ascender_descriptor.cpp",
+  "subsystem": "fonts",
+  "tests": 9,
+  "assertions": 25,
+  "assert_density": 2.78,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_auto_missing_glyph_resolver.cpp",
+  "subsystem": "fonts",
+  "tests": 11,
+  "assertions": 31,
+  "assert_density": 2.82,
+  "gtest_skip_sites": 21
+ },
+ {
+  "file": "tests/test_per_line_font_size_wiring.cpp",
+  "subsystem": "fonts",
+  "tests": 7,
+  "assertions": 20,
+  "assert_density": 2.86,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_glyph_atlas_compositor.cpp",
+  "subsystem": "fonts",
+  "tests": 12,
+  "assertions": 36,
+  "assert_density": 3.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_embedded_font_analyzer.cpp",
+  "subsystem": "fonts",
+  "tests": 11,
+  "assertions": 36,
+  "assert_density": 3.27,
+  "gtest_skip_sites": 9
+ },
+ {
+  "file": "tests/test_glyph_harvester.cpp",
+  "subsystem": "fonts",
+  "tests": 65,
+  "assertions": 214,
+  "assert_density": 3.29,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_vector_enriched_atlas_builder.cpp",
+  "subsystem": "fonts",
+  "tests": 12,
+  "assertions": 43,
+  "assert_density": 3.58,
+  "gtest_skip_sites": 11
+ },
+ {
+  "file": "tests/test_substitution_info_model.cpp",
+  "subsystem": "fonts",
+  "tests": 11,
+  "assertions": 40,
+  "assert_density": 3.64,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_font_descriptor_style.cpp",
+  "subsystem": "fonts",
+  "tests": 6,
+  "assertions": 24,
+  "assert_density": 4.0,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_tessdata_font_detection.cpp",
+  "subsystem": "fonts",
+  "tests": 11,
+  "assertions": 46,
+  "assert_density": 4.18,
+  "gtest_skip_sites": 10
+ },
+ {
+  "file": "tests/test_font_analysis_cache.cpp",
+  "subsystem": "fonts",
+  "tests": 7,
+  "assertions": 30,
+  "assert_density": 4.29,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_font_resource_persistence.cpp",
+  "subsystem": "fonts",
+  "tests": 7,
+  "assertions": 31,
+  "assert_density": 4.43,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_embedded_font_analyzer_multiscript.cpp",
+  "subsystem": "fonts",
+  "tests": 5,
+  "assertions": 23,
+  "assert_density": 4.6,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_textedit_font_identity.cpp",
+  "subsystem": "fonts",
+  "tests": 11,
+  "assertions": 52,
+  "assert_density": 4.73,
+  "gtest_skip_sites": 8
+ },
+ {
+  "file": "tests/test_font_matcher_per_line.cpp",
+  "subsystem": "fonts",
+  "tests": 4,
+  "assertions": 20,
+  "assert_density": 5.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_type3_font_builder.cpp",
+  "subsystem": "fonts",
+  "tests": 17,
+  "assertions": 86,
+  "assert_density": 5.06,
+  "gtest_skip_sites": 12
+ },
+ {
+  "file": "tests/test_font_matcher_per_run_script.cpp",
+  "subsystem": "fonts",
+  "tests": 7,
+  "assertions": 37,
+  "assert_density": 5.29,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_font_script_integration.cpp",
+  "subsystem": "fonts",
+  "tests": 3,
+  "assertions": 16,
+  "assert_density": 5.33,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_cid_font_encoding.cpp",
+  "subsystem": "fonts",
+  "tests": 8,
+  "assertions": 43,
+  "assert_density": 5.38,
+  "gtest_skip_sites": 6
+ },
+ {
+  "file": "tests/test_synthesized_type3_font_bundler.cpp",
+  "subsystem": "fonts",
+  "tests": 9,
+  "assertions": 55,
+  "assert_density": 6.11,
+  "gtest_skip_sites": 15
+ }
+]

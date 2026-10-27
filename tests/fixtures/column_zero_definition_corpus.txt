@@ -1,0 +1,452 @@
+# Shared corpus: "does this source DEFINE <name> at column 0?"
+# GitHub #275, acceptance criterion C5.
+#
+# WHY THIS FILE EXISTS
+# ====================
+# The same question is answered twice, in two languages, by two independent
+# implementations:
+#
+#   * Python -- tools/gate/check_duplicate_test_definitions.py, via
+#     definition_sizes(): TYPE_DEF / FUNC_DEF / NOT_A_DEF plus _opens_a_body().
+#   * C++    -- tests/test_oracle_standard.cpp, definesHelperAtColumnZero().
+#
+# Nothing compared them. GitHub #275 is the issue filed because a ~155-line
+# helper (DirectoryAttacker) was defined TWICE and the guard could not see it;
+# the deeper point the issue makes is that two copies of a thing drift. That
+# applies to the DETECTOR as much as to the helper it detects, and a drift here
+# is worse than a drift in a helper: both sides would still look green, each
+# against its own tests.
+#
+# So both implementations read THIS file and must agree with it. If they ever
+# disagree with each other, at least one disagrees with the corpus and fails.
+# The corpus is the single source of truth; neither implementation is.
+#
+# FORMAT
+# ======
+# Directives begin with '@' at column 0. A source line may NOT begin with '@'
+# (both readers assert this rather than silently truncating a case).
+#
+#   @case   <id>          unique, kebab-case
+#   @name   <symbol>      the symbol being asked about
+#   @expect 1 | 0         1 = this source DEFINES <name> at column 0
+#   @why    <one line>    why that is the right answer
+#   @src                  source lines follow, verbatim, until @end
+#   @end
+#
+# Lines outside a case that start with '#' are comments.
+#
+# ---------------------------------------------------------------------------
+# PART 1 -- the seven cases #275's own C++ tests already pin.
+# C5 names these explicitly. Both sides already agree on all seven (measured
+# before this corpus was written); they are here so that agreement is ENFORCED
+# rather than coincidental.
+# ---------------------------------------------------------------------------
+
+@case type-definition-with-body
+@name DirectoryAttacker
+@expect 1
+@why The shape that was invisible before #275: a TYPE, with neither a '(' nor one of the four return-type prefixes the old matcher required.
+@src
+struct DirectoryAttacker {
+    std::atomic<bool> stop{false};
+    void start() {}
+};
+@end
+
+@case different-name
+@name DirectoryAttacker
+@expect 0
+@why A differently-named struct must not match, or the detector is simply always true.
+@src
+struct SomethingElse {
+};
+@end
+
+@case forward-declaration
+@name DirectoryAttacker
+@expect 0
+@why Every header is entitled to a forward declaration; counting them makes the guard fire on correct code.
+@src
+struct DirectoryAttacker;
+@end
+
+@case indented-definition
+@name DirectoryAttacker
+@expect 0
+@why Outside the stated scope (column 0 only). The limit is deliberate, but it must be the limit it claims rather than an accident.
+@src
+    struct DirectoryAttacker {
+    };
+@end
+
+@case name-is-a-prefix
+@name DirectoryAttacker
+@expect 0
+@why DirectoryAttackerHelper must not match DirectoryAttacker; a prefix match would fire on unrelated types sharing a leading substring.
+@src
+struct DirectoryAttackerHelper {
+};
+@end
+
+@case function-non-allowlisted-return
+@name seenNames
+@expect 1
+@why A return type outside std::string/bool/void/int. That four-prefix allowlist was the hand-made-population defect one level down, and removing it is half of what #275 asked for.
+@src
+std::set<std::string> seenNames(int n) {
+    return {};
+}
+@end
+
+@case function-declaration
+@name applyProtectedDacl
+@expect 0
+@why A declaration is not a definition.
+@src
+bool applyProtectedDacl(const char* p);
+@end
+
+# ---------------------------------------------------------------------------
+# PART 2 -- shapes chosen to make the two sides DISAGREE if they can.
+#
+# Part 1 is agreement on cases both sides were already written against, which
+# is the weaker half of the evidence: a corpus assembled only from a detector's
+# own passing tests cannot find drift. These probe the places the two
+# implementations are structurally different.
+#
+# multiline-function-declaration is a REAL DEFECT found by exactly this
+# comparison, not a hypothetical: tests/support/SaveFailureInjection.h:312-316
+# declares killChildInsideSaveWindow across five lines with the ';' four lines
+# below the name. The Python side hit this on its first run, wrongly reported
+# the header as a second DEFINITION, and was fixed by balancing the parameter
+# list (_opens_a_body). The C++ mirror checks only the FIRST line for ';' and
+# never got that fix.
+# ---------------------------------------------------------------------------
+
+@case multiline-function-declaration
+@name killChildInsideSaveWindow
+@expect 0
+@why The real shape at tests/support/SaveFailureInjection.h:312-316 -- the ';' is four lines below the name, so a first-line-only check reads a DECLARATION as a definition. A helper declared in a header and defined in a .cpp would then count twice and the guard would fire on correct code.
+@src
+KilledSaveResult killChildInsideSaveWindow(
+    const std::filesystem::path& sourcePdf,
+    const std::filesystem::path& target,
+    const std::string& gtestFilterForVictim,
+    std::chrono::milliseconds waitForWindow = std::chrono::seconds(30));
+@end
+
+@case multiline-function-definition
+@name killChildInsideSaveWindow
+@expect 1
+@why The positive twin of the case above, and it is load-bearing: without it the fix could be "a multi-line signature is never a definition", which would blind the detector to every helper whose parameters wrap.
+@src
+KilledSaveResult killChildInsideSaveWindow(
+    const std::filesystem::path& sourcePdf,
+    int attempts)
+{
+    return {};
+}
+@end
+
+@case body-opens-on-next-line
+@name seenNames
+@expect 1
+@why A definition whose '{' is on the following line is still a definition; a rule keyed on '{' appearing alongside the name would miss it.
+@src
+std::set<std::string> seenNames(int n)
+{
+    return {};
+}
+@end
+
+@case constructor-initialiser-list
+@name DirectoryAttacker
+@expect 1
+@why An initialiser list opens a definition without a '{' on the signature line.
+@src
+DirectoryAttacker::DirectoryAttacker(int n)
+    : count(n)
+{
+}
+@end
+
+@case multiline-type-with-base
+@name DirectoryAttacker
+@expect 1
+@why A class whose base-clause wraps; the '{' is two lines below the name.
+@src
+class DirectoryAttacker
+    : public Base
+{
+};
+@end
+
+@case enum-class-definition
+@name Mode
+@expect 1
+@why 'enum class' is one of the type spellings the detector claims to cover.
+@src
+enum class Mode {
+    A,
+};
+@end
+
+@case enum-class-forward
+@name Mode
+@expect 0
+@why An opaque enum declaration is not a definition.
+@src
+enum class Mode : int;
+@end
+
+@case name-inside-a-call-is-not-a-definition
+@name DirectoryAttacker
+@expect 0
+@why The name appears, at column 4, inside a call. Only column-0 definitions count, and a substring search would be fooled.
+@src
+void use() {
+    DirectoryAttacker(1);
+}
+@end
+
+@case trailing-comment-after-declaration
+@name applyProtectedDacl
+@expect 0
+@why Still a declaration; a trailing comment must not change the verdict.
+@src
+bool applyProtectedDacl(const char* p);  // declared here
+@end
+
+# ---------------------------------------------------------------------------
+# PART 3 -- the two DEFENSIVE branches of the C++ look-ahead.
+#
+# Added after a claim-check gate failed this phase for them. `opensABodyAfterParams`
+# makes two behavioural claims in its own comment -- a 40-line bound, and
+# "ran out of look-ahead -> NOT a definition" -- and the 16 cases above
+# exercised neither, because every one of them resolves within a few lines. A
+# described mechanism that nothing couples to the code is this project's
+# recurring defect shape, and it had just been introduced by the fix for
+# another instance of it.
+#
+# Python's `_opens_a_body` carries the same 40-line limit_hint, and was measured
+# to agree with all four cases below BEFORE they were written down -- otherwise
+# the corpus would have been encoding a divergence rather than pinning a shared
+# behaviour.
+#
+# The pair matters in both directions:
+#   * `signature-wraps-twenty-lines-then-body` is @expect 1, so it reddens if
+#     the bound SHRINKS below ~21;
+#   * `closes-beyond-the-look-ahead-bound` is @expect 0, so it reddens if the
+#     bound GROWS past ~51;
+#   * `parameter-list-never-closes` is @expect 0, so it reddens if the fallback
+#     flips to "definition".
+# ---------------------------------------------------------------------------
+
+@case signature-wraps-twenty-lines-then-body
+@name wrapsTwenty
+@expect 1
+@why A real definition whose parameter list wraps about twenty lines before the body opens. Well inside the 40-line look-ahead, so it must resolve as a definition -- this is the case that fails if the bound is ever reduced.
+@src
+KilledSaveResult wrapsTwenty(
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int z)
+{
+    return {};
+}
+@end
+
+@case parameter-list-never-closes
+@name wideOpen
+@expect 0
+@why An unbalanced '(' -- the unclosed '#if' arm shape the bound exists for. Neither side can resolve it, and both must fall back to NOT a definition: a guard that treats an unresolvable shape as duplication fires on correct code. This is the case that fails if the fallback is ever flipped.
+@src
+KilledSaveResult wideOpen(
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+@end
+
+@case closes-beyond-the-look-ahead-bound
+@name farAway
+@expect 0
+@why HONEST LIMITATION, not a correctness claim: this IS a definition, and both implementations report it as not one, because its body opens beyond the 40-line look-ahead. Recorded so the shared limit is pinned rather than incidental -- if someone widens the bound, this case reddens and the change becomes a decision instead of a side effect.
+@src
+KilledSaveResult farAway(
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int z)
+{
+    return {};
+}
+@end
+
+@case closes-beyond-bound-then-semicolon
+@name farDecl
+@expect 0
+@why A declaration whose ';' also sits beyond the bound. Same verdict as the case above but for the right reason rather than by luck, which is worth distinguishing: here NOT-a-definition is both the bounded answer and the true one.
+@src
+KilledSaveResult farDecl(
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int a,
+    int z);
+@end

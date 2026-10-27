@@ -1,0 +1,84 @@
+# PDFE phase-5 clang-tidy config.
+#
+# Selected per pipeline acceptance criterion: bugprone-*, cert-*,
+# clang-analyzer-*, cppcoreguidelines-*, misc-*, modernize-* with a
+# documented exclude list (see "Excludes" section below). Run this
+# only via scripts/security/run_sast.ps1; it carries the 'security'
+# label semantics (opt-in, not part of the regular CI green-bar).
+#
+# Format: clang-tidy-style YAML.
+---
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  misc-*,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-use-nodiscard,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -misc-non-private-member-variables-in-classes,
+  -misc-include-cleaner,
+  -misc-no-recursion,
+  -modernize-avoid-c-arrays,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-pro-type-static-cast-downcast,
+  -cppcoreguidelines-pro-type-union-access,
+  -cppcoreguidelines-rvalue-reference-param-not-moved,
+  -cppcoreguidelines-special-member-functions,
+  -cppcoreguidelines-owning-memory,
+  -cert-err58-cpp
+
+# Why each exclude:
+#  modernize-use-trailing-return-type: stylistic only; PDFE prefers
+#    leading return types in headers for grep-ability.
+#  modernize-use-nodiscard: noisy; would rewrite hundreds of small
+#    accessors with no real bug-finding value.
+#  bugprone-easily-swappable-parameters: false-positive heavy across
+#    Qt-style int(x,y,w,h) APIs we cannot change.
+#  cppcoreguidelines-avoid-magic-numbers / pro-bounds-* / pro-type-*:
+#    fight Qt + MuPDF C-API integration patterns; would generate
+#    100s of warnings on every file.
+#  cppcoreguidelines-non-private-member-variables-in-classes /
+#    misc-non-private-member-variables-in-classes:
+#    PDFE pimpl Impl structs are intentionally public-member.
+#  cppcoreguidelines-avoid-non-const-global-variables: Qt static
+#    metaobjects + global QApplication* fight this rule.
+#  misc-include-cleaner: too aggressive against transitive Qt headers.
+#  misc-no-recursion: outline-tree walks need recursion.
+#  modernize-avoid-c-arrays / cppcoreguidelines-avoid-c-arrays:
+#    MuPDF / OpenSSL APIs require C arrays at the boundary.
+#  cppcoreguidelines-pro-type-static-cast-downcast: required for
+#    Qt's QObject* hierarchy.
+#  cppcoreguidelines-pro-type-union-access: MuPDF result types use
+#    unions in their public ABI.
+#  cppcoreguidelines-rvalue-reference-param-not-moved /
+#    special-member-functions / owning-memory: noisy with no
+#    measurable bug-finding value vs the volume.
+#  cert-err58-cpp: triggers on every QString static; Qt idiom.
+
+WarningsAsErrors: ''
+HeaderFilterRegex: 'src/.*\.(h|hpp|inl)$'
+FormatStyle: file
+User: pdfe-sast
+
+CheckOptions:
+  bugprone-argument-comment.StrictMode: true
+  bugprone-assert-side-effect.AssertMacros: 'assert,Q_ASSERT'
+  bugprone-misplaced-widening-cast.CheckImplicitCasts: false
+  cert-msc32-c.DisallowedSeedTypes: 'time_t,std::time_t'
+  cppcoreguidelines-pro-type-member-init.IgnoreArrays: true
+  modernize-loop-convert.MinConfidence: reasonable
+  modernize-pass-by-value.IncludeStyle: google
+  modernize-replace-auto-ptr.IncludeStyle: google
+  modernize-use-default-member-init.UseAssignment: true

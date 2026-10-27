@@ -1,0 +1,51 @@
+{
+  "smoke": {
+    "harness_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\smoke\\harness_baseline.png"
+  },
+  "text_edit": {
+    "smoke_capture": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\text_edit\\smoke_capture.png",
+    "ui_te_ui_01_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\text_edit\\ui_te_ui_01_baseline.png",
+    "ui_te_ui_01_selected": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\text_edit\\ui_te_ui_01_selected.png",
+    "ui_te_ui_03_pristine": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\text_edit\\ui_te_ui_03_pristine.png",
+    "ui_te_ui_03_after_undo": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\text_edit\\ui_te_ui_03_after_undo.png"
+  },
+  "annotations": {
+    "toolbar_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\annotations\\toolbar_baseline.png"
+  },
+  "forms": {
+    "form_tool_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\forms\\form_tool_baseline.png"
+  },
+  "page_ops": {
+    "panel_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\page_ops\\panel_baseline.png"
+  },
+  "signatures": {
+    "canvas_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\signatures\\canvas_baseline.png"
+  },
+  "compliance": {
+    "canvas_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\compliance\\canvas_baseline.png"
+  },
+  "encryption": {
+    "canvas_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\encryption\\canvas_baseline.png"
+  },
+  "panels": {
+    "canvas_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\panels\\canvas_baseline.png"
+  },
+  "dialogs": {
+    "canvas_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\dialogs\\canvas_baseline.png"
+  },
+  "menus": {
+    "canvas_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\menus\\canvas_baseline.png"
+  },
+  "chrome": {
+    "canvas_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\chrome\\canvas_baseline.png"
+  },
+  "visual_fidelity": {
+    "canvas_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\visual_fidelity\\canvas_baseline.png"
+  },
+  "image_edit": {
+    "canvas_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\image_edit\\canvas_baseline.png"
+  },
+  "redaction": {
+    "canvas_baseline": "C:\\Users\\dev\\source\\PDFE\\tests\\fixtures\\ui_screenshots\\redaction\\canvas_baseline.png"
+  }
+}

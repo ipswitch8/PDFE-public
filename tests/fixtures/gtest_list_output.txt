@@ -1,0 +1,3741 @@
+MuPdfContextTest.
+  CreateAndDestroy
+  CreateWithCustomStoreSize
+  MoveConstruction
+  MoveAssignment
+  ExecuteSuccess
+  ExecuteReturnSuccess
+  ExecuteThrowsOnMuPdfError
+  ThreadLocalClone
+  MultipleThreadClones
+  ThreadLocalCloneIsCached
+QpdfWrapperTest.
+  DefaultConstruction
+  OpenValidPdf
+  OpenInvalidPathThrows
+  PageCountAfterOpen
+  PageCountWithoutOpenThrows
+  SaveWithoutOpenThrows
+  SaveIncrementalWithoutOpenThrows
+  SaveToFile
+  MoveConstruction
+PathSecurity.
+  AcceptsWindowsDriveLetter
+  AcceptsPosixAbsolute
+  AcceptsRelativePath
+  AcceptsFileSchemeLocalThreeSlashes
+  AcceptsFileSchemeOneSlash
+  AcceptsFileLocalhost
+  AcceptsExtendedLengthLocal
+  AcceptsEmptyAndWhitespace
+  RejectsBareUncBackslash
+  RejectsBareUncForwardSlash
+  RejectsUncMixedSlashes
+  RejectsExtendedLengthUnc
+  RejectsDeviceNamespace
+  RejectsLeadingWhitespaceUnc
+  RejectsFileSchemeUncTwoSlashes
+  RejectsFileSchemeUncFourSlashes
+  RejectsFileSchemeNoSlash
+  RejectsHttp
+  RejectsFtp
+  RejectsSmbAndCifs
+  RejectsNfs
+  RejectsWebdav
+  RejectsSshSftp
+  RejectsLdap
+  RejectsCaseInsensitiveSchemes
+  WideStringUnc
+  FilesystemPathString
+  LinkTargetAllowsHttp
+  LinkTargetAllowsMailtoTelSms
+  LinkTargetRefusesUnc
+  LinkTargetRefusesFileScheme
+  LinkTargetRefusesFileShareSchemes
+  LinkTargetEmptyOrWhitespace
+  LinkDispatcherPolicyTable
+ProcessMitigationsTest.
+  DepEnabled
+  AslrAllVariantsEnabled
+  ImageLoadPolicyApplied
+  StrictHandleCheckEnabled
+  CfgStatusQueryable
+EngineUncGate.
+  OptimizeEngineRefusesUnc
+  RedactionVerifierRefusesUnc
+  AlignmentInjectorApplyRefusesUnc
+  AlignmentInjectorRemoveRefusesUnc
+  HeaderFooterApplyRefusesUnc
+  HeaderFooterRemoveRefusesUnc
+  BatchEngineWatermarkRefusesUnc
+  BatchEngineProcessRefusesUnc
+BrandingResourcesTest.
+  ColorLogoLoads
+  ItwerxLogoLoads
+  LicenseTextLoads
+DocumentTest.
+  OpenNonExistentFileThrows
+  OpenWithNullContextThrows
+  OpenNonPdfMagicBytesThrows
+  OpenEmptyFileThrows
+  OpenAcceptsPdfWithSmallPreamble
+  OpenValidPdfDocument
+  GetPageInfo
+  GetPageInfoInvalidIndexThrows
+  LoadPage
+  LoadPageInvalidIndexThrows
+  DocumentIsMovable
+  ContextAccessor
+  OpenRefusesUncBackslash
+  OpenRefusesUncForwardSlash
+  OpenRefusesFileSchemeUnc
+  OpenRefusesFileSchemeFourSlashUnc
+  OpenRefusesHttpScheme
+  OpenRefusesSmbScheme
+PageTest.
+  GetBoundingBox
+  GetRotation
+  GetIndex
+  RenderPage
+  RenderPageWithScaling
+  PageIsMovable
+  MultiplePages
+  BoundingBoxMatchesPageInfo
+PageOperationsTest.
+  ExtractPages_SinglePage
+  ExtractPages_Multiple
+  ExtractPages_All
+  ExtractPages_OutputFileCreated
+  ExtractPages_InvalidIndex
+  ExtractPages_NullContext
+  ExtractPages_NullDocument
+  ExtractPages_EmptyPageList
+  ExtractPages_NegativeIndex
+  ExtractPages_ReverseOrder
+PageCommandTest.
+  RotatePageCommand_Execute
+  RotatePageCommand_Undo
+  RotatePageCommand_Redo
+  RotatePageCommand_FullCircle
+  RotatePageCommand_CCW
+  DeletePageCommand_Execute
+  DeletePageCommand_Undo
+  DeletePageCommand_Redo
+  DeletePageCommand_DeleteFirst
+  DeletePageCommand_DeleteLast
+  InsertBlankPageCommand_Execute
+  InsertBlankPageCommand_Undo
+  InsertBlankPageCommand_AtBeginning
+  InsertBlankPageCommand_AtEnd
+  MovePageCommand_Forward
+  MovePageCommand_Backward
+  MovePageCommand_Undo
+  MultipleOps_UndoAll
+  CleanState_DirtyAfterPageOp
+  DeletePageRangeCommand_Execute
+  DeletePageRangeCommand_Undo
+  DeletePageRangeCommand_Redo
+  MovePageCommand_Redo
+  ImportPagesCommand_Execute
+  ImportPagesCommand_Undo
+  ImportPagesCommand_Redo
+  ImportPagesCommand_MultiplePages
+TileCacheTest.
+  InitialState
+  PutAndGet
+  GetNonExistent
+  UpdateExisting
+  LRUEviction
+  LRUOrdering
+  InvalidatePage
+  InvalidateAll
+  Clear
+  MemoryTracking
+  SetMaxMemory
+  DifferentZoomLevels
+  TileIdEquality
+  TileIdHash
+TileRendererTest.
+  ConstructorDestructor
+  RequestTile
+  RequestTileWithCallback
+  CancelPage
+  CancelAll
+  MultiplePages
+  ThreadSafety
+  InvalidPageIndex
+  DuplicateRequest
+  TileCoordinateCalculation
+CoordinateTransformTest.
+  IdentityTransform
+  ZoomScaling
+  NoYFlip
+  WithPageOffset
+  RectTransform
+  RectTransformWithZoom
+  DifferentPageHeights
+  MatrixTransform
+  RoundTripAccuracy
+  RectRoundTripAccuracy
+  AnnotationRendersAtCorrectPosition
+  RoundTripAnnotation
+UndoManagerTest.
+  ExecuteAndUndo
+  ExecuteUndoRedo
+  RedoStackClearedOnNewCommand
+  MultipleUndoRedo
+  StackDepthLimit
+  CustomStackDepthLimit
+  CommandMerging
+  CommandMergingDifferentIds
+  CommandMergingZeroId
+  CleanStateInitial
+  CleanStateAfterCommand
+  CleanStateTracking
+  CleanStateAfterUndoPastClean
+  Clear
+  UndoDescription
+  RedoDescription
+  UndoStateSignal
+  NoUndoWhenEmpty
+  NoRedoWhenEmpty
+  ExecuteNullCommand
+  MergingWithRedoStack
+  CleanStateWithDepthLimit
+TextExtractionTest.
+  ExtractPlainText
+  ExtractStructuredText
+  CharacterPositions
+  EmptyPage
+  TextExtractorStandalone
+  TextExtractorNullPage
+  MultiPageExtraction
+  TextBlockTypes
+  PlainTextMatchesStructured
+  TextExtractorIsMovable
+SearchTest.
+  BasicSearch
+  SearchWithCaseSensitive
+  SearchResultHitStructure
+  EmptyQuery
+  SearchNonExistentText
+  SearchEngineNullDocument
+  MultiPageSearch
+  SearchFlags
+  TotalMatchesCount
+  SearchContextExtraction
+  SearchPreservesQuery
+  CancelSearchBeforeStart
+  QuadConversion
+PrintTest.
+  PrintOptionsDefaults
+  PrintEngineConstruction
+  PrintToFile
+  PrintAllPages
+  PrintCurrentPage
+  PrintPageRange
+  FitToPage
+  MultipleCopies
+  PrintPageDirectly
+  InvalidPageIndex
+ThumbnailTest.
+  RenderThumbnail
+  ThumbnailSize
+  AsyncRendering
+  CancelRequest
+  CancelAll
+BookmarkTest.
+  ExtractBookmarks
+  NoBookmarks
+  BookmarkHierarchy
+  PageDestinations
+  BookmarkDestinationTypes
+  ExtractorWithNullDocument
+  URIDestinations
+  BookmarkOpenState
+SystemFontDiscoveryTest.
+  EnumerateFonts
+  EnumerateFontsIsCached
+  FindByPostScriptName
+  FindByFamilyStyle
+BundledFontsTest.
+  GetFonts
+  DefaultSansSerif
+  DefaultSerif
+  DefaultMonospace
+  FindByFamily
+BasicFontMatcherTest.
+  MatchCommonFontAlias
+  MatchTimesAlias
+  MatchCourierAlias
+  FallbackToBundle
+  MatchWithWeightAndStyle
+  MatchSerifPreference
+  BoldInferredFromName
+  ItalicInferredFromName
+HiDPITest.
+  DetectDevicePixelRatio
+  TileIdIncorporatesScale
+  ScaledTileRendering
+  TileCacheMemoryScaling
+  ScreenDPRQuery
+MainWindowIntegrationTest.
+  ConstructsSuccessfully
+  AllDocksExist
+  DockWidgetTitles
+  AllActionsExist
+  FindActionHasCtrlFShortcut
+  PrintActionHasCtrlPShortcut
+  OpenActionHasStandardShortcut
+  SaveActionHasStandardShortcut
+  ZoomInActionHasStandardShortcut
+  ZoomOutActionHasStandardShortcut
+  ToggleActionsAreCheckable
+  PrintActionsInitiallyDisabled
+  ZoomActionsInitiallyDisabled
+  SaveCloseActionsInitiallyDisabled
+  PanelsHaveSeleniumFriendlyObjectNames
+  CentralWidgetIsCanvas
+  ZoomComboExists
+  PagesMenuExists
+  PageActionsExist
+  PageActionsInitiallyDisabled
+  RotateActionsHaveShortcuts
+  InsertBlankPageHasShortcut
+AnnotationManagerTest.
+  CreateTextAnnotation
+  CreateHighlightAnnotation
+  DeleteAnnotation
+  ModifyContents
+  ModifyColor
+  ModifyOpacity
+  GetAnnotations
+  HitTestAnnotation
+  RestoreDeletedAnnotation
+  AnnotationDataSnapshot
+  SetRectModifiesAnnotationBounds
+  InkAnnotationWithStrokes
+  InvalidAnnotationIndexThrows
+  NullPageThrows
+AnnotationCommandTest.
+  CreateAndUndo
+  DeleteAndUndo
+  ModifyContentsAndUndo
+  ModifyColorAndUndo
+  MultipleUndoRedo
+  MergeConsecutiveContentEdits
+  CleanStateDirtyAfterEdit
+TextSelectorTest.
+  ConstructorCreatesSelector
+  BeginSelectionSetsSelectingState
+  BeginAndEndSelection
+  SelectionReturnsText
+  SelectionQuadsAreValid
+  EmptySelection
+  SelectionOnEmptyRegion
+  CancelSelection
+  MultiLineSelection
+  IsSelectingDuringSelection
+  CurrentQuadsDuringSelection
+  UpdateSelectionWithoutBegin
+  EndSelectionWithoutBegin
+  BeginSelectionOnNullPage
+  ReverseSelection
+  MoveConstructor
+  MoveAssignment
+AnnotationToolsTest.
+  StickyNoteCreation
+  HighlightFromSelection
+  InkStrokeCapture
+  ShapeToolRect
+  ShapeToolCircle
+  FreeTextCreation
+  ToolActivateDeactivate
+  ToolTypeReporting
+CommentPanelTest.
+  ConstructsSuccessfully
+  ClearDocumentIsNoOp
+  FilterComboExists
+  SortComboExists
+  TreeWidgetExists
+  RefreshWithoutDocumentIsNoOp
+AnnotationPropertiesWidgetTest.
+  ConstructsSuccessfully
+  AllWidgetsExist
+  SetAnnotationPopulatesFields
+  ClearResetsFields
+  DefaultStateIsCleared
+SaveTest.
+  SaveAs_CreatesFile
+  SaveAs_ValidPdf
+  SaveAs_PreservesContent
+  Save_AfterRotation
+  Save_AfterDelete
+  Save_AfterInsertBlank
+  Save_CleanStateAfterSave
+  IsPdf_ReturnsTrueForPdf
+  Save_InPlace
+FormFieldTypeTest.
+  ConversionRoundTrip
+  AllTypesHaveNames
+FormFieldDataTest.
+  DefaultConstruction
+FormManagerTest.
+  GetFormFieldsOnPageWithForms
+  GetFormFieldsOnPageWithoutForms
+  GetFormFieldByIndex
+  GetFormFieldByIndex_Invalid
+  HitTestFormField
+  HitTestMiss
+  SetTextFieldValue
+  ToggleCheckbox
+  HasFormFields_True
+  HasFormFields_False
+  NullPageThrows
+  GetTabOrder
+  FormFieldDataHasType
+FormCommandsTest.
+  SetFieldValue_ExecuteAndUndo
+  SetFieldValue_Redo
+  SetFieldValue_MergeConsecutiveEdits
+  ToggleCheckbox_ExecuteAndUndo
+  SetChoiceSelection_ExecuteAndUndo
+  SetChoiceSelection_Redo
+  ResetForm_ExecuteAndUndo
+  ResetForm_Redo
+  CleanState_DirtyAfterFormEdit
+  MultipleCommands_UndoRedo
+JavaScriptEngineTest.
+  EnableJavaScript
+  EnableJavaScript_NullPageThrows
+  CalculateAllFields
+  CalculateAllFields_NullPageThrows
+  FireFocusBlurEvents
+  FireFocusEvent_NullPageThrows
+  FireBlurEvent_NullPageThrows
+  FireFocusEvent_InvalidWidgetThrows
+  FireKeystrokeEvent
+  FireKeystrokeEvent_NullPageThrows
+  FireKeystrokeEvent_InvalidWidgetThrows
+  FireValidateEvent
+  FireValidateEvent_NullPageThrows
+  FireCalculateEvent
+  FireCalculateEvent_NullPageThrows
+  FireFormatEvent
+  FireFormatEvent_NullPageThrows
+  FireWillSaveEvent
+  FireWillSaveEvent_NullPageThrows
+  FireDidSaveEvent
+  FireDidSaveEvent_NullPageThrows
+  MoveConstructor
+  MoveAssignment
+FormDataIOTest.
+  Construction
+  ConstructionWithNullContext
+  MoveConstruction
+  MoveAssignment
+  ExportXfdf
+  ExportXfdfWithNullDocument
+  ExportXfdfWithNullManager
+  ImportXfdf
+  ImportXfdfWithNullDocument
+  ImportXfdfWithNullManager
+  ImportXfdfWithEmptyContent
+  RoundTripXfdf
+  ImportInvalidXfdf
+  ImportMalformedXml
+  EmptyFormExport
+  ExportDeduplicatesFields
+  ImportAppliesToAllPagesWithSameFieldName
+  XfdfContainsOnlyNonEmptyValues
+FormToolTest.
+  InitialState
+  ClickToSelectTextField
+  ClickCheckboxToggles
+  TabNavigatesForward
+  ShiftTabNavigatesBackward
+  EscapeCancelsEdit
+  ClickOutsideCommitsEdit
+  DeactivateCommitsEdit
+  SetCreationFieldType
+  ClearCreationFieldType
+  FieldCreatedCallback
+FormFieldPropertiesPanelTest.
+  ObjectNameSet
+  SetTextFieldShowsLineEdit
+  SetMultilineFieldShowsTextEdit
+  SetCheckboxFieldShowsCheckbox
+  SetComboFieldShowsCombo
+  SetListFieldShowsList
+  ClearResetsPanel
+  ValueChangeEmitsSignal
+  ReadOnlyFieldDisablesEditor
+  FlagsDisplayed
+TextEditModelTest.
+  ConstructFromEmptyBlocks
+  ConstructFromSingleBlock
+  ConstructFromMultipleFonts
+  ConstructFromMultipleBlocks
+  SpanAtPointInside
+  SpanAtPointOutside
+  SpanAtPointBetweenLines
+  CharIndexAtPointLeftEdge
+  CharIndexAtPointMiddle
+  CharIndexAtPointRightEdge
+  ReplaceSpanText
+  ReplaceCharRange
+  HasModifications
+  ModifiedSpanIndices
+FormattingRunTest.
+  DefaultConstruction
+  SameFormatAs_Identical
+  SameFormatAs_DifferentFont
+  SameFormatAs_DifferentSize
+  SameFormatAs_DifferentBold
+ApplyFormattingTest.
+  InsertIntoEmpty
+  InsertReplacesFully
+  InsertTrimsLeft
+  InsertTrimsRight
+  InsertSplitsExisting
+  MergeAdjacentIdentical
+  MultipleOverlappingRuns
+FormattingAtCharTest.
+  ReturnsRunForCoveredChar
+  ReturnsDefaultForGap
+  BoundaryConditions
+  MultipleRuns
+ClearFormattingTest.
+  RemovesFullyCoveredRun
+  TrimsPartiallyOverlapping_Left
+  TrimsPartiallyOverlapping_Right
+  SplitsRun
+  ClearMultipleRuns
+  ClearNonExistentRange
+IsModifiedTest.
+  UnmodifiedSpan_NoRuns_False
+  UnmodifiedText_WithRuns_True
+  ModifiedText_NoRuns_True
+  ModifiedText_WithRuns_True
+  AfterClearingAllFormatting
+EdgeCasesTest.
+  InvalidSpanIndex
+  EmptyRange
+  NegativeIndices
+  OutOfBoundsIndices
+  ReversedRange
+  SingleCharacterFormatting
+  ZeroCharacterModel
+  LargeNumberOfRuns
+  ComplexFormattingScenario
+RunShiftingTest.
+  InsertBeforeRun_ShiftsRunRight
+  InsertAfterRun_NoChange
+  InsertWithinRun_ExpandsRun
+  DeleteBeforeRun_ShiftsRunLeft
+  DeleteEntireRun_RemovesRun
+  DeletePartOfRun_TrimsRun
+  ReplaceWithinRun_AdjustsLength
+  MultipleRuns_ShiftCorrectly
+SameFormatTest.
+  EpsilonFontSizeComparison
+  LargeFontSizeDifference
+CancelEditTest.
+  ClearFormattingRestoresUnmodified
+ContentStreamEditorTest.
+  ConstructorDestructor
+  EmptyModifications
+  NullPageHandling
+  NullDocumentHandling
+  InvalidSpanIndex
+  BuildModelFromRealPdf
+  ApplySimpleEdit
+  PreserveUnmodifiedText
+  MultipleEditsOnSamePage
+  EmptyReplacementText
+  ApplyEditsWithSubstitutionDoesNotLeakOnSuccess
+MuPdfFzAlwaysInvariant.
+  FzAlwaysRunsOnFzThrowFromInsideExecute
+  FzAlwaysRunsOnSuccessFromInsideExecute
+CanonicalTextMatrixTest.
+  LeanStartupTmDIsNegative
+  TmDIsNegativeForYFlippedCTM
+  TmDMatchesCtmSign
+  TmStructureIsCanonical
+  TmStructureForNormalCTM
+  TfsTimesCtmScaleEqualsVisibleSize
+  TfsLeanStartupValueIs26
+  TfsHasSensibleFloorForDegenerateCtm
+  TmPositionReproducesOriginalDeviceCoords
+  TmPositionForLeanStartupMatchesSavedFile
+  RenderedTrmReproducesVisibleSize
+  RenderedTrmDIsPositiveAfterCTMCompose
+  RenderedTrmDIsPositiveForNormalCTM
+  TfsWithinTenPercentOfSurroundingLineHeight
+FontFamilyParityTest.
+  ExtractedSpanHasNonEmptyFontName
+EditSaveCycleTest.
+  EditSaveReloadPreservesOrientationAndPosition
+  UndoRestoresOriginalText
+TextEditTmRegressionTest.
+  FullEditSaveUndoCycleHonorsAllInvariants
+ImageDominatedTextEditRegressionTest.
+  EditSaveUndoCycleOnImageDominatedPage
+TextEditCommandTest.
+  ConstructorDestructor
+  Description
+  MergeIdBySpan
+  MergeSameSpan
+  MergeDifferentSpan
+  ExecuteCallsApplyEdits
+  UndoManagerIntegration
+  CleanStateDirty
+TextEditToolTest.
+  ConstructorDestructor
+  ActivateDeactivate
+  SetPageBuildsModel
+  ClickOnTextSelectsSpan
+  ClickOutsideDeselectsSpan
+  KeyInputInsertsText
+  BackspaceDeletesChar
+  CommitEditFiresCallback
+  CancelEditRestoresText
+  PaintOverlayNoCrash
+TextEditIntegrationTest.
+  FullEditWorkflow
+  UndoRedoCycle
+  MultiplePageEdits
+  SaveAfterEdit
+  DirtyFlagAfterEdit
+TextEditSelectionRenderTest.
+  ClickDragProducesNonDegenerateSelection
+  ClickDragRendersHighlightPixels
+  OverlayPaintCoversSelectionRegion
+  ModifierOnlyKeyDoesNotClearSelection
+  ReclickOnSpanResetsSelection
+  DoubleClickSelectsWord
+  BackspaceWithSelectionDeletesRange
+  TypingReplacesSelection
+  ClickOutsideClearsSelection
+TextEditSaveRoundtripTest.
+  EditPreservesEmbeddedFontReference
+  FontSizeRoundTripWithinOnePt
+  OverlayFontFamilyReachesContentStream
+  BoldToggleReachesContentStream
+  ItalicToggleRoundTripIsNonDestructive
+  EditedTextEqualsInputAfterReopen
+  MultiFormatRunsPreservedAcrossSave
+TextEditUndoChainTest.
+  SingleEditUndoRestoresOriginalText
+  UndoRedoRestoresEditedText
+  MergedCommandsUndoToOriginalBaseline
+  FiveEditsFiveUndosRestoresExactOriginal
+  UndoPreservesFormattingRunsBaseline
+  MergeFailsAcrossDifferentPageIndex
+  MergeAssociativityUndoToOriginalBaseline
+  UndoAfterSaveStillReversesEdit
+  CompositeReplaceAllUndoReversesAll
+  UndoOfEmptyReplacementRestoresOriginal
+  FormattingChangeReversesViaUndo
+  ImageXObjectRefSurvivesSaveAndRestore
+  ImageEditStackLosslessUndoChain
+Phase4AnnotationsTest.
+  StickyNotePlacementPushesCreateCommand
+  SelectToolDeleteKeyPushesDeleteCommand
+  SelectToolResizeWiringPushesModifyCommand
+  LinkAnnotationUriRoundTrip
+  HighlightAcceptsMultipleQuadPoints
+  FreeTextDefaultAppearancePersistsThroughSave
+  CommentPanelReflectsNewAnnotation
+  CommentPanelDeleteSignalTriggersDeleteCommand
+  AnnotationPastedCallbackCreatesNewAnnotation
+Phase5FormsTest.
+  TextFieldValueCommitsAndPersists
+  RadioGroupExclusivity
+  PushButtonToggleNoCrash
+  JavaScriptValidateEventReturnsBoolean
+  XfdfRoundTripPreservesFieldValues
+  ResetFormRestoresDefaultValues
+  FlattenFormRemovesInteractiveWidgets
+  HostAllowlistBlocksDisallowedHosts
+  SignatureWidgetTypeIsDistinctFromOthers
+Phase6PageOpsTest.
+  RotatePageUpdatesRotationModulo360
+  DeleteLastPageIsNoOpOrErrorsCleanly
+  DeletePageUndoRestoresContent
+  ImportPagesIncreasesPageCount
+  ImportPagesPreservesContent
+  DeletePageRangeNonContiguous
+  PagePanelPageMovedSignalContract
+  PagePanelMultiSelectDeleteSignalCarriesAllIndices
+  DeletePageReducesCountSuchThatClampIsPossible
+Phase7ImageEditTest.
+  InsertImagePlacesXObjectOnPage
+  RemoveImageUndoRestoresXObject
+  ResizeImageUpdatesCtmThroughSave
+  RotateImageUpdatesCtmThroughSave
+  CropImageProducesValidPdf
+  RemoveImageCommandReachesUndoStack
+  InsertImageOnNonEncryptedDocumentSucceeds
+Phase7RedactionTest.
+  CreateRedactionMarkAddsAnnotation
+  ApplyAllRemovesAllPendingMarks
+  AppliedRedactionPersistsThroughSaveReopen
+  MultipleMarksAtSearchHitsCreate
+  PendingMarkCountReflectsMarks
+  ApplyConfirmationDataAvailable
+Phase8SecurityTest.
+  SignatureManagerSurfacesListForPanel
+  VerifyAllOnUnsignedDocReturnsCleanly
+  SaveIncrementalProducesFile
+  EncryptionSettingsPasswordPredicates
+  SaveEncryptedProducesPasswordProtectedFile
+  ConvertToPdfASurfacesIssuesOnNonCompliantInput
+  EncryptionManagerSurfacesPermissions
+  SaveWithNoneAlgorithmIsPlainSave
+Phase9ChromeTest.
+  SearchPanelExposesNavigationAndReplaceSignals
+  BookmarkPanelExposesActivationSignal
+  BookmarkManagerLoadProducesVectorForPanel
+  LayerPanelExposesVisibilitySignal
+  LayerManagerListLayersSurfacesForPanel
+  MetadataManagerRoundTripsThroughSaveReopen
+  RecentFilesMenuExposesFileTriggeredSignalSignature
+  UndoManagerCleanStateDrivesDirtyMarker
+  GoToPageHandlesPageDownPageUpHomeEnd
+  AlignmentButtonGlyphsAreNotPlainArrows
+  NoTwoActionsBindTheSameSaveAndSignShortcut
+  CanvasExposesContextMenuRequestSignal
+  PagePanelReorderContractStaysCovered
+  ToolbarWidgetsAreTabReachableAndUniquelyNamed
+  MainWindowAcceptsPdfFileDrop
+  BookmarkPanelTreeUsesCustomContextMenuPolicy
+  LayerPanelTreeIsContextMenuAware
+  KB07_CleanDocumentClosesWithoutPrompt
+  KB07_DirtyDocumentCancelKeepsWindowOpen
+  KB07_DirtyDocumentDiscardClosesWindow
+  CTX02_TextEditMenuExposesClipboardActions
+  CTX11_TextEditMenuExposesFormattingAndFind
+  CTX02_MenuOrderIsClipboardThenFormattingThenFind
+  CTX02_SelectAllActionDispatchHitsTool
+  KB07_ExitActionShortcutIsCtrlQ
+FontMetricProfileTest.
+  DefaultConstructionIsInvalid
+  IsValidRequiresNameAndGlyphs
+  DistanceToIdenticalIsZero
+  DistanceToSerifVsSansIncludesPenalty
+  DistanceToDifferentStemWeights
+  DistanceToDifferentWeightClasses
+  DistanceToItalicMismatch
+  ItalicPenaltyOutweighsGoodMetrics
+  ItalicPenaltyHeavierThanSerif
+  DistanceToMonospaceMismatch
+  PanoseIdenticalContributesZero
+  PanoseDifferentFamilyKindNoPenalty
+  PanoseThreeDiffer
+  PanoseZeroBytesSkipped
+  PanoseAllNineDifferMaxPenalty
+  PanoseAllZeroFamilyKindNoPenalty
+  CoverageFlags
+  AdditiveBaseline_IdenticalProfilesAreZero
+  SerifMismatch_AddsExactly4Point0
+  SerifPenalty_IsAdditiveOutsideSqrt
+  ScriptMismatch_AddsExactly8Point0
+  ScriptPenalty_NotAppliedWhenEitherIsUnknown
+  ScriptPenalty_NotAppliedWhenScriptMatches
+  SerifAndScriptPenalties_Stack
+  ScriptPenalty_IsAdditiveOutsideSqrt
+  ScriptMismatch_AllNonUnknownPairs_Give8Point0
+  SerifPenalty_IsNotDampenedBySqrt_OldCodeRegression
+EmbeddedFontAnalyzerTest.
+  AnalyzePageFontsReturnsProfiles
+  PostScriptNamePopulated
+  WeightClassPopulated
+  StemWeightMeasured
+  CoverageDetected
+  XHeightCapHeightPopulated
+  GlyphCountPositive
+  InvalidFontHandleReturnsNullopt
+  NullPageHandled
+  MultipleFontsOnPage
+  AnalyzeFromFileHasPanose
+FontAnalysisCacheTest.
+  PutAndGetRoundTrip
+  GetNonExistentReturnsNullopt
+  ContainsCorrectness
+  LruEviction
+  ClearEmptiesBothTiers
+  PersistenceAcrossInstances
+  InMemoryOnlyMode
+TextShaperTest.
+  ShapeAsciiTextReturnsGlyphs
+  MeasureWidthPositiveForNonEmptyText
+  MeasureWidthZeroForEmptyText
+  CanRenderLatinText
+  CanRenderReturnsFalseForCJK
+  ShapedGlyphCountMatchesInput
+  NullFaceHandledGracefully
+GlyphScaleAdjusterTest.
+  SameFontScaleIsOne
+  DifferentFontsScaleNonOne
+  EmptyTextReturnsDefault
+  NullFaceReturnsDefault
+  FontSizePreserved
+  ConsistentResultsForSameInput
+  DifferentTextProducesDifferentScales
+  LongTextHandledCorrectly
+  SpecialCharactersHandled
+  ZeroFontSizeHandledGracefully
+  NegativeFontSizeHandledGracefully
+  VeryLargeFontSizeHandled
+  UnicodeTextHandled
+  SingleCharacterText
+  WhitespaceOnlyText
+SubstituteFontSelectorTest.
+  KnownPairHelveticaReturnsArial
+  KnownPairTimesReturnsTimesNR
+  SerifFontGetsSerifSubstitute
+  SansFontGetsSansSubstitute
+  MonoFontGetsMonoSubstitute
+  EmptyTextReturnsNullopt
+  MatchScoreIsReasonable
+  CacheHitOnSecondCall
+  HandlesSpecialCharactersInFontName
+  HandlesUnicodeText
+  BoldWeightFontMatching
+  ItalicFontMatching
+  HandlesLongText
+  HandlesNumericOnlyText
+  HandlesMinimalProfile
+  FindTopCandidatesReturnsUpToN
+  FindTopCandidatesSortedByScore
+  FindTopCandidatesKnownPairIncludedInLargerSet
+  CharisSILDoesNotMatchToNirmalaUI
+PdfFontEmbedderTest.
+  EmbedArialReturnsResourceName
+  EmbedMultipleFontsGetsDifferentNames
+  InvalidPathReturnsNullopt
+  NullPageReturnsNullopt
+  NullDocReturnsNullopt
+  EmptyPathReturnsNullopt
+FontSubstitutionEngineTest.
+  NoModificationsReturnsEmpty
+  AsciiTextNoSubstitution
+  NullPageReturnsEmpty
+  NullDocReturnsEmpty
+  SubstitutionInfoHasValidFields
+  MultipleSpansProcessed
+FontFamilyResolverTest.
+  ResolveArial_NonEmpty
+  ResolveArialBold_NonEmpty
+  ResolveArialItalic_NonEmpty
+  ResolveArialBoldItalic_NonEmpty
+  ResolveNonExistent_Empty
+  CacheHit_SameResult
+  DifferentStyles_DifferentPaths
+ContentStreamSubstitutionTest.
+  EmptySubstitutionsDelegatesToApplyEdits
+  NullPageNoCrash
+  NullDocNoCrash
+  EmptyModificationsNoCrash
+  WithSubstitutionInfoNoCrash
+  BackwardCompatibility
+  SubstitutionInfoFieldsUsed
+TextEditClipboardTest.
+  CopyAfterSelectAll
+  CutRemovesText
+  PasteInsertsText
+  CopyWithNoSelection
+  PasteWithEmptyClipboard
+TextEditWidthScalingTest.
+  LongerTextNoException
+  ShorterTextNoException
+  SameTextNoScaling
+  CharRatioLogic
+  EmptyTextHandling
+  VeryLongTextHandling
+  SpecialCharactersHandling
+TextEditToolBarTest.
+  CreateAndDestroy
+  ObjectNameSet
+  FontComboBoxExists
+  FontSizeSpinBoxExists
+  StyleButtonsExist
+  SetFontInfoUpdatesFontCombo
+  SetFontInfoResetsStyleButtons
+  ClearFontInfoResetsAll
+  SetSelectionFormattingUpdatesAll
+  SelectionGuardPreventsSignalFeedback
+  UserInteractionEmitsSignals
+  MultipleSetFontInfoCalls
+  SetClearSetCycle
+  SetFontInfoWithSpecialCharacters
+  StyleButtonShortcuts
+  FontSizeSpinBoxSignal
+  SetFontInfoGuardPreventsSignals
+TreTypes_PixelRect.
+  Width
+  Height
+  Area
+  AreaZero
+  Contains_PointInside
+  Contains_PointOnEdge
+  Contains_PointOutside
+  Intersects_Overlapping
+  Intersects_NonOverlapping
+  Intersection_Overlapping
+  Intersection_NonOverlapping
+  Center
+TreTypes_PdfRect.
+  Width
+  Height
+  Area
+  AreaZero
+  Contains_PointInside
+  Contains_PointOutside
+  Intersects_Overlapping
+  Intersects_NonOverlapping
+  Intersection_Overlapping
+  Intersection_NonOverlapping
+  Center
+TreTypes_RegionTextData.
+  MeanWordConfidence_EmptyLines
+  MeanWordConfidence_SingleWord
+  MeanWordConfidence_MultipleWords
+  MinWordConfidence_EmptyLines
+  MinWordConfidence_SingleWord
+  MinWordConfidence_MultipleWords
+  ContainsOnlyText_EmptyLines
+  ContainsOnlyText_AllPositiveConfidence
+  ContainsOnlyText_WithZeroConfidence
+  ContainsOnlyText_WithNegativeConfidence
+TreTypes_DefaultValues.
+  QualityThresholds
+  QualityVerdict
+  BackgroundInfo
+  OcrConfig
+  ScannedTextProperties
+  FontMatch
+  RgbColor
+  RgbaColor
+  HocrWord
+  AffineTransform
+HocrParserTest.
+  ParseValidHocr_PageDimensions
+  ParseValidHocr_BlockCount
+  ParseValidHocr_ParagraphLineStructure
+  ParseValidHocr_WordExtraction
+  ParseValidHocr_WordBbox
+  ParseValidHocr_WordConfidence
+  ParseValidHocr_FontSize
+  ParseValidHocr_BaselineParsing
+  ParseValidHocr_LineMetrics
+  ExtractRegion_SingleLine
+  ExtractRegion_SnapToLine
+  ExtractRegion_PlainText
+  ExtractRegion_MultipleLines
+  ParseEmptyXml
+  ParseMalformedXml
+  ParseUtf8Characters
+  ParseValidHocr_BlockBbox
+  ExtractRegion_NoOverlap
+  ExtractRegion_PixelBbox
+  ParseCharBoxes_CodepointsAndBboxes
+  ParseNoCharBoxes_CharsEmpty
+  ParseCharBoxes_ConfidenceParsed
+  ParseCharBoxes_EmptyCharTextSkipped
+  ParseCharBoxes_WordTextReconstructedFromChars
+  ParseCharBoxes_Utf8Characters
+OcrConfigTest.
+  EnableCharBoxesDefaultsFalse
+HocrParserXBboxes.
+  WordLevelXBboxesDistributedToChars
+  PerCharBboxPreferredOverWordLevel
+  EmptyCharTitlesUseWordXBboxes
+  MoreCharsThanBboxesSafe
+CoordMapperMathTest.
+  PixelSizeToPdfPt_300DPI
+  PixelSizeToPdfPt_SmallSize
+  PdfPtToPixelSize_300DPI
+  PdfPtToPixelSize_SmallSize
+  RoundTripPixelSize
+  PixelToPdf_Rotation0_TopLeft
+  PixelToPdf_Rotation0_Center
+  PixelToPdf_Rotation0_BottomRight
+  PdfToPixel_Rotation0_TopLeft
+  PdfToPixel_Rotation0_BottomRight
+  NoYFlip_TopStaysTop
+  NoYFlip_BottomStaysBottom
+  PixelRectToPdf_SimpleRect
+  PdfRectToPixel_SimpleRect
+  PixelToPdf_Rotation90
+  PixelToPdf_Rotation180
+  PixelToPdf_Rotation270
+  RoundTrip_Rotation90
+  RoundTrip_Rotation180
+  RoundTrip_Rotation270
+CoordMapperDocumentTest.
+  RoundTripPoint_Rotation0
+  RoundTripRect_Rotation0
+  CacheHit_SamePage
+  CacheInvalidation_SinglePage
+  CacheInvalidation_AllPages
+  GetTransform_InvalidPageIndex
+  FullWorkflow_ConvertAndBack
+  PixelToPdf_PreservesYDirection
+  PdfToPixel_PreservesYDirection
+CoordMapperConstructorTest.
+  NullContextThrows
+  NullDocumentThrows
+OcrPipelineTest.
+  ConstructAndDestroy
+  ConstructWithConfig
+  DefaultConfig
+  CacheInitiallyEmpty
+  RenderPageProducesImage
+  RenderPageAt300Dpi
+  SetConfigInvalidatesCache
+  InvalidateCacheOperations
+  MoveConstructor
+  OcrOnScannedPdf
+  OcrCachesResults
+  ProgressCallbackInvoked
+BgColorDetectorTest.
+  DetectWhiteBackground
+  DetectColoredBackground
+  DetectVerticalGradientBackground
+  DetectHorizontalGradientBackground
+  DetectComplexBackground
+  InterLineGapSampling
+  EdgeSamplingOnly
+  EmptyRegionReturnsDefault
+  ConfidenceHighWithGaps
+  ConfidenceLowEdgeOnly
+  SmallRegionHandled
+  RegionClampedToImage
+  NearWhiteIsUniform
+ImageMaskerTest.
+  MaskRegionSolidFill
+  MaskRegionPreservesOutside
+  FeatheredEdgesBlended
+  BoxBlurSinglePass
+  BoxBlurThreePasses
+  GradientMaskFill
+  MaskAllRegionsMultiple
+  CompositeTextBitmapAlpha
+  CompositePreservesOutside
+  BoundsClampingNoOverflow
+  EmptyRegionNoOp
+  LargeImagePerformance
+QualityAssessorTest.
+  HighQualitySelectsApproachB
+  LowConfidenceSelectsApproachC
+  ComplexBgSelectsApproachC
+  PoorFontMatchWarning
+  GradientBgReducesScore
+  BorderlineScore
+  CustomThresholdsRespected
+  MultipleWarnings
+  PerfectScore
+  MinConfidenceWarning
+  NonTextOverlapWarning
+  GetAndSetThresholds
+BitmapCompositorTest.
+  ConstructAndDestroy
+  RenderSimpleText
+  TransparentBackground
+  TextColorCorrect
+  FontSizeAffectsOutput
+  DpiAffectsOutput
+  EmptyTextReturnsTransparent
+  MoveConstructor
+  WordWrapping
+  FontMatchOverload
+  MultiFontEmptyRunsFallsBackToSingleFont
+  MultiFontSingleRunRendersText
+  MultiFontTwoDifferentFonts
+  MultiFontDifferentSizes
+  MultiFontBoldItalicStyle
+  MultiFontUnderlineStrikethrough
+  MultiFontGapUsesDefaultFont
+  MultiFontEmptyTextReturnsTransparent
+FontMatcherTest.
+  DetectPropertiesBasicText
+  FontSizeFromXSize
+  DetectTextColorBlack
+  DetectTextColorRed
+  DetectTextColorEmptyWords
+  EstimateWeightRegular
+  EstimateWeightBold
+  EstimateWeightSemiBold
+  EstimateWeightLight
+  EstimateWeightThin
+  FindMatchReturnsFontPath
+  FindMatchConfidenceRange
+  FindMatchSansFont
+  FindMatchSerifFont
+  MatchRegionEndToEnd
+  MatchRegionEmptyData
+  FallbackToArial
+  LineSpacingDetection
+  LineSpacingSingleLine
+  ItalicDetection
+  NonItalicDetection
+  BaselineAveragingWithRealBaseline
+  BaselineAveragingSkippedForZeroOffset
+  BaselineAveragingSkippedForCJK
+  BaselineAveragingMultipleLines
+  BaselineAveragingDegenerateBaselineSkipped
+FontMatcherQueryEnrichment.
+  XToCapRatioFromDetectedProperties
+  ItalicSetsNonZeroAngle
+FontMatcherVisualRanking.
+  NoCompositorSkipsVisualRanking
+  WithCompositorAlwaysUsesVisualRanking
+  WithCompositorAndLowConfidence
+FontMatcherBuildQueryProfile.
+  WeightClass_Thin_Maps100
+  WeightClass_Light_Maps300
+  WeightClass_Regular_Maps400
+  WeightClass_SemiBold_Maps600
+  WeightClass_Bold_Maps700
+  WeightClassDistance_RegularVsBold_IsProportional
+  WeightClassDistance_RegularVsSemiBold_LessThanBold
+FontMatcherBoldOverride.
+  HighXHeightRatio_ThinStrokes_DowngradesToRegular
+  RegularXHeightRatio_NoOverride
+  EmptyRegion_NoOverrideAndNocrash
+  SemiBoldXHeightRatio_ThinStrokes_DowngradesToRegular
+PdfContentWriterTest.
+  ConstructorCreatesValidWriter
+  MoveConstructorWorks
+  MoveAssignmentWorks
+  FindImageOnScannedPageReturnsValidInfo
+  FindImageWithNullPageReturnsNullopt
+  FindImageWithNullDocumentReturnsNullopt
+  ReplacePageImageWithNewImageSucceeds
+  ReplaceWithNullImageReturnsFalse
+  ReplaceWithARGBImageAutoConverts
+  WriteSimpleTextBlockReturnsOperators
+  WriteTextWithEmptyStringReturnsEmpty
+  WriteTextWithNullPageReturnsEmpty
+  AppendRawOperatorsSucceeds
+  AppendEmptyStringReturnsFalse
+  AppendWithNullPageReturnsFalse
+  GetImageDataFromScannedPageReturnsNonEmpty
+  GetImageDataWithNullPageReturnsEmpty
+  GetContentStreamDataReturnsNonEmpty
+  GetContentStreamWithNullDocumentReturnsEmpty
+  WriteTextBlockWithMultiLineHocrData
+  SaveImageXObjectRefReturnsNonNull
+  SaveImageXObjectRefWithNullPageReturnsNull
+  SaveMutateRestoreIsLossless
+  RepeatedSaveMutateRestoreHasNoDrift
+RegionReconstructorTest.
+  ConstructAndDestroy
+  MoveConstructor
+  AnalyzeReturnsQualityVerdict
+  AnalyzeDetectsBackground
+  AnalyzeMatchesFont
+  ReconstructHighQualityRegion
+  ReconstructReturnsRegionData
+  ReconstructInvalidPage
+  ReconstructEmptySelection
+  ReconstructNullPage
+  ReconstructWithEditedText
+  AnalyzeEmptyPage
+  AnalyzeZeroAreaSelection
+  ReconstructNullDocument
+ImageReplacerTest.
+  ConstructAndDestroy
+  MoveConstructor
+  ReplaceBasicRegion
+  ReplaceReturnsApproachC
+  ReplacePopulatesRegionData
+  ReplaceWithFontMatchSkipsAnalysis
+  ReplacePreservesImageSize
+  ReplaceInvalidPage
+  ReplaceEmptyText
+  ReplaceNullPage
+TreRegionToolTest.
+  ConstructAndDestroy
+  ToolTypeReturnsUnknown
+  MousePressStartsDrawing
+  MouseMoveUpdatesEndPoint
+  MouseReleaseFiresCallback
+  MinimumSizeCheck
+  MinimumSizeCheckOneDimensionLarge
+  PaintOverlayNoCrash
+  RightButtonIgnored
+  RightButtonReleaseIgnored
+  MouseMoveOnDifferentPageIgnored
+  NoCallbackNoCrash
+  InvertedCoordinatesNormalized
+  MultipleRegionsSequentially
+TreEditDialogTest.
+  ConstructAndDestroy
+  DisplaysOcrText
+  EditableText
+  ApproachBSelectedForHighQuality
+  ApproachCSelectedForLowQuality
+  AcceptReturnsEditedText
+  BoundaryQualityScoreAboveThreshold
+  BoundaryQualityScoreBelowThreshold
+  EmptyOcrText
+  SpecialCharactersInOcrText
+  MultipleEdits
+  UserCanSwitchApproachSelection
+PdfContentWriterNullTest.
+  SaveImageXObjectRef_NullPage
+  SaveContentsRef_NullPage
+  ReleaseImageXObjectRef_NullSafe
+  ReleaseContentsRef_NullSafe
+  RestoreImageXObjectRef_NullSafe
+  RestoreContentsRef_NullSafe
+TreCommandsTest.
+  SaveImageXObjectRef_ReturnsValue
+  SaveContentsRef_ReturnsValue
+  SaveAndRestoreImageRoundtrip
+  SaveAndRestoreContentsRoundtrip
+  ReconstructCommand_ConstructAndDestroy
+  ReconstructCommand_Description
+  ReconstructCommand_ExecuteAndUndo
+  ReconstructCommand_InvalidPage
+  ImageReplaceCommand_ConstructAndDestroy
+  ImageReplaceCommand_Description
+  ImageReplaceCommand_ExecuteAndUndo
+  ImageReplaceCommand_InvalidPage
+RedactionManagerTest.
+  ConstructDestroy
+  CreateRedactionMark
+  CreateMultipleMarks
+  CreateMarksOnDifferentPages
+  DeleteRedactionMark
+  DeleteNonExistentMark
+  RestoreRedactionMark
+  SetFillColor
+  SetOverlayText
+  SetRect
+  GetRedactionMarks
+  GetRedactionMarksSinglePage
+  GetRedactionMark_ByIndex
+  GetAllRedactionMarks
+  PendingMarkCount
+  GetRedactionMarkAt_HitTest
+  GetRedactionMarkAt_Miss
+  ApplyPageRedactions
+  CreateRedactionMark_NullPage
+RedactionCommandsTest.
+  CreateCommand_Description
+  CreateCommand_Execute
+  CreateCommand_Undo
+  CreateCommand_Redo
+  CreateCommand_UndoRedoPreservesAnnotIndex
+  DeleteCommand_Description
+  DeleteCommand_Execute
+  DeleteCommand_Undo
+  DeleteCommand_Redo
+  ModifyCommand_FillColor
+  ModifyCommand_FillColor_Description
+  ModifyCommand_OverlayText
+  ModifyCommand_OverlayText_Description
+  ModifyCommand_Rect
+  ModifyCommand_Rect_Description
+  ModifyCommand_UndoRedo
+  ModifyCommand_MergeWith_SameProperty
+  ModifyCommand_MergeWith_DifferentProperty
+  ModifyCommand_MergeId
+  CommandChain_CreateModifyDelete
+RedactionVerifierTest.
+  ConstructDestroy
+  VerifyUnmodifiedPdf
+  CheckSingleRevision_UnmodifiedPdf
+  CheckNoOrphanStreams_UnmodifiedPdf
+  CheckTextRemoved_EmptyRegions
+  CheckTextRemoved_NoTextInRegion
+  VerifyResult_HasCorrectFields
+  CheckSingleRevision_Invalid
+  CheckNoOrphanStreams_Invalid
+  FullVerification_UnmodifiedPdf
+RedactionApplyTest.
+  ApplyNoMarks
+  ApplySingleMark
+  ApplyMultipleMarksOnSamePage
+  ApplyMarksMultiplePages
+  ApplyPageRedactions_SinglePage
+  ApplyWithOptions
+  ApplyWithRewriteOption
+  PendingMarkCount
+  VerifyAfterApply
+RedactionPanelTest.
+  ConstructDestroy
+  InitialState
+  SetMarks
+  SetMarksColumns
+  ClearMarks
+  ApplyButtonEnabled
+  DeleteButtonDisabled
+  MarkCountLabel
+  SignalEmitted
+RedactionManagerEdgeCaseTest.
+  DeleteRedactionMark_NullPage
+  RestoreRedactionMark_NullPage
+  SetFillColor_NullPage
+  SetOverlayText_NullPage
+  SetRect_NullPage
+  GetRedactionMarks_NullPage
+  GetRedactionMark_NullPage
+  GetRedactionMarkAt_NullPage
+  ApplyPageRedactions_NullPage
+  ApplyAllRedactions_NullDocument
+  GetAllRedactionMarks_NullDocument
+  PendingMarkCount_NullDocument
+  GetRedactionMark_OutOfRange
+  SetFillColor_OutOfRange
+  SetOverlayText_OutOfRange
+  SetRect_OutOfRange
+  DeleteRedactionMark_OutOfRange
+  SetOverlayText_Empty
+  RestoreRedactionMark_WithOverlayText
+  OverlappingMarks
+  HitTestExactBoundary
+  HitTestJustOutside
+  GetMarksOnCleanPage
+  ApplyOnCleanPage
+  SetFillColor_White
+  SetFillColor_CustomRGB
+  DefaultRedactionDataValues
+  DefaultApplyOptionsValues
+  DefaultApplyResultValues
+  DefaultVerifyResultValues
+  MoveConstruct
+  MoveAssign
+RedactionCommandEdgeCaseTest.
+  CreateCommand_UndoBeforeExecute
+  DeleteCommand_UndoBeforeExecute
+  ModifyCommand_UndoBeforeExecute
+  MergeWith_NonModifyCommand
+  MergeWith_DifferentAnnotIndex
+  MergeWith_DifferentPage
+  CreateCommand_MergeId
+  DeleteCommand_MergeId
+  CreateCommand_MergeWith
+  DeleteCommand_MergeWith
+  CreateCommand_MultipleUndoRedoCycles
+  DeleteCommand_MultipleUndoRedoCycles
+RedactionVerifierEdgeCaseTest.
+  CheckTextRemoved_TextStillPresent
+  CheckTextRemoved_InvalidPageIndex
+  CheckTextRemoved_NegativePageIndex
+  VerifyResult_WarningsPopulated
+  MoveConstruct
+RedactionPanelEdgeCaseTest.
+  DeleteMarkRequested_Signal
+  MarkSelected_Signal
+  DisabledMarks_Filtered
+  AllDisabledMarks_EmptyPanel
+  SingularMarkCountLabel
+  PluralMarkCountLabel
+  ColorFormatting_NamedColors
+  ColorFormatting_HexFallback
+  OverlayText_Truncation
+  OverlayText_ShortNotTruncated
+  OverlayText_Empty
+  DeleteButton_EnabledAfterItemClick
+  DeleteButton_DisabledAfterClear
+  PageNumberDisplay_OneBased
+  PageNumberDisplay_MultiplePages
+  RegionFormatting
+  ItemDataStored_PageAndAnnotIndex
+  SetMarks_Replaces
+  SetMarks_EmptyVector
+RedactionApplyOptionsTest.
+  TextMethodNone
+  ImageMethodPixels
+  ImageMethodNone
+  LineArtRemoveIfTouched
+  LineArtNone
+  BlackBoxesFalse
+RedactionPanelDeleteMarkTest.
+  DeleteHandlerEmitsSignalAndRowCountDecreases
+  DeleteWithNoSelectionEmitsNothing
+  DisabledMarksAreSkippedFromTree
+RedactionApplyPendingEditTest.
+  EditCommittedBeforeApplyPersistsAfterSaveReopen
+  ApplyWithoutPriorEditDoesNotInjectText
+PermissionFlagsTest.
+  AllPermissions_DefaultConstruction
+  AllPermissions_AllFactory
+  ReadOnly_Factory
+  ToBitmask_AllPermissions
+  ToBitmask_ReadOnly
+  FromBitmask_AllBits
+  FromBitmask_NoBits
+  FromBitmask_Roundtrip
+  Equality_SameFlags
+  Equality_DifferentFlags
+EncryptionSettingsTest.
+  Defaults
+  WithAes256
+EncryptionInfoTest.
+  DefaultConstruction
+EncryptionManagerTest.
+  ConstructDestroy
+  UnencryptedPdf_IsNotEncrypted
+  UnencryptedPdf_DoesNotNeedPassword
+  UnencryptedPdf_FullPermissions
+  UnencryptedPdf_EncryptionInfo
+  NullDocument_Throws
+  SaveEncrypted_NullDocument_Throws
+  SaveEncrypted_NoAlgorithm_Throws
+  SaveEncrypted_NoOwnerPassword_Throws
+  RemoveEncryption_NullDocument_Throws
+  SaveEncrypted_Roundtrip
+  SaveEncrypted_RestrictedPermissions
+  SaveEncrypted_OwnerPasswordOnly
+  RemoveEncryption_Roundtrip
+EncryptedDocumentTest.
+  OpenWithUserPassword
+  OpenWithOwnerPassword
+  OpenWithWrongPassword_Throws
+  OwnerOnlyPdf_OpensWithoutPassword
+  EncryptionInfo_AES256
+  RestrictedPermissions
+  AllPermissions_AES256
+  AuthenticatePassword_UserCorrect
+  AuthenticatePassword_Wrong
+PasswordDialogTest.
+  ConstructDestroy
+  InitialState
+  PasswordEdit_ObjectName
+  OkButton_ObjectName
+  OkButton_EnabledWithText
+  Password_Retrieval
+  EchoMode_Password
+  Reject_ClearsNothing
+EncryptionDialogTest.
+  ConstructDestroy
+  InitialState_NoneAlgorithm
+  AlgorithmChange_EnablesFields
+  OwnerPassword_Required
+  PasswordMismatch_UserPassword
+  PasswordMismatch_OwnerPassword
+  ValidInput_OkEnabled
+  Settings_ReturnsCorrectValues
+  AlgorithmMapping_RC4_40
+  AlgorithmMapping_RC4_128
+  AlgorithmMapping_AES_128
+  PasswordStrength_Thresholds
+PreferencesDialogTest.
+  LoadSettings
+  AcceptPersists
+  CancelDoesNotPersist
+SignerIdentityTest.
+  DefaultConstruction_IsEmpty
+  WithCommonName_NotEmpty
+  WithOrganization_NotEmpty
+  WithEmail_NotEmpty
+  Equality
+SignatureErrorTest.
+  ErrorToString
+  FromMuPdf_ValidCodes
+  FromMuPdf_InvalidCode
+SignatureVerifyResultTest.
+  DefaultConstruction
+  FullyValid
+  DigestInvalid_NotFullyValid
+  CertificateInvalid_NotFullyValid
+  ModifiedAfterSigning_NotFullyValid
+SignatureDataTest.
+  DefaultConstruction
+  WithValues
+SigningOptionsTest.
+  DefaultConstruction
+  WithValues
+SignatureSummaryTest.
+  DefaultConstruction
+  WithSignatures
+Pkcs7BridgeTest.
+  ConstructDestroy
+  IsAvailable
+  ReadPfx_ValidFile
+  ReadPfx_WrongPassword
+  ReadPfx_NonexistentFile
+  CreateVerifier
+  DropNullSigner
+  DropNullVerifier
+SignatureManagerTest.
+  ConstructDestroy
+  BridgeAvailable
+  CountSignatures_NoSignatures
+  ListSignatures_Empty
+  CreateSignatureField
+  CreateField_IncreasesCount
+  CreateField_AppearsInList
+  RemoveSignatureField
+  RestoreSignatureField
+  CountSignatures_NullDoc
+  ListSignatures_NullDoc
+  CreateField_NullPage_Throws
+  GetSignatureDetails
+  SignField
+  SignAndVerify
+  VerifyAllSignatures
+  SignField_EmptyPfx_Throws
+  SignField_WrongPassword_Throws
+  VerifyUnsignedField
+  SaveIncremental
+  PreviewAppearance
+  ClearSignature_Unsigned
+  MultiPageSignatures
+  SaveIncremental_NullDoc_Throws
+  RemoveField_InvalidIndex_Throws
+SignatureCommandsTest.
+  Execute_CreatesField
+  Undo_RemovesField
+  Redo_RestoresField
+  Description
+  MultipleCycles
+  TwoCommands
+  Undo_BeforeExecute
+  DifferentRectValues
+  MergeId_Zero
+  Destructor
+SignaturePanelTest.
+  ConstructDestroy
+  ObjectNames
+  SetSignatures
+  Clear
+  VerifyAllSignal
+  SignatureSelectedSignal
+  EmptyList_DisablesButtons
+  TreeHas4Columns
+SignDialogTest.
+  ConstructDestroy
+  ObjectNames
+  OkDisabledInitially
+  OkEnabled_WithValidInput
+  OkDisabled_EmptyPassword
+  SigningOptions_ReturnsValues
+  AppearanceFlags_DefaultAllChecked
+  AppearanceFlags_Partial
+  SIG02_DialogToValidSignature
+  SIG03_WrongPasswordRejected
+  SIG05_CertificationNoChangesSetsDocMDP
+ImageDataTest.
+  DefaultValuesAreZeroOrEmpty
+  IsValidReturnsFalseWhenEmpty
+  IsValidReturnsFalseWhenOnlyNameSet
+  IsValidReturnsFalseWhenOnlyDimensionsSet
+  IsValidReturnsTrueWhenNameAndDimensionsSet
+  PixelAreaReturnsWidthTimesHeight
+  PixelAreaReturnsZeroForDefaultValues
+  PixelAreaHandlesLargeValues
+  DisplayAreaReturnsWidthTimesHeight
+  DisplayAreaReturnsZeroForDefaultValues
+  ColorSpaceStringReturnsGrayscaleForOneComponent
+  ColorSpaceStringReturnsRGBForThreeComponents
+  ColorSpaceStringReturnsCMYKForFourComponents
+  ColorSpaceStringReturnsUnknownForOtherValues
+  CompressionStringReturnsJPEGWhenIsJpegTrue
+  CompressionStringReturnsLosslessWhenIsJpegFalse
+ImageTransformTest.
+  DefaultValuesAreIdentity
+  IsIdentityReturnsTrueForDefaultTransform
+  IsIdentityReturnsFalseWhenScaleXChanged
+  IsIdentityReturnsFalseWhenScaleYChanged
+  IsIdentityReturnsFalseWhenRotationChanged
+  IsIdentityReturnsFalseWhenTranslateXChanged
+  IsIdentityReturnsFalseWhenTranslateYChanged
+  IsIdentityReturnsFalseWhenCropRectSet
+  HasCropReturnsFalseForDefaultTransform
+  HasCropReturnsTrueWhenCropRectIsNonEmpty
+  HasCropReturnsFalseWhenCropRectIsEmpty
+InsertImageOptionsTest.
+  DefaultValuesAreCorrect
+  FilePathCanBeSet
+  TargetRectCanBeSet
+  JpegQualityCanBeSet
+  StripExifCanBeSet
+  MaintainAspectRatioCanBeSet
+ImageOperationResultTest.
+  DefaultValuesAreCorrect
+  SuccessCanBeSet
+  ErrorMessageCanBeSet
+  ImageInfoCanBeSet
+  SuccessfulOperationHasNoError
+  FailedOperationHasErrorMessage
+ImageManagerTest.
+  Construct
+  EnumerateImages_PdfWithImages
+  EnumerateImages_ImageNames
+  EnumerateImages_ImageDimensions
+  EnumerateImages_DisplaySize
+  EnumerateImages_BoundingBox
+  EnumerateImages_NoImages
+  GetImageInfo_Valid
+  GetImageInfo_InvalidIndex
+  ImageCount
+  InsertImage_Success
+  InsertImage_InvalidPath
+  InsertImage_EmptyRect
+  InsertImage_ResultInfo
+  RemoveImage_Success
+  RemoveImage_InvalidIndex
+  RemoveImage_ResultInfo
+  ExtractImage_Valid
+  ExtractImage_Dimensions
+  ExtractImage_InvalidIndex
+  ExtractImageToFile
+  SaveImageRef_Valid
+  SaveContentsRef_Valid
+  ReleaseRef_Null
+  NullPageOrDoc
+ImageCommandsTest.
+  InsertImage_Execute
+  InsertImage_Undo
+  InsertImage_Redo
+  InsertImage_Description
+  InsertImage_Result
+  RemoveImage_Execute
+  RemoveImage_Undo
+  RemoveImage_Redo
+  RemoveImage_Description
+  RemoveImage_UndoRedo_MultiCycle
+  InsertImage_UndoRedo_MultiCycle
+  DestructorSafety
+ImageContentEditorTest.
+  Construct
+  ResizeImage_Success
+  ResizeImage_PreservesImageCount
+  ResizeImage_NullPage
+  ResizeImage_EmptyName
+  RotateImage_Success
+  RotateImage_PreservesImageCount
+  RotateImage_NullDoc
+  CropImage_Success
+  CropImage_PreservesImageCount
+  CropImage_EmptyName
+  NullDoc_AllMethods
+ExifStripperTest.
+  Construct_NoThrow
+  StripExif_Static_NonNull
+  StripExif_Static_PreservesDimensions
+  StripExif_Static_NullImage
+  StripImage_ValidName_ReturnsTrue
+  StripImage_InvalidName_ReturnsFalse
+  StripImage_NullPage_ReturnsFalse
+  StripPageImages_ReturnsCount
+  StripPageImages_NullPage_ReturnsZero
+  StripAllImages_ReturnsTotal
+ImageToolTest.
+  Construct
+  InitialState_NoSelection
+  SetPage_NoSelection
+  ClearPage_ResetsSelection
+  Deselect_EmitsSignal
+  KeyPress_Delete_EmitsRemoveRequested
+  KeyPress_Escape_Deselects
+  CursorAt_NoSelection
+  Paint_NoSelection_DoesNotCrash
+  SelectedImage_NoSelection_ReturnsInvalid
+  NullEvent_DoesNotCrash
+ImagePropertiesPanelTest.
+  Construct
+  HasAllWidgets
+  InitialState_ControlsDisabled
+  SetImageInfo_UpdatesLabels
+  SetImageInfo_UpdatesSpinValues
+  SetImageInfo_EnablesControls
+  ClearInfo_DisablesControls
+  ClearInfo_ResetsLabels
+  RemoveButton_EmitsSignal
+  ExtractButton_EmitsSignal
+MetadataManagerTest.
+  Construct
+  ReadMetadata_Default
+  ReadField_Title
+  ReadField_InvalidKey
+  WriteField_Title
+  WriteField_Author
+  WriteMetadata_Roundtrip
+  WriteMetadata_SpecialChars
+  WriteField_EmptyValue
+  ClearMetadata
+  ReadMetadata_NullDoc
+  WriteMetadata_NullDoc
+  ClearMetadata_NullDoc
+  WriteField_ReadBack_Persistence
+  ReadField_Producer
+MetadataCommandsTest.
+  Construct_NoThrow
+  Execute_WritesNewMetadata
+  Undo_RestoresOldMetadata
+  Redo_ReappliesNewMetadata
+  Description_ReturnsString
+  Execute_MultipleFields
+  Undo_AllFields
+  NullManager_NoThrow
+MetadataDialogTest.
+  Construct
+  HasAllWidgets
+  SetMetadata_UpdatesEditFields
+  SetMetadata_UpdatesReadOnlyLabels
+  Metadata_Roundtrip
+  InitialState_EmptyFields
+  SetMetadata_EditField_ReadBack
+AppSettingsTest.
+  Construct
+  DefaultRecentFiles_Empty
+  AddRecentFile_AppearsFirst
+  AddRecentFile_Deduplicates
+  ClearRecentFiles
+  MaxRecentFiles_Trims
+  WindowGeometry_Roundtrip
+  PanelVisibility_Defaults
+  PanelVisibility_SetGet
+  DefaultZoom_Default
+  TileCacheSizeMB_Default
+  LogSettings_Defaults
+  Author_DefaultFallsBackToEnvOrUnknown
+  Author_SetGetRoundtrip
+  Author_EmptySetRestoresDefault
+LogHandlerTest.
+  Instance_Singleton
+  Install_Uninstall
+  SetMinLevel_GetMinLevel
+  MessageCapture_Warning
+  MessageCapture_BelowLevel
+  FileLogging_Enable_Disable
+CrashHandlerTest.
+  Instance_Singleton
+  Install_Uninstall
+  TestCallback_Set
+  LastCrashInfo_InitiallyEmpty
+  Uninstall_WithoutInstall_DoesNotCrash
+  Install_MultipleCalls_DoesNotCrash
+  TestCallback_SetNull_DoesNotCrash
+CliTest.
+  OpenFile_EmptyPath_DoesNotCrash
+  OpenFile_NonexistentPath_DoesNotCrash
+  CommandLineParser_Setup
+  CommandLineParser_WithFileArgument
+  CommandLineParser_HelpOption
+  CommandLineParser_VersionOption
+  CommandLineParser_MultipleFiles
+  OpenFile_EmptyAfterTrim_DoesNotCrash
+  OpenFile_SpecialCharacters_DoesNotCrash
+RecentFilesMenuTest.
+  Construct_Empty
+  AddFile_AppearsInMenu
+  AddFile_Ordering
+  FileTriggered_Signal
+  ClearAction_ClearsFiles
+  Refresh_RebuildFromSettings
+AboutDialogTest.
+  Construct
+  VersionString_MatchesApp
+  LibraryVersions_ContainsQt
+  LibraryVersions_ContainsMuPDF
+  ChildWidgets_ObjectNames
+  ColorLogoLabel_HasPixmap
+  ItwerxLogoLabel_HasLinkTarget
+  BroughtToYouByLabel_ExactText
+  DonationLabel_ExactText
+  WindowIcon_IsNonNull
+  LicenseTextEdit_ContainsAgplAndAddendum
+CacheStats.
+  DefaultValues
+  HitRatio_ZeroTotal
+  HitRatio_Normal
+  MemoryUtilization
+  Reset
+TileCache.
+  Stats_PutIncrementsCount
+  Stats_GetHitMiss
+  Stats_Eviction
+  Stats_Reset
+  Contains
+TilePrefetcher.
+  Construct_DefaultRingSize
+  SetRingSize_Clamp
+  ComputePrefetch_SingleTile
+  ComputePrefetch_NegativeFilter
+  ComputePrefetch_PageBoundary
+  ComputePrefetch_SkipsCached
+  PrefetchAround_StoresResult
+  ComputePrefetch_NoCache
+StartupTimerTest.
+  Construct_NoCheckpoints
+  Checkpoint_RecordsLabel
+  Checkpoint_Monotonic
+  Summary_Format
+SearchPerformanceTest.
+  SearchPage_FindsText
+  SearchPage_NotFound
+  SearchPage_QuadsNotEmpty
+  SearchPage_CaseInsensitive
+DeferredPanelsTest.
+  MainWindow_HasPagePanel
+  MainWindow_HasPropertiesPanel
+  MainWindow_HasSearchPanel
+  MainWindow_HasBookmarkPanel
+PdfCanvasAccessibleTest.
+  PdfCanvasAccessible_Role
+  PdfCanvasAccessible_LeafHitTest
+  PdfCanvasAccessible_Name_NoDocument
+  PdfCanvasAccessible_Description_NoDocument
+  PdfCanvasAccessible_ActionNames
+  PdfCanvasAccessible_Factory_MatchesCanvas
+  PdfCanvasAccessible_Factory_WrongClass
+  PdfCanvasAccessible_LocalizedActionNames
+  PdfCanvasAccessible_DoAction_NoDoc
+  PdfCanvasAccessible_Factory_NullObject
+  PdfCanvasAccessible_QueryInterface
+AccessibilityHelperTest.
+  ContrastRatio_BlackWhite
+  ContrastRatio_Identical
+  ContrastRatio_Symmetric
+  ContrastRatio_Range
+  RelativeLuminance_Black
+  RelativeLuminance_White
+  MeetsWcagAA_BlackWhite
+  MeetsWcagAA_SimilarColors
+  FocusIndicatorColor_NotInvalid
+  MeetsWcagAA_Threshold
+  RelativeLuminance_Range
+  FocusIndicatorColor_ContrastWithCommonBackgrounds
+KeyboardNavigationTest.
+  PageDown_NoDoc_DoesNotCrash
+  PageUp_NoDoc_DoesNotCrash
+  Home_NoDoc_DoesNotCrash
+  End_NoDoc_DoesNotCrash
+  ZoomIn_Plus
+  ZoomOut_Minus
+  ArrowKeys_DoNotCrash
+  FocusPolicy
+AccessibleNamesTest.
+  Canvas_HasAccessibleName
+  Canvas_HasAccessibleDescription
+  PagePanelDock_HasAccessibleName
+  BookmarkPanelDock_HasAccessibleName
+  PropertiesPanelDock_HasAccessibleName
+  SearchPanelDock_HasAccessibleName
+  CommentPanelDock_HasAccessibleName
+  AnnotationPropertiesDock_HasAccessibleName
+  RedactionPanelDock_HasAccessibleName
+  SignaturePanelDock_HasAccessibleName
+AppIcon.
+  FileExists
+  NonZeroSize
+ResourceHeader.
+  Exists
+CMakeLists.
+  HasProjectVersion
+  HasInstallDirectives
+  HasCPack
+  HasCPackNSIS
+AppCMakeLists.
+  HasResourceFile
+  HasInstall
+ResourceFile.
+  HasIcon
+  HasVersionInfo
+LicenseFile.
+  Exists
+UnifiedTextEditTest.
+  HasTextContent_NativeTextPage
+  HasTextContent_ScannedPage
+  TextExtractorHasText_Delegates
+  TextExtractorHasText_NullPage
+  TessdataFixtureExists
+CoordinateDiagnostic.
+  TextExtractionIsFitzSpace
+  AnnotationRendersCorrectly_TopLeft
+  AnnotationRoundTrip
+TextEditPipelineTest.
+  FontNameMappingWorks
+  EditedTextAppearsInExtraction
+  MultipleSpansEdited
+  EmptyReplacementRemovesText
+  TextPositionPreserved
+SelectToolEnhancedTest.
+  HandleCornerResize_TopLeft
+  HandleCornerResize_BottomRight
+  HandleCornerResize_MinSize
+  MoveAnnotation_FiresCallback
+  DeleteKey_DeletesSelection
+  CopyPaste_DuplicatesAnnotation
+  DoubleClick_StickyNote_FiresCallback
+  DoubleClick_NonStickyNote_NoCallback
+  ContextMenu_HasThreeActions
+  DoubleClick_FreeText_FiresCallback
+  SingleClick_StickyNote_FiresPreview
+  SingleClick_Square_NoPreview
+  ClearSelection_FiresCallback
+  CTX03_StickyNoteContextMenuOffersReply
+  CTX03_FreeTextContextMenuOffersReply
+  CTX03_SquareContextMenuOmitsReply
+  CTX03_StickyNoteReplyTriggersCallback
+SubstitutionInfoModel.
+  DefaultConstructedHasEmptyRunSegments
+  LegacyFieldsRemainAccessibleAndUnchanged
+  RunSegmentStoresAllFields
+  MultipleRunSegmentsPushedWithoutCollision
+  EmptySegmentCharStartEqualsCharEnd
+  ZeroLengthSegmentAtStart
+  OverlappingRangesStoredButNotValidated
+  RunSegmentsCanCarryDifferentFontSizes
+  DefaultConstructedRunSegmentIsZeroed
+  CopyPreservesRunSegments
+  MovePreservesRunSegments
+PerRunEmissionTest.
+  EmptyRunSegmentsFallsThroughToLegacyPath
+  TwoSegmentsProduceMultipleTfOps
+  SingleSegmentEmitsSingleTf
+  EmptySegmentSkipped
+  OutOfBoundsSegmentClamped
+TextEditCommandsPerRun.
+  TwoRunsProduceTwoRunSegments
+  ThreeDistinctFontsAllSurviveAsSegments
+  SingleRunProducesSingleRunSegment
+  EmptyFormattingRunsProducesNoSegments
+  RunWithEmptyFontFilePathFallsBackToSpanFont
+  RunWithUnresolvedPathFallsBackToSpanFont
+  RunCharRangeAndFontSizeMatchInput
+  OutOfOrderInputSortedByCharStart
+  MetadataDerivedFromSpanNotRuns
+  MixedResolutionFallsBackPerSegment
+  ZeroFontSizeFallsBackToSpanFontSize
+FontResourcePersistenceTest.
+  TwoRunsBothFontsSurviveFilterAndGarbageCollection
+  SingleRunFontSurvivesSave
+  NoFormattingRunsLeavesSaveUnaffected
+  ReinsertedResourcesProduceValidPdf
+  ReopenedFontNameIsNonEmpty
+  EmbedderRegistersInPageResourceDict
+  TwoRunsProduceTwoDistinctFontNamesOnReopen
+ToolbarTogglesTest.
+  AnnotationFilter_DefaultShowAll
+  AnnotationFilter_SetHideStickyNotes
+  AnnotationFilter_FilteredDisplayListCreated
+  AnnotationFilter_ShowAllDisplayListCreated
+  AnnotationFilter_ToggleBetweenStates
+  AnnotationFilter_MultipleDisplayListsWithDifferentFilters
+  AnnotationFilter_ResetOnNewDocument
+  DisplayList_ReleaseNullIsNoOp
+StickyNotePopupTest.
+  Creation
+  OpenForAnnotation
+  ClosePopup
+  ContentsEdit
+  SetContentsExternal
+  ColorTheming
+  PositionFlip
+  UpdatePosition
+  MultipleOpenClose
+  EmptyContents
+  LongContents
+  ReadOnlyMode
+  FreeTextTitle
+  StickyNoteTitle
+  ReadOnlyDoesNotEmitChanges
+FormCreationTest.
+  CreateTextField
+  CreateCheckbox
+  CreateComboBox
+  CreateListBox
+  DeleteFormField
+  RestoreFormField
+  CreateFieldCommand_ExecuteUndo
+  DeleteFieldCommand_ExecuteUndo
+  FormTool_CreationMode
+  FormTool_FieldCreatedCallback
+ImageToolWiringTest.
+  SetImageTool
+  ClearImageTool
+  SetImageToolClearsOther
+  ImageToolInitiallyNull
+  RepaintRequestedSignal
+  SetImageToolMultipleTimes
+  ImageToolPointerLifetime
+AnnotationFontControlsTest.
+  FontControlsHiddenByDefault
+  FontControlsShownForFreeText
+  FontControlsHiddenForText
+  FontComboPopulated
+  FontSizeRange
+  SetAnnotationUpdatesFontControls
+  FontChangeEmitsSignal
+  FontSizeChangeEmitsSignal
+  DefaultAppearancePropertyInEnum
+  ClearHidesFontControls
+SaveOperationsTest.
+  SaveCreatesFile
+  SaveAsCreatesNewFile
+  SavePreservesPageCount
+  MarkPageDirty
+  SaveClearsDirtyPages
+  SaveAsPreservesPageInfo
+  MultipleMarkPageDirty
+  SaveAfterMultipleOperations
+  SaveToNonExistentDirectory
+IsImageDominatedTest.
+  NativeTextPage_NotImageDominated
+  PureScannedPage_NotImageDominated
+  OcrTextPage_IsImageDominated
+  OcrTextPage_AlsoHasTextContent
+  BlankPage_NotImageDominated
+RoutingIntegrationTest.
+  NativeTextPdf_RoutesToTextEditTool
+  OcrPdf_RoutesToTextEditTool
+  ScannedPdf_RoutesToTreTool
+ImageCommandsDirtyTest.
+  InsertImage_MarksPageDirty
+  InsertImage_UndoMarksPageDirty
+  InsertImage_RedoMarksPageDirty
+  RemoveImage_MarksPageDirty
+  RemoveImage_UndoMarksPageDirty
+  RemoveImage_RedoMarksPageDirty
+  ResizeImage_MarksPageDirty
+  ResizeImage_UndoMarksPageDirty
+  ResizeImage_RedoMarksPageDirty
+  RotateImage_MarksPageDirty
+  RotateImage_UndoMarksPageDirty
+  RotateImage_RedoMarksPageDirty
+  CropImage_MarksPageDirty
+  CropImage_UndoMarksPageDirty
+  CropImage_RedoMarksPageDirty
+TileRendererSequenceTest.
+  CancelAndReRequest_GetsCorrectTile
+  CancelAndReRequest_MultipleCycles
+  NormalRequest_StillWorks
+XmpMetadataWriterTest.
+  ConstructDestroy
+  BuildXmpPacket_PdfA1b
+  BuildXmpPacket_PdfA2b
+  BuildXmpPacket_PdfA2u
+  BuildXmpPacket_PdfA2a
+  BuildXmpPacket_PdfA3b
+  BuildXmpPacket_WithMetadata
+  BuildXmpPacket_PdfUA1
+  BuildXmpPacket_None
+  WritePdfA_ThenRead
+  WritePdfA_ThenDetect
+  DetectPdfALevel_NoPdfA
+IccProfileManagerTest.
+  ConstructDestroy
+  HasOutputIntent_FreshDoc_False
+  AddSrgbOutputIntent
+  AddSrgbOutputIntent_Roundtrip
+  AddSrgbOutputIntent_Idempotent
+  HasOutputIntent_NullDoc
+  AddSrgbOutputIntent_VerifyStream
+  MultipleDocuments
+FontComplianceCheckerTest.
+  ConstructDestroy
+  CheckFonts_ReturnsNonEmpty
+  CheckFonts_FontHasName
+  CheckFonts_PageIndex
+  CheckPageFonts_SinglePage
+  CheckPageFonts_InvalidPage
+  AllFontsCompliant_Basic
+  AllFontsCompliant_RequireUnicode
+  CheckFonts_EmbeddedStatus
+  CheckFonts_IssuesPopulated
+ProhibitedFeatureScannerTest.
+  ConstructDestroy
+  NoEncryption_FreshDoc
+  NoJavaScript_FreshDoc
+  NoExternalReferences_FreshDoc
+  ScanAll_PdfA1b_CleanDoc
+  ScanAll_PdfA2b_AllowsTransparency
+  ScanAll_PdfA2b_AllowsObjStreams
+  NullDoc_NoThrow
+  ScanAll_IssuesHaveRuleAndDescription
+PdfAValidatorTest.
+  ConstructDestroy
+  Validate_None_Fails
+  Validate_NullDoc_Fails
+  Validate_FreshDoc_HasErrors
+  Validate_MissingXMP_ReportsError
+  Validate_MissingOutputIntent_ReportsError
+  Validate_WithXmpAndIntent_FewerErrors
+  IsCompliant_FreshDoc_False
+  Validate_PdfA2a_RequiresTagging
+  Validate_PdfA1b_DoesNotRequireTagging
+  Validate_ResultHasTargetLevel
+  Validate_AllLevelsReturnResult
+PdfAConverterTest.
+  ConstructDestroy
+  AnalyzeForConversion_PdfA2b
+  AnalyzeForConversion_None_Fails
+  AnalyzeForConversion_NullDoc_Fails
+  ConvertAndSave_PdfA2b
+  ConvertAndSave_PdfA1b
+  ConvertAndSave_PdfA3b
+  ConvertAndSave_OutputNotEncrypted
+  ConvertAndSave_ResultHasTargetLevel
+  ConvertAndSave_CleansTempFile
+  ConvertAndSave_None_Fails
+  ConvertAndSave_NullDoc_Fails
+StructureTreeBuilderTest.
+  ConstructDestroy
+  HasStructureTree_FreshDoc_False
+  BuildMinimalTree
+  BuildMultiLevelTree
+  RemoveStructureTree
+  SetDocumentLanguage
+  SetDocumentLanguage_Roundtrip
+  NullDoc_NoThrow
+  BuildTree_EmptyRoot
+AutoTaggerTest.
+  ConstructDestroy
+  TagDocument_ReturnsDocumentRoot
+  TagDocument_HasChildren
+  TagPage_AssignsMcids
+  TagPage_McidsSequential
+  TagPage_ValidTags
+  TagDocument_NullDoc
+  TagPage_NullDoc
+  TagDocument_MultiPage
+  FiguresHaveAltText
+ContentStreamTaggerTest.
+  ConstructDestroy
+  PageHasMarkedContent_FreshDoc_False
+  TagPageContent_InjectsBDC
+  TagPageContent_MultipleRegions
+  TagPageContent_PreservesRendering
+  TagPageContent_EmptyRegions_NoOp
+  PageHasMarkedContent_NullDoc
+  PageHasMarkedContent_InvalidPage
+  TagPageContent_RoundtripValid
+PdfUAConverterTest.
+  ConstructDestroy
+  ValidatePdfUA_FreshDoc_Fails
+  ValidatePdfUA_NullDoc
+  ConvertAndSave_CreatesFile
+  ConvertAndSave_HasStructureTree
+  ConvertAndSave_NullDoc
+  ConvertAndSave_ValidatesOutput
+  ValidatePdfUA_MissingLang_ReportsError
+  ValidatePdfUA_MissingStructTree_ReportsError
+ComplianceManagerTest.
+  ConstructDestroy
+  DetectPdfALevel_FreshDoc_None
+  ValidatePdfA_FreshDoc_Fails
+  ValidatePdfUA_FreshDoc_Fails
+  ConvertToPdfA_2b
+  ConvertToPdfUA
+  AnalyzeForConversion
+  ConvertToPdfA_AllLevels
+  FixIssue_StampsXmpForExplicitLevel_PdfA1b
+  FixAll_ForwardsLevelToXmpFixer_PdfA1b
+  FixIssue_TwoArgOverloadStillDefaultsTo2b
+ComplianceDialogTest.
+  ConstructDestroy
+  HasAccessibleNames
+  LevelComboHasOptions
+  IssueTableHasColumns
+  AnalyzeButtonTriggersAnalysis
+  ValidateButtonTriggersValidation
+  TagStructureTreeExists
+  TagStructureTreeHasThreeColumns
+  PreviewTagsButtonExists
+  ProgressBarExistsAndHidden
+  PreviewTagsPopulatesTree
+  PreviewTagsUpdatesStatus
+  TagTreeChildrenHaveTagTypes
+  TagTreeChildrenHavePageNumbers
+  LevelComboHasPdfUAOption
+  AutoTaggerReturnsDocumentRoot
+  AutoTaggerProducesChildren
+  AutoTaggerChildrenHaveMcids
+  AnalyzeTransitionsToAnalysisState
+  ValidateTransitionsToPassOrFailState
+  ValidationPopulatesIssueTable
+  ProgressBarHiddenAfterAnalyze
+  ButtonsEnabledAfterAnalyze
+StructureTagTest.
+  AllTagsRoundTrip
+  UnknownNameDefaultsToP
+StructureNodeTest.
+  DefaultValues
+ImageTextEditDisplayTest.
+  ScannedPage_Classification
+  NativePage_NotImageDominated
+  ScannedPage_TextContentStatus
+  ScannedPage_RenderProducesImage
+  ScannedPage_ImageReplacerChangesXObject
+  NativePage_ImageReplacerNotNeeded
+  ScannedPage_SavedImageDiffersFromEdited
+  ScannedPage_RestoreOriginalImage
+  RefreshImageForScannedPage_SkipsNativePage
+  ScannedPage_MultipleEdits
+  ScannedPage_ImageReplacerPreservesDimensions
+  ScannedPage_FindPageImageXObject
+  NativePage_NoImageXObject
+  ScannedPage_UndoRedoWorkflow
+  ScannedPage_MultiEditUndoRedo
+  ScannedPage_ImageDominatedAfterTextAdded
+  ScannedPage_EmptyTextEdit
+  ScannedPage_UniqueRegionIds
+  ScannedPage_UndoThenNewEditDiscardsRedo
+  SpanEdit_NoSnapToLines_PreservesAdjacentRegions
+  RegionEdit_SnapToLines_StillWorks
+  ReplacePageImage_ScalesToOriginalDimensions
+  ReplacePageImage_SameSizeNoRescale
+  ContentStreamEditor_SubsetPrefixHandling
+  SpanEdit_UsesExactSelection
+  ImageDominated_SkipsFontSubstitution
+  NativePage_StillRunsFontSubstitution
+  ImageDominated_LongerText_NoTruncation
+  ImageDominated_ContentStreamTextUpdated
+  ImageDominated_UndoRedo
+  OverlayFont_FallsBackToArial
+  OverlayFont_PreservesKnownFont
+  SubstituteFontSelector_ResolvesOcrFonts
+  FontSizeCapped_FitsInBitmapHeight
+  ImageReplacer_ReturnsSuccess
+  ImageReplacer_FailureReturnsMessage
+  ContentStreamEditor_EmitsTr3_WhenTextRenderMode3
+  EditTextCommand_UsesTr3_OnImageDominatedPage
+  NativePage_NoTr3_Emitted
+  ContentStreamEditor_Tr0_ExplicitVisible
+  ImageDominated_UndoRedo_PreservesInvisibleMode
+  ImageReplacer_PersistsThroughSave
+CidFontEncodingTest.
+  SimpleFontPath_ProducesExtractableText
+  CidFontPath_ViaEmbeddedFont
+  OcrPage_TextRenderMode3_Encoding
+  MultipleEdits_NoCrash
+  EditTextCommand_FullPipeline
+  EmbeddedCidFont_HasMultiByteEncoding
+  RangeOverflowProtection
+  MrangesSingleCodepointMapping
+OverlayFontMappingTest.
+  Helvetica_MapsToArial
+  SubsetPrefixedHelvetica_MapsToArial
+  TimesRoman_MapsToTimesNewRoman
+  Courier_MapsToCourierNew
+  GlyphLessFont_MapsToArial
+  AdobeBlank_MapsToArial
+  LiberationSans_MapsToArial
+  LiberationSerif_MapsToTimesNewRoman
+  HelveticaBold_MapsToArial
+  UnknownFont_FallsBackToArial
+  OverrideTakesPrecedence
+  EmptyOverride_UsesMapping
+  ArialMT_MapsToArial
+  Calibri_MapsCorrectly
+  FontMatcher_ProducesValidFamily
+  SetOverlayFontFamily_Persists
+  HelveticaNeue_MapsToArial
+  NimbusSans_MapsToArial
+  OverrideArialOnSerifOcrFont
+  OverrideSkippedForRealEmbeddedFont
+  LiberationSerifWithoutOverride_MapsToTimesNewRoman
+  FontMatcherFallback_SansSerif_ReturnsArial
+  FontMatcherFallback_Serif_ReturnsTimesNewRoman
+  ImageDominatedPage_OverridePreventsSerif
+  ImageDominatedPage_RealFontBypassesOverride
+  FontSizeOverride_UsesOverrideInsteadOfSpanSize
+  FontSizeOverride_ZeroMeansUseSpanDefault
+  BuildRunFont_FontSizeOverrideAppliesToRunDefault
+  BuildRunFont_ExplicitRunSizeOverridesAll
+  FontSizeOverride_ScalesWithZoom
+  VisibleExtentRatio_DefaultsTo085_WhenFontUnknown
+  VisibleExtentRatio_WithinSaneRange_ForEmbeddedFonts
+ProbeFontExtent.
+  CharisSIL_RenderedExtent_NonZero
+StartupUITest.
+  BookmarkDock_HiddenOnStartup
+  BookmarkToggleAction_UncheckedOnStartup
+  SearchDock_Exists
+  SearchDock_InRightDockArea
+  PropertiesDock_InRightDockArea
+  DefaultsLogDock_Exists
+  DefaultsLogPanel_Exists
+  DefaultsLogDock_InRightDockArea
+  DefaultsLogDock_HasAccessibleName
+  DefaultsLogPanel_HasLogView
+  DefaultsLogPanel_HasClearButton
+DefaultsLogPanelTest.
+  InitialEntryCount_IsZero
+  LogDefault_IncrementsCount
+  ClearLog_ResetsCount
+  LogDefault_AppendsToTextEdit
+  ClearLog_ClearsTextEdit
+DefaultsLogSingletonTest.
+  GlobalPointer_NullBeforeRegistration
+  SetAndGet_RoundTrips
+  LogDefaultUsed_NoOpWhenNull
+  LogDefaultUsed_DelegatesToPanel
+  Destructor_ClearsGlobalPointer
+TessdataFontDetectionTest.
+  TessdataDeployed_NextToExe
+  TessdataDeployed_InFixtures
+  OcrPipeline_InitializesWithExeTessdata
+  FontMatcher_DetectsFont_FromOcrData
+  FullPipeline_ImageDominatedPage
+  OcrPipeline_FailsGracefully_NoTessdata
+  FontMatcher_DetectProperties_EmptyRegion
+  TessdataPath_AtLeastOneResolvable
+  RealWorldPdf_FontDetection_SansSerif
+  RealWorldPdf_FontSize_FitsInSpanBbox
+  RealWorldPdf_GhostText_BboxOverlap
+ScriptDetection.
+  LatinText_DetectsLatin
+  ArabicText_DetectsArabic
+  CyrillicText_DetectsCyrillic
+  CJKText_DetectsCJK
+  EmptyText_ReturnsUnknown
+  DevanagariText_DetectsDevanagari
+  MixedLatinArabic_DominantWins
+  DigitsOnly_ReturnsUnknown
+  DigitsWithArabic_DetectsArabic
+  SpacesAndPunctuation_ReturnsUnknown
+ScriptPenalty.
+  SameScript_NoPenalty
+  DifferentScript_HeavyPenalty
+  UnknownScript_NoPenalty
+  BothUnknown_NoPenalty
+  LatinVsArabic_WorstThanLatinVsLatinWithBadMetrics
+ScriptFontAnalysisTest.
+  Arial_DetectedAsLatin
+  TimesNewRoman_DetectedAsLatin
+  Calibri_DetectedAsLatin
+  FindSubstitute_LatinText_ReturnsLatinFont
+  FontMatcher_LatinOcr_ReturnsLatinFont
+SerifDetection.
+  SerifLikeImage_ReturnsTrue
+  SansSerifImage_ReturnsFalse
+  EmptyLines_ReturnsFalse
+  NullImage_ReturnsFalse
+  BoundarySmallOverhang_ReturnsFalse
+  BoundaryClearSerif_ReturnsTrue
+  NoTallChars_ReturnsFalse
+  LowConfidence_Skipped
+  TinyWordHeight_Skipped
+  FontMatch_SerifQuery_PrefersSerif
+  PerChar_SerifChar_ReturnsTrue
+  PerChar_SansSerifChar_ReturnsFalse
+  PerChar_PreferredOverWordLevel
+  PerChar_FallsBackToWordLevel
+  PerChar_SkipsNonDiagnosticChars
+  PerChar_MultipleChars_MedianUsed
+  PerChar_LowConfidenceChar_Skipped
+BoldDetection.
+  ThickStemWord_True
+  ThinStemWord_False
+  EmptyImage_False
+  NoTallChars_False
+ItalicDetection.
+  SlantedWord_True
+  UprightWord_False
+  BoundaryBelowThreshold_False
+  BoundaryAboveThreshold_True
+  EmptyImage_False
+UnderlineDetection.
+  WithLine_True
+  NoLine_False
+  Empty_False
+StrikethroughDetection.
+  WithLine_True
+  NoLine_False
+  Empty_False
+MixedStyles.
+  BoldAndItalicWords
+  UnderlinedPhrase
+WordStyleFlags.
+  DefaultsAllFalse
+DetectWordStyles.
+  NullImage_NoExceptions
+  EmptyLines_NoExceptions
+BitmapCompositorStyled.
+  StyledRunsBoldUnderline_ProducesNonEmptyBitmap
+  EmptyRuns_FallsBackToRegular
+  ItalicStrikethroughRun
+ImageSimilarityTest.
+  ToGrayscaleNullReturnsNull
+  ToGrayscaleConvertsARGB
+  OtsuThresholdBimodal
+  NccIdenticalImagesApproxOne
+  NccBlankImagesReturnZero
+  NccNullImageReturnZero
+  NccDifferentSizesHandled
+  MseIdenticalIsZero
+  MseBlackVsWhiteIsHigh
+  ExtractAndScaleReturnsCorrectSize
+  ExtractAndScaleNullReturnsNull
+  ExtractAndScaleOutOfBoundsClamps
+VisualFontRankerTest.
+  EmptyCandidatesReturnsEmpty
+  NullRegionReturnsEmpty
+  EmptyTextReturnsCandidatesUnchanged
+  SingleCandidateReturnedWithScores
+  MultipleCandidatesSortedByCombinedScore
+CNNFontClassifierTest.
+  NotAvailableWhenNoModel
+  ExtractEmbeddingReturnsEmptyWhenUnavailable
+  CosineSimilarityIdentical
+  CosineSimilarityOrthogonal
+  CosineSimilarityEmpty
+  CosineSimilaritySizeMismatch
+  EmbeddingSimilarityFallback
+  EmptyModelPath
+  NullImage
+  MoveConstructor
+  LoadModel
+  EmbeddingDimensions
+  SameFontHighSimilarity
+  DifferentFontLowerSimilarity
+CNNFontRankerTest.
+  NullClassifierReturnsEmpty
+  UnavailableModelReturnsEmpty
+  EmptyCandidatesReturnsEmpty
+  NullRegionReturnsEmpty
+  EmptyTextReturnsEmpty
+GlyphAtlasTest.
+  BuildFromCharData
+  LookupExistingCharacter
+  LookupMissingCharacter
+  MultiInstanceHigherConfidenceWins
+  CoverageFullMatch
+  CoveragePartialMatch
+  CoverageOnlyWhitespace
+  AlphaIsolation
+  EmptyPageImage
+  EmptyLines
+  EmptyCoverageText
+  OutOfBoundsBboxClamped
+  ZeroSizeBboxSkipped
+  IdenticalConfidenceKeepsFirst
+  CodepointZeroSkipped
+GlyphAtlasCompositorTest.
+  AllCharsInAtlas
+  NoCharsInAtlasFallsBackToFreeType
+  MixedAtlasAndFallback
+  SpacesHandled
+  EmptyText
+  OutputDimensionsMatch
+  NullCompositorStillWorks
+  NewlinesSkippedGracefully
+  TabsAdvancePen
+  FreeTypeFallbackNotClippedAtTop
+  FreeTypeFallbackWidthReasonable
+  ZeroDimensionsReturnNull
+GlyphSynthesizerTest.
+  ProfileExtraction_StemWidth
+  ProfileExtraction_InkDensity
+  ProfileExtraction_EmptyAtlas
+  ProfileExtraction_SingleGlyph
+  RecipeExists_b_from_d
+  RecipeExists_6_from_9
+  RecipeNotFound_AtSymbol
+  Synthesize_b_from_d_HFlip
+  Synthesize_9_from_6_Rotate180
+  Synthesize_o_from_O_ScaleDown
+  Synthesize_FailsWhenNoDonor
+  Synthesize_NoRecipeReturnsFailure
+  SynthesizeAll_MultipleChars
+  SynthesizeAll_SkipsExistingInAtlas
+  StrokeWeightMatch_NoChangeWhenClose
+  StrokeWeightMatch_Thicken
+  StrokeWeightMatch_Thin
+  QualityScore_GoodMatch
+  QualityScore_BadMatch
+  QualityScore_NullImage
+  MeasureStemWidth_VerticalStem
+  MeasureInkDensity_FilledGlyph
+  MeasureInkDensity_EmptyGlyph
+  MeasureSlant_UprightGlyph
+  MeasureSerifExtent_NullGlyph
+  MeasureStemWidth_NullGlyph
+  Synthesize_O_from_o_ScaleUp
+  RecipeExists_U_from_u
+  RecipeExists_u_with_U_fallback
+  MatchStrokeWeight_DilationIncreasesInk
+  MatchStrokeWeight_CloseMatchPreservesGlyph
+  CompositorUsesSynthesizedGlyphs
+  CompositorEmptyAtlasSkipsSynthesis
+  MeasureSerifExtent_NonNegative
+ImageTextEditBug1.
+  SpanIsModifiedWhenTextChanged
+  SpanNotModifiedWhenTextUnchanged
+  BuildOverlayFontIgnoresWordStyles
+  BuildOverlayFontUsesOverrideSize
+  FormattingRunsMakeSpanModified
+  FormattingRunsTakePriorityOverWordStyles
+ImageTextEditBug2.
+  ShouldSkipStyledRunsWhenEdited
+  ShouldNotSkipWhenNotEdited
+  SameTextNotConsideredEdited
+  UTF8EditTriggersSkip
+  BothEmptyDoesNotSkip
+ImageTextEditBug3.
+  PixelWidthExpandedForLongerText
+  PixelWidthUnchangedForShorterText
+  SingleCharAddedExpandsWidth
+  EmptyOriginalTextNoCrash
+  SameTextReturnsBaseWidth
+  UTF8MultibyteCounting
+  EmptyEditedTextReturnsBaseWidth
+ImageTextEditCombined.
+  ProductionGuardsConsistent
+  LongerEditExpandsAndSkipsStyles
+ImageTextEditGhostText.
+  PixelRectUnionCoversFullArea
+  InvalidHocrBboxIgnored
+  OverlappingRectsProduceValidUnion
+ImageTextEditSynthesis.
+  RecipeExistsForLowercaseX
+  RecipeExistsForUppercaseX
+  RecipeExistsForVisuallySimilarCasePairs
+  RecipeExistsForAllDigits
+  RecipeExistsForCommonPunctuation
+  SynthesizeXFromUppercaseX
+ImageTextEditOverlay.
+  AtlasSetterWorks
+  AtlasCoverageForKnownText
+  GlyphSynthesizerProfileEmptyAtlas
+AtlasCursorFix.
+  ScaleToScreenUsesAverageHeight
+  OverlayFontIsDeterministicAcrossCalls
+  CharIndexFromPdfXWorksWithoutAtlas
+ScaleToScreenFix.
+  AtlasReturnsNullForMissingGlyphs
+  EmptyAtlasHasNoCodepoints
+AtlasBgColorFix.
+  DetectsWhiteBackground
+  DetectsNonWhiteBackground
+  DetectsWithLineData
+GhostTextFix.
+  ExpandedWidthExceedsBaseForLongerText
+  NoExpansionForShorterOrEqualText
+  RenderBboxExpandsToMatchTextBitmap
+  ShouldSkipStyledRunsForEditedText
+  ShouldNotSkipStyledRunsForSameText
+  AtlasSkippedForEditedText
+  CompositeTextBitmapCoversFullBitmap
+  CompositeHandlesOversizedRegionGracefully
+SanitizeFilterTr3.
+  RenderBboxExpansionIsTheGhostTextFix
+  AtlasSkipPreventsStaleGlyphExtraction
+  ContentStreamTr3NotTheGhostTextCause
+AtlasOverlayFix.
+  FallbackFontPixelSizeMatchesAtlasGlyphHeight
+  FallbackBaselineMatchesAtlasBottomAlign
+  AtlasScaleApproximatesZoom
+  FallbackAdvanceProportionalToAtlasWidth
+GlyphHarvesterTest.
+  LineFontVerifier_IdenticalLine_Compatible
+  LineFontVerifier_DifferentXSize_Rejected
+  LineFontVerifier_SameFontDifferentWords_Compatible
+  LineFontVerifier_NoSharedChars_MetricOnly
+  LineFontVerifier_ZeroMetrics_Handled
+  LineFontVerifier_NccMatchesImageSimilarity
+  GlyphAtlas_BuildVerified_AcceptsCompatible
+  GlyphAtlas_BuildVerified_RejectsIncompatible
+  GlyphAtlas_MergeFrom_AddsMissingOnly
+  GlyphAtlas_HarvestLine_SameAsBuild
+  GlyphAtlas_ClipAtVerticalGap_GentleMode
+  EnrichedAtlas_AtlasGlyphTakesPriority
+  EnrichedAtlas_SynthesisForMissing
+  EnrichedAtlas_OnDemandCached
+  EnrichedAtlas_CoverageIncludesSynthesized
+  EnrichedAtlas_NullForUnsynthesizable
+  AtlasBuilder_ReferenceLineIsLongest
+  AtlasBuilder_DiagnosticsPopulated
+  AtlasBuilder_EmptyInput
+  Integration_OverlayUsesEnrichedAtlas
+  Integration_CompositorEnrichedOverload
+  Integration_WysiwygPathConsistency
+  SubRatioScore_NegativeDescender_Clamped
+  GlyphAtlas_AddGlyph_InsertsAndUpdates
+  GlyphAtlas_BuildVerified_NullImage
+  GlyphAtlas_EmptyLineHarvest
+  EnrichedAtlas_RebuildClearsPrevious
+  GlyphAtlas_Coverage_Calculation
+  GlyphAtlas_Codepoints_ReturnsAll
+  DpiMatch_GlyphsAreVisible
+  DpiMismatch_GlyphsAreTransparent
+  IsolateAlpha_ProducesVisibleBlackText
+  HarvestLine_CropsHorizontalOnly
+  HarvestLine_ClipsAdjacentCharContamination
+  HarvestLine_ClipsLeftSideContamination
+  BuildVerified_DonorDoesNotReplaceReferenceGlyphs
+  HarvestLine_WordFinalCharClippedToWordBbox
+  EnrichedAtlas_ReferenceLineHeight_IsMode
+  AtlasScaleToScreen_UsesReferenceLineHeight
+  EnrichedAtlas_SynthesizedGlyphPreservesHeight
+  BuildVerified_BaselineAlignedPadding
+  BuildVerified_RejectedLineDoesNotContribute
+  BuildVerified_NoFallbackHarvest
+  BuildVerified_DonorHeightRatioFilter
+  TemplateCache_RendersKnownFont
+  TemplateCache_MissingGlyphSkipped
+  TemplateCache_SkipsWhitespace
+  TemplateCache_EmptyInputs
+  TemplateNCC_SelfComparison
+  TemplateSelection_PicksCleaner
+  TemplateSelection_RejectsLowNCC
+  TemplateSelection_FallsBackWithoutTemplate
+  TemplateSelection_AddMissingOnlyRespected
+  TemplatePadding_NarrowCropGetsPadded
+  TemplatePadding_WideEnoughCropNotPadded
+  TemplatePadding_DifferentHeightRatioScales
+  ClipToTemplateWidth_PreservesAsymmetricFoot
+  SmallPunctuation_StoredViaConfidencePath
+  NarrowTemplate_TemplateScoring
+  NormalSizedGlyph_RejectedBelowThreshold
+  AtlasBuilder_ClickedLineIdx_UsedAsReference
+  AtlasBuilder_ClickedLineIdx_InvalidFallsBackToLongest
+  HarvestLine_StoresNccScore
+  BuildVerified_RefOutlierRemoval
+  BuildVerified_RefOutlierNeedsMinFourGlyphs
+ScanStyleMeasurement.
+  EdgeRoughness_CleanGlyph
+  EdgeRoughness_NoisyGlyph
+  FgNoise_UniformColor
+  FgNoise_WithVariation
+  EdgeTransition_Sharp
+  EdgeTransition_Blurry
+  Calibrate_EmptyAtlas
+  Calibrate_SingleGlyph
+ScanStyleStage.
+  StrokeWeight_Thicker
+  StrokeWeight_NoOp
+  RoughenEdges_IncreasesVariation
+  RoughenEdges_PreservesInterior
+  RoughenEdges_PreservesExterior
+  RoughenEdges_Deterministic
+  Blur_WidensTransition
+  Blur_SkipLowSigma
+  Noise_AddsVariation
+  Noise_PreservesTransparent
+  Noise_SkipLowLevel
+ScanStylePipeline.
+  Apply_NullInput
+  Apply_UncalibratedPassthrough
+  Apply_PreservesPremultipliedInvariant
+  Apply_FullPipeline
+ScanStyleIntegration.
+  EnrichedAtlas_FreeTypeFallback_CachesResult
+AtlasModeTest.
+  DefaultIsScanCropped
+  EnumValuesDistinct
+EnrichedAtlasCalibrate.
+  CalibrateStyleFromUsesExternalAtlas
+  CalibrateStyleFromOverridesEmpty
+AtlasComparisonDialogTest.
+  DefaultModePreserved
+  InitialModeScanCropped
+  UseScanButton
+  UseFontButton
+  CancelReturnsDefault
+  NullAtlasHandled
+  EmptyLineTextHandled
+  PreviewLabelsExist
+  OneNullAtlasHandled
+  OnlyFtAtlasHandled
+  CharsetGridExists
+  CharsetGridRendersAfterDebounce
+  CharsetGridShowsUnionCodepoints
+  TitleShowsDialogWindowTitle
+  CharsetScrollAreasExist
+  NullAtlasCharsetGridHandled
+  FontComboExistsAndDisabledWhenEmpty
+  FontComboPopulatedWithCandidates
+  SelectedFontFilePath
+  SelectedFontPathEmptyWhenNoCandidates
+  FillMissingCheckboxExists
+  FillMissingCheckboxTogglesAtlasGrid
+  AtlasGridHasPointingHandCursor
+  EventFilterConsumesClickOnAtlasLabel
+  ButtonPositioning_UseFontAndUseScanExist
+  FontLegendColorEntry
+TextEditToolBarAtlasTest.
+  AtlasControlsHiddenByDefault
+  ShowAtlasControls
+  AtlasModeSignal
+  CompareSignal
+  SetAtlasModeNoSignal
+  ShowAtlasControlsHides
+AtlasIntegrationTest.
+  FreeTypeStyledAtlas_AllGlyphsFromFreeType
+  ScanCroppedAtlasHasGlyphs
+  SwitchBetweenModes
+  ResetClearsState
+EnrichedAtlasMetrics.
+  SetReferenceMetricsSetsValues
+  SetReferenceMetricsCopiedFromScanAtlas
+  SetReferenceMetricsNoCrashOnEmptyAtlas
+  SetReferenceMetricsClampsNegative
+  BaselineHistogramSkipsTightCrops
+  BaselineHistogramFallbackWhenAllTightCrops
+SourceImageDpiTest.
+  SinglePageMatrix
+  MixedDpiMultiPage
+  NoImageReturnsZero
+  RoundTripInvariantAllFixtures
+C2ImageCacheTest.
+  DefaultBudgetIs256MB
+  InitialStatsAreZero
+  SetBudgetRoundTrips
+  NegativeBudgetClampsToZero
+  BudgetZeroDisablesCache
+  ClearResetsSize
+  BudgetChangeDoesNotCorruptCounters
+  InvalidateOnEmptyCacheIsNoop
+  DefaultBudgetExceedsOldThreePageLimit
+C2SpecimenBCacheTest.
+  NonSequentialEditingKeepsEarlyPages
+  SmallBudgetCausesByteBudgetedEviction
+  BudgetShrinkEvictsImmediately
+B2MeasuredWidthTest.
+  MeasureEmptyReturnsZero
+  MeasureSingleCharReturnsPositive
+  MeasureLongerStringIsWider
+  MeasureScalesWithDpi
+  MeasureScalesWithFontSize
+  MeasureBadFontReturnsZero
+  FallsBackWhenCompositorNull
+  FallsBackWhenFontPathEmpty
+  EditShorterReturnsBaseWidth
+  EditSameReturnsBaseWidth
+  MeasuredPathExpandsForLongerText
+  NarrowCharactersProduceTighterExpansion
+  CharCountIgnoresKerning_MeasuredDoesNot
+  ExpansionRatioIsDpiInvariant
+A2ScriptDetection.
+  DetectsLatin
+  DetectsCyrillic
+  DetectsArabic
+  DetectsDevanagari
+  DetectsChineseAsCJK
+  DetectsJapaneseAsCJK
+  DetectsKoreanAsCJK
+  DetectsHebrew_NEW
+  DetectsThai_NEW
+  EmptyReturnsUnknown
+  DigitsOnlyReturnsUnknown
+  MixedLatinCjkChoosesMajority
+  EnumHasHebrewAndThai
+  MixedHebrewArabicMajorityWins
+  MostlyHebrewBeatsFewLatin
+B3BgClassification.
+  UniformWhite_300dpi
+  YellowedNews_300dpi
+  Halftone_200dpi_notUniform
+  Halftone_600dpi_notUniform
+  TexturedGray_300dpi
+  NullImageReturnsUnknown
+  TinyRegionReturnsUnknown
+  SolidWhite_300dpi_Uniform
+  RandomNoise_Textured
+  HalftoneClassificationIsDpiAware
+B3PatternCopy.
+  FindPatch_WhiteBackground
+  FindPatch_HalftonePhaseAligned
+  FindPatch_FailsWhenRectCoversImage
+  FindPatch_RejectsDarkText
+  UniformDoesSolidFill
+  HalftoneCopiesPatternNotSolidColor
+  TexturedCopiesPattern
+  ComplexFallsBackToSolidFill
+  PatternCopyMatchesOriginalWhenShiftIsPeriodMultiple
+  LegacyOverloadStillWorks
+C4PerceptualAlpha.
+  BlackOnWhite_ProducesValidAlphaMask
+  BlackOnYellowPaper_StillIsolatesText
+  DarkBlueOnCream_Recovers
+  GrayTextOnGrayPaper_LowContrast_StillFunctions
+  MorphologicalClose_ReducesVsNoClose
+  IsolateAlpha_RoundtripsOnSolidPaper
+  LuminanceRoughness_WorksOnScanCrop
+  LuminanceTransitionWidth_OnAAEllipse
+  LuminanceMeasurements_SurviveNullOrTinyInputs
+  CalibrateStillWorksOnIsolatedAtlasGlyph
+C5LcdSubpixel.
+  NotCalibrated_ReturnsFalse
+  CleanCalibration_ReturnsFalse
+  DecisionTable
+  DefaultIsGrayscale
+  ToggleIsPersistent
+  LcdAndGrayscaleBothProduceBitmaps
+  LcdProducesDifferentOutputThanGrayscale
+  LcdBitmapHasColorVariation
+  LcdBlackText_SubpixelInAlphaChannel
+TextColorToolBarTest.
+  TextColorButtonExists
+  TextColorButtonHasTooltip
+  SetSelectionFormattingUpdatesColor
+  DefaultColorIsBlack
+FormattingRunColorTest.
+  DefaultColorIsBlack
+  ColorPreservedInSameFormatAs
+  DifferentColorNotSameFormat
+ContentStreamEditorColorTest.
+  ApplyEditWithColorDoesNotCrash
+  ApplyEditWithBlackColorDoesNotCrash
+  ColorPersistsThroughSaveAndReopen
+SearchPanelReplaceTest.
+  ReplaceFieldExists
+  ReplaceButtonExists
+  ReplaceAllButtonExists
+  ReplaceStatusLabelExists
+  ReplaceButtonHasAccessibleName
+  ReplaceAllButtonHasAccessibleName
+  ReplaceStatusLabelHasAccessibleName
+  SetReplaceStatusUpdatesLabel
+  ReplaceSignalEmitted
+  ReplaceAllSignalEmitted
+  EmptyFindDoesNotEmitReplace
+  EmptyFindDoesNotEmitReplaceAll
+  ClearResetsReplaceFields
+  EmptyReplaceStringAllowed
+  CurrentResultIndexWithNoResults
+  CurrentSearchResultWithNoSearch
+  SelectResultAdvancesIndex
+ReplaceUndoTest.
+  ReplaceIsUndoable
+  MultipleReplacesAreIndividuallyUndoable
+  EmptyReplacementIsUndoable
+CompositeCommandTest.
+  SingleUndoRevertsAll
+  RedoRestoresAll
+  EmptyCompositeIsEmpty
+  DescriptionPreserved
+TsaRequestTest.
+  BuildTimeStampReqProducesValidDer
+  NullDigestReturnsError
+  InvalidUrlReturnsNetworkError
+  MalformedResponseHandled
+  LocalhostUrlRejected
+  LoopbackIpRejected
+  MetadataEndpointRejected
+  FileSchemeRejected
+  FtpSchemeRejected
+TsaResponseParseTest.
+  TimeStampReqConstructionValid
+  GarbageDerRejected
+  RejectedStatusDetected
+TsaSignerConfigTest.
+  ConfigureTsaOnNullSignerNoOp
+TabOrderTest.
+  GetTabOrderOnEmptyPageReturnsEmpty
+  GetTabOrderReturnsWidgetIndices
+  SetTabOrderReordersWidgets
+  SetTabOrderRoundTrip
+  SetTabOrderNullPageThrows
+  SetTabOrderDuplicateIndicesRejected
+  SetTabOrderOutOfRangeRejected
+  SetTabOrderWrongSizeNoOp
+TabOrderDialogTest.
+  DialogHasCorrectObjectName
+  DialogHasAccessibleName
+  FieldListPopulated
+  MoveUpButtonExists
+  MoveDownButtonExists
+  ApplyButtonExists
+  CancelButtonExists
+  MoveUpReordersItems
+  MoveDownReordersItems
+  EmptyPageShowsEmptyList
+  ItemsStoreWidgetIndexInUserRole
+  ApplyRebuildsOrderFromVisualList
+BatchEngineTest.
+  ConstructDestroy
+  EmptyFileListReturnsEmptyResult
+  NonexistentFileReportsError
+  CancelFlagWorks
+  CancelDuringProcessingStops
+  ProgressCallbackFires
+  ErrorCallbackFiresOnFailure
+  MultipleActionsExecuteSequentially
+BatchTypesTest.
+  WatermarkConfigDefaults
+  PdfAConfigDefaults
+  PermissionsConfigDefaults
+  BatchResultDefaults
+  BatchActionVariantHoldsConfigs
+BatchDialogTest.
+  DialogHasObjectName
+  SelectFolderButtonExists
+  ActionListWidgetExists
+  AddRemoveMoveButtonsExist
+  ActionTypeComboExists
+  ActionTypeComboHasAllTypes
+  ProgressBarExists
+  ErrorLogExists
+  RunButtonExists
+  CancelButtonExistsAndDisabled
+  WatermarkConfigWidgetsExist
+  PdfALevelComboExists
+  PermissionCheckboxesExist
+  AddActionAddsToList
+  RemoveActionRemovesFromList
+  MoveUpDownReorders
+  RunWithNoFilesShowsStatus
+  RunWithNoActionsShowsStatus
+  StatusLabelExists
+  AllButtonsHaveAccessibleNames
+DiffEngineTest.
+  ConstructDestroy
+  IdenticalImagesHaveFullSimilarity
+  DifferentImagesHaveLowSimilarity
+  PixelDiffIdenticalProducesTransparent
+  PixelDiffDifferentProducesHighlight
+  FindChangeRegionsOnCleanImage
+  FindChangeRegionsOnDirtyImage
+  NullImageSimilarityIsZero
+TextDiffTest.
+  IdenticalTextProducesNoChanges
+  InsertionDetected
+  DeletionDetected
+  EmptyToTextAllInsertions
+  TextToEmptyAllDeletions
+  BothEmptyNoChanges
+DiffEngineDocTest.
+  CompareIdenticalDocuments
+  ComparePageProducesDiffImage
+  CompareWithNullDocReturnsError
+DiffTypesTest.
+  PageDiffResultDefaults
+  DiffResultDefaults
+CompareDialogTest.
+  DialogHasObjectName
+  FileSelectionButtonsExist
+  CompareButtonExistsAndDisabled
+  SideBySidePanelsExist
+  NavigationControlsExist
+  SummaryLabelsExist
+  TextDiffViewExists
+  DiffColorComboExists
+  AllButtonsHaveAccessibleNames
+LayerManagerTest.
+  ConstructDestroy
+  DocumentWithNoLayersReturnsZero
+  ListLayersEmptyForStandardPdf
+  NullDocumentSafe
+  CreateLayerAddsToDocument
+  CreateLayerWithNamePreservesName
+  CreateEmptyNameReturnsInvalid
+  SetVisibilityChangesState
+  RenameLayerChangesName
+  DeleteLayerReducesCount
+  MultipleLayersHaveUniqueIndices
+  SetVisibilityCommandUndoable
+  CreateLayerCommandUndoable
+  RenameLayerCommandUndoable
+LayerPanelTest.
+  PanelHasObjectName
+  PanelHasAccessibleName
+  TreeWidgetExists
+  ButtonsExist
+  StatusLabelExists
+  AllButtonsHaveAccessibleNames
+LayerInfoTest.
+  DefaultValues
+MainWindowSizeSanityTest.
+  SizeofIsNonZero
+  ConstructDestructCycle
+BookmarkManagerTest.
+  LoadProducesTree
+  CreateAtRootAppends
+  CreateChildBookmark
+  RenameBookmark
+  DeleteBookmark
+  MoveUpDown
+  IndentOutdent
+  SetDestination
+  CreateCommandUndoable
+  RenameCommandUndoable
+  MoveCommandUndoable
+  CommitSurvivesSaveReload
+  RenameSurvivesSaveReload
+BookmarkPathTest.
+  EmptyIsRoot
+BookmarkDestTest.
+  DefaultIsUnknown
+BookmarkNodeTest.
+  DefaultConstructs
+BookmarkContextMenuTest.
+  MenuObjectNameAndAccessibleName
+  NoSelectionShowsOnlyRootNewAction
+  ItemSelectedShowsAllNineActions
+  NewBookmarkActionText
+  NewChildBookmarkActionText
+  RenameActionText
+  DeleteActionText
+  MoveUpActionText
+  MoveDownActionText
+  IndentActionText
+  OutdentActionText
+CommentContextMenuTest.
+  MenuObjectNameAndAccessibleName
+  MenuHasReplyAndDeleteActions
+  ReplyActionText
+  DeleteActionText
+LinkAnnotationTypeTest.
+  LinkIsInEnum
+  LinkHasDisplayName
+  LinkRoundTrip
+LinkToolTest.
+  ToolTypeIsLink
+  SetDefaultUri
+StampToolTest.
+  ToolTypeIsStamp
+  DefaultStampName
+  SetStampName
+  SetColor
+WatermarkDialogTest.
+  DialogHasObjectName
+  TextEditExists
+  OpacitySpinExists
+  PositionComboHasOptions
+  ApplyAndCancelButtonsExist
+  AllButtonsHaveAccessibleNames
+StampPersistenceTest.
+  StampSurvivesSaveAndReload
+ReplacePageTest.
+  ReplacePagePreservesPageCount
+  ReplacePageOutOfRangeThrows
+  ReplacePageCommandUndoRestoresOriginal
+  ReplacePageCommandDescription
+ViewRotationTest.
+  DefaultRotationIsZero
+  RotateCWCyclesThroughQuadrants
+  RotateCCWCyclesThroughQuadrants
+  ResetClearsToZero
+  SetRotationNormalizesNegativeAndOverflow
+  NonMultipleOfNinetyFallsBackToZero
+  ClearDocumentResetsRotation
+  NinetyDegreeTransposesPageDimensions
+  RotationDoesNotMutateFileBytes
+HeaderFooterTokens.
+  ResolvesDate
+  ResolvesAuthor
+  ResolvesPageAndPages
+  ResolvesFilename
+  ResolvesAllTokensTogether
+  EmptyStringReturnsEmpty
+  LiteralTextWithoutTokensUnchanged
+HeaderFooterRange.
+  AllIncludesEveryPage
+  OddOnlyIncludesOneBasedOdd
+  EvenOnlyIncludesOneBasedEven
+  ExplicitOnlyIncludesListed
+  OutOfBoundsRejected
+HeaderFooterApplyTest.
+  AppliedFileOpensAndPreservesPageCount
+  MarkersPresentInOutputStream
+  ReApplyDoesNotStackDuplicates
+  OddPagesRangeOnlyTouchesOddPages
+  RemoveDropsMarkedStreams
+  TokenResolutionSurvivesSaveReload
+WatermarkExtendedTest.
+  LegacyApplyWatermarkAppliesToAllPages
+  OddRangeSkipsEvenPages
+  EvenRangeSkipsOddPages
+  ExplicitRangeOnlyTouchesListedPages
+  AllRangeEquivalentToLegacy
+  ImageWatermarkOpensCleanly
+  ImageWatermarkRespectsPageRange
+  EmptyImagePathWithImageModeFallsBackToText
+StampTokenResolution.
+  DateTokenResolvesToIsoDate
+  AuthorTokenResolvesToProvidedAuthor
+  CombinedTokensBothResolved
+  NoTokensReturnsUnchanged
+  EmptyAuthorResolvesToEmptyString
+  MultipleOccurrencesAllReplaced
+StampTokenLibrary.
+  DraftTemplateHasDateOnly
+  ApprovedTemplateHasAuthorAndDate
+  ReviewedTemplateHasAuthorAndDate
+  TemplateResolvesEndToEnd
+  StaticStampStringPassesThrough
+StampTokenPlacementTest.
+  ContentsStoreResolvedTextNotTokens
+ImageStampLibrary.
+  ImportAndRetrieveByName
+  ImportFailsForMissingFile
+  AddStampReplacesByName
+  SaveAndLoadFromSettingsRoundTrip
+  RemoveStamp
+ImageStampPlacementTest.
+  PlaceImageStampRendersImageInAnnotationRect
+  SaveAndReopenPreservesImageStampAppearance
+  RejectsNullImage
+StampToolImageMode.
+  IsImageStampReflectsState
+FileAttachmentAnnotationTest.
+  CreateAnnotationWritesFileAttachmentSubtype
+  RetrieveEmbeddedPayloadByteExact
+  SaveAndReopenPreservesAttachment
+  UnknownIconNameFallsBackToPushPin
+  MissingSourceFileThrows
+FileAttachmentToolSetup.
+  ToolStoresConfiguration
+PageLabelFormat.
+  DecimalIsSimple
+  RomanUpperAndLower
+  AlphaUpperAndLower
+  NoneStyleProducesEmpty
+PageLabelStyleConversion.
+  RoundTripsAllStyles
+PageLabelLabelFor.
+  MultipleRangesPickActive
+  EmptyRangesReturnsEmpty
+PageLabelDocTest.
+  WriteAndReadRangesInMemory
+  SaveAndReopenPreservesPageLabels
+  EmptyRangesRemovesPageLabels
+CropToolTest.
+  GetPageCropBoxReturnsMediaBoxByDefault
+  SetAndReadCropBoxRoundTrip
+  CropPageCommandUndoRestoresOriginalCropBox
+  CropPageCommandRedoReappliesCrop
+  CropPersistsAcrossSaveAndReopen
+  OutOfRangePageIndexNoOps
+GrayscaleConverterTest.
+  ConvertImageBearingPageProducesGrayPixels
+  ConvertTextOnlyPageDoesNotCrashAndKeepsText
+  SaveAndReopenPreservesGrayscaleConversion
+  MultiPageDocumentConvertsAllPages
+  NullDocumentReturnsErrorWithoutCrash
+CompareDocumentsViewTest.
+  HighlightCountMatchesDiffEngineOutput
+  HighlightCountMatchesForDifferentDocuments
+  NextChangeNavigationFindsChangedPage
+  IdenticalDocumentsHaveZeroChangedPages
+  NullDocumentsReturnZeroSafely
+  OneHundredPageDiffMeasurement
+DocumentJsEventsTest.
+  SaveFiresWillSaveThenDidSave
+  DestructorFiresWillClose
+  UnknownEventNameIsNoOp
+  FireOnPlainPdfDoesNotCrash
+  WillSaveFiresOnFixtureWithDocLevelJs
+  SaveAsTriggersWillSaveScript
+ToolbarCustomizationTest.
+  SaveAndReloadRoundTrip
+  ResetRestoresDefaults
+  ApplyLayoutToToolbarMatchesIds
+  CaptureRoundTripsThroughApply
+  DialogExposesNamedControls
+  DialogResetButtonRestoresDefaults
+  FreshSettingsReturnsEmpty
+CombineFilesWizardTest.
+  ThreePdfsPageCountSum
+  PdfPlusImagePageCount
+  CancelAtStep1ProducesNoOutput
+  FewerThanTwoInputsRejected
+  UnsupportedInputRejected
+  WizardExposesNamedControls
+  TenTenPageCombineMeasurement
+MeasureCalcDistance.
+  TwoHorizontalPoints
+  TwoDiagonalPoints_ThreeFourFive
+  NegativeCoordinates
+MeasureCalcPerimeter.
+  ZeroOrOnePointReturnsZero
+  TwoPointsIsSameAsDistance
+  ThreeSegmentPolyline
+MeasureCalcArea.
+  FewerThanThreeReturnsZero
+  UnitSquare
+  RightTriangle
+  WindingOrderInvariant
+MeasureCalcUnitConv.
+  PointsToInches
+  PointsToMillimeters
+  PointsToCentimeters
+  PointsToPointsIdentity
+MeasureCalcFormat.
+  DistanceWithInchesAndNoScale
+  DistanceWithScaleFactor
+  AreaUnitConversionSquared
+  AreaScaleFactorSquared
+MeasureToolContents.
+  BuildThenParseRoundTrip
+  ParseRejectsMissingTag
+  ParseReadsPerimeterAndArea
+MeasurePersistenceTest.
+  DistanceMeasurementSurvivesSaveReload
+OptimizeEngineTest.
+  DefaultOptionsSucceedOnSimpleFile
+  OutputOpensAndPageCountPreserved
+  MissingInputReturnsErrorNotCrash
+  SameInputOutputRejected
+  AllOptionsOffStillProducesValidFile
+  CompressOnSmallerThanAllOptionsOff
+  SavedBytesAndPercentConsistent
+  OptimizeDoesNotLeakDeletedFormFieldValues
+AttachmentSanitize.
+  PlainBasenamePassesThrough
+  StripsDirectoryPrefix
+  RejectsTraversalSequences
+  StripsBackslashPaths
+  StripsLeadingDots
+  EmptyReturnsPlaceholder
+AttachmentCRUDTest.
+  EmptyListOnFreshDocument
+  AddListDeleteSequence
+  AttachmentSurvivesSaveReload
+  ExtractRoundTripIsByteExact
+  ExtractSanitizesMaliciousFilename
+  ListReportsSizeForEmbeddedFile
+  AddRejectsMissingSourceFile
+  RemoveUnknownNameReturnsFalse
+TantivyIndexBasic.
+  OpenCreatesIndexDirAndReportsZeroDocs
+  UpsertAddCommitMakesDocSearchable
+  UncommittedWritesAreNotVisible
+  DeletePageRemovesFromSearch
+TantivyIndexQuery.
+  BooleanAndReturnsOnlyPagesWithAllTerms
+  BooleanOrReturnsEitherMatch
+  BooleanNotExcludesMatchingPages
+  PhraseQueryMatchesAdjacentTerms
+  PrefixQueryMatchesStemAndExtensions
+TantivyIndexRanking.
+  MoreRelevantResultsComeFirst
+TantivyIndexIncremental.
+  UpsertReplacesExistingPageContent
+TantivyIndexPersistence.
+  CommittedIndexReopensWithSameDocs
+TantivyIndexPerformance.
+  ThousandPagesSearchUnderOneSecond
+TantivyIndexRobustness.
+  EmptyQueryDoesNotCrashReturnsEmpty
+  DeleteNonexistentPageIsSafe
+  UnicodeContentIndexesAndSearchesCorrectly
+DocumentSearchIndexTest.
+  LazyBuildOnFirstSearch
+  IndexDirIsPerDocument
+  InvalidateClearsCachedIndex
+  ReindexPageIsNoOpBeforeFirstBuild
+  NullDocumentRejectedAtConstruct
+SearchEngineTantivyParityTest.
+  SearchSpecificPagesAgreesWithFullScanOnTantivyCandidates
+  UpsertPageReplacesIndexedText
+  QueryReturnsOnlyPagesContainingTheTerm
+  EmptyQueryViaDocumentSearchIndexReturnsEmpty
+  ReindexPageOnDocumentSearchIndexPreservesCountAndQueryability
+  SpecNamedInterfaceBuildQueryInvalidatePage
+  HundredPageQueryUnderFiftyMilliseconds
+SystemFontDiscoveryPanose.
+  ByteZeroIsUnknown
+  ByteOneIsUnknown
+  BytesTwoThroughTenAreSerif
+  BytesElevenThroughFifteenAreSans
+  BytesAboveFifteenAreUnknown
+SystemFontDiscoveryPanoseIntegration.
+  TimesNewRomanIsClassifiedSerif
+  ArialIsClassifiedSans
+  EnumerationCompletesWithoutCrashOnFontWithoutPanose
+DialogObjectNames_AboutDialog.
+  ColorLogoLabel
+  BroughtToYouByLabel
+  ItwerxLogoLabel
+  DonationLabel
+  LicenseTextEdit
+DialogObjectNames_EncryptionDialog.
+  PasswordStrengthBar
+  PasswordStrengthLabel
+DialogObjectNames_SignDialog.
+  TsaGroup
+  TsaCheckBox
+  TsaUrlEdit
+  AdvancedGroup
+  InvisibleCheckBox
+  CertificationLevelCombo
+DialogObjectNames_ComplianceDialog.
+  PreviewTagsButton
+  ProgressBar
+  ComplianceSplitter
+  TagTreeLabel
+  TagStructureTree
+DialogObjectNames_SignaturePanel.
+  LtvStatusLabel
+AttachmentPanelMainWindowIntegration.
+  PanelIsConstructedWithObjectName
+  DockHasStableObjectName
+  ViewMenuToggleActionExists
+  DockVisibilityChangedSyncsToggleAction
+ImageExporterPattern.
+  PageTokenIsOneBasedAndZeroPadded
+  PageZIsZeroBased
+  BasenameAndExtTokensSubstitute
+  UnknownTokenLeftAsLiteral
+  PatternWithNoTokensIsStatic
+ImageExporterEndToEnd.
+  PngExportProducesOneFilePerPage
+  JpegExportHonoursFormatAndQuality
+  ExplicitPageRangeFiltersOutput
+  CancellationStopsMidRun
+  FilenamePatternAppliedPerPage
+  ProgressCallbackCalledPerFile
+WordExportHeuristics.
+  BoldDetectedCaseInsensitive
+  ItalicDetectedCaseInsensitive
+WordExportEscape.
+  XmlEscapesMetacharacters
+  RtfEscapesBracesAndBackslash
+  RtfEncodesNonAsciiAsUnicodeDirective
+MiniZipStore.
+  ProducesReadableZipWithExpectedPrefixAndSuffix
+WordExporterTest.
+  DocxOutputIsValidZipWithDocumentXml
+  RtfOutputIsSyntacticallyValid
+  PageRangeRestrictsOutput
+  BoldIsEmittedWhenFontNameImpliesBold
+  EmptyDocumentHandledGracefully
+WordExporterRobustness.
+  NullDocumentReturnsErrorNotCrash
+ExcelExportNumber.
+  AcceptsIntegersAndDecimals
+  RejectsNonNumericStrings
+ExcelExportColumnLetter.
+  MapsAZAndWrapsToDoubleLetters
+ExcelExporterTest.
+  OutputIsValidZipWithRequiredParts
+  SheetCountMatchesPageRange
+  EmptyPageRangeProducesZeroSheets
+ExcelExporterRobustness.
+  NullDocumentReturnsError
+OcrAllPagesCommand.
+  ExecuteRunsOcrForEveryListedPage
+  UndoInvalidatesEveryProcessedPage
+  UndoBeforeExecuteIsNoOp
+  CancelViaProgressCallbackStopsMidRun
+  CancelMidRunStillUndoableOnProcessedPages
+  PerPageOcrFailureDoesNotAbortBatch
+  DescriptionIsStable
+  CancelAfterPageTwoOfFiveProcessesExactlyTwoUndoReversesBoth
+CommentThreadingTest.
+  SetAndGetInReplyToOnSamePage
+  SetInReplyToMinusOneClearsIrt
+  IrtSurvivesSaveAndReload
+  GetInReplyToOnNonReplyReturnsMinusOne
+  SetInReplyToOutOfRangeThrows
+AltTextTest.
+  SetAndGetAltText
+  SetEmptyAltTextClearsIt
+  SetAndGetActualText
+  AltAndActualAreIndependentFields
+  AltTextSurvivesSaveAndReload
+  SetAltTextOnBogusIndexThrows
+ThemeManagerTest.
+  ThemeToAndFromStringRoundTrip
+  LightPaletteDiffersFromDark
+  SetThemePersistsAndEmitsSignal
+  ApplyPersistedThemeReadsSettingsValue
+  DefaultSystemThemeWhenNothingPersisted
+  ApplyChangesApplicationPalette
+StatusBarFormFieldCount.
+  LabelExistsWithAccessibleName
+  DefaultTextIsNoFormFields
+  SetCountUpdatesText
+  ClearInfoResetsFormFieldCount
+Tokenize.
+  SplitsOnWhitespaceAndCollapsesRuns
+  EmptyTextYieldsNoWords
+  MeasurerDeterminesWordWidth
+Reflow.
+  SingleWordThatFitsGivesOneLine
+  AllWordsFitOnOneLine
+  GreedyBreaksWhenNextWordOverflows
+  WordLargerThanWidthLandsOnOwnLineAndOverflows
+  LastLineFlagSetOnFinalLineOnly
+LineOffset.
+  LeftAlignmentIsZero
+  CenterIsHalfOfSlack
+  RightPushesToRightEdge
+  JustifyLastLineIsLeft
+JustifyExtra.
+  OnlyAppliesToJustifyAlignment
+  LastLineGetsNoExtraSpacing
+  DistributesSlackAcrossWordGaps
+  SingleWordLineNoExtraSpace
+ReflowAdaptive.
+  InsertGrowsLineCount
+  DeleteShrinksLineCount
+  FontSizeDoublingRoughlyHalvesLineCount
+ReflowPerf.
+  FiveHundredCharBlockUnderOneHundredMilliseconds
+FixtureCorpus.
+  PdfASidecarsExistForEveryConformanceLevel
+  PdfASidecarContainsMatchingConformanceLetter
+  CaChainBundleIsPresentAndStructurallyValid
+  TamperedPdfExistsAndIsByteDifferentFromSigned
+  OcrVariantsEachHaveExpectedTextSidecar
+  EveryPdfFixtureOpensCleanly
+  ReadmeListsEveryPdfFixture
+E2EAlignment.
+  FormattingBlockAlignmentSurvivesReflowCycle
+E2ESignature.
+  IncrementalSavePreservesSignedByteRange
+E2ERedaction.
+  RedactedStringDoesNotAppearInSavedBytes
+E2EOcr.
+  CleanScanRecallAboveNinetyFivePercent
+E2EOcrRecallHelper.
+  RecallMatchesExpectedOverlap
+AlignmentMarker.
+  EmitsExpectedWord
+  ParsesAllFourValues
+  TolerantToLeadingWhitespaceAndCRLF
+  AbsentMarkerFallsBackToLeft
+  UnknownWordFallsBackToLeft
+PdfLiteralEscape.
+  EscapesOpenAndCloseParens
+  EscapesBackslash
+  LeavesPlainTextUnchanged
+AlignmentEmit.
+  LeadsWithMarkerAndOpensGraphicsState
+  EmptyLinesProducesMarkerOnly
+  EmitsFontResourceRef
+  LeftBlockEmitsZeroXOffset
+  RightBlockPushesLineToRightEdge
+  CenterBlockHalvesTheSlack
+  JustifyEmitsTwWordSpacingOnNonLastLines
+  BaselineStepsDownPerLine
+AlignmentRoundTrip.
+  ParsingEmittedFragmentRecoversAlignment
+CommentPanelThreadingTest.
+  ReplyNestsUnderParentInTree
+  NonReplyAnnotationsAttachUnderPage
+  ReplySignalEmitsParentIndex
+  ChainOfRepliesFormsDeeperTree
+AltTextDialogTest.
+  ExposesNamedChildrenForAutomation
+  DialogHasAccessibleName
+  AltEditHasAccessibleName
+  ActualEditHasAccessibleName
+  SaveAndCancelButtonAccessibleNames
+  LoadsExistingAltAndActualTextOnOpen
+  SaveWritesBackToAnnotation
+  EmptyInputClearsAnnotationFields
+  CancelDoesNotWriteChanges
+AttachmentPanelTest.
+  PanelExposesNamedChildrenForAutomation
+  SetDocumentPopulatesTree
+  ExtractAndDeleteButtonsDisabledWhenNothingSelected
+  ExtractAndDeleteBecomeEnabledOnSelect
+  RefreshAfterBackingStoreChangeReflectsState
+  ClearDocumentEmptiesTree
+FormEncodePercent.
+  AlphaNumPassThrough
+  UnreservedPassThrough
+  SpaceBecomesPlus
+  SpecialsPercentEncode
+  NonAsciiEncodedPerByte
+FormEncodeUrl.
+  JoinsFieldsWithAmpersand
+  EscapesSpecialChars
+  EmptyFieldsProduceEmptyBody
+FormEncodeFdf.
+  HeaderAndEOFMarkersPresent
+  EachFieldAppearsAsTVPair
+FormEncodeXfdf.
+  ProducesValidXmlShell
+  XmlMetaCharsEscaped
+FormEncodeMime.
+  ReturnsAdobeDocumentedTypes
+HostAllowlist.
+  StartsEmpty
+  AllowAndContainsAreCaseInsensitive
+  RevokeRemovesEntry
+  PortStrippedFromLookup
+  NormalizeStripsCaseTrailingDotAndPort
+  HostsReturnsSortedLowercase
+IncrementalSaveTest.
+  PreservesOriginalBytePrefix
+  ReopenedDocShowsTheNewAnnotation
+  IncrementalSaveAppendsEndOfFileAfterOriginal
+  SignedFixturePrefixSurvivesIncremental
+  ThrowsWhenDocumentHasNoFilePath
+FormSubmitterDecision.
+  RejectsEmptyUrl
+  RejectsUnsupportedSchemes
+  AcceptsHttpAndHttpsForAllowlistedHost
+  UnknownHostAsksForConfirmation
+  HostIsCaseInsensitive
+FormSubmitterLive.
+  PostsBodyAndContentTypeToMockServer
+  InvalidUrlReturnsErrorNotCrash
+  UnreachablePortReportsNetworkError
+AlignmentInjectorTest.
+  ApplyInjectsBlockAndFileRemainsParseable
+  ReApplyDoesNotStackDuplicates
+  RemoveDropsPreviouslyInjectedBlocks
+  MultipleBlocksOnDifferentPagesEachLand
+  EmptyBlockListProducesParseableFile
+AlignmentPipelineTest.
+  EmptyQueueReportsZeroPendingPages
+  QueueAndSnapshotMatchesInput
+  QueueSameBoundsTwiceReplacesAlignment
+  DifferentBoundsSamePageAccumulate
+  ClearPageDropsOnlyThatPage
+  ClearDropsEverything
+  FlushAppliesPendingBlocksToOutputPdf
+  FlushWithEmptyQueueStillProducesValidOutput
+AlignmentPipelineCtor.
+  NullContextRejected
+BlockParamsBuilderTest.
+  BboxFieldsArePopulatedFromRect
+  FontSizeDrivesLineHeightByDefault
+  AlignmentIsPassedThrough
+  TokenizeReflowProducesLines
+  DefaultFontResourceNameIsF1
+  FontResourceNameOverrideHonored
+  CustomMeasurerUsedWhenProvided
+  NonpositiveFontSizeFallsBackToDefault
+  CustomLineHeightMultiplier
+  EmptyTextProducesEmptyLines
+LanczosResizeKernel.
+  ZeroReturnsOne
+  OutsideRadiusReturnsZero
+  SymmetricAroundZero
+LanczosResize.
+  NullSourceReturnsNull
+  ZeroTargetReturnsNull
+  IdentitySizeShortCircuits
+  ScaleProducesCorrectDimensions
+  UpscaleSharpnessBeatsQtBilinear
+  ResizeBestUsesLanczosForLargeUpscales
+  ResizeBestFallsBackToBilinearForSmallRatios
+  ResizeBestUsesLanczosExactlyAtThreshold
+  DownscaleAntiAliases
+  PreservesWhiteBackground
+  PreservesSolidBlackInterior
+  ConvertsRgb32ToArgb32Automatically
+AlignmentE2ETest.
+  SaveWithoutQueueIsNoOp
+  FullChainFromMainWindowSaveEmitsMarker
+  ReopenedDocumentRetainsAlignedText
+  EmptyPipelineLeavesFileUnchanged
+  MainWindowOwnsAlignmentPipeline
+OcrLanguagePreferenceTest.
+  DefaultLanguageIsEnglish
+  SetLanguagePersists
+  MultiLanguageCodeAccepted
+  PreferencesDialogExposesCombo
+  DialogLoadsCurrentLanguageOnOpen
+  AcceptPersistsComboSelection
+  DialogAcceptsFreeTextLanguageCode
+  EmptyFreeTextFallsBackToEng
+LinkActionTest.
+  DefaultLinkHasNoAction
+  SetUriRoundTrips
+  SetGoToRoundTrips
+  SetNamedRoundTrips
+  SetLaunchRoundTrips
+  ReplacingActionClearsPreviousData
+  GoToOutOfRangeThrows
+  SavedUriLandsInFileAsProperADict
+  SavedGoToLandsInFileAsProperADict
+  UriActionSurvivesSaveAndReopen
+  GoToActionSurvivesSaveAndReopen
+  NamedActionSurvivesSaveAndReopen
+  SavedLaunchLandsInFileAsProperADict
+  LaunchActionSurvivesSaveAndReopen
+  SavedNamedLandsInFileAsProperADict
+  NullPageRejected
+LinkActionStructTest.
+  UriValidationRejectsEmpty
+  NamedValidationRejectsEmpty
+  GoToValidationAcceptsZero
+  LaunchValidationRejectsEmptyPath
+BatesToken.
+  BasicDefaultWidth
+  ExplicitWidth
+  OverflowsGracefully
+  EmptyPrefixAllowed
+  MultipleTokensInOneString
+  InvalidTokenLeftAsIs
+  ClampsInsaneWidthToDefault
+  CoexistsWithOtherTokens
+  PageIndexZeroStartsAtStart
+  UnclosedTokenLeftAsIs
+InvisibleSignatureTest.
+  InvisibleFlagSignsSuccessfully
+  SignedFileContainsSignatureDict
+  VisibleFlagStillWorksForComparison
+CertificationSignatureTest.
+  NoChangesLevelWritesDocMDP
+  FormFillOnlyLevelEmbedsPEquals2
+  AnnotationsAllowedLevelEmbedsPEquals3
+  NotCertificationOmitsDocMDP
+CertificationLevelEnumTest.
+  ValuesMatchPdfSpec
+PortfolioTest.
+  PortfolioFixtureIsDetected
+  PortfolioViewDefaultsToD
+  NonPortfolioReturnsFalse
+  NonPortfolioViewFallsBackToD
+  NullDocReturnsFalse
+  PortfolioExposesEmbeddedFilesViaList
+TsaFixtureTest.
+  PdfParsesAndHasOnePage
+  FileContainsDocTimeStampDict
+  CachedTokenIsValidAsn1SignedData
+  PdfEmbedsEntireTokenInContents
+  SignatureManagerCountsOneSignature
+  ByteRangeStartsAtZero
+FollowLinkTest.
+  GoToLinkNavigatesCanvasToTargetPage
+  NamedNextPageLinkAdvancesPage
+  ClickOutsideAnyLinkReturnsFalse
+  ClickOnUriLinkReturnsTrueWithoutCrashing
+  OutOfRangePageIndexReturnsFalse
+  NullDocPathIsSafe
+LaunchLinkFollowTest.
+  LaunchClickAlwaysReachesThePrompt
+  DeclinedPromptDoesNotExecuteLaunch
+  AcceptedPromptIncrementsExecutedCounter
+  EveryLaunchClickReprompts_NoTrustListShortcut
+  MixedAcceptDeclineSequenceCountedPerClick
+  ConcurrentSetAndFollowDoesNotCrash
+PreflightDialogTest.
+  ExposesNamedControlsForAutomation
+  ProfileComboOffersAllSupportedTargets
+  ExportButtonStartsDisabled
+  SetResultPopulatesTreeGroupedBySeverity
+  SummaryLabelReflectsIssueCounts
+  EmptyResultSaysNoIssues
+  ExportButtonEnabledAfterResultWithIssues
+  TreeItemsContainRuleAndDescription
+  DocumentLevelIssueShowsDashForPage
+  CurrentResultAccessorReturnsStoredValue
+PreflightFixAllStatic.
+  ClassifyByExactRule
+  Rule_6_6_3_ExternalRefsDoNotRouteToJsFixer
+  Rule_6_1_7_ObjectStreamsDoNotRouteToEncryption
+  DefaultStrategyMatchesAutoSet
+  AutoFixableFiltersByStrategy
+  AutoFixableResolvesTypeFromRuleString
+PreflightFixAllLive.
+  FixIssueRejectsManualType
+  FixIssueAppliesXmpMetadataFix
+  FixIssueAppliesOutputIntentFix
+  FixIssueAppliesJavaScriptStrip
+  FixIssueIsIdempotent
+  FixAllAppliesEachTypeOnce
+  FixAllAppliesAllAutoTypes
+  FixAllPreservesManualIssuesInStillRemaining
+  FixAllIsIdempotent
+  FixAllReducesAutoFixableCountToZero
+  FixIssueRejectsNullDocument
+  FixAllRejectsNullDocument
+PreflightFixAllUI.
+  DialogExposesNamedFixAllButton
+  FixAllStaysDisabledForOnlyManualIssues
+  AutoFixableCountReflectsResolvedTypes
+  FixAllButtonShowsCountInLabel
+FormsDesignerToolbarTest.
+  AllSevenFieldTypeActionsPresent
+  FieldTypeActionsAreExclusive
+  DefaultSelectedActionIsText
+  FormToolBarObjectNameIsSet
+TabOrderDialogDragTest.
+  FieldListSupportsInternalDragReorder
+  DialogObjectNameIsSet
+CalculationOrderTest.
+  ListFieldNamesExposesFormFields
+  DefaultCalculationOrderIsEmpty
+  SetCalculationOrderRoundTrips
+  EmptySetClearsCalculationOrder
+  UnknownFieldNamesAreSilentlyDropped
+  NullDocReturnsEmpty
+CalculationOrderDialogTest.
+  ExposesNamedControlsForAutomation
+  FieldListAllowsDragReorder
+  NewCalculationOrderRespectsCheckState
+  MoveUpReordersSelectedRow
+NavigationHistoryTest.
+  NewHistoryIsEmpty
+  RecordVisitGrowsHistory
+  CoalescesConsecutiveDuplicates
+  NegativePageIgnored
+  CanGoBackAfterMultipleVisits
+  GoBackReturnsPreviousPage
+  GoForwardAfterGoBackReturnsOriginalTarget
+  RecordAfterBackTruncatesForwardHistory
+  ReplayingFlagSuppressesRecording
+  GoBackSuppressesAutomaticRecording
+  ClearResetsEverything
+ImageToPdfWizardTest.
+  SupportedExtensionsListedNonEmpty
+  FilterStringIncludesAllExtensions
+  EmptyImageListReturnsFalse
+  SingleImageProducesOnePagePdf
+  MultipleImagesProduceMultiPagePdf
+  UnreadableImageSkippedWithValidOnesWritten
+  AllImagesUnreadableReturnsFalse
+ExportPlainTextTest.
+  ActionExistsAndStartsDisabled
+  ActionEnablesAfterDocumentOpen
+  ActionDisablesAgainAfterDocumentClose
+PlainTextExporterTest.
+  NullDocReturnsFalse
+  WritesUtf8BomFirst
+  ThreePageDocEmitsTwoPageSeparators
+  ContentMatchesPageExtractPlainText
+  SinglePageDocHasNoPageSeparator
+  InvalidOutputPathReturnsFalse
+PdfeIconsTest.
+  IcoResourceLoads
+  IcoSmallSize16IsLiveContent
+  AppIconHelperReturnsNonNull
+MainWindowIconTest.
+  WindowIconIsNonNullAfterConstruction
+  AppIconHelperMatchesWindowIcon
+PhaseF5MenuWiringTest.
+  FormsMenuHasCalculationOrderAction
+  ViewMenuHasThemeSubmenuWithThreeOptions
+  ToolsMenuHasAltTextAction
+  ThemeActionsAreCheckableAndExclusive
+LtvDssWriterTest.
+  WriteOneCert_DssDictExistsInCatalog
+  VriKeyIsSha1OfContentsHexUpper
+  RoundTripCertCount
+  EmptyOcspCrlOmittedFromVri
+  WriteMultipleCerts
+  IncrementalSavePreservesByteRange
+  CertChainExtractor_EmptyInput
+  CertChainExtractor_RealSignature
+  Sha1HexUpper_KnownVector
+  Perf_TenCertChainUnder500ms
+OcspCrlParserTest.
+  ParsesValidOcspResponse
+  ParsesValidCrl
+  RejectsMalformedOcsp
+  RejectsMalformedCrl
+  EmbedsOcspCrlInDssRoundTrip
+  WriteWithFiles_MissingFile_FailsCleanly
+ValidationExtractorTest.
+  ExtractsHttpOcspUrl
+  ReturnsFalseWhenNoAiaExtension
+  FiltersNonHttpSchemes
+ValidationDialogTest.
+  DisablesFetchWhenNoUrls
+  ShowsAllUrlsWithPrefixes
+ValidationRequestTest.
+  CancelDialogPreventsFetch
+  AcceptValidOcspWritesDss
+  AcceptHttpErrorShowsErrorDialog
+  OversizeContentLengthAborts
+  NoAiaExtensionDisablesFetch
+  RejectsNullDocument
+LtvValidatorTest.
+  VerifiesLtvDocumentWithDss
+  NoDssDataReturnsNoDssStatus
+  RevokedCertReturnsRevoked
+TrustAnchorManagerTest.
+  TrustAnchorRoundTrip
+  CustomTrustAnchorEnablesValidation

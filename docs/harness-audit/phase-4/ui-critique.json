@@ -1,0 +1,207 @@
+{
+ "generated_note": "PDFE harness-adversarial-audit Phase-4 (NATIVE-UI / E2E critique). FIND-AND-DOCUMENT only \u2014 no product/test code changed, not committed. Base dir C:/Users/dev/source/PDFE. Scope = 43 tests/test_ui_*.py + UI-subsystem GoogleTest. The harness is the defendant. Counts are source-derived (Grep/grep/awk over HEAD).",
+ "skip_audit": {
+  "scope": "43 tests/test_ui_*.py (~450 def test_) + UI-subsystem GoogleTest (31 files / 332 tests / 191 GTEST_SKIP sites per census).",
+  "total_skip_sites": 1018,
+  "total_skip_sites_breakdown": {
+   "pytest_skip_call_sites_ui_py": 742,
+   "pytest_mark_skipif_ui_py": 83,
+   "self_skipTest_ui_py": 2,
+   "gtest_skip_sites_ui_subsystem": 191
+  },
+  "census_wide_context": "census.json reports 1142 pytest.skip call sites across ALL .py (43 test_ui_*.py + 86 tests/ui_automation/*.py) and 1230 GTEST_SKIP sites across 247 C++ files. This phase scopes the pytest side to the 742 body-skips in test_ui_*.py.",
+  "legitimate_env_guard": 270,
+  "silent_zero_protection": 472,
+  "classification_method": "Each pytest.skip() reason string was bucketed. LEGIT = prerequisite genuinely absent and the test WOULD run on the real interactive desktop/CI (fixture-missing 125, module skipif REQUIRES_LIVE_UI/binary/pywinauto/pyautogui/interactive 83, optional-dep pikepdf/pymupdf/fitz/cryptography ~50, DPI-unsupported guard). SILENT = the skip fires on a condition that is DETERMINISTICALLY TRUE on the documented Server-2019 self-hosted CI runner (gap_a14 UIA-menu-hang), so the test executes up to a UIA/menu/dialog/pipe interaction that always fails there and skips green \u2014 protecting nothing in CI.",
+  "permaskipped_tests": [
+   {
+    "file": "tests/test_ui_annotations.py",
+    "line": 1142,
+    "condition": "pytest.skip('stickyNoteToolAction not reachable via UIA.')",
+    "classification": "silent-zero-protection",
+    "what_it_should_protect": "Sticky-note tool activation + annotation placement + CreateAnnotationCommand on undo stack. On Server-2019 the UIA tool lookup wedges (gap_a14) so the whole annotation-create contract skips green. 67 'not reachable' skip sites in this one file."
+   },
+   {
+    "file": "tests/test_ui_annotations.py",
+    "line": 1489,
+    "condition": "pytest.skip('testAnnotCreatePipe not reachable \u2014 PDFE_TEST_ANNOT_PIPES=1 required.')",
+    "classification": "silent-zero-protection",
+    "what_it_should_protect": "Annotation create via the test pipe seam. Skips unless an opt-in env var is set; if CI does not export PDFE_TEST_ANNOT_PIPES=1 the pipe-driven (gap_a14-safe) path also never runs, so BOTH the UIA path and its intended workaround are dark."
+   },
+   {
+    "file": "tests/test_ui_redaction.py",
+    "line": null,
+    "condition": "45 'not reachable' + majority of 109 pytest.skip sites gate redaction-tool discovery, mark, and applyRedactions",
+    "classification": "silent-zero-protection",
+    "what_it_should_protect": "applyRedactionsAction \u2014 the IRREVERSIBLE, security-critical P0 redaction flow (content actually removed from the saved PDF). Highest-consequence surface, most-skipped UI file (109 skip sites)."
+   },
+   {
+    "file": "tests/test_ui_compliance_accessibility.py",
+    "line": 909,
+    "condition": "pytest.skip('ComplianceDialog could not be opened via menu.')",
+    "classification": "silent-zero-protection",
+    "what_it_should_protect": "PDF/A + PDF/UA analyze/validate/convert flows. 92 skip sites; nearly every one bails when a menu-driven dialog does not open \u2014 the exact gap_a14 failure mode on the CI runner."
+   },
+   {
+    "file": "tests/test_ui_forms.py",
+    "line": null,
+    "condition": "31 'not reachable' among 89 pytest.skip sites (formTool / field widgets / properties panel)",
+    "classification": "silent-zero-protection",
+    "what_it_should_protect": "Form fill, flatten (P0), reset, XFDF round-trip, radio-group exclusivity. Behavioral form assertions never execute on CI."
+   },
+   {
+    "file": "tests/test_ui_encryption_signatures.py",
+    "line": 1052,
+    "condition": "pytest.skip('EncryptionDialog could not be opened via menu.')",
+    "classification": "silent-zero-protection",
+    "what_it_should_protect": "saveWithEncryption / signDocument / verifySignatures (P0 security). 47 skip sites; the encrypt/sign dialogs are menu-driven so they skip on the UIA-wedged runner."
+   },
+   {
+    "file": "tests/test_ui_encryption_signatures.py",
+    "line": 1179,
+    "condition": "pytest.skip('Initial document did not finish loading.')",
+    "classification": "silent-zero-protection-masking-failure",
+    "what_it_should_protect": "A genuine document-load regression is converted into a SKIP rather than a FAIL \u2014 a load bug would ship green. Same anti-pattern at 'Source did not load' / 'did not load on reopen' across the encryption + compliance files."
+   },
+   {
+    "file": "tests/test_ui_page_operations.py",
+    "line": 720,
+    "condition": "pytest.skip('rotatePage180Action not reachable via UIA tree.')",
+    "classification": "silent-zero-protection",
+    "what_it_should_protect": "Page rotate / delete (P0 destructive) reaching the page /Rotate entry + thumbnail refresh. 22 skip sites gated on UIA-tree action lookup."
+   },
+   {
+    "file": "tests/test_ui_preferences_chrome.py",
+    "line": 1485,
+    "condition": "pytest.skip('CustomizeToolbarsDialog could not be opened.')",
+    "classification": "silent-zero-protection",
+    "what_it_should_protect": "Toolbar customization + theme + prevention toggles. 39 skip sites, dialog-open gated."
+   },
+   {
+    "file": "tests/test_ui_stress.py",
+    "line": null,
+    "condition": "26 'not reachable' among 70 pytest.skip sites",
+    "classification": "silent-zero-protection",
+    "what_it_should_protect": "Long-running stress / cumulative-state sequences. Bulk of the stress assertions skip on CI."
+   },
+   {
+    "file": "tests/test_ui_e2e_workflows.py",
+    "line": 130,
+    "condition": "pytest.skip('pipe not available')",
+    "classification": "silent-zero-protection",
+    "what_it_should_protect": "End-to-end multi-step workflows via the pipe seam; skips whenever the pipe is not up."
+   },
+   {
+    "file": "tests/test_ui_annotations_smoke.py",
+    "line": 150,
+    "condition": "always-pass headless-fallback stub test that just prints 'tests above are pytest.skip' when not interactive",
+    "classification": "silent-zero-protection-by-design",
+    "what_it_should_protect": "Nothing \u2014 this is an intentional green no-op so `pytest -k` is non-empty on a headless box. Present in test_ui_annotations_smoke.py, test_ui_forms_smoke.py (line 117), test_ui_page_ops_smoke.py (line 107). Green that asserts nothing."
+   },
+   {
+    "file": "tests/test_ui_pdfe_smoke.py",
+    "line": 135,
+    "condition": "self.skipTest('PDFE.exe not built; expected at ...')",
+    "classification": "legitimate-env-guard",
+    "what_it_should_protect": "Skips only when the binary is genuinely absent \u2014 would run on a built desktop. LEGIT."
+   },
+   {
+    "file": "tests/test_ui_encryption_signatures.py",
+    "line": 277,
+    "condition": "pytest.skip(f'Fixture missing: {p}')",
+    "classification": "legitimate-env-guard",
+    "what_it_should_protect": "Fixture-absence guard \u2014 runs when the fixture is present. LEGIT (125 such sites across the corpus)."
+   },
+   {
+    "file": "tests/test_ui_compliance_accessibility.py",
+    "line": 1131,
+    "condition": "pytest.skip('pikepdf required for XMP inspection.')",
+    "classification": "legitimate-env-guard",
+    "what_it_should_protect": "Optional-dependency guard \u2014 runs when pikepdf/pymupdf/cryptography are installed. LEGIT."
+   }
+  ],
+  "effectively_never_run_in_ci_note": "472 pytest.skip call sites (not-reachable/dialog-open/pipe/interaction families) fire deterministically on the Server-2019 gap_a14 runner. These gate an estimated ~300 of ~450 UI test functions from EVER executing their behavioral assertions in CI \u2014 only launch+objectName smoke tests and testToolActivatePipe/invoke_action seam-driven tests actually run there. Site-count and function-count differ because interaction-heavy tests carry multiple skip sites.",
+  "silent_zero_protection_family_matches": {
+   "dialog_could_not_open_or_did_not_appear_or_did_not_load": 133,
+   "test_pipe_not_reachable_or_empty": 25,
+   "could_not_send_select_click_set_change_read_capture": 53,
+   "not_reachable_broad": 262
+  },
+  "silent_zero_protection_families_note": "Family MATCH counts (sum=473) exceed the DISTINCT silent-zero-protection site count (472) by 1 because one skip site matches two family patterns (overlap). The distinct 472 reconciles with pytest_skip_call_sites_ui_py=742 (270 legit + 472 silent). Karen phase-4 gate: the literal string \"not reachable via UIA\" appears 39x; the 262 counts the BROADER \"not reachable\" family (UIA menu-hang + drag + dialog-specific bail-outs), hence renamed not_reachable_broad."
+ },
+ "matrix_reconciliation": {
+  "rows_checked": 762,
+  "matrix_pass_is_runtime_or_static": "RUNTIME artifact, and structurally over-claimed. The matrix is a runtime-generated CSV (census: 973 CSVs under tests/_runtime/ ui_test_matrix_*.csv). Rows are emitted from source as status=planned (act_* from MainWindow.cpp, dialog-widget from audit_source.py) then flipped green/red at runtime by conftest.record_matrix_result(). The committed 'green' reflects a one-off developer-workstation interactive run, NOT a reproducible CI result \u2014 on the Server-2019 runner the backing pywinauto tests skip (gap_a14). Row color is also a fragile last-write-wins value (tests/ui_automation/conftest.py:85 MATRIX_RESULTS[test_id]=... ; sessionfinish:575), so a non-owning suite's SKIP could clobber a proven GREEN. Prior audit already found the matrix structurally over-claimed (a runtime CSV rebuilt from committed green).",
+  "over_claimed": [
+   {
+    "row": "Dialog widget reachability (236 rows, subsystem Dialogs/DialogWidget)",
+    "claim": "green",
+    "reality": "widget-exists-only \u2014 'green' means an objectName string is present in the dialog .cpp (audit_source.py 53/53), with NO launch, NO render, NO behavior. A dialog that opens but paints garbled contents is green.",
+    "evidence": "tests/docs/ui_coverage_audit_phase4.md:88 ('Dialog widget reachability | 236 | green (audit_source 53/53)'); \u00a71 line 30-31 audit_source.py is 'static, no launch'."
+   },
+   {
+    "row": "QAction invocation act_* (131 rows, subsystem Actions)",
+    "claim": "green (after phase-4 regen)",
+    "reality": "structural \u2014 green = invoke_action() pipe returned for the objectName; asserts the action fired, NOT that it produced the correct visible effect (rotate actually rotated, redaction actually removed content).",
+    "evidence": "tests/docs/ui_coverage_audit_phase4.md:43-45, \u00a78:217-221 ('flip the row to green/red via record_matrix_result')."
+   },
+   {
+    "row": "~111 act_/flow_/field_ 'blocked' rows",
+    "claim": "blocked (understated) / green (fragile)",
+    "reality": "aggregation false-block: a passing test recorded green but a different non-owning suite parametrized the same id, SKIPPED it, and last-write-wins recorded blocked. Proves matrix color depends on suite execution order, not a stable oracle.",
+    "evidence": "tests/docs/matrix-nongreen-investigation.md:22-36 (cat 1, conftest.py:575/85)."
+   },
+   {
+    "row": "Annotation create + canvas handle-drag (~30 rows: annot_select_*, field_text_create, canvas_annot_handle_drag_*)",
+    "claim": "covered/green elsewhere",
+    "reality": "the UI gesture is un-driveable by the synthetic-click harness (P-GAP-75); functionality only proven HEADLESS in gtest (FormCreationTest/AnnotationCommands). The live UI create-drag contract has no runnable UI oracle.",
+    "evidence": "tests/docs/matrix-nongreen-investigation.md:38-46 (cat 2)."
+   },
+   {
+    "row": "Text-edit selection/undo pixel rows UI-TE-UI-01 / UI-TE-UI-03",
+    "claim": "LIVE_UI_GUARDED (counted toward coverage)",
+    "reality": "the pixel assertion runs ONLY on an interactive desktop; 'on headless hosts the skip-summary case passes but the pixel contract is NOT validated'. In CI these are green-that-never-ran. The matrix itself flags 'Promote to RESOLVED only after a real interactive run.'",
+    "evidence": "tests/fixtures/ui_audit/UI_MATRIX_GAPS.md:176, 178."
+   },
+   {
+    "row": "77 menu_*/cmp_*/sec_* 'feature absent' rows",
+    "claim": "skip/blocked (some historically greened via friendly-path rows)",
+    "reality": "friendly-path menu_* rows ('File > Open') named no stable objectName, so a domain could LOOK covered while the CI invocation path had zero grounded assertion (96 of 131 QActions were in that state pre-phase-4).",
+    "evidence": "tests/docs/ui_coverage_audit_phase4.md:34-41; matrix-nongreen-investigation.md:56-64 (cat 4)."
+   }
+  ]
+ },
+ "visual_oracle_critique": {
+  "any_visual_verification_exists": true,
+  "mechanisms_found": [
+   "Win32 PrintWindow (PW_RENDERFULLCONTENT) canvas capture \u2014 tests/test_ui_file_operations.py:407-433 (capture_hwnd), test_ui_annotations.py:995, test_ui_page_operations.py:399",
+   "SSIM structural-similarity compare \u2014 tests/visual/diff.py (ssim/pixel_diff), thresholds SSIM>=0.95 (relaxed 0.85) in test_ui_file_operations.py:151/550, test_ui_annotations.py:183-184, test_ui_page_operations.py:157",
+   "pixel_diff_fraction change-detection (SSIM<0.95 OR pixel_diff_fraction>=0.0001) \u2014 test_ui_annotations.py:_assert_canvas_changed 1077-1097, test_ui_page_operations.py:454-472",
+   "Golden-image capture + compare \u2014 tests/ui_harness/core/screenshot.py capture_canvas + tests/ui_harness/core/golden.py compare_to_golden/regen_golden \u2014 test_ui_harness_smoke.py:169-208, and the *_smoke.py files (forms/annotations/chrome/image_redaction)",
+   "PyAutoGUI full-screen screenshot artifact (diagnostic only, not asserted) \u2014 test_ui_specimen_a_e2e_walkthrough.py:163"
+  ],
+  "visual_verification_is_shallow_because": [
+   "CHANGE-DETECTION, not correctness: _assert_canvas_changed only proves SOMETHING changed (SSIM dropped OR pixels differ). A canvas rendered mirrored/blurry/wrong-zoom/wrong-rotation still trips 'changed' and passes \u2014 there is no golden of the CORRECT result to diff against for most rows.",
+   "GOLDEN SELF-SEEDING: first run with no committed golden calls regen_golden(force=False) then compares the just-captured image against itself \u2014 zero delta, always pass. On a fresh runner (no source-controlled golden) the 'compare' protects nothing (test_ui_harness_smoke.py:183-208).",
+   "THRESHOLDS RELAXED TO 0.85 and many file-ops rows are explicitly annotated 'VISUAL: no' (net-zero pixel change by design; native-shell dialogs excluded as OS-chrome), so large swaths of the file-ops suite carry no pixel oracle at all.",
+   "ALL visual asserts sit behind REQUIRES_LIVE_UI + the gap_a14 UIA/dialog skips \u2014 so in the Server-2019 CI they do not execute; visual protection exists only on a developer workstation."
+  ],
+  "invisible_regression_classes": [
+   "Canvas renders the page MIRRORED or rotated the wrong direction \u2014 change-detector sees a diff and passes; no correct-orientation golden.",
+   "Canvas renders at the WRONG ZOOM / wrong tile scale \u2014 half-size or double-size content still differs from baseline = 'changed' = pass.",
+   "Glyphs render as .notdef/tofu or blurry while text still EXTRACTS correctly \u2014 extraction-blind (phase-1 systemic 'extraction-only-for-visual'); UI layer has no glyph-ink oracle except the single per-line-font-size probe.",
+   "A control/toolbar button renders but paints the WRONG icon or WRONG color \u2014 objectName-exists / reachability oracle is blind to pixels (annotation toolbar has NO icons at all per UI_MATRIX_GAPS UI-AN-22, undetectable).",
+   "A dialog OPENS but its contents are garbled/mislaid-out \u2014 the 236 dialog-reachability rows assert only that the objectName exists in source, never that it renders.",
+   "White/invisible/half-size edited text in the content stream (the exact shipped mirror/half-size/color-loss bug class) \u2014 no UI pixel oracle catches it; only the C++ content-stream tests (also extraction-blind) cover it.",
+   "Wrong-but-plausible rendered content in a region \u2014 no committed golden to compare against (self-seeded), so a plausible-looking wrong render is indistinguishable from correct."
+  ],
+  "cross_reference_phase1": "Phase-1 oracle synthesis: widget-exists-only smell in 77 files, EXPECT_NO_THROW-only in 81, extraction-only-for-visual in 71; weak-oracle (proxy+no-oracle-smoke) = 147/402 files (36.6%). The systemic_pattern note names extraction-only-for-visual as 'the dominant cross-cluster disease ... structurally blind to mirror/invisible/white/wrong-glyph/half-size/off-page'. The UI layer's structural (objectName/signal/dialog-open) oracles are the same disease one level up: real render, no render oracle."
+ },
+ "totals": {
+  "ui_test_files": 43,
+  "ui_test_files_note": "43 tests/test_ui_*.py (~450 def test_). Plus 86 tests/ui_automation/*.py (280 def test_) in the wider matrix harness.",
+  "effectively_never_run_in_ci": 472,
+  "effectively_never_run_in_ci_unit": "pytest.skip call sites that fire deterministically on the gap_a14 Server-2019 runner (not-reachable 262 + dialog-open/load 133 + pipe 25 + interaction 53). These gate an estimated ~300 of ~450 UI test functions from executing any behavioral assertion in CI.",
+  "actually_runnable_in_ci_note": "Only three UI test classes truly protect anything on the CI runner: (1) launch + objectName-existence smoke, (2) testToolActivatePipe/invoke_action seam-driven action tests, (3) headless C++ GoogleTest that drives managers directly. The pixel/SSIM/golden visual layer runs only on an interactive developer desktop."
+ }
+}

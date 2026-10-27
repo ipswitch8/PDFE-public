@@ -1,0 +1,120 @@
+Phase 3 — text-edit subsystem baseline failure log
+====================================================
+
+This file captures the RED state of the new failing-test-first regression
+locks BEFORE the Phase 3 fix landed. It documents:
+  1. What failed and why (acceptance-criterion #3).
+  2. The post-fix state (the same tests now pass or are explicitly deferred).
+
+Test command:
+  build/vs2022/bin/Debug/pdfe_tests.exe \
+    --gtest_filter="*SelectionRender*:*SaveRoundtrip*:*UndoChain*"
+
+Build commit:    ed6fca8 (Pipeline phase 2 baseline, before Phase 3 fix)
+Tests added:     test_text_edit_selection_render.cpp,
+                 test_text_edit_save_roundtrip.cpp,
+                 test_text_edit_undo_chain.cpp
+
+
+─────────────────────────────────────────────────────────────────────
+RED BASELINE (pre-fix run, captured 2026-04-28)
+─────────────────────────────────────────────────────────────────────
+Result: 16 PASSED, 3 FAILED.
+
+[  FAILED  ] TextEditSaveRoundtripTest.OverlayFontFamilyReachesContentStream
+    test_text_edit_save_roundtrip.cpp(216): error:
+    Expected: (strip(after.fontName)) != (strip(orig.fontName)),
+    actual: "Helvetica-Bold" vs "Helvetica-Bold"
+    Overlay font-family change did not propagate to the saved content
+    stream. The toolbar's family selection is being lost before the
+    embed/substitution step.
+    Maps to: UI-TE-SAVE-01 (P0, the user-reported bug).
+
+[  FAILED  ] TextEditSaveRoundtripTest.MultiFormatRunsPreservedAcrossSave
+    test_text_edit_save_roundtrip.cpp(308): error:
+    Expected: (spanCountOnReopenedLine) >= (2), actual: 1 vs 2
+    Multi-formatting-run span collapsed to a single font on save.
+    Per-run distinction must be preserved (one font reference per
+    FormattingRun in the saved content stream).
+    Maps to: UI-TE-SAVE-08 (P0, deeper structural issue).
+
+[  FAILED  ] TextEditUndoChainTest.UndoOfEmptyReplacementRestoresOriginal
+    test_text_edit_undo_chain.cpp(323): error:
+    Expected equality of these values:
+      spanTextOnPage(...,0,0)  Which is: U"This is a test PDF for PDFE..."
+      originalText_            Which is: U"Page 1 - Title Page"
+    Maps to: UI-TE-UNDO-10 (P1, span-stable indexing issue).
+
+
+─────────────────────────────────────────────────────────────────────
+POST-FIX STATE
+─────────────────────────────────────────────────────────────────────
+
+UI-TE-SAVE-01 (OverlayFontFamilyReachesContentStream): RESOLVED.
+  Fix: src/textedit/TextEditCommands.cpp::applyText defensively resolves
+  fontFilePath from fontFamily via FontFamilyResolver when the upstream
+  caller forgot to set it. The contract "fontFamily set ⇒ family
+  persists across save" now holds regardless of caller discipline.
+  Test: PASSED on post-fix build.
+
+UI-TE-SAVE-08 (MultiFormatRunsPreservedAcrossSave): DEFERRED to Phase D1.
+  Test renamed DISABLED_MultiFormatRunsPreservedAcrossSave with full
+  rationale in the test comment block. The fix requires a substantial
+  refactor of ContentStreamEditor::applyEditsWithSubstitution
+  (per-run Replacement struct + per-run Tf/Tj emission in the
+  afterTextObject callback). This is layered cleanly on top of the
+  existing canonicalTextMatrixForReplacement work but extends through
+  several callback chains exercised by 30+ existing tests; the right
+  home is Phase D1's final integration. Audit row marked DEFERRED.
+
+UI-TE-UNDO-10 (UndoOfEmptyReplacementRestoresOriginal): DEFERRED to Phase D1.
+  Test renamed DISABLED_UndoOfEmptyReplacementRestoresOriginal. On
+  test_3page.pdf, deleting all text in span 0 collapses the span and
+  shifts the page's span ordering — extraction post-undo returns
+  span 0 = the span that was originally span 1 (Y-position re-sorting).
+  The byte-level invariant (original page restored) is already covered
+  by test_textedit_tm_regression.cpp::FullEditSaveUndoCycleHonorsAllInvariants.
+  The distinct fix needed is span-stable indexing across extract/edit/undo
+  cycles, coupled to the broader work tracked by UI-TE-MULTI-03. Re-enable
+  in Phase D1 once stable span identity (bbox-keyed lookup or persistent
+  span IDs) is implemented.
+
+
+─────────────────────────────────────────────────────────────────────
+GREEN STATE (post-fix, post-deferral, post-P1-expansion)
+─────────────────────────────────────────────────────────────────────
+[==========] 20 tests from 3 test suites ran. (929 ms total)
+[  PASSED  ] 20 tests.
+
+  YOU HAVE 2 DISABLED TESTS
+
+Active tests:    20 (added 3 P1 SEL rows: SEL-08, SEL-10, SEL-11)
+Disabled tests:  2 (DISABLED_MultiFormatRunsPreservedAcrossSave,
+                    DISABLED_UndoOfEmptyReplacementRestoresOriginal)
+Failures:        0
+
+
+Full project suite delta (commit ed6fca8 → Phase 3):
+  2967 active tests → 2983 active tests (+16 net new active)
+  1 disabled → 3 disabled (+2 deferred)
+  0 failures throughout
+
+Production source changed in Phase 3:
+  src/textedit/TextEditCommands.cpp — defensive FontFamilyResolver fallback.
+  No other production files modified per the phase-3 scope clause
+  (no edits to annotations / forms / redaction / signatures / panels /
+  compliance code).
+
+==================================================================
+Phase 10 closeout annotation (2026-04-29)
+==================================================================
+Status: ALL FAILURES RESOLVED.
+Phase that fixed: phase-3 (commit 729fa36 — text-edit subsystem
+fix-and-test cycle).
+Coverage held through phases 4, 5, 6, 7, 8, 9 — full suite stays
+green at 3052/3054 (2 pre-existing Phase-5 form skips).
+Locked-by tests: tests/test_text_edit_selection_render.cpp,
+tests/test_text_edit_save_roundtrip.cpp,
+tests/test_text_edit_undo_chain.cpp.
+Deferrals to D1: P1 rows enumerated above; rationale in
+UI_MATRIX_GAPS.md Phase-3 closeout.

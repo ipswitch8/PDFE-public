@@ -1,0 +1,135 @@
+# cppcheck suppression list for the PDFE phase-5 SAST sweep.
+#
+# Format: each non-blank, non-# line is either:
+#   <id>                                # global suppression
+#   <id>:<file>                         # whole-file suppression
+#   <id>:<file>:<line>                  # exact-line suppression
+#
+# IDs and rationale below. Add new entries with a comment header
+# explaining WHY the suppression exists; otherwise the next reviewer
+# has no way to assess whether the suppression is still valid.
+
+# --- Globally suppressed (rationale: noisy + low signal) ---
+
+# missingIncludeSystem: cppcheck warns about <Qt> headers it can't
+# locate. These are part of the build's include path; the build
+# itself enforces them. Not a bug.
+missingIncludeSystem
+
+# checkersReport: cppcheck self-status emission ("Active checkers:
+# N/M ...") not a finding about user code.
+checkersReport
+
+# unmatchedSuppression: ignore residual entries after refactors
+# delete the line they pointed at.
+unmatchedSuppression
+
+# unusedFunction: PDFE has many public exports for the test layer
+# and Qt slots dispatched only via Qt's metaobject -- cppcheck
+# can't see those reflectively-invoked functions as "used" but
+# they are.
+unusedFunction
+
+# preprocessorErrorDirective: triggers on platform-conditional
+# #error blocks in fuzz_common.h that are intentional and reachable
+# only under broken configs.
+preprocessorErrorDirective
+
+# normalCheckLevelMaxBranches: cppcheck self-limits on highly-
+# branching state machines (TextEditPipeline, ContentStreamEditor).
+# Suppressing the warning, not the underlying analysis.
+normalCheckLevelMaxBranches
+
+# unknownMacro: 100% of these findings are Qt's `slots:` and
+# `signals:` access specifiers that cppcheck doesn't model. Adding
+# `--suppressions-list` for each Qt macro would be cleaner but
+# cppcheck's Qt support is incomplete enough that suppressing
+# globally is the maintained-burden-vs-signal trade.
+unknownMacro
+
+# shadowFunction: every flagged case in this codebase is one of
+# (a) a Qt signal name reused as a lambda capture parameter in a
+# connect() call, or (b) a member-function getter (e.g.,
+# TextEditModel::span(int)) reused as a local-variable name in a
+# loop body. Both are harmless C++ and standard Qt patterns.
+# Renaming would be heavy churn with zero behavior win.
+shadowFunction
+
+# constParameterPointer for fz_context* lambda parameters in
+# MuPdfContext::execute / executeReturn callbacks. The std::function
+# signature is fz_context* (non-const) by contract — making the lambda
+# parameter const would not match. cppcheck flags individual lambda
+# bodies that don't directly use ctx, but the SIGNATURE is fixed by
+# MuPdfContext's API. False positive at every callback that doesn't
+# happen to pass ctx through to a MuPDF C function.
+constParameterPointer:*ImageContentEditor.cpp:174
+constParameterPointer:*ImageContentEditor.cpp:219
+constParameterPointer:*ImageContentEditor.cpp:285
+
+# unsafeClassCanLeak on Qt QWidget* members of a pimpl Impl struct.
+# Every flagged member is `new`'d with a parent argument (e.g.,
+# `new QLabel("-", infoGroup)`), so Qt's parent-child ownership
+# model frees them when the parent widget is destroyed. cppcheck
+# doesn't model QObject parent ownership and treats every owning
+# raw pointer in a class with no destructor as a leak. The Impl
+# struct here doesn't need a destructor because the Qt object tree
+# handles cleanup. Suppress the whole file.
+unsafeClassCanLeak:*ImagePropertiesPanel.cpp
+
+# knownConditionTrueFalse at StructureTreeBuilder.cpp:117 -- cppcheck
+# can't see that parentTreeEntries (declared empty at line 103) only
+# fills when root.children loop at 106 invokes buildStructElem.
+# When root has no children, the vector is genuinely empty and the
+# guard at 117 is essential.
+knownConditionTrueFalse:*StructureTreeBuilder.cpp:117
+
+# knownConditionTrueFalse at TextEditModel.cpp:175/178 -- cppcheck's
+# reachability analysis claims `run.charEnd > editPos` and
+# `run.charStart < editEnd` are always true at the first two branches
+# of adjustFormattingRuns. They aren't: a run can be entirely before
+# the edit (charEnd <= editPos) or entirely after (charStart >=
+# editEnd), and those are the FIRST things this chain tests. Suspect
+# cppcheck is over-narrowing the input domain from upstream callers.
+# Keep the checks; they're correct.
+knownConditionTrueFalse:*TextEditModel.cpp:175
+knownConditionTrueFalse:*TextEditModel.cpp:178
+
+# knownConditionTrueFalse at EnrichedAtlas.cpp:558 -- cppcheck claims
+# the `if (ftCapH_ <= 0)` guard is unreachable, but ftCapH_ is
+# initialized to 0 in the header (line 122) and only set inside the
+# inner `if (rTop >= 0 && rBot > rTop)` branch — when no reference
+# char is found the value remains 0 and the early-return is essential.
+knownConditionTrueFalse:*EnrichedAtlas.cpp:558
+
+# doubleFree / deallocuse at Pkcs7OpenSslBridge.cpp 462/465/466 --
+# fz_throw is declared as a normal function in MuPDF's headers but
+# implemented via setjmp/longjmp and never returns to the caller.
+# cppcheck doesn't model this. The flow is:
+#   line 461: if (!pfxData) {
+#   line 462:    fclose(fp);
+#   line 463:    fz_throw(...);   // [[noreturn]] in practice
+#   line 464: }
+#   line 465: fread(..., fp, ...);  // unreachable when 461 was true
+#   line 466: fclose(fp);            // unreachable when 461 was true
+# So fp is closed exactly once on every reachable path. cppcheck
+# treats fz_throw as a normal returning function and conflates the
+# two branches.
+doubleFree:*Pkcs7OpenSslBridge.cpp:462
+doubleFree:*Pkcs7OpenSslBridge.cpp:466
+deallocuse:*Pkcs7OpenSslBridge.cpp:465
+
+# useStlAlgorithm at FontComplianceChecker.cpp:172 -- the loop's
+# dedup predicate mutates `seenFonts` as a side effect of
+# .insert().second. std::copy_if requires a pure predicate, so
+# rewriting this as copy_if would require splitting dedup across
+# two passes (less clear, no perf win).
+useStlAlgorithm:*FontComplianceChecker.cpp:172
+
+# constParameterCallback at ImageContentEditor.cpp 24/91 -- these
+# are MuPDF callback functions whose `void* opaque` parameter is
+# constrained by the pdf_filter callback ABI. cppcheck even
+# acknowledges in its message: "you might also need to cast
+# function pointer(s)" — adding const would change the function
+# pointer type and break the registration with pdf_filter_*.
+constParameterCallback:*ImageContentEditor.cpp:24
+constParameterCallback:*ImageContentEditor.cpp:91

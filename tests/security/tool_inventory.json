@@ -1,0 +1,83 @@
+[
+  {
+    "name": "malicious-pdf",
+    "install_cmd": "git clone https://github.com/jonaslejon/malicious-pdf",
+    "entry_point": "python malicious_pdf.py",
+    "expected_version": "pinned-by-sha (set in scripts/security/gen_malicious_corpus.ps1)",
+    "available": null,
+    "observed_version": null,
+    "notes": "Cloned at a pinned commit SHA in phase 2. `available` is populated by bootstrap.ps1 once corpus is generated."
+  },
+  {
+    "name": "cppcheck",
+    "install_cmd": "choco install cppcheck",
+    "entry_point": "cppcheck",
+    "expected_version": ">=2.13",
+    "available": null,
+    "observed_version": null,
+    "notes": "Used in phase 5"
+  },
+  {
+    "name": "clang-tidy",
+    "install_cmd": "comes with LLVM (clang-cl)",
+    "entry_point": "clang-tidy",
+    "expected_version": ">=18",
+    "available": null,
+    "observed_version": null,
+    "notes": "Used in phase 5"
+  },
+  {
+    "name": "clang-cl",
+    "install_cmd": "install LLVM Windows",
+    "entry_point": "clang-cl",
+    "expected_version": ">=18",
+    "available": null,
+    "observed_version": null,
+    "notes": "Used in phases 4 (libFuzzer) and 7 (ASan/UBSan)"
+  },
+  {
+    "name": "cargo-audit",
+    "install_cmd": "cargo install cargo-audit",
+    "entry_point": "cargo audit",
+    "expected_version": ">=0.21",
+    "available": null,
+    "observed_version": null,
+    "notes": "Used in phase 6 against rust/tantivy_bridge"
+  },
+  {
+    "name": "osv-scanner",
+    "install_cmd": "go install github.com/google/osv-scanner/cmd/osv-scanner@latest",
+    "entry_point": "osv-scanner",
+    "expected_version": ">=1.9",
+    "available": null,
+    "observed_version": null,
+    "notes": "Used in phase 6 against vcpkg dependencies"
+  },
+  {
+    "name": "gitleaks",
+    "install_cmd": "choco install gitleaks",
+    "entry_point": "gitleaks",
+    "expected_version": ">=8.18",
+    "available": null,
+    "observed_version": null,
+    "notes": "Used in phase 8 for full-history secrets sweep"
+  },
+  {
+    "name": "trufflehog",
+    "install_cmd": "go install github.com/trufflesecurity/trufflehog/v3@latest",
+    "entry_point": "trufflehog",
+    "expected_version": ">=3.80",
+    "available": null,
+    "observed_version": null,
+    "notes": "Used in phase 8 for full-history secrets sweep (complements gitleaks)"
+  },
+  {
+    "name": "AFL++",
+    "install_cmd": "WSL build (Windows port limited)",
+    "entry_point": "afl-fuzz",
+    "expected_version": ">=4.20",
+    "available": null,
+    "observed_version": null,
+    "notes": "Phase 4 alt backend to libFuzzer; Windows native AFL++ is limited so WSL is recommended"
+  }
+]

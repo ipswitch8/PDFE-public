@@ -1,0 +1,25 @@
+{
+  "pageCount": 1,
+  "isEncrypted": false,
+  "hasForm": false,
+  "hasForms": false,
+  "hasAnnotations": false,
+  "hasImages": false,
+  "pdfVersion": "1.7",
+  "fileSize": 152802,
+  "origin": "phase3-generator",
+  "category_tags": [
+    "rtl",
+    "arabic",
+    "hebrew",
+    "metadata-unicode"
+  ],
+  "description": "RTL text in Arabic and Hebrew, rendered via insert_htmlbox (font fallback covers both scripts). Metadata Title/Subject also carry the Unicode strings for extraction tests. Note: Arabic shaping may convert codepoints to presentation forms during extraction — both forms are still in the Arabic Unicode block.",
+  "scripts": [
+    "arabic",
+    "hebrew",
+    "rtl",
+    "ascii"
+  ],
+  "contentKind": "vector-text"
+}

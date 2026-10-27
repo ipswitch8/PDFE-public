@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="1" failures="1" disabled="0" errors="0" time="0.049" timestamp="2026-07-28T02:09:26.255" name="AllTests">
+  <testsuite name="Phase5FormsTest" tests="1" failures="1" disabled="0" skipped="0" errors="0" time="0.047" timestamp="2026-07-28T02:09:26.257">
+    <testcase name="ResetFormRestoresDefaultValues" file="tests/test_forms_phase5.cpp" line="294" status="run" result="completed" time="0.047" timestamp="2026-07-28T02:09:26.257" classname="Phase5FormsTest">
+      <failure message="tests/test_forms_phase5.cpp:334&#10;Expected equality of these values:&#10;  mgr.getFormField(dvPage.get(), firstNameIdx).value&#10;    Which is: &quot;&quot;&#10;  kFirstNameDv&#10;    Which is: &quot;Default Name&quot;&#10;resetForm must restore FirstName /V to its /DV in memory.&#10;" type="">tests/test_forms_phase5.cpp:334
+Expected equality of these values:
+  mgr.getFormField(dvPage.get(), firstNameIdx).value
+    Which is: ""
+  kFirstNameDv
+    Which is: "Default Name"
+resetForm must restore FirstName /V to its /DV in memory.
+</failure>
+      <failure message="tests/test_forms_phase5.cpp:358&#10;Expected equality of these values:&#10;  rMgr.getFormField(rPage.get(), rIdx).value&#10;    Which is: &quot;&quot;&#10;  kFirstNameDv&#10;    Which is: &quot;Default Name&quot;&#10;The reset-to-/DV value must persist across save+reopen.&#10;" type="">tests/test_forms_phase5.cpp:358
+Expected equality of these values:
+  rMgr.getFormField(rPage.get(), rIdx).value
+    Which is: ""
+  kFirstNameDv
+    Which is: "Default Name"
+The reset-to-/DV value must persist across save+reopen.
+</failure>
+      <failure message="tests/test_forms_phase5.cpp:407&#10;Expected equality of these values:&#10;  ipMgr.getFormField(ipPage.get(), ipIdx).value&#10;    Which is: &quot;&quot;&#10;  kFirstNameDv&#10;    Which is: &quot;Default Name&quot;&#10;The reset-to-/DV value must persist across in-place save().&#10;" type="">tests/test_forms_phase5.cpp:407
+Expected equality of these values:
+  ipMgr.getFormField(ipPage.get(), ipIdx).value
+    Which is: ""
+  kFirstNameDv
+    Which is: "Default Name"
+The reset-to-/DV value must persist across in-place save().
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

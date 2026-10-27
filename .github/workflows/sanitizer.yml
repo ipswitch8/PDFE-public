@@ -1,0 +1,154 @@
+name: Sanitizer Build (Linux — RETIRED, dispatch-only)
+
+# -------------------------------------------------------------------
+# RETIRED — manual dispatch only. Do NOT add a push/schedule trigger.
+#
+# This Linux ASan/UBSan workflow is retired from auto-firing for two
+# independent, compounding reasons:
+#
+#   1. CI-LIMITATION-PDFE-IS-WINDOWS-ONLY — PDFE does not compile on
+#      Linux (src/core/Document.cpp assumes
+#      std::filesystem::path::value_type == wchar_t, plus other
+#      Windows-only assumptions). The build cannot even reach the
+#      sanitizer step.
+#   2. CI-LIMITATION-GITHUB-FREE-TIER — even if the source were
+#      portable, the free-tier ubuntu-22.04 runner cannot complete
+#      the vcpkg cold-cache build (Qt6 + MuPDF + Tesseract from
+#      source) within the runner's memory/time budget.
+#
+# ACTIVE replacement: .github/workflows/windows-sanitizer.yml
+# (MSVC /fsanitize=address, self-hosted pdfe-windows). That is the
+# canonical sanitizer path for this project.
+#
+# ITS ACTUAL TRIGGERS, quoted from that file's `on:` block:
+#     workflow_dispatch:
+#
+# That is the WHOLE block: the replacement is MANUAL ONLY as of
+# 2026-08-13. Every scheduled trigger in this repository was removed that
+# day on the owner's instruction -- docs/audit/ci-manual-only-posture.md,
+# which also records what it costs, the ASan detection window becoming
+# UNBOUNDED chief among it. The Sun/Tue/Thu cadence this block used to
+# quote (`0 18 * * 0,2,4`, max 3-day gap) is HISTORY.
+#
+# This quoted copy is compared against the real file by
+# SecurityTestingDocClaims.RetiredLaneQuotesItsReplacementsRealTrigger, so
+# it cannot go stale again in either direction -- which it has now done
+# twice, once claiming a push trigger that had been removed and once
+# quoting a cron after the schedules were gone.
+# CORRECTED 2026-08-01 by meta-audit follow-up F5 (gap SEC-30 class /
+# SEC-109). This notice previously said the replacement was
+# "push-triggered on master". That was FALSE in two directions at once:
+# the push trigger was removed from windows-sanitizer.yml on 2026-07-20
+# to stop a 6-hour ASan build monopolising the single self-hosted
+# runner, and follow-up F4 then gave it a weekly `schedule:`, which
+# follow-up F30 tightened to the Sun/Tue/Thu cadence quoted above
+# (max 3-day gap) after the F4 gate flagged the 7-day window.
+# Anyone who trusted this notice believed the ASan lane fired on every
+# commit when in fact it fired only on human dispatch for weeks — the
+# exact "the gate exists / the gate runs" confusion F5 exists to remove.
+# If windows-sanitizer.yml's `on:` block changes again, change these
+# quoted lines in the same commit.
+#
+# The file is kept (not deleted) so the build intent is preserved for
+# a future Linux port; if/when PDFE compiles on Linux AND a Linux
+# runner with a warm vcpkg cache exists, restore an automatic trigger.
+# Note that the Linux port is blocked by deferred tracker #42, which is
+# also why gap SEC-17 (MSan) is recorded BLOCKED-BY-#42 rather than
+# closed.
+# See GAP-C2 in tests/docs/gap_checklist.md,
+# tests/docs/security_workflows.md, and
+# docs/audit/meta-audit-2026-07/followup/phase-5-dispositions.md for the
+# decision record.
+# -------------------------------------------------------------------
+
+on:
+  # Auto-triggers intentionally retired — see header above. Manual
+  # dispatch retained for opportunistic Linux-port verification.
+  workflow_dispatch:
+
+jobs:
+  asan-ubsan-linux:
+    name: ASan + UBSan (Linux clang)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    env:
+      VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
+      # Limit parallel compile jobs to fit 7GB free-runner memory.
+      # Qt6 + MuPDF builds peak at ~3-4GB per parallel compile.
+      VCPKG_MAX_CONCURRENCY: '2'
+      MAKEFLAGS: '-j2'
+      # ninja (inside vcpkg per-port builds) defaults to nproc=4
+      # which OOMs the 7GB runner during Qt6 template instantiation.
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
+      NINJAFLAGS: '-j2'
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+
+      - name: Export GitHub Actions cache env (for vcpkg x-gha)
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7.1.0
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang-15 ninja-build cmake \
+            autoconf autoconf-archive automake libtool \
+            qt6-base-dev qt6-base-dev-tools libqt6test6 \
+            libfreetype-dev libharfbuzz-dev \
+            libssl-dev libcurl4-openssl-dev \
+            zlib1g-dev libpng-dev libjpeg-dev libtiff-dev \
+            libopenjp2-7-dev libtesseract-dev libleptonica-dev \
+            libpugixml-dev libsqlite3-dev \
+            libgl1-mesa-dev libfontconfig1-dev xvfb \
+            '^libxcb.*-dev' libx11-xcb-dev libglu1-mesa-dev \
+            libxrender-dev libxi-dev libxkbcommon-dev \
+            libxkbcommon-x11-dev libegl1-mesa-dev \
+            libdbus-1-dev
+          # onnxruntime fetched via vcpkg manifest — no apt package
+          # autotools required for vcpkg gperf and autoconf-based ports
+          # X11 libs required by vcpkg qtbase port (it rebuilds Qt6 from source)
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2  # v11.6
+        with:
+          vcpkgGitCommitId: '15e5f3820f0370f1ba7150853762cec0688cd396'
+
+      - name: Configure (sanitizer)
+        env:
+          CC: clang-15
+          CXX: clang++-15
+          CFLAGS: -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
+          CXXFLAGS: -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
+          LDFLAGS: -fsanitize=address,undefined
+        run: |
+          cmake -B build -S . \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_TARGET_TRIPLET=x64-linux
+
+      - name: Build
+        run: cmake --build build --config Debug -j$(nproc)
+
+      - name: Run tests under sanitizer
+        env:
+          ASAN_OPTIONS: 'detect_leaks=1:halt_on_error=1:abort_on_error=1:strict_string_checks=1:detect_stack_use_after_return=1'
+          UBSAN_OPTIONS: 'halt_on_error=1:abort_on_error=1:print_stacktrace=1'
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          cd build
+          ctest --output-on-failure --timeout 600
+
+      - name: Upload sanitizer logs on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: sanitizer-logs
+          path: |
+            build/Testing/Temporary/
+            *.log

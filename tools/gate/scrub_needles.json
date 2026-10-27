@@ -1,0 +1,59 @@
+{
+  "_what": "Hashed needles for check_scrub_regressions.py: identifiers that were deliberately removed from this repository and must not return.",
+  "_why_hashed": "A guard that names what it forbids reintroduces it. check_tracked_path_hygiene.py once printed the account name it had just found into a CI log, and hostname_baseline.json needs a self-exemption because it must hold its own needle in the clear. Storing SHA-256 of the lower-cased string means this file is safe to publish and still matches exactly when the real string comes back.",
+  "_how_to_verify_a_needle": "sha256 of the LOWER-CASED string, UTF-8. echo -n 'thestring' | sha256sum",
+  "_how_to_add_one": "Hash the string locally and add an entry. Do NOT write the plaintext into this file or into the checker. The generator used for the initial set was kept outside the repository for that reason.",
+  "_matching_rule": "Files are tokenised into maximal runs of letters and digits; each token and each ADJACENT PAIR is hashed and compared. So a needle is caught in prose, in a path and in an email address, but NOT when welded into a longer word. That limitation is the documented price of not storing the plaintext.",
+  "recorded": "2026-10-19",
+  "issue": "https://github.com/ipswitch8/PDFE/issues/200",
+  "needles": [
+    {
+      "label": "company-name",
+      "sha256": "d49d1d450148d35b31d75a5e479e57b958578b797eb2dfe0f7a17d150cfa8ced",
+      "tokens": 1,
+      "note": "Company/domain name removed by the 2026-10-19 content rewrite. Single token: also catches it inside a path or an email address."
+    },
+    {
+      "label": "operator-name",
+      "sha256": "78892b2a207ec346729a376c1853434bdb13d9c40ae42922ce82a6f8d7db4dd9",
+      "tokens": 2,
+      "note": "Operator's personal name, removed from file content by the 2026-10-19 rewrite (commit metadata was handled by the 2026-10-18 mailmap). Stored as an ADJACENT PAIR so a bare forename cannot false-positive on an unrelated person."
+    },
+    {
+      "label": "customer-a",
+      "sha256": "efb1cc6747cba50dd3ae6f3209014529a05dd006586d2edec10b7b700d53be2a",
+      "tokens": 1,
+      "note": "Customer-derived name that had been used as a test identifier; replaced with SpecimenA in phase-5."
+    },
+    {
+      "label": "customer-b",
+      "sha256": "9317c2dfdd47dc442f80874e7c3967cd6935461dd325424b6a1ec931b2a2acdd",
+      "tokens": 1,
+      "note": "Customer-derived name used as a gtest suite identifier; replaced with SpecimenB in phase-5."
+    },
+    {
+      "label": "customer-b-spaced",
+      "sha256": "5d6a40d8525d07df47351cbff50fc7c7a0bf370a9086c378abbc8c4ee510a122",
+      "tokens": 2,
+      "note": "The spaced spelling of the same name, as it appeared in prose."
+    },
+    {
+      "label": "customer-a-alt",
+      "sha256": "d76586960bf6d896b593be415155a53638974b01ab0d066ebaa7ee7e39332834",
+      "tokens": 1,
+      "note": "A one-'a' spelling of the same customer-derived name, found on the THIRD scrub pass. The hashed guard could not catch it from the other needle -- a different spelling hashes differently -- so it needs its own entry. Recorded as a reminder that a stem search finds spellings a guess list does not."
+    },
+    {
+      "label": "customer-c",
+      "sha256": "b1092a17fa853bee6a376edbafdf6b66f95890c6c9aa284bdb83ace39898ab62",
+      "tokens": 1,
+      "note": "Customer-derived name from a document filename; replaced with SpecimenC in phase-5."
+    },
+    {
+      "label": "build-account",
+      "sha256": "dadbfb70d9ba918de0c35ad6929d02cefb1d45f0dc932555a0769f23bbc953b7",
+      "tokens": 1,
+      "note": "The build account name. check_tracked_path_hygiene.py already polices this with substring matching from an ambient needle, and is stronger where it applies; this is defence for the case where that checker cannot resolve USERNAME/USER/LOGNAME and fails closed instead."
+    }
+  ]
+}

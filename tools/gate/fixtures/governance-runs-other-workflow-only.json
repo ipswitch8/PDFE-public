@@ -1,0 +1,50 @@
+[
+  {
+    "conclusion": "success",
+    "createdAt": "2026-08-08T05:00:00Z",
+    "databaseId": 920000000,
+    "event": "schedule",
+    "headBranch": "master",
+    "name": "Fast Checks",
+    "startedAt": "2026-08-08T05:00:00Z",
+    "status": "completed",
+    "updatedAt": "2026-08-08T05:03:00Z",
+    "workflowName": "Fast Checks"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-08-07T05:00:00Z",
+    "databaseId": 920000001,
+    "event": "schedule",
+    "headBranch": "master",
+    "name": "Fast Checks",
+    "startedAt": "2026-08-07T05:00:00Z",
+    "status": "completed",
+    "updatedAt": "2026-08-07T05:03:00Z",
+    "workflowName": "Fast Checks"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-08-06T05:00:00Z",
+    "databaseId": 920000002,
+    "event": "schedule",
+    "headBranch": "master",
+    "name": "Fast Checks",
+    "startedAt": "2026-08-06T05:00:00Z",
+    "status": "completed",
+    "updatedAt": "2026-08-06T05:03:00Z",
+    "workflowName": "Fast Checks"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-08-05T05:00:00Z",
+    "databaseId": 920000003,
+    "event": "schedule",
+    "headBranch": "master",
+    "name": "Fast Checks",
+    "startedAt": "2026-08-05T05:00:00Z",
+    "status": "completed",
+    "updatedAt": "2026-08-05T05:03:00Z",
+    "workflowName": "Fast Checks"
+  }
+]

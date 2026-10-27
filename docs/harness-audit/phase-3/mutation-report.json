@@ -1,0 +1,259 @@
+{
+ "phase": "phase-3-mutation-testing",
+ "generated_note": "Real C++ apply->build->run->revert mutation testing across 5 core subsystems. Baseline confirmed all 13 filters green pre-mutation. Working tree verified clean (no product-code changes remain). FIND-AND-DOCUMENT.",
+ "overall": {
+  "killed": 6,
+  "survived": 10,
+  "other": 0,
+  "kill_rate": 37.5,
+  "total": 16,
+  "prediction_accuracy": "16/16 mutants matched their phase-1-derived prediction"
+ },
+ "per_subsystem_kill_rate": {
+  "content-editing/state-continuity": {
+   "killed": 3,
+   "survived": 4,
+   "other": 0,
+   "mutants": [
+    "M01-statecont-ctm-guard-drop-Q",
+    "M02-statecont-preamble-tz-mirror",
+    "M03-statecont-editor-tz-mirror",
+    "M04-statecont-subst-tz-mirror",
+    "M05-statecont-alignment-offset-noop",
+    "M06-statecont-subst-drop-fill-color",
+    "M07-statecont-subst-fontsize-halved"
+   ],
+   "kill_rate": 42.9
+  },
+  "save/rewrite-routing": {
+   "killed": 0,
+   "survived": 3,
+   "other": 0,
+   "mutants": [
+    "M08-save-recovery-force-image-recompress",
+    "M09-save-fullgc-downgrade",
+    "M16-save-recovery-force-compress"
+   ],
+   "kill_rate": 0.0
+  },
+  "redaction-confidentiality": {
+   "killed": 1,
+   "survived": 1,
+   "other": 0,
+   "mutants": [
+    "M10-redaction-intersection-flip",
+    "M11-redaction-singlerev-always-clean"
+   ],
+   "kill_rate": 50.0
+  },
+  "forms": {
+   "killed": 1,
+   "survived": 1,
+   "other": 0,
+   "mutants": [
+    "M12-forms-reset-dv-break",
+    "M13-forms-button-reset-to-off"
+   ],
+   "kill_rate": 50.0
+  },
+  "fonts": {
+   "killed": 1,
+   "survived": 1,
+   "other": 0,
+   "mutants": [
+    "M14-fonts-glyph-emit-codepoint",
+    "M15-fonts-glyph-scale-invert"
+   ],
+   "kill_rate": 50.0
+  }
+ },
+ "baseline_all_green": true,
+ "state_continuity_crosscheck": [
+  {
+   "id": "M01-statecont-ctm-guard-drop-Q",
+   "result": "KILLED",
+   "prediction": "killed",
+   "fix_operator_broken": "    fz_buffer* QbufEnd = fz_new_buffer_from_copied_data(\n        ctx, reinterpret_cast<const unsigned char*>(\"%\\n\"), 2);",
+   "killer": "CtmReset.*",
+   "tests_run": 3,
+   "failures": 3
+  },
+  {
+   "id": "M02-statecont-preamble-tz-mirror",
+   "result": "KILLED",
+   "prediction": "killed",
+   "fix_operator_broken": "\"%.6g %.6g %.6g rg\\n-100 Tz\\n0 Tc\\n0 Tw\\n0 Ts\\n0 Tr\\n\"",
+   "killer": "CtmReset.*",
+   "tests_run": 3,
+   "failures": 3
+  },
+  {
+   "id": "M03-statecont-editor-tz-mirror",
+   "result": "KILLED",
+   "prediction": "killed",
+   "fix_operator_broken": "        chain->op_Tz(ctx, chain, -100.0f);",
+   "killer": "NegTzGreyTextEdit.*",
+   "tests_run": 2,
+   "failures": 1
+  }
+ ],
+ "killed_controls": [
+  "M01-statecont-ctm-guard-drop-Q",
+  "M02-statecont-preamble-tz-mirror",
+  "M03-statecont-editor-tz-mirror",
+  "M10-redaction-intersection-flip",
+  "M12-forms-reset-dv-break",
+  "M14-fonts-glyph-emit-codepoint"
+ ],
+ "surviving_mutants": [
+  {
+   "id": "M04-statecont-subst-tz-mirror",
+   "subsystem": "content-editing/state-continuity",
+   "file": "src/textedit/ContentStreamEditor.cpp",
+   "mutation": {
+    "find": "        float hScale = 100.0f;",
+    "replace": "        float hScale = -100.0f;"
+   },
+   "behavior_change_no_test_objected_to": "Same mirror defect as M03 but in afterTextObjectWithSubstitutionCallback (font-substitution edits). The substitution suite's oracle is extraction-only (fz_stext codepoints + an 'Arial' substring + 'page still has text blocks'), and stext extraction reports the same characters whether the run is drawn upright or horizontally mirrored -> the -100 Tz mirror is invisible and the suite stays green. Confirmed `float hScale = 100.0f;` unique (grep count 1).",
+   "phase1_finding": "tests/test_content_stream_editor.cpp:172 and test_cid_font_encoding.cpp:128 (oracle-audit-synthesis line ~732/1301): 'extraction-only-for-visual' \u2014 mirrored/invisible/off-page renders read back identically.",
+   "test_filter_that_should_have_caught_it": "ContentStreamSubstitutionTest.*",
+   "tests_run": 7,
+   "failures": 0
+  },
+  {
+   "id": "M05-statecont-alignment-offset-noop",
+   "subsystem": "content-editing/state-continuity",
+   "file": "src/reflow/TextReflowEngine.cpp",
+   "mutation": {
+    "find": "        case Alignment::Center:  return (blockWidth - lineWidth) / 2.0f;",
+    "replace": "        case Alignment::Center:  return 0.0f;"
+   },
+   "behavior_change_no_test_objected_to": "lineXOffset supplies the Center/Right x-shift that IS the alignment feature. Forcing Center to 0 renders center-requested blocks left-aligned. Every AlignmentInjector test asserts only extractPlainText().find(marker) (text present), never a glyph x-offset/geometry -> a block drawn at the wrong x extracts identically -> SURVIVED. Note the strong CTM-reset suite uses Left alignment only, so it does not cover this cell. Anchor unique (grep count 1).",
+   "phase1_finding": "tests/test_alignment_injector.cpp:82 and test_alignment_pipeline.cpp:154 (oracle-audit-synthesis line ~806/792): 'Left/Center/Right ... only extractPlainText().find is checked ... position never verified.'",
+   "test_filter_that_should_have_caught_it": "AlignmentInjectorTest.*",
+   "tests_run": 5,
+   "failures": 0
+  },
+  {
+   "id": "M06-statecont-subst-drop-fill-color",
+   "subsystem": "content-editing/state-continuity",
+   "file": "src/textedit/ContentStreamEditor.cpp",
+   "mutation": {
+    "find": "        // R3-06: reproduce the captured source colourspace operator (k/g/scn)\n        // when non-RGB; DeviceRGB/unknown fall through to the legacy rg path.\n        if (!emitCapturedFill(ctx, chain, inj.capturedFill) && inj.textColorKnown) {",
+    "replace": "        // R3-06: reproduce the captured source colourspace operator (k/g/scn)\n        // when non-RGB; DeviceRGB/unknown fall through to the legacy rg path.\n        if (!emitCapturedFill(ctx, chain, inj.capturedFill) && false) {"
+   },
+   "behavior_change_no_test_objected_to": "Short-circuiting the fill-color re-emit with `&& false` means a DeviceRGB edited span in the substitution path no longer re-emits its captured `rg`, so the replacement drops to whatever ambient fill is active (the exact color-loss bug class). The substitution suite has no per-glyph argb oracle (extraction-only), so the wrong/lost color is invisible -> SURVIVED. The two preceding comment lines are unique to afterTextObjectWithSubstitutionCallback (the sibling block at line ~1170 has different comment text), making the 3-line anchor unique even though the bare `if(...)` line is not.",
+   "phase1_finding": "oracle-audit-synthesis: test_content_stream_editor.cpp:172 'emitting it white/invisible ... recoloring' pass because the page still has some text; extraction is blind to color.",
+   "test_filter_that_should_have_caught_it": "ContentStreamSubstitutionTest.*",
+   "tests_run": 7,
+   "failures": 0
+  },
+  {
+   "id": "M07-statecont-subst-fontsize-halved",
+   "subsystem": "content-editing/state-continuity",
+   "file": "src/textedit/ContentStreamEditor.cpp",
+   "mutation": {
+    "find": "        float initialFontSize = inj.fontSize;",
+    "replace": "        float initialFontSize = inj.fontSize * 0.5f;"
+   },
+   "behavior_change_no_test_objected_to": "Halving the initial font size feeds the canonical Tm/Tfs computation, so substituted/per-run text renders at half the intended point size. The per-run-emission oracle counts the number of DISTINCT extracted font sizes (EXPECT_GE(sizes,2)); a uniform 0.5x scale preserves distinctness, and the substitution oracle checks presence only -> neither notices absolute size -> SURVIVED. Anchor unique (grep count 1).",
+   "phase1_finding": "tests/test_content_stream_per_run_emission.cpp:229 (oracle-audit-synthesis line ~889): 'wrong size ... still yield >=2 distinct extracted sizes and pass.'",
+   "test_filter_that_should_have_caught_it": "ContentStreamSubstitutionTest.*:PerRunEmissionTest.*",
+   "tests_run": 12,
+   "failures": 0
+  },
+  {
+   "id": "M08-save-recovery-force-image-recompress",
+   "subsystem": "save/rewrite-routing",
+   "file": "src/core/Document.cpp",
+   "mutation": {
+    "find": "        opts.do_compress_images = 0;",
+    "replace": "        opts.do_compress_images = 1;"
+   },
+   "behavior_change_no_test_objected_to": "writeRecoveryCopy deliberately sets do_compress_images=0 so a 30s autosave tick is a fast serialize-and-copy (the ~440ms/23MB no-recompress perf property). Forcing =1 re-flates every image on every tick \u2014 a large latency regression on image-heavy scans \u2014 but produces a still-valid, still-recoverable file. AutosaveRecovery tests assert only that the recovered document reopens with the expected edits present; there is NO timing/size oracle -> the perf regression ships green -> SURVIVED. Confirmed `opts.do_compress_images = 0;` unique (grep count 1).",
+   "phase1_finding": "tests/test_autosave_capture_audit.cpp:187 (oracle-audit-synthesis line ~956) 'Zero EXPECT_/ASSERT_ ... assertion-free'; recovery perf property is unpinned by any test.",
+   "test_filter_that_should_have_caught_it": "AutosaveRecoveryTest.*",
+   "tests_run": 5,
+   "failures": 0
+  },
+  {
+   "id": "M09-save-fullgc-downgrade",
+   "subsystem": "save/rewrite-routing",
+   "file": "src/core/Document.cpp",
+   "mutation": {
+    "find": "    return pImpl->needsFullGc_ ? 3 : kDefaultFullRewriteGc;",
+    "replace": "    return pImpl->needsFullGc_ ? 1 : kDefaultFullRewriteGc;"
+   },
+   "behavior_change_no_test_objected_to": "effectiveGarbageLevel escalates to do_garbage=3 (dedup) exactly when an operation that duplicates objects ran (font embed, flatten, encryption). Downgrading the escalated case to 1 skips the dedup/compact sweep, so full-rewrite saves keep duplicated/redundant objects (file bloat, potential stale-object retention). The save-path tests validate the written file only by reopen + pageCount() (reopens-without-error), which a gc=1 file satisfies identically -> SURVIVED. Anchor unique (grep count 1); callers are the saveAs/save full-rewrite paths.",
+   "phase1_finding": "tests/test_command_page_rebind.cpp:133 and test_optimize.cpp:175 (oracle-audit-synthesis line ~1077/969): saved file validated only by reopen+pageCount; leak/bloat invisible.",
+   "test_filter_that_should_have_caught_it": "CommandPageRebindTest.*:*OrdinarySaveDrains*",
+   "tests_run": 5,
+   "failures": 0
+  },
+  {
+   "id": "M11-redaction-singlerev-always-clean",
+   "subsystem": "redaction-confidentiality",
+   "file": "src/redaction/RedactionVerifier.cpp",
+   "mutation": {
+    "find": "        return maxGeneration == 0;",
+    "replace": "        return true;"
+   },
+   "behavior_change_no_test_objected_to": "checkSingleRevision returns false when residual incremental-update generations (recoverable prior data) survive a redaction rewrite. Forcing `return true` makes the verifier always report a single clean revision even when the pre-redaction content is still appended/recoverable. The unit file constrains this with tautologies (EXPECT_TRUE(result.success||!result.success)); no test asserts checkSingleRevision returns FALSE on a genuinely multi-revision file -> the confidentiality regression is invisible -> SURVIVED. Anchor unique (grep count 1).",
+   "phase1_finding": "tests/test_redaction_verifier.cpp:114 (oracle-audit-synthesis line ~1344): 'A mutation making check... always-return-true ... passes this entire file.'",
+   "test_filter_that_should_have_caught_it": "RedactionVerifierTest.*:RedactionVerifierFailPathTest.*",
+   "tests_run": 15,
+   "failures": 0
+  },
+  {
+   "id": "M13-forms-button-reset-to-off",
+   "subsystem": "forms",
+   "file": "src/forms/FormManager.cpp",
+   "mutation": {
+    "find": "                pdf_set_field_value(ctx, pdfDoc, fieldObj, dvName, 1);",
+    "replace": "                pdf_set_field_value(ctx, pdfDoc, fieldObj, \"Off\", 1);"
+   },
+   "behavior_change_no_test_objected_to": "The Btn branch of resetTxWidgetFromObj restores a checkbox/radio to its /DV (e.g. /Yes) rather than /Off. Hard-coding \"Off\" reverts a defaulted-on control to unchecked on Reset Form. ResetFormRestoresDefaultValues asserts only the text field FirstName; no test asserts a checkbox/radio returns to its /DV state after reset -> the button-reset regression is unobserved -> SURVIVED. `fieldObj, dvName, 1);` is unique (grep count 1).",
+   "phase1_finding": "oracle-audit-synthesis forms cluster: reset coverage is text-field-only; button /DV-restore path has no positive oracle (widget-exists/reopens-only smells dominate forms).",
+   "test_filter_that_should_have_caught_it": "Phase5FormsTest.*:FormManagerTest.*",
+   "tests_run": 26,
+   "failures": 0
+  },
+  {
+   "id": "M15-fonts-glyph-scale-invert",
+   "subsystem": "fonts",
+   "file": "src/fonts/GlyphScaleAdjuster.cpp",
+   "mutation": {
+    "find": "    result.horizontalScale = originalWidth / substituteWidth;",
+    "replace": "    result.horizontalScale = substituteWidth / originalWidth;"
+   },
+   "behavior_change_no_test_objected_to": "horizontalScale must be originalWidth/substituteWidth so a metric-incompatible substitute is squeezed/stretched to the original run's width. Inverting it applies the reciprocal (e.g. 0.85x where 1.18x was needed), so substituted text renders visibly too narrow/wide/overlapping. The GlyphScaleAdjuster suite only bounds the scale into a wide (0.5,2.0) range and pins no golden per-string width ratio; for near-metric-compatible pairs the inverted value stays inside the band -> SURVIVED. Anchor unique (grep count 1).",
+   "phase1_finding": "tests/test_glyph_scale_adjuster.cpp:102 (oracle-audit-synthesis line ~1288): 'Bound (0.5,2.0) accepts it. No golden per-string width ratio is pinned.'",
+   "test_filter_that_should_have_caught_it": "GlyphScaleAdjusterTest.*",
+   "tests_run": 15,
+   "failures": 0
+  },
+  {
+   "id": "M16-save-recovery-force-compress",
+   "subsystem": "save/rewrite-routing",
+   "file": "src/core/Document.cpp",
+   "mutation": {
+    "find": "        opts.do_compress = 0;",
+    "replace": "        opts.do_compress = 1;"
+   },
+   "behavior_change_no_test_objected_to": "Companion to M08: writeRecoveryCopy sets do_compress=0 so existing content/object streams are copied verbatim (fast). Forcing =1 re-deflates streams on every autosave tick \u2014 a latency regression \u2014 but yields a valid recoverable file. AutosaveRecovery tests verify recovered-content correctness only, with no timing/size oracle, so the regression is invisible -> SURVIVED. Confirmed `opts.do_compress = 0;` unique (grep count 1).",
+   "phase1_finding": "tests/test_autosave_capture_audit.cpp:187 (assertion-free) and the AutosaveRecovery suite's content-only oracle: recovery perf/size is unpinned.",
+   "test_filter_that_should_have_caught_it": "AutosaveRecoveryTest.*",
+   "tests_run": 5,
+   "failures": 0
+  }
+ ],
+ "working_tree_clean_after": true,
+ "test_runner_evidence": {
+  "baseline_filters": 13,
+  "all_baseline_green": true,
+  "mutant_builds_succeeded": 16,
+  "mutant_builds_total": 16,
+  "junit_xml_parsed_all": true,
+  "note": "Each mutant run produced a JUnit XML that was parsed per the GAP-A15 lesson (exit code alone is not trusted); baseline + all 16 mutant runs parsed successfully."
+ }
+}

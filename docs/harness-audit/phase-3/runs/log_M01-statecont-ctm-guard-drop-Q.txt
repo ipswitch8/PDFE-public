@@ -1,0 +1,48 @@
+Note: Google Test filter = CtmReset.*
+[==========] Running 3 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 3 tests from CtmReset
+[ RUN      ] CtmReset.AlignmentInjectorFullSizeUnderAmbientCm
+C:\Users\dev\source\PDFE\tests\test_content_stream_ctm_reset.cpp(197): error: Expected: (ratio) > (0.80f), actual: 0.499998659 vs 0.8
+injected text is UNDER-SIZED (sizeRatio=0.49999865889549255) — ambient N-up CTM leaked into the fragment
+
+[  FAILED  ] CtmReset.AlignmentInjectorFullSizeUnderAmbientCm (160 ms)
+[ RUN      ] CtmReset.HeaderFooterEngineFullSizeUnderAmbientCm
+C:\Users\dev\source\PDFE\tests\test_content_stream_ctm_reset.cpp(197): error: Expected: (ratio) > (0.80f), actual: 0.499999881 vs 0.8
+injected text is UNDER-SIZED (sizeRatio=0.49999988079071045) — ambient N-up CTM leaked into the fragment
+
+[  FAILED  ] CtmReset.HeaderFooterEngineFullSizeUnderAmbientCm (137 ms)
+[ RUN      ] CtmReset.TreWriteTextBlockFullSizeUnderAmbientCm
+C:\Users\dev\source\PDFE\tests\test_content_stream_ctm_reset.cpp(197): error: Expected: (ratio) > (0.80f), actual: 0.406113774 vs 0.8
+injected text is UNDER-SIZED (sizeRatio=0.40611377358436584) — ambient N-up CTM leaked into the fragment
+
+[  FAILED  ] CtmReset.TreWriteTextBlockFullSizeUnderAmbientCm (417 ms)
+[----------] 3 tests from CtmReset (715 ms total)
+
+[----------] Global test environment tear-down
+
+============ ADVERSARIAL-AMBIENT GAP REGISTER (content-stream-continuity phase-1 discovery) ============
+injector               hostile_op   injected  neighbor  probed   notes
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+CONFIRMED corrupting cells (probed AND injected_ok==false OR neighbor_ok==false):
+cells=0 probed=0 confirmed_corrupt=0
+====================================================================================================
+
+[AdversarialAmbient] no cells this run (filtered subset) — leaving gap-register.json intact
+
+================ AUTOSAVE CAPTURE GAP REGISTER (phase-1 discovery) ================
+family                 undoAP dirty    autosave  capture  restore  probed 
+------------------------------------------------------------------------------------
+====================================================================================
+GAP = probed family whose edit is NOT captured by autosave (capture_present == NO).
+
+[AutosaveCaptureAudit] no audit rows this run (filtered subset) — leaving gap-register.json intact
+[==========] 3 tests from 1 test suite ran. (717 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 3 tests, listed below:
+[  FAILED  ] CtmReset.AlignmentInjectorFullSizeUnderAmbientCm
+[  FAILED  ] CtmReset.HeaderFooterEngineFullSizeUnderAmbientCm
+[  FAILED  ] CtmReset.TreWriteTextBlockFullSizeUnderAmbientCm
+
+ 3 FAILED TESTS

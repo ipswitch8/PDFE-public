@@ -1,0 +1,50 @@
+%PDF-1.7
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /F1 5 0 R >> /ColorSpace << /CS1 [ /Separation /PANTONE /DeviceCMYK << /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] /C1 [1 0 0 0] /N 1 >> ] >> /ExtGState << /GS1 << /Type /ExtGState /OP true /op true /OPM 1 >> >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 115 >>
+stream
+q
+/GS1 gs
+BT
+/F1 18 Tf
+1 0 0 0 k
+60 120 Td
+(EDITME) Tj
+ET
+Q
+q
+BT
+/F1 18 Tf
+/CS1 cs
+1 scn
+60 80 Td
+(SPOTME) Tj
+ET
+Q
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000446 00000 n 
+0000000611 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+681
+%%EOF

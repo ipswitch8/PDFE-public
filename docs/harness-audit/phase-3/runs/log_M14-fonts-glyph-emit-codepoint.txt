@@ -1,0 +1,52 @@
+Note: Google Test filter = ContentStreamOutOfClass.*
+[==========] Running 2 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 2 tests from ContentStreamOutOfClass
+[ RUN      ] ContentStreamOutOfClass.TreGlyphFallbackEmitsGlyphIndicesNotCodepoints
+C:\Users\dev\source\PDFE\tests\test_content_stream_out_of_class.cpp(99): error: Expected equality of these values:
+  p.emitted
+    Which is: "0020"
+  hex4(p.gid)
+    Which is: "0001"
+codepoint U+0020 was not mapped to glyph index 1
+
+C:\Users\dev\source\PDFE\tests\test_content_stream_out_of_class.cpp(105): error: Expected: (p.emitted) != (hex4(static_cast<int>(p.cp))), actual: "0020" vs "0020"
+raw Unicode codepoint emitted as glyph index -> wrong glyph rendered (out-of-class finding #3)
+
+[  FAILED  ] ContentStreamOutOfClass.TreGlyphFallbackEmitsGlyphIndicesNotCodepoints (3 ms)
+[ RUN      ] ContentStreamOutOfClass.TreGlyphFallbackUnresolvableDegradesToNotdef
+C:\Users\dev\source\PDFE\tests\test_content_stream_out_of_class.cpp(128): error: Expected equality of these values:
+  emitted
+    Which is: "fffd"
+  "0000"
+unresolvable codepoint must degrade to .notdef (GID 0), not the raw codepoint
+
+[  FAILED  ] ContentStreamOutOfClass.TreGlyphFallbackUnresolvableDegradesToNotdef (0 ms)
+[----------] 2 tests from ContentStreamOutOfClass (4 ms total)
+
+[----------] Global test environment tear-down
+
+============ ADVERSARIAL-AMBIENT GAP REGISTER (content-stream-continuity phase-1 discovery) ============
+injector               hostile_op   injected  neighbor  probed   notes
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+CONFIRMED corrupting cells (probed AND injected_ok==false OR neighbor_ok==false):
+cells=0 probed=0 confirmed_corrupt=0
+====================================================================================================
+
+[AdversarialAmbient] no cells this run (filtered subset) — leaving gap-register.json intact
+
+================ AUTOSAVE CAPTURE GAP REGISTER (phase-1 discovery) ================
+family                 undoAP dirty    autosave  capture  restore  probed 
+------------------------------------------------------------------------------------
+====================================================================================
+GAP = probed family whose edit is NOT captured by autosave (capture_present == NO).
+
+[AutosaveCaptureAudit] no audit rows this run (filtered subset) — leaving gap-register.json intact
+[==========] 2 tests from 1 test suite ran. (5 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 2 tests, listed below:
+[  FAILED  ] ContentStreamOutOfClass.TreGlyphFallbackEmitsGlyphIndicesNotCodepoints
+[  FAILED  ] ContentStreamOutOfClass.TreGlyphFallbackUnresolvableDegradesToNotdef
+
+ 2 FAILED TESTS

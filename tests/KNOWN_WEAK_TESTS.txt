@@ -1,0 +1,1127 @@
+# KNOWN_WEAK_TESTS — pipeline c4e71a39 (testing-methodology remediation)
+#
+# STATUS: LIVE OPERATIONAL STATE — keep maintaining this file. It is NOT a
+# defect tracker and is NOT superseded by GitHub Issues.
+# GitHub Issues (ipswitch8/PDFE) is the canonical tracker for anything still
+# open; a defect recorded ONLY here is still an untracked defect, so file an
+# issue and cross-reference it. See docs/TRACKING.md.
+#
+# This registry tracks tests intentionally left in a weaker state than
+# the audit's "ideal" form, with reason and follow-up. Entries here
+# are NOT failures — they are honest acknowledgements of where the
+# remediation pipeline knowingly left work undone.
+#
+# Format (one entry per non-blank non-# line):
+#
+#   <test-suite>.<test-name>  --  <weakness>  -- <reason / production gap> -- <follow-up>
+#
+# ─── THE CAP IS 20. (Corrected 2026-09-16, p86-followups phase-6.) ───
+#
+# This block used to read "karen-approved cap relaxation 20 -> 23 ...
+# remediation_summary.py --strict now enforces the relaxed cap."  That was
+# STALE and it contradicted the enforcing code.  Three sources disagreed:
+#
+#   tests/scripts/remediation_summary.py:59  (docstring)   said 23
+#   this header                                            said 23
+#   tests/scripts/remediation_summary.py     (the assert)  says 20
+#   tests/docs/test_strategy.md "Current count and cap"    says 20
+#
+# The 23 was a TRANSIENT relaxation granted by a7c2e541 phase-16 and
+# explicitly wound back: a7c2e541 phase-18 "hard-asserts the original
+# phase-6 cap of <= 20" (see the comment above the assert), and c91e7f3a
+# phase-7 held it at 20.  The enforcing assert and test_strategy.md were
+# already correct; only the two prose copies had rotted.  Resolution: 20
+# GOVERNS, because it is the number the machine actually checks and the
+# number the later pipeline deliberately restored.  The prose is now
+# aligned to the mechanism rather than the mechanism relaxed to the prose.
+#
+# The cap had been SILENTLY BREACHED at 52 entries, because nothing ever
+# ran the check: remediation_summary.py --strict was referenced only in
+# documentation and in its own source -- no workflow and no CMake add_test
+# invoked it.  phase-6 wired it in (governance.yml, plus a fast per-push
+# cap guard) so the cap can now actually fail.  See
+# docs/audit/p86-followups/phase-6/.
+#
+# ─── Phase-17 obligation (per phase-16 karen cap relaxation) ─────────
+# Pipeline a7c2e541 phase-16 closed 6 entries total (3 legacy: signature
+# CN, unicode metadata, redaction text — and 3 karen-prescribed:
+# P8-BUG-2b, P13-INFRA-5, P14-INFRA-2).  Remaining count after phase-16:
+# 24 entries (23 P-prefixed + 1 legacy DISABLED).
+#
+# Pipeline a7c2e541 phase-17 closed an additional 5 entries via
+# surgical Q_INVOKABLE test-automation hooks + SignDialog QScrollArea
+# wrap:
+#   - P10-INFRA-1  RESOLVED — PagePanel::movePageProgrammatic
+#                  Q_INVOKABLE added (src/ui/PagePanel.{h,cpp})
+#   - P11-INFRA-1  RESOLVED — PdfCanvas::pdfRectFromCanvas +
+#                  canvasRectFromPdf Q_INVOKABLE added
+#                  (src/ui/PdfCanvas.{h,cpp})
+#   - P11-BUG-2    RESOLVED — PdfCanvas::addRedactionMarkAtPdfRect
+#                  Q_INVOKABLE emits redactionMarkRequested; verified
+#                  by test_pdf_canvas_q_invokable.cpp that N independent
+#                  calls produce N distinct undo-stack entries via the
+#                  existing CreateRedactionCommand pipeline (per-mark
+#                  undo behaviour is preserved).
+#   - P12-INFRA-2  RESOLVED — SignDialog wrapped in QScrollArea +
+#                  setMinimumHeight(300); minimumSizeHint().height()
+#                  now <= 600 px on small displays.  Verified by
+#                  test_sign_dialog_geometry.cpp.  Downstream
+#                  E2E xfails (test_set_user_password_via_encryption_dialog
+#                  + test_owner_password_with_copy_disabled) had
+#                  strict=True after f2a8c3e1 XPASS sweep; both
+#                  confirmed PASS in b3d7f942 phase-4 live-run;
+#                  xfail decorators removed.
+#   - P15-INFRA-2  RESOLVED — same PdfCanvas addRedactionMarkAtPdfRect
+#                  Q_INVOKABLE hook satisfies the high-volume stress
+#                  path; tests can now insert N marks without driving
+#                  the Win32 input queue.  test_stress_100_redactions_
+#                  apply_and_save migrated to 20-mark pipe in phase-4.
+#
+# Phase-17 closures: 5 entries.  Remaining count: 24 - 5 = 19 entries.
+# Pipeline b3f19d72 phase-10: P13-INFRA-2 RESOLVED (comtypes UIA focus fix).
+# Cap target was <= 20; current is 18 (two entries below target).
+# remediation_summary.py --strict enforces the <= 20 cap.
+#
+# Pipeline b3d7f942 (16-gap post-c91e7f3a audit) phase-7 closeout:
+# No existing P-* entries were resolved in this pipeline (all GAP items
+# were new work, not fixing prior KNOWN_WEAK entries).  New entries added:
+#   P-H-INFRA-11 (OPEN, phase-2): xfdf import suite-contention flake
+#   P-COV-1 (OPEN, phase-6): PushButtonToggleNoCrash — fixture gap
+#   P-COV-2 (OPEN, phase-6): ResetFormRestoresDefaultValues — fixture gap
+# Entry count after b3d7f942: 18 + 3 = 21 entries.
+# Active GAP items closed without KNOWN_WEAK entries (were not tracked here):
+#   GAP-15: PDFE_TEST_PIPES gate — security fix (phase-1)
+#   GAP-16: FormManager null check — defensive fix (phase-1)
+#   GAP-1..4: documentation hygiene (phase-2)
+#   GAP-5..7: stale xfail migration — page-ops + redaction (phase-3)
+#   GAP-8..9: encryption dialog + stress xfails removed (phase-4)
+#   GAP-10: P-COV-* taxonomy established (phase-6 → see P-COV-* section)
+#   GAP-11..13: test matrix completeness — CrossPageNavigation, keyboard
+#               scroll E2E, customize-toolbar remove pipe (phase-5)
+#   GAP-14: baseline_regen_log.json created (phase-6)
+# ─────────────────────────────────────────────────────────────────────
+#
+
+# ─── Phase 4: signature subsystem gaps ──────────────────────────────
+#
+# SignatureRoundTripTest.SignerCommonNameSurvivesReopen RESOLVED in
+# pipeline a7c2e541 phase-16: test now asserts exact CN match against
+# the test_signer.pfx leaf cert ("PDFE Test Signer"). /Reason and
+# /Location dict-readback remains an open SignatureManager gap, but
+# the CN-round-trip lock is now tight.
+
+# ─── Phase 4: PDF/A converter gap (RESOLVED in b3f19d72 phase-2) ───
+#
+# PdfARoundTripTest.ConvertedDocumentReportsIsCompliantTrue
+# RESOLVED in pipeline b3f19d72 phase-2: PdfAConverter::convertAndSave
+# now embeds standard-14 fonts during the conversion pipeline via
+# substituteStandardFonts() — walks every page's /Resources/Font
+# dict, detects /BaseFont names in the standard-14 set without an
+# embedded /FontDescriptor, and replaces each with a TrueType
+# substitute (Arial for Helvetica, Times New Roman for Times-Roman,
+# Courier New for Courier, Symbol/Wingdings for Symbol/ZapfDingbats)
+# loaded from %SystemRoot%/Fonts via pdf_add_simple_font with
+# PDF_SIMPLE_ENCODING_LATIN (WinAnsi). Validator rule 6.3.3 no
+# longer fires on the converted output; isCompliant() returns true.
+# New test: PdfAConverterTest.StandardFourteenFontsAreEmbedded locks
+# the on-disk shape (FontDescriptor + FontFile2/3 present after
+# convertAndSave). DISABLED_ prefix dropped from the round-trip test.
+
+# ─── Phase 5: redaction text-extraction is structurally weak ────────
+#
+# RedactionRoundTripTest.RedactedTextIsNotExtractableAfterApply
+# RESOLVED in pipeline a7c2e541 phase-16: test now asserts the exact
+# word "Confidential" (known-position via PyMuPDF get_text('words')
+# audit) disappears from the extracted text after redaction. Byte-
+# count delta is kept as a defense-in-depth check.
+
+# ─── Phase 5: realworld unicode metadata sanity check ───────────────
+#
+# MetadataRoundTripTest.UnicodeRealworldFixtureReadsCleanly RESOLVED
+# in pipeline a7c2e541 phase-16: test now decodes UTF-8 → codepoints
+# and asserts Arabic (U+0600-06FF), CJK Unified (U+4E00-9FFF), Kana
+# (U+30A0-30FF), AND emoji (U+1F300+) ranges are each present in the
+# title. UTF-16LE/BE mojibake would no longer pass this assertion.
+
+# ─── Phase 7 (a7c2e541): product bugs surfaced by E2E text-editing ──
+#
+# Pipeline b3f19d72 phase-3 closed 3 P7 entries (P7-BUG-1, P7-BUG-3,
+# P7-BUG-4):
+#
+#   - P7-BUG-1  RESOLVED — TextEditTool::pushIncrementalEdit() added
+#                  (src/textedit/TextEditTool.{h,cpp}).  onKeyPress now
+#                  snapshots span.text before each key, and after any
+#                  model-mutating key (typed char, Backspace, Delete)
+#                  invokes pushIncrementalEdit which fires the
+#                  textEdited callback with the current span state.
+#                  EditTextCommand::mergeWith collapses consecutive
+#                  characters into a single undo step.  Result:
+#                  typing one character makes undoAction.isEnabled()
+#                  return true within one paint cycle (no more 2.5s
+#                  poll race).  Additional belt-and-braces fix in
+#                  MainWindow.cpp:305 lambda pushes
+#                  QAccessibleStateChangeEvent to both the QAction
+#                  and every QToolBar's QToolButton proxy so the Qt6
+#                  UIA bridge republishes IsEnabled to UIAutomation
+#                  Core without waiting for its lazy cache.  Test
+#                  test_text_edit_persists_across_undo_stack_growth
+#                  un-xfailed and passes.  Helper
+#                  _double_click_to_select_word_with_retry default
+#                  candidate-position grid retuned for the current
+#                  page-layout / DPI (test_multispan body text now
+#                  resolves to y_frac ≈ 0.21/0.28/0.36/0.44; the old
+#                  grid landed in the blank header band).
+#
+#   - P7-BUG-3  RESOLVED — onReplace (src/ui/MainWindow.cpp:3647)
+#                  refactored to fall back to a first-match scan
+#                  across all pages when no searchPanel currentResult
+#                  is selected.  SearchPanel.cpp:120 now wires a
+#                  textChanged handler on searchEdit_ so replaceButton
+#                  and replaceAllButton enable as soon as a document
+#                  is loaded AND the find-text field is non-empty
+#                  (previously they stayed disabled until
+#                  onSearchClicked succeeded, which blocked the
+#                  user/test workflow of type-and-click-Replace).
+#                  Test test_replace_single_occurrence un-xfailed and
+#                  passes after a one-word literal swap (find string
+#                  "the" → "Span": "the" is not present in
+#                  test_multispan.pdf — the original xfail reason
+#                  mis-diagnosed an unfindable query as a pipeline
+#                  bug).
+#
+#   - P7-BUG-4  RESOLVED — same SearchPanel.cpp:120 textChanged fix
+#                  as P7-BUG-3 enabled replaceAllButton early.  The
+#                  onReplaceAll all-pages scan was already
+#                  structurally correct; it just couldn't be reached
+#                  via a button click because the button was
+#                  disabled.  Test test_replace_all_occurrences
+#                  un-xfailed and passes.
+#
+# Phase-3 closures: 3 entries.  Remaining count: 19 - 3 = 16 entries
+# (one above the <= 20 cap with headroom).
+#
+# Pipeline b3f19d72 phase-4 closed P7-BUG-2:
+#
+#   - P7-BUG-2  RESOLVED — root cause was the modal
+#                  AtlasComparisonDialog opened synchronously inside
+#                  the spanActivated → AtlasBuilder::build chain on
+#                  first span click on a scanned-with-OCR page
+#                  (src/ui/MainWindow.cpp:4967).  Until the user
+#                  clicked "Use Scan" or "Use Font Matched", every
+#                  subsequent keystroke was routed to the modal dialog
+#                  (which ignores ordinary letter keys), never reached
+#                  TextEditTool::onKeyPress, and the textEdited
+#                  callback never fired — so the ImageReplacer
+#                  pipeline never ran and the canvas was unchanged
+#                  (SSIM=1.0000).  Fix: added PDFE_SKIP_ATLAS_DIALOG=1
+#                  test-only env-var seam (matches
+#                  PDFE_USE_QT_FILE_DIALOG pattern in main.cpp);
+#                  MainWindow auto-accepts the current/default atlas
+#                  mode without opening the dialog when the var is
+#                  set.  Set in
+#                  tests/ui_harness/core/launch.py::_qt_env_for_determinism.
+#                  Production users continue to see the dialog as
+#                  before.  Test
+#                  test_scanned_text_edit_replaces_image_region
+#                  un-xfailed and passes: typing 'Z' produces
+#                  refreshImageForScannedPage → ImageReplacer →
+#                  replacePageImage; canvas diff observable.  Failure
+#                  artifact
+#                  tests/visual/_failure_artifacts/phase7_scanned_edit_replace_region_no_change_diff.png
+#                  deleted.
+#
+# Phase-4 closures: 1 entry.  Remaining count: 16 - 1 = 15 entries.
+
+# ─── Phase 8 (a7c2e541): product bugs surfaced by E2E annotations ────
+
+# P8-BUG-1 RESOLVED (pipeline b3f19d72 phase-6) — root cause was the
+#                  StickyNotePopup being constructed as a CHILD WIDGET
+#                  of PdfCanvas (MainWindow.cpp:2720).
+#                  PdfCanvasAccessible.cpp:28-30 deliberately reports
+#                  childCount()=0 to UIA because PdfCanvas paints its
+#                  own pages and exposes them via custom actions, not
+#                  via child interfaces.  The unintended consequence:
+#                  every QWidget parented under PdfCanvas was hidden
+#                  from UIA traversal, including the popup's QTextEdit
+#                  (objectName "stickyNotePopupEdit", accessibleName
+#                  "Sticky Note Text").  Fix: construct the popup with
+#                  Qt::Tool | Qt::FramelessWindowHint and reparent to
+#                  MainWindow so it becomes a TOP-LEVEL frameless tool
+#                  window — discoverable by pywinauto's UIA tree walk
+#                  as a child window of the application.  Anchor
+#                  coordinates passed to openForAnnotation /
+#                  updatePosition now flow through
+#                  canvas_->mapToGlobal() (global screen coords) and
+#                  positionPopup() flips / clamps against the target
+#                  screen's QScreen::availableGeometry instead of the
+#                  former parent-rect.  Drag handling
+#                  (mouseMoveEvent) likewise moved to screen-space
+#                  clamping.  Activation: openForAnnotation now calls
+#                  activateWindow() before setFocus(), without which
+#                  keyboard input continues to route to the previously
+#                  active MainWindow instead of the popup's
+#                  QTextEdit (the symptom that first surfaced when
+#                  the popup became visible but typed text never
+#                  reached it).  Test
+#                  test_sticky_note_typed_content_appears_in_popup
+#                  un-xfailed and passes; the 4 sister tests
+#                  (creates_marker, can_be_moved, can_be_deleted,
+#                  appears_in_comment_panel) continue to pass; full
+#                  pdfe_tests.exe = 3541 PASSED / 0 FAILED / 2 SKIPPED
+#                  (unchanged from phase-5 baseline).  Phase test
+#                  test_ui_stress sticky-note loop comment updated to
+#                  reflect that the popup now opens reliably.
+
+# Phase-6 closures: 1 entry.  Remaining count: 14 - 1 = 13 entries.
+
+# P8-BUG-2 RESOLVED (pipeline a7c2e541 phase-8): root cause was a TEST
+# bug in _find_comment_tree.  The auto_id "commentTreeWidget" matches
+# (by suffix) the QTreeWidget's column-Header child, not the Tree
+# itself.  The Header has no descendants → 0 rows.  Fix: enumerate
+# descendants and pick control_type='Tree'.  CommentPanel.cpp is
+# correct; UIA exposes 9 TreeItems for the
+# phase3_annotations_all_types fixture as expected.  The
+# test_sticky_note_appears_in_comment_panel +
+# test_comment_panel_lists_all_annotations_in_doc tests are
+# un-xfailed and pass.  test_text_markup_appears_in_comment_panel
+# remains xfailed under a NEW reason (P8-BUG-2b, see below): drag-
+# select on synthesized test_single.pdf does not land on selectable
+# text, so TextMarkupTool does not create the highlight annotation.
+# AC4 (comment panel sync) IS now verifiable via the other two tests.
+
+# P8-BUG-2b RESOLVED (pipeline a7c2e541 phase-16): test switched from
+# FIX_SINGLE to FIX_ALL_ANNOTS (phase3_annotations_all_types.pdf) which
+# has a deterministic text band at page y=78-93 ("highlight me, strike
+# me, underline me, squiggle me").  _apply_text_markup gained y_frac /
+# x_frac / slow_drag parameters; the slow-drag path uses a ~1.1s
+# deliberate-pacing drag (20 steps × 0.04s + pre-LEFTUP pause) which
+# reliably triggers TextSelector quad computation, where the fast 0.3s
+# drag only flashed a transient overlay.  Added
+# _comment_tree_highlight_row_count helper that wheel-scrolls the
+# QTreeWidget viewport and dedupes via UIA runtime_id — needed because
+# Qt6's UIA bridge only enumerates TreeItems in the current viewport.
+# Test now asserts >= 2 Highlight rows after creating a new highlight
+# on top of the pre-existing one.
+
+# P8-BUG-3: RESOLVED (pipeline b3f19d72 phase-11 + pipeline a7c4f891 phase-3 E1 verification) -- _drive_color_dialog_pick_different() replaced with UIA child enumeration that locates basic-color cells in QColorDialog (preferred green/blue named cells) and click_inputs them, with a pixel-offset fallback via ClientToScreen on the QWellArray grid area.  No keyboard arrow-key navigation remains.  RESOLVED tests (reliably pass): test_ink_color_change, test_shape_color_change_via_properties_panel, test_free_text_color_change.  The 2 tests previously TRANSITIONED to P11-UIA-FLAKE-1 (test_properties_panel_color_picker_changes_canvas + test_highlight_color_change_via_properties_panel) had their root cause RESOLVED by the PDFE_TEST_SKIP_UNSAVED_PROMPT=1 seam (see P11-UIA-FLAKE-1 entry below). All 4 xfail markers removed in b3f19d72 phase-11. Pipeline a7c4f891 phase-3 (E1) confirmed the entry now correctly reflects RESOLVED status (was stale PARTIAL).
+
+# P8-BUG-4: RESOLVED (pipeline b3f19d72 phase-11 + pipeline a7c4f891 phase-3 E1 verification) -- annotation selection in phase3_annotations_all_types fixture replaced with _select_annotation_on_all_annots_fixture() which clicks at the known PDF-coordinate-derived canvas fractions for the Square annotation (PDF center 220,285 on 595x842 page → x_frac≈0.37, y_frac≈0.34), falling back to Ink/FreeText/Circle annotation positions.  RESOLVED tests (reliably pass): test_properties_panel_opacity_slider_changes_canvas. The 2 tests previously TRANSITIONED to P11-UIA-FLAKE-1 (test_properties_panel_author_field_persists, test_properties_panel_contents_field_persists) had their root cause RESOLVED by the PDFE_TEST_SKIP_UNSAVED_PROMPT=1 seam. Pipeline a7c4f891 phase-3 (E1) confirmed the entry now correctly reflects RESOLVED status (was stale PARTIAL).
+
+# P11-UIA-FLAKE-1: RESOLVED (pipeline b3f19d72 phase-11 unsaved-prompt seam) -- root cause was the "Unsaved changes — Save/Discard/Cancel" QMessageBox blocking UIA teardown when annotating tests closed PDFE with a dirty undo stack.  The modal dialog wedged pywinauto teardown, contaminating UIA tree state for the next test (causing annotColorButton, annotAuthorEdit, annotContentsEdit child-window lookups to fail) and orphaning PDFE.exe processes that cascaded into "PDFE didn't appear within 30s" failures.  Fix: added PDFE_TEST_SKIP_UNSAVED_PROMPT=1 env-var seam in MainWindow::promptSaveOnClose() (src/ui/MainWindow.cpp) + wired into _qt_env_for_determinism() (tests/ui_harness/core/launch.py).  All 4 xfail markers removed; all 4 tests now pass or skip gracefully (skip path = annotColorButton UIA reachability, not a product bug): test_highlight_color_change_via_properties_panel, test_properties_panel_color_picker_changes_canvas, test_properties_panel_author_field_persists, test_properties_panel_contents_field_persists.
+
+# ─── Phase 9 (a7c2e541): test-infrastructure debt for forms E2E ──────
+
+# P9-DEBT-1: RESOLVED (pipeline b3f19d72 phase-12) -- test_js_validate_event_fires_on_blur + test_js_calculate_event_updates_dependent_field.  xfail markers removed.  Two root causes fixed: (1) UIA-panel set_edit_text wrote directly to the Qt widget without going through FormTool → MuJS, so /AA/K /AA/V /AA/C handlers never fired -- fix: both tests now drive input via _click_field_by_name (clickByPdfCoord pipe) + typewrite_assuming_foreground + Tab; (2) libmupdf vcpkg port was built with FZ_ENABLE_JS=0 (MuJS disabled), making pdf_enable_js/pdf_calculate_form no-ops -- fix: rebuilt libmupdf 1.26.10#1 with FZ_ENABLE_JS=1 by adding mujs as a vcpkg dependency; PDFE_ENABLE_JS=1 env var enables JS at document load in tests without changing persistent QSettings.
+
+# P9-DEBT-2: RESOLVED (pipeline b3f19d72 phase-12) -- _click_field_by_name Win32 mouse_event path removed.  Added testClickByPdfCoordPipe QLineEdit pipe in MainWindow (parallel to testToolActivatePipe from phase-11); writing "pageIndex,pdfX,pdfY" triggers PdfCanvas::clickByPdfCoord() which calls QApplication::sendEvent with a synthesised QMouseEvent at the canvasRectFromPdf-translated position.  This bypasses OS DPI translation and scroll-state issues entirely — the coordinate math is the same that governs all real user clicks.  _click_field_by_name now tries click_by_pdf_coord() first (using _FIELD_PDF_COORDS lookup) and falls back to _tab_to_field_named() only for fields with no PDF coord entry.
+
+# ─── Phase 10 (a7c2e541): test-infrastructure debt for page-ops E2E ──
+
+# P10-INFRA-1 RESOLVED (pipeline a7c2e541 phase-17 + b3d7f942 phase-3):
+# Product side (a7c2e541 phase-17): added
+# PagePanel::movePageProgrammatic Q_INVOKABLE (src/ui/PagePanel.{h,
+# cpp}).  The hook validates fromIndex/toIndex against
+# document_->pageCount() and emits pageMoved(from, to) which routes
+# through the same MovePageCommand pipeline as a drag-drop reorder.
+# Coverage tests in tests/test_page_panel_q_invokable.cpp lock the
+# contract (no-document → false, negative indices → false,
+# out-of-range → false, equal indices → false, valid move → true +
+# pageMoved signal fires).
+# Test side (b3d7f942 phase-3 commit 8665b9f): added
+# testMovePagePipe QLineEdit in MainWindow (gated by PDFE_TEST_PIPES)
+# and move_page_programmatic() helper in tests/helpers/qinvoke.py.
+# test_pagepanel_drag_drop_reorders_pages xfail decorator removed;
+# test body rewrites to call move_page_programmatic(0, 2) and asserts
+# document-dirty title-bar indicator.
+
+# ─── Phase 11 (a7c2e541): test-infrastructure debt for redaction E2E ──
+
+# P11-INFRA-1 RESOLVED (pipeline a7c2e541 phase-17 + b3d7f942 phase-3):
+# Product side (a7c2e541 phase-17): added
+# PdfCanvas::pdfRectFromCanvas + canvasRectFromPdf Q_INVOKABLE
+# methods (src/ui/PdfCanvas.{h,cpp}).  Tests can now translate
+# canvas-pixel coords ↔ PDF-space coords directly, eliminating the
+# heuristic page-fraction math that caused the redaction-text-coverage
+# misses.  Round-trip identity at zoom=1.0 is locked by
+# tests/test_pdf_canvas_q_invokable.cpp (CanvasRectFromPdf_RoundTrip).
+# Test side (b3d7f942 phase-3 commit 8665b9f): added
+# testAddRedactionMarkPipe QLineEdit in MainWindow (gated by
+# PDFE_TEST_PIPES) and add_redaction_mark_at_pdf_rect() helper in
+# tests/helpers/qinvoke.py.
+# test_redacted_text_not_present_after_save_reopen xfail decorator
+# removed; test body places mark at verified fitz-space coords covering
+# 'Confidential Document' (x=0, y=46, w=612, h=73) via the pipe.
+
+# ─── Phase 11 (a7c2e541): redaction E2E findings (3 additional) ──────
+
+# P11-BUG-1 RESOLVED (pipeline b3f19d72 phase-5) — root cause was a
+#                  Page-reference leak in
+#                  MainWindow::onApplyRedactions
+#                  (src/ui/MainWindow.cpp:6886).  After
+#                  redactionManager_->applyAllRedactions() mutated each
+#                  affected page's content stream in memory,
+#                  Document::save() called fz_drop_document to release
+#                  the file lock, but toolPage_ (still set by the active
+#                  redaction tool's setPage(page) flow) plus any held
+#                  entries in commandPages_ each carried one
+#                  fz_keep_document refcount (MuPDF
+#                  source/fitz/document.c:1082 — fz_load_page calls
+#                  fz_keep_document on the source doc).  Drop refs were
+#                  not reaching zero; the file stream stayed open;
+#                  std::filesystem::remove(path) inside Document::save
+#                  failed with "The process cannot access the file
+#                  because it is being used by another process"; the
+#                  save threw before the rename step.  The catch block
+#                  in onApplyRedactions surfaced the failure via the
+#                  "Redaction Save Error" QMessageBox, but
+#                  _wait_apply_completes accepts that dialog as
+#                  apply-completed for resilience reasons (it can also
+#                  fire on QPDF-rewrite-only failures), so the test
+#                  proceeded to capture canvas pixels from a fresh
+#                  PDFESession opening the *unchanged* on-disk file —
+#                  hence SSIM=1.0000 vs the pre-redact reference.  The
+#                  in-memory test test_apply_all_redactions_blanks_
+#                  marked_area passed because openFile() inside the
+#                  same session re-read the SAME pre-redact bytes but
+#                  pdf_redact_page had also been called again on top of
+#                  them (the test compares post-apply canvas to
+#                  pre-mark canvas, both rendered live).  Fix: before
+#                  Document::save() runs, clearCurrentTool() on the
+#                  canvas, cancelAll()+waitForDone() on the tile
+#                  renderer, invalidateAll() on the tile cache,
+#                  reset() toolPage_, clear() commandPages_, and clear()
+#                  undoManager_ — all five together drive the
+#                  fz_document refcount back to 1 so the subsequent
+#                  fz_drop_document inside save() actually closes the
+#                  file stream and the remove+rename succeeds.
+#                  Diagnostic confirmation: saved-file size shrank from
+#                  2943 → 2831 bytes, page-0 extracted text from 220
+#                  chars → 0 chars, pixel-diff bbox (0, 30, 612, 419).
+#                  Test test_redaction_visible_after_save_reopen
+#                  un-xfailed and passes.
+
+# P11-BUG-2 RESOLVED (pipeline a7c2e541 phase-17 + b3d7f942 phase-3):
+# Product side (a7c2e541 phase-17): undo-stack audit confirms each
+# createRedactionMark from the drag callback already pushes a discrete
+# CreateRedactionCommand to undoManager_ (not batched).  Ctrl+Z wiring
+# correctly maps to onUndo → undoManager_->undo().  Phase-17 added
+# PdfCanvas::addRedactionMarkAtPdfRect Q_INVOKABLE which fires the same
+# CreateRedactionCommand pipeline; tests/test_pdf_canvas_q_invokable.
+# cpp:AddRedactionMark_RepeatedCallsEmitNSignals locks that N
+# independent calls produce N distinct emissions → N distinct undo entries.
+# Test side (b3d7f942 phase-3 commit 8665b9f): added
+# testAddRedactionMarkPipe + testRedactionMarkCountQueryPipe +
+# testRedactionMarkCountResultPipe QLineEdits in MainWindow (gated by
+# PDFE_TEST_PIPES); add_redaction_mark_at_pdf_rect() and
+# get_redaction_mark_count() helpers in tests/helpers/qinvoke.py.
+# Also fixed MainWindow::onUndo()/onRedo() to refresh redaction panel
+# and added RedactionPanel::topLevelItemCount() accessor.
+# test_undo_after_partial_marks_removes_only_last xfail decorator
+# removed; test body places 3 marks via the pipe and asserts
+# after_count == before_count - 1 (one discrete undo entry per call).
+
+# P11-INFRA-2: [RESOLVED pipeline b3f19d72 phase-13] RedactionTest.test_apply_redactions_across_multiple_pages -- continuous-scroll mode + {HOME} key navigation race RESOLVED by replacing {HOME} with {PGUP} and adding StatusBar page-label assertions (_wait_for_page_label_substr) after each PGDN/PGUP so navigation is confirmed before proceeding.  xfail marker removed; test is now un-xfailed and expected to pass.  No product change required — pure test-infrastructure fix in tests/test_ui_redaction.py.
+
+# ─── Phase 12 (a7c2e541): test-infrastructure / product gaps for encryption + signatures E2E ──
+
+# P12-INFRA-1 sub-5: printAction UIA reachability — RESOLVED in pipeline f8a12c4d phase-4. Q_INVOKABLE isPrintEnabled() added to MainWindow (option (c) from prior investigation). Python tests can now query print state via QMetaObject::invokeMethod without opening the File menu. GTest verifies the seam in test_gap102_residuals.cpp (IsPrintEnabledSeamWorks).
+
+# ─── Phase 12 (a7c2e541): SignDialog / EncryptionDialog reachability flake ──
+
+# P12-INFRA-2 RESOLVED (pipeline a7c2e541 phase-17, product side):
+# src/ui/SignDialog.cpp wraps all groupboxes in a QScrollArea and
+# sets setMinimumHeight(300).  minimumSizeHint().height() is now well
+# under 600 px so the Qt6 setGeometry warning no longer fires on
+# small / RDP displays.  Verified by tests/test_sign_dialog_geometry.
+# cpp (5 tests covering minimum-height, scroll area presence,
+# child-widget reparent integrity, and width preservation).  The
+# pre-existing tests/test_sign_dialog.cpp suite continues to pass
+# with no regression.
+# Test side (b3d7f942 phase-4 GAP-8): live re-run of the two
+# EncryptionDialog E2E tests confirmed XPASS (dialog fully reachable).
+# xfail(strict=True) decorators removed from test_set_user_password_via_
+# encryption_dialog and test_owner_password_with_copy_disabled (commit
+# follows). SignDialog xfails were already removed in b3f19d72 phase-9.
+
+# ─── Phase 13 (a7c2e541): compliance + accessibility E2E debt ───────
+
+# P13-INFRA-2  RESOLVED (pipeline b3f19d72 phase-10): replaced descendants()
+# has_keyboard_focus() walk with IUIAutomation::GetFocusedElement via
+# pywinauto's IUIA singleton (comtypes, zero extra deps).  New helper:
+# tests/helpers/uia_focus.py get_focused_element().  Both _record_focused_aid
+# and _record_focused_aid_via_app now call this authoritative API.  The 6
+# xfail markers (2 strict AC5 tests + 4 parametrized tab-cycle cases) are
+# removed; inline pytest.xfail() calls converted to pytest.fail() so future
+# regressions surface as real failures, not silently swallowed xfails.
+
+# P13-INFRA-3 RESOLVED (pipeline b3f19d72 phase-15): all 3 xfail tests
+# un-xfailed.  Root cause was unreliable dialog re-open / Save-As drive.
+# Fix: added two-pipe seam to MainWindow (testAltTextReadbackTriggerPipe +
+# testAltTextReadbackResultPipe); writing "1" to the trigger pipe calls
+# getCurrentAnnotationAltText() and writes the result to the result pipe.
+# get_current_annotation_alt_text() helper added to tests/helpers/qinvoke.py.
+# All 3 tests now use this pipe for readback — no dialog re-open or Save-As
+# required.  Product files: src/ui/MainWindow.h + src/ui/MainWindow.cpp.
+# Test files: tests/test_ui_compliance_accessibility.py, tests/helpers/qinvoke.py.
+
+# P13-INFRA-5 RESOLVED (pipeline a7c2e541 phase-16): added
+# tests/fixtures/test_taggable_rich.pdf — a synthetic 2-page fixture
+# with multi-size text (24pt H1 + 18pt H2 + 11pt body) + bullet and
+# numbered lists.  Page-average ~13pt with 24pt and 18pt blocks gives
+# size ratios 1.85x and 1.38x respectively, firing AutoTagger's
+# heading heuristic (>1.2x and bold; src/compliance/AutoTagger.cpp).
+# Generator: tests/fixtures/generate_taggable_rich_pdf.py.  Test
+# test_compliance_dialog_preview_tags_populates_structure_tree now
+# uses FIX_TAGGABLE_RICH and passes hard (no xfail).  Note: the
+# alternative product fix (AutoTagger reading existing
+# /StructTreeRoot rather than always re-tagging from scratch) remains
+# open as a future enhancement but is no longer blocking AC2 of the
+# compliance pipeline.
+
+# P13-INFRA-4: [RESOLVED pipeline a7c4f891 phase-5]
+# Hard-pass items (5 of 6 sub-items): SignDialog, PrintDialog, CombineFilesWizard, ValidationRequestDialog, PasswordDialog all RESOLVED (pipeline b3f19d72 phase-9).
+# (6) AtlasComparisonDialog: AC4/AC5 coverage now provided by 12 atlas widget tests in test_precondition_panels_phase4.py (P-GAP-74 RESOLVED pipeline a7c4f891 phase-5). These tests verify dialog opens + all 12 atlas widgets visible, using testToolActivatePipe + testClickByPdfCoordPipe + testAtlasReadyQueryPipe seams. The parametrized keyboard-dialog harness in test_ui_compliance_accessibility.py retains a structural-placeholder skip (dialog requires OCR+atlas pipeline, not menu/action routing), but coverage is delegated to the dedicated atlas test file.
+# Net result: all 6 sub-items RESOLVED; _XFAIL_BY_DIALOG dict is empty.
+
+# ─── Phase 14 (a7c2e541): preferences + chrome E2E shortcut xfails ───
+
+# P14-INFRA-1: [RESOLVED pipeline b3f19d72 phase-13] All three sub-items now resolved.  (1) printAction -- [RESOLVED phase-8] PDFE_TEST_DRYRUN_PRINT=1 gate in onPrint.  (2) exitAction -- [RESOLVED phase-13] exitAction removed from KEYBOARD_SHORTCUTS parametrize table; dedicated test_exit_action_terminates_pdfe added that uses a disposable PDFESession, sends Ctrl+Q via hotkey_to, and asserts proc.poll() is non-None within 5 s.  (3) fullScreenAction -- [RESOLVED phase-13] xfail removed; catalog entry changed to ("fullscreen_round_trip", ...) which sends F11, asserts window rect covers full screen, sends F11 again, asserts window rect is restored to sub-screen size.  No product changes required — pure test-infrastructure fixes in tests/test_ui_preferences_chrome.py.
+
+# P14-INFRA-2 RESOLVED (pipeline a7c2e541 phase-16): catalog entry for
+# insertPagesFromFileAction switched from ("top_window_substr",
+# "Select") to ("alive_safe", "insert pages dismiss") and the xfail
+# tag dropped.  The shortcut still opens the native file picker as
+# expected; the alive_safe handler post-processes by sending Escape
+# via _press_modal (already part of the alive_safe branch) to dismiss
+# the picker, then verifies PDFE remains reachable.  Test runs in
+# ~11s with no teardown side-effects.
+
+# P14-INFRA-3 RESOLVED (pipeline b3f19d72 phase-14): replaced both
+# QListWidget instances in CustomizeToolbarsDialog with QListView +
+# QStandardItemModel.  Qt6's QListView model-view path registers each
+# QStandardItem as a proper UIA ListItem, so
+# ``availableList.descendants(control_type="ListItem")`` and
+# ``currentList`` are now reachable.  xfail markers removed from all 5
+# tests; C++ tests updated from findChild<QListWidget*> to
+# findChild<QListView*>; coverage_gaps.md entry #21 resolved.
+# Verified: GoogleTest 3544 pass, 0 failures.
+
+# ─── Phase 15 (a7c2e541): combinatorial save-mode stress xfails ──────
+
+# P15-INFRA-1 RESOLVED (pipeline b3f19d72 phase-15): all 4 sign=True
+# combinatorial cases un-xfailed.  The pytest.xfail() early-exit call
+# removed; sign leg implemented with _open_sign_dialog_stress() +
+# _drive_sign_dialog_stress() helpers.  PDFE auto-creates a signature
+# field if one doesn't exist.  SignDialog geometry is fixed (phase-17);
+# EncryptionManager re-encrypt path is implemented (phase-7).  The 4 tests
+# now execute the full sign flow (Security > Sign Document → SignDialog →
+# Save Signed PDF dialog) and assert the output exists with non-trivial size.
+# Test file: tests/test_ui_stress.py.
+
+# P15-INFRA-2 RESOLVED (pipeline a7c2e541 phase-17 + b3d7f942 phase-4):
+# Product side (a7c2e541 phase-17): added PdfCanvas::addRedactionMarkAtPdfRect
+# Q_INVOKABLE (src/ui/PdfCanvas.{h,cpp}) that emits redactionMarkRequested
+# → MainWindow's CreateRedactionCommand pipeline.  Verified by
+# tests/test_pdf_canvas_q_invokable.cpp:AddRedactionMark_RepeatedCalls
+# EmitNSignals (5 calls → 5 emissions in headless GoogleTest).
+# Test side (b3d7f942 phase-4 GAP-9): test_stress_100_redactions_apply_and_save
+# migrated from _raw_drag loop to add_redaction_mark_at_pdf_rect pipe +
+# get_redaction_mark_count pipe for count verification.  xfail marker removed;
+# live-run result: 100/100 marks reliably placed; test expected to PASS.
+# Remaining stress tests still xfailed (separate root causes):
+#   test_stress_1000_annotation_undo_redo: SKIP in live-run (save dialog
+#   race after 1000 clicks — save dialog did not drive within timeout).
+#   Root cause: ~87s of click + popup-dismiss leaves UI in inconsistent
+#   focus state; Save dialog never appears.  Needs a save-as pipe or
+#   reduced N to be stable.  Kept as xfail (strict=False), P15-INFRA-2b.
+#   test_stress_form_fill_500_fields_save: XFAIL in live-run (P9-DEBT-2
+#   tab/field race — FormTool tabOrder reset on FormFieldPropertiesPanel
+#   re-population drops some edits at 500-field scale).  Kept as xfail.
+
+# ─── Phase G (f2a8c3e1): live sweep findings ─────────────────────────
+# Status update: pipeline 3a9f1c72 resolved 10 of 11 P-G-INFRA entries.
+# Remaining: P-G-INFRA-7 (3 checkbox tests only; pipe-write variant
+# resolved). All resolved entries below are commented-out (kept for
+# audit trail; commit hashes in the RESOLVED line).
+
+# P-G-INFRA-1: RESOLVED (pipeline 3a9f1c72 phase-1, commit 2e137c6) —
+#   added main_window.set_focus() + ensure_foreground(pdfe_hwnd) after
+#   subprocess.Popen + pywinauto connect.  Scope-narrower than the
+#   original "rewrite to PDFESession" follow-up but addresses the
+#   documented root cause (parent process holds foreground at launch).
+#   xfail removed.
+
+# P-G-INFRA-2: RESOLVED (text_edit/helpers.py was already converted in
+#   pipeline f2a8c3e1 phase-5b; the xfail markers in selection/undo
+#   tests were stale).  Pipeline 3a9f1c72 phase-1 commit 2e137c6
+#   removed the stale xfail markers.
+
+# P-G-INFRA-3: RESOLVED (pipeline 3a9f1c72 phase-2, commit f5c8c91) —
+#   injected ensure_foreground(_resolve_pdfe_hwnd(session.hwnd),
+#   timeout=2.0) in _click_canvas_at_fraction() and _drag_canvas()
+#   BEFORE the SetCursorPos + mouse_event sequence.  All 13 xfail
+#   markers removed; _PG_INFRA_3 decorator definition removed.
+
+# P-G-INFRA-4: RESOLVED (pipeline 3a9f1c72 phase-3, commit 40e9af5) —
+#   refactored get_current_annotation_alt_text() in
+#   tests/helpers/qinvoke.py to use the new _find_pipe() extracted
+#   helper (Strategy A → B → C lookup, was Strategy-C-only).  All 3
+#   alt-text xfails removed.
+
+# P-G-INFRA-5: RESOLVED (pipeline 3a9f1c72 phase-4, commit fb62c3b) —
+#   modified test_dialog_default_button_responds_to_enter to skip
+#   _click_widget_safely(sig) when dialog_id == "OptimizeDialog".  The
+#   signature widget IS optimizeRunButton, and clicking it ran the
+#   optimize-and-save flow which polluted tests/fixtures/.  The Enter
+#   test still proceeds; OptimizeDialog is already in no_default_close
+#   so the no-dismiss behavior is correctly accepted.
+
+# P-G-INFRA-6: RESOLVED (pipeline 3a9f1c72 phase-3, commit 40e9af5) —
+#   _wait_for_dialog_widget() in test_ui_preferences_chrome.py now
+#   delegates to find_with_strategy_b() (new public helper in
+#   qinvoke.py) which falls back to a fresh
+#   pywinauto.Application(backend="uia").connect(process=pid).
+#   All 3 customize-toolbar xfails removed.
+
+# P-G-INFRA-7 RESOLVED (pipeline b7e2d04a phase-4 + pipeline a7c4f891
+#   phase-3 E4 verification): all 3 form-checkbox tests now PASS:
+#     test_checkbox_toggles_on_click LIVE PASS ✓
+#     test_checkbox_unchecks_on_second_click LIVE PASS ✓
+#     test_checkbox_state_persists_across_save_reopen LIVE PASS ✓
+#       (verified 2026-05-23 in pipeline a7c4f891 phase-3 — 63s isolation run)
+#   The original double-toggle masking issue was reverted in
+#   c91e7f3a phase-6, and the proper P-H-INFRA-10 fix replaced the
+#   inverted-helper workaround. All 3 tests now PASS without any
+#   xfail markers in conftest.
+#
+#   Note: inversion was masking a double-toggle bug; reverted in pipeline
+#   c91e7f3a phase-6 (commit e5054c6).  See P-H-INFRA-10 for the proper
+#   root cause analysis and test-side fix.
+#
+# Original entry (now superseded but retained for audit trail):
+# P-G-INFRA-7 (PARTIAL) … (see prior commits for historical text).
+
+
+#
+# Live verification (pipeline b7e2d04a phase-3, run isolated 2026-05-14):
+#   Fixture/session class for all 3 tests: `_pdfe_session_dirty_safe(str(FIX_FORM))` where FIX_FORM = test_form.pdf.
+#   The 3 tests do NOT share a session — each uses its own context-manager.
+#   Verbatim live traces:
+#
+#   test_checkbox_toggles_on_click (tests/test_ui_forms.py:1781):
+#     > assert before is False, f"AgreeTerms initial state expected False; got {before}"
+#     E   AssertionError: AgreeTerms initial state expected False; got True
+#     E   assert True is False
+#     Test premise: AgreeTerms initial value is V=/Off (unchecked).  Live state: True (checked).
+#
+#   test_checkbox_unchecks_on_second_click (tests/test_ui_forms.py:1810):
+#     > assert initial is True, f"Subscribe initial state expected True; got {initial}"
+#     E   AssertionError: Subscribe initial state expected True; got False
+#     E   assert False is True
+#     Test premise: Subscribe initial value is V=/Yes (checked).  Live state: False (unchecked).
+#
+#   test_checkbox_state_persists_across_save_reopen (tests/test_ui_forms.py:1852):
+#     > assert post_state is True, f"Toggle did not flip state in pre-save read: {post_state}"
+#     E   AssertionError: Toggle did not flip state in pre-save read: False
+#     E   assert False is True
+#     Test premise: AgreeTerms starts at False, toggle should flip to True.  Live: stays False after toggle.
+#
+#   Key diagnostic: AgreeTerms and Subscribe BOTH read inverted from documented defaults.
+#   This is NOT consistent with a stateful leak between tests (each test launches a fresh
+#   PDFE.exe via the context manager).  More likely:
+#     (a) _form_field_checkbox_state(s) reads the Qt widget's check-state with an inverted
+#         convention (e.g. reads Qt::Unchecked as True, Qt::Checked as False, OR reads the
+#         widget BEFORE the form-field initialization populates it from the V= entry).
+#     (b) The QCheckBox accessibleState UIA Toggle pattern returns the inverted boolean
+#         on this build of Qt6 / PDFE.
+#     (c) FIX_FORM's V= entries are actually inverted from what the test docstrings claim
+#         (test premise error).
+#   GoogleTest test_form_manager.cpp + test_form_save_reopen.cpp hard-pass, so the
+#   underlying form-state machinery is sound — this is a test-helper-reads-wrong-value
+#   issue, NOT a fixture-isolation issue as the prior xfail claimed.
+#   Phase-4 follow-up: read _form_field_checkbox_state(s) source, compare its
+#   readback to a direct pikepdf inspection of the same fixture's V= entries; if the
+#   pikepdf state agrees with the test docstring premise, the bug is in
+#   _form_field_checkbox_state's UIA readback.  If pikepdf disagrees, the fixture
+#   docstring is wrong and the test assertions need adjustment (cheap fix).
+
+# P-G-INFRA-8: RESOLVED (pipeline 3a9f1c72 phase-4, commit fb62c3b) —
+#   added self-comparison short-circuit in compare_images() in
+#   tests/ui_harness/core/diff.py.  When both arguments resolve to the
+#   same absolute path, returns ncc=1.0, max_delta=0, phash_distance=0
+#   without running the float32 centred-correlation that accumulates
+#   FP rounding to ~0.9999.  xfail removed.
+
+# P-G-INFRA-9: RESOLVED (pipeline 3a9f1c72 phase-4, commit fb62c3b) —
+#   extended _baseline_check() with optional ssim_threshold parameter;
+#   added SSIM_THRESHOLD_OPEN_CANVAS_RELAXED=0.90 constant with
+#   documented justification (Qt6 sub-pixel rendering drift observed
+#   0.9278-0.9381; relaxed value still catches real regressions which
+#   score below 0.85).  Applied to 6 canvas-render baseline call sites.
+#   All 5 xfails removed.
+
+# P-G-INFRA-10: RESOLVED (pipeline 3a9f1c72 phase-3, commit 40e9af5) —
+#   test_zoom_combo_uia_exposed now uses find_with_strategy_b() instead
+#   of bare session.find_optional() for the zoomCombo lookup.  xfail
+#   removed.
+
+# P-G-BUG-1: RESOLVED (pipeline f2a8c3e1 phase-5b triage) — NOT a product bug.  The phase-5 sweep flagged this as possible privacy-impacting over-redaction, but root-cause analysis showed the redaction product code is correct.  The test's docstring premise was wrong: all 6 lines of page-1 text were crammed into y_frac 0.08..0.32 in the prior fixture.  Fix: regenerated tests/fixtures/test_redaction.pdf with a 320-pt vertical gap so the bottom paragraph lives at y_frac 0.63..0.69.  AC4 and AC5 now both pass.  xfail marker removed.
+
+# P-G-INFRA-11: RESOLVED (pipeline 3a9f1c72 phase-1, commit 2e137c6) —
+#   added accept_overwrite_prompt() helper in tests/helpers/file_dialog.py
+#   that locates the Yes/OK button on the OS shell "Confirm Save As"
+#   prompt and dispatches BM_CLICK via SendMessageW (synchronous in
+#   the dialog's message loop; bypasses the OS input queue entirely).
+#   Replaces the previous _press(target, "y") / _press(target, "enter")
+#   approach that wedged the test for >70 min.  xfail removed;
+#   @pytest.mark.timeout(60) retained as belt-and-braces wedge guard.
+#   (Pipeline b7e2d04a phase-1 live verification revealed a deeper
+#   deadlock — see P-H-INFRA-3 below — RESOLVED in pipeline c91e7f3a
+#   phase-2 via daemon-thread dispatcher; hard SKIP removed.)
+
+# ─── Phase H (b7e2d04a): live-verification findings ──────────────────
+
+#   P-H-INFRA-1: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 1 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-H-INFRA-2: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 2 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-H-INFRA-3: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 3 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-H-INFRA-4: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 4 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-H-INFRA-5: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 5 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-H-INFRA-6: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 6 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-H-INFRA-7: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 7 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-H-INFRA-8: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 8 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-H-INFRA-10: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 9 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-H-INFRA-9: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 10 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-H-INFRA-11: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 11 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+# ─── Security findings — RESOLVED ────────────────────────────────────────────
+
+# ALT-TEXT-PIPES-1: src/ui/MainWindow.cpp testAltTextReadbackTriggerPipe_
+# + testAltTextReadbackResultPipe_ — RESOLVED. Original finding: pipeline
+# c91e7f3a security-audit informational; pipes were always-on in
+# production builds and exposed via UIA tree. Resolution: gated behind
+# PDFE_TEST_PIPES env var in pipeline 3e7c1a05 phase-1 (commit 4733175).
+# Production binaries no longer construct these QLineEdit widgets when
+# the env var is unset.
+# RESOLVED — pipeline 3e7c1a05 phase-1 (commit 4733175) gated both
+# testAltTextReadbackTriggerPipe_ and testAltTextReadbackResultPipe_
+# behind PDFE_TEST_PIPES env var. Pipeline a7f3d2c9 phase-1 (commit
+# a7d5766) additionally gated the 8 remaining ungated test pipes in
+# CustomizeToolbarsDialog.cpp (GAP-18). All 27 known test pipes in
+# src/ui/ are now env-var gated.
+
+# ---- Phase-3 live verification PASSES (no KNOWN_WEAK entries needed) ----
+# P-G-INFRA-9 RESOLVED LIVE (pipeline b7e2d04a phase-1): all 5 visual-
+#   regression tests in test_ui_file_operations.py PASS LIVE with the
+#   SSIM_THRESHOLD_OPEN_CANVAS_RELAXED=0.90 from pipeline 3a9f1c72 phase-4.
+# P-G-INFRA-10 RESOLVED LIVE (pipeline b7e2d04a phase-3): test_zoom_combo_
+#   uia_exposed PASSES LIVE via find_with_strategy_b() introduced in
+#   pipeline 3a9f1c72 phase-3.
+# P-G-INFRA-5 RESOLVED LIVE (pipeline b7e2d04a phase-3): OptimizeDialog
+#   teardown produces 0 ERROR lines — the dialog_id != "OptimizeDialog"
+#   guard in test_dialog_default_button_responds_to_enter (pipeline 3a9f1c72
+#   phase-4) correctly skips the side-effect-prone signature-widget click.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# P-COV-* — Coverage Absence Entries  (pipeline b3d7f942 phase-6, GAP-10)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# P-COV-* entries document GoogleTest GTEST_SKIP clusters where a test
+# exists but cannot run due to missing fixtures, missing test infrastructure,
+# or out-of-scope environment requirements.  This is DISTINCT from P-H-INFRA-*
+# entries (which document test-infrastructure bugs that prevent correct
+# execution) and from OPEN product bugs.  P-COV-* means: the coverage gap
+# is known, intentional, and tracked — not that something is broken.
+#
+# SKIP count terminology — two different numbers, two different meanings:
+#
+#   "68 SKIPs" (declared budget, not live count):
+#     A historical tally of per-file PHASE1_HARDENING comment-header
+#     annotations (e.g. "# SKIPS: 14") summed across test_form_manager.cpp,
+#     test_form_tool.cpp, test_annotation_manager.cpp, test_save.cpp, and
+#     test_save_operations.cpp at the time they were introduced.  This is a
+#     STATIC label embedded in source comments — it does NOT correspond to the
+#     number of GTEST_SKIP() calls that fire at test run time.  All 68 of those
+#     annotated skips have since been resolved in pipelines a7c2e541 through
+#     f2a8c3e1; 0 GTEST_SKIP remain in those five files today.
+#
+#   2 active GTEST_SKIP() calls (live count):
+#     Only two tests actually invoke GTEST_SKIP() at run time as of the
+#     b3d7f942 baseline: P-COV-1 and P-COV-2 below.  These are the only
+#     entries that contribute to the GoogleTest "SKIPPED" counter in CI output.
+#     The GoogleTest suite reports them as 2 SKIPPED, not 68.
+#
+# SKIP count audit (pipeline b3d7f942 baseline, 2026-05-17):
+#   Previously-documented skip clusters (test_form_manager.cpp 14 skips,
+#   test_form_tool.cpp 19, test_annotation_manager.cpp 14, test_save.cpp 9,
+#   test_save_operations.cpp 9) have all been resolved in prior pipelines
+#   (a7c2e541 through f2a8c3e1); 0 GTEST_SKIP remain in those files.
+#   The remaining 2 SKIPPED tests at the b3d7f942 baseline are:
+#     Phase5FormsTest.PushButtonToggleNoCrash   (test_forms_phase5.cpp:184)
+#     Phase5FormsTest.ResetFormRestoresDefaultValues (test_forms_phase5.cpp:273)
+#   Both skip because they require specific fixture files that do not yet
+#   exist (see P-COV-1 and P-COV-2 below).
+
+#   P-STRESS-1: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 12 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+# P-STRESS-1 was archived as resolved on 2026-09-16 while the xfail marker on
+# test_stress_1000_annotation_undo_redo still cited it as the live reason. That
+# marker was rewritten (2026-09-30, p94 phase-5) and P-STRESS-3 replaced it,
+# because at that point the test still failed and the archived reason was wrong
+# in every part.
+#
+# BOTH are now closed (2026-10-09, p95 phase-10): the test PASSES, and the xfail
+# marker was removed in the same commit that archived P-STRESS-3 -- deliberately
+# together, since the failure mode recorded above is a weak-test row and a test
+# marker drifting apart. A row claiming a passing test is weak is the same
+# defect as a marker citing an archived row, just pointing the other way.
+#   P-STRESS-3: ARCHIVED (resolved) 2026-10-09, pipeline p95 phase-10 -- GitHub #271's acknowledgement seam landed and the test PASSES (1000 created / 1000 undone / 1000 redone, 629.3 s); the xfail it cites has been REMOVED, not left to report an xpass. Full verbatim text preserved as entry 1 of docs/audit/p95-phase10/known-weak-tests-resolved-archive-2026-10-09.md
+
+#   P-STRESS-2: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 13 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-COV-1: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 14 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-COV-2: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 15 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+P-COV-BASELINE-1: baseline_regen_log.json entries for image_edit/canvas_baseline.png and redaction/canvas_baseline.png -- UNVERIFIABLE-PRE-STATE -- Both files were added (git status A) in commit b14d771 (pipeline f2a8c3e1 phase-5); they have no prior version in git history, so pixel_md5_pre cannot be computed. Coverage gap: pre-regen pixel content cannot be confirmed for these two entries; only the post-regen state (pixel_md5_post) is authoritative. The current on-disk MD5 for both is 909dd37c701df336e89e67a5e5ebf6ba, recorded as pixel_md5_post in baseline_regen_log.json and verified by tests/fixtures/verify_baseline_pixel_equivalence.py (pipeline 3e7c1a05). Fix: no actionable fix — the pre-state simply does not exist in git history. -- OPEN (3e7c1a05 phase-3)
+
+#   P-GAP-61: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 16 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-70: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 17 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-71: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 18 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-72: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 19 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-73: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 20 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-74: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 21 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-75: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 22 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-76: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 23 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-77: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 24 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-78: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 25 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-79: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 26 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+P-GAP-80: tests/ui_automation/test_winappdriver_smoke.py 2 failures -- INVESTIGATED in pipeline f8a12c4d phase-4. WinAppDriver service starts and returns /status OK. Session creates. But GET /title returns HTTP 501 Not Implemented — Appium-Python-Client or WinAppDriver version incompatibility. Root cause is API compatibility, not service availability. -- BLOCKED-EXTERNAL (WinAppDriver API limitation).
+
+#   P-GAP-81: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 27 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-82: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 28 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-83: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 29 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-84: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 30 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-85: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 31 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-86: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 32 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-87: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 33 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-88: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 34 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-89: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 35 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-90: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 36 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-91: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 37 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-92: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 38 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-93: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 39 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-94: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 40 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-95: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 41 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-96: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 42 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-97: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 43 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-98: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 44 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-99: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 45 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-100: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 46 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-101: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 47 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-102: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 48 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-103: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 49 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+#   P-GAP-104: ARCHIVED (resolved) 2026-09-16, pipeline p86-followups phase-6 -- full verbatim text preserved as entry 50 of docs/audit/p86-followups/phase-6/known-weak-tests-resolved-archive-2026-09-16.md
+
+# ---------------------------------------------------------------------------
+# Pipeline 3e9b1d7c closeout (phase-8)
+# ---------------------------------------------------------------------------
+# Pipeline 3e9b1d7c worked through the 23-item backlog documented in
+# tests/docs/post_f7c2a4e8_followups.md across 8 phases. Per-item status:
+#
+# Theme A (Dialog UIA exposure):
+#   A1 RESOLVED in phase-2 (commit 4821eb1 pre-pipeline + phase-2 of 3e9b1d7c):
+#     PreferencesDialog tab widget renamed objectName "preferencesTabs",
+#     activateToolByObjectName wraps action->trigger in QTimer::singleShot(0)
+#     to avoid blocking on modal QDialog::exec(). The 4 widget-reachability
+#     tests for hidden widgets reclassified to P-GAP-104 DEFERRED.
+#   A2-A4 RESOLVED in phase-2 via the unified _MENU_TO_ACTION dispatch table
+#     and testToolActivatePipe preference over UIA menu walks.
+#
+# Theme B (xfail cleanup):
+#   B1 PARTIAL — phase-8 sweep confirms 28 passing in test_page_operations_p1.py
+#     and others. B2 P-GAP-96 flaky pair retained with strict=False markers
+#     (the established stance).
+#
+# Theme C (Pages workflows):
+#   C1 RESOLVED in phase-5 (commits c874ee4, 7171105, b0923c8): 5 new tests
+#     for move_up/down/to_start + Insert From File + Insert Blank, all PASS.
+#   C2 PARTIAL in phase-7 (commits 24b770d, 50824c0, 23d4cb9): 10 of 13
+#     marked tests converted to PASS in test_page_operations_p1.py. 2
+#     remaining xfails are P-GAP-104 multi_select DEFERRED.
+#   C3 RESOLVED in phase-3: CalculationOrderDialog::moveProgrammatic
+#     Q_INVOKABLE seam added, UIA Name issue debugged + fix.
+#
+# Theme D (Synthetic events):
+#   D1 covered by f7c2a4e8 phase-3 pipes (testCanvasDragPipe etc.)
+#   D2 DEFERRED in phase-4 (tests/docs/synthetic_event_research.md): 4
+#     approaches evaluated, none feasible without major architecture
+#     change; Win32 SendInput is the only viable option, costs 2-4 hours
+#     per test. P-GAP-98 retained DEFERRED with audit trail.
+#
+# Theme E (Security coverage):
+#   E1-E4 RESOLVED in phase-6 (commit 62c185b + 0269da9): 3 new tests
+#     (redaction roundtrip with pymupdf byte verifier, hostile-JS sandbox
+#     with psutil pre-launch baseline, weak-password OK-button disable
+#     enforced at Qt layer). C++ EncryptionDialog::validateInput updated
+#     with 8-char min length. P-GAP-78 signature reasons refined.
+#
+# Theme F (Chronic flakes):
+#   F1 P-GAP-74 atlas timing (17 tests) RESOLVED pipeline a7c4f891
+#     phase-5: testToolActivatePipe + testClickByPdfCoordPipe +
+#     testAtlasReadyPipe implemented; file-level xfail removed.
+#   F2 P-GAP-79 search/replace DEFERRED with refined root cause: needs
+#     testSearchReplacePipe Q_INVOKABLE seam (Qt spontaneity family).
+#   F3 P-GAP-82 bookmark panel DEFERRED with refined root cause: needs
+#     fixture with PDF outline/bookmarks OR testInsertBookmarkPipe.
+#   F4 P-GAP-84 view rotate DEFERRED with refined root cause: needs
+#     testCanvasRotationQueryPipe seam for canvas_->viewRotation() readback.
+#
+# Theme G (Security cases — see Theme E):
+#   G1-G4 covered by phase-6 (E1-E4) — see above.
+#
+# Theme H (Test infra + documentation):
+#   H1 STALE matrix audit DEFERRED in phase-8 — not blocking; the
+#     ui_test_matrix.csv has been organic and the live matrix CSV
+#     generated by conftest is the authoritative ground truth.
+#   H2 test_strategy.md count discrepancy note DEFERRED — recorded in
+#     pipeline closeout commit instead.
+#
+# Closeout final counts (phase-8):
+#   C++ suite: 3595 ran / 3593 PASSED / 0 FAILED / 2 SKIPPED.
+#   Python full sweep (sweep_runner.py over 86 test files, 11381.6s wall):
+#     PASSED:      2115
+#     FAILED:      9 (see P-GAP-105 + phase-8 sweep-discovery breakdown below)
+#     SKIPPED:    137
+#     ERRORS:       0
+#     XFAILED:     34
+#     XPASSED:      4
+#     CRASHED_FILES: 4 (4 files exit non-zero — same family as
+#                       individual-test crashes; not new failures)
+#   0 orphan PDFE.exe processes confirmed post-sweep.
+#
+# Phase-8 sweep-discovery breakdown (9 FAILED):
+#   - 2 test_security_compliance_p1.py[sec_encrypt_aes_256_set/reopen]:
+#     REGRESSION from E4 (8-char password minimum). Used "userpw"/"ownerpw"
+#     (6/7 chars). Fixed in phase-8 closeout — passwords bumped to
+#     "userpw12"/"ownerpw1" to match the new contract. Will pass on
+#     re-sweep.
+#   - 2 test_phase7_new_features.py[TestSignDialogTSA::test_tsa_*]:
+#     SignDialog::tsaCheckBox + tsaUrlEdit hidden until Use-TSA toggle.
+#     Same hidden-by-design family as P-GAP-104. Xfailed in conftest.
+#   - 1 test_broader_phase_post.py[test_view_rotate_cw_90]:
+#     Same P-GAP-84 family (canvas viewRotation accessor not exposed).
+#     Xfailed in conftest.
+#   - 5 tests/visual/test_visual_baselines.py[test_baseline_*]:
+#     P-GAP-105 pre-existing baseline drift, SSIM 0.27-0.67 vs 0.95
+#     threshold. Cannot xfail from ui_automation/conftest.py (visual/
+#     is outside that conftest's scope). Documented as P-GAP-105.
+#
+# P-GAP-105 (NEW in pipeline 3e9b1d7c phase-8):
+#   tests/visual/test_visual_baselines.py 5 baseline-comparison tests
+#   drift from stored references (SSIM 0.2690-0.6747 vs 0.95 threshold,
+#   pixel_fraction 0.2505-0.3727 vs 0.05 threshold). Pre-existing from
+#   rendering / Qt theme / OS DPI variations since baselines were last
+#   captured. NOT a regression from this pipeline's work. Fix path:
+#   regenerate baselines via the existing capture script, OR add a
+#   tests/conftest.py xfail dict for these test_ids, OR raise the
+#   SSIM tolerance to ~0.7 to absorb font-hinting noise. DEFERRED.
+
+# ---------------------------------------------------------------------------
+# Pipeline a7c4f891 closeout (all 8 phases complete)
+# ---------------------------------------------------------------------------
+# Pipeline a7c4f891 worked through the 30-item backlog documented in
+# tests/docs/post_3e9b1d7c_followups.md across 8 phases:
+#
+# Phase 1: A1-A4 (test integrity + small UI fixes) — RESOLVED
+# Phase 2: D2-D4 (test infra seams) — RESOLVED
+# Phase 3: E1-E5 (old PARTIAL items) — RESOLVED
+# Phase 4: B1-B7 (critical/high security tests) — RESOLVED
+# Phase 5: D1+E3 (atlas readiness pipe) — RESOLVED
+# Phase 6: B8-B12 (medium security tests) — RESOLVED
+# Phase 7: C1+C2 (UI matrix P0 gaps) — RESOLVED
+# Phase 8: C3+C4 (UI matrix P1 gaps + closeout) — RESOLVED
+#
+# All 30 items (A1-A4, B1-B12, C1-C4, D1-D4, E1-E5) have status
+# RESOLVED in post_3e9b1d7c_followups.md final disposition table.
+#
+# C++ suite final: 3630 PASSED / 0 FAILED / 2 SKIPPED (3632 total)
+# The 2 SKIPPED are pre-existing: P-COV-1 + P-COV-2 (fixture gaps).
+#
+# No new KNOWN_WEAK entries added by this pipeline.
+# Entry count unchanged: same as pre-pipeline baseline.
+
+# ---------------------------------------------------------------------------
+# GitHub #136 -- UI-harness races (pipeline p84-remaining-open phase-5,
+# 2026-09-12)
+# ---------------------------------------------------------------------------
+# No NEW weak entries. Three corrections to what is already here:
+#
+# * P-GAP-96 above lists annot_textmarkup_set_color as RESOLVED. It was
+#   RE-BLOCKED afterwards under CI-LIMITATION-COLORDIALOG-TIMING and has only
+#   now genuinely been fixed -- by replacing the UIA
+#   descendants(control_type="Window") dialog hunt with Win32 EnumWindows
+#   (tests/helpers/modal_dialog.py). 3/3 consecutive passes. Its old oracle
+#   was also vacuous (it asserted the hex field echoed back the string the
+#   test had typed into it) and is now a reopen-readback of the annotation
+#   model. See tests/docs/known_issues.md.
+#
+# * P-GAP-104 records multi-select (Ctrl/Shift+click) as RESOLVED via Win32
+#   SendInput -- that is the test_ui_sendinput.py family. The
+#   ui_automation matrix rows page_multi_select_ctrl_click /
+#   _shift_click were a DIFFERENT skip and stayed blocked until now; they
+#   are fixed by the PagePanel readiness seam
+#   (PagePanel::panelItemCount + testPagePanelReady pipe pair), which
+#   replaces the hand-picked ListItem FLOOR in _wait_page_items. 3/3 passes.
+#
+# * CI-LIMITATION-VISUAL-REGRESSION-SESSION-DRIFT is RESOLVED too, and there
+#   was never any "session drift": the 10 rows failed in the interactive
+#   session the baselines were supposedly captured in, at 45% of pixels
+#   differing. The capture region was a FRACTION of the window while the dock
+#   widths come from per-user restoreState(). Fixed by pinning the layout
+#   (PDFE_TEST_DETERMINISTIC_LAYOUT) and reading the region from the new
+#   testCanvasRect seam, THEN rebaselining. Captures are now pixel-identical
+#   across launches (SSIM 1.000000 / pixel_fraction 0.000000), so the SSIM
+#   floor went UP 0.85 -> 0.99 and the pixel floor DOWN 0.05 -> 0.001: a
+#   one-pixel PAGE_GAP mutant survived the old thresholds and dies on the new
+#   ones. All 14 rows un-xfailed, 3/3 passes. See known_issues.md.
+#
+# * Two defects were hiding behind that banner and are now fixed:
+#   test_new_file_action_creates_blank_document asserted the exact INVERSE of
+#   CliTest.NewFile_TitleShowsUntitledNotTheGeneratedTempName, and
+#   test_previous_page_returns had its SSIM floor lowered 0.85 -> 0.80 to
+#   absorb what turned out to be a real, exactly reproducible 10 px scroll
+#   offset (PdfCanvas::PAGE_GAP) after PGUP -- now asserted explicitly.
+
+# ---------------------------------------------------------------------------
+# GitHub #186 -- test_previous_page_returns, 1-in-9 failure at the FIRST PGDN
+# Re-measured 2026-09-15, pipeline p85-remaining-open phase 6. NOT WEAK.
+# ---------------------------------------------------------------------------
+#
+# MEASURED: 9 consecutive standalone runs on an unmodified tree, 9 passed /
+# 0 failed (38 s each). The issue's own bar for "fixed" is a repeated run of
+# >= 9 iterations with 0 failures, so this row is a RECORD, not a quarantine:
+# the test is not xfailed, not retried and not skipped, and nothing about it
+# was weakened.
+#
+# The original 1-in-9 was observed once, during p84 phase 5, and was never
+# reproduced (8 runs then, 9 more now, 17 total without a recurrence).
+#
+# THE SUSPECTED MECHANISM WAS REAL AND HAS BEEN REMOVED. #186 named
+# SelectTool::onKeyPress's early return on `!page_` as the candidate: Qt
+# delivers key events already ACCEPTED, and PdfCanvas::keyPressEvent takes its
+# early-out on event->isAccepted() immediately after asking the tool, so a
+# bare `return` there SWALLOWS PageDown instead of letting canvas navigation
+# run. The same defect had already been found and fixed at the BOTTOM of that
+# function -- the guard at the top kept the old bare return. It now calls
+# event->ignore() on every exit path.
+#
+# Honest limit, stated rather than glossed: that is a mechanism ELIMINATED,
+# not a root cause CONFIRMED. Nothing proves `page_` was ever transiently null
+# in the live app (setPage() runs on every tool install and
+# PdfCanvas::setDocument() precedes it), and a single unreproduced failure
+# cannot be attributed to a specific mechanism after the fact. What can be
+# said is that the one mechanism capable of producing exactly this symptom --
+# a silently eaten first PGDN -- is now unreachable, and is pinned by
+# SelectToolEnhancedTest.UnboundToolIgnoresNavigationKeysInsteadOfEatingThem
+# (mutation-verified: restoring the bare return reddens it and nothing else).
+#
+# If it recurs, the next thing to examine is NOT SelectTool.
+
+# ===================================================================
+# Pipeline p86-followups phase-6 (2026-09-16) - re-derived from the
+# MECHANISM, not from the narrative
+# ===================================================================
+#
+# Every entry below was found by reading the live enforcement surfaces,
+# not by trusting this file's prose:
+#   * tests/ui_automation/conftest.py  _PHASE7_XFAIL_FILES = {} and
+#     _PHASE8_XFAIL_TEST_IDS = {} - BOTH ARE EMPTY. Every xfail this file
+#     used to describe as "xfail in pipeline ..." was removed by a later
+#     pipeline. Those entries are archived, not live.
+#   * inline @pytest.mark.xfail / @pytest.mark.skip decorators in
+#     tests/ui_automation/*.py - these ARE live and were NOT tracked here.
+#   * the committed matrix census in
+#     tests/ui_automation/matrix/ui_test_matrix.csv:
+#     green=746, wont-fix=33, xfail=6, skip=2.
+#
+# The 6 matrix xfail rows and 2 matrix skip rows had NO entry in this
+# registry at all, which is the defect this section closes: an untracked
+# weak test is exactly what this file exists to prevent.
+#
+# gtest-layer flakes are deliberately NOT duplicated here. They live in
+# tools/gate/flaky_quarantine.json, which is machine-readable, carries an
+# expiry per entry, and is enforced on every push by
+# check_flaky_quarantine.py in fast-checks.yml. Duplicating them into this
+# prose registry would create precisely the two-sources-disagreeing problem
+# this phase was asked to remove. That registry currently holds three
+# entries, each with a measured cause:
+# MainWindowIntegrationTest.ZoomComboExists (cumulative single-process Qt
+# resource artifact after ~3900 tests),
+# ComplianceConverterPublishTocttou.Poisoning... (poll race: the attacker
+# thread never sampled, so the property never got the chance to be
+# violated), and
+# ClipboardNativeFormatsTest.PlainTextCopyPublishesUnicodeTextButNoBitmap
+# (rdpclip races the OpenClipboard/SetClipboardData pair and swallows the
+# clipboard WRITE). All three expire 2026-12-31.
+
+P-P86-XFAIL-1: tests/ui_automation/test_canvas_click_tre.py::test_txt_tre_edit_regular_font -- RESOLVED (pipeline p87 phase-4). The xfail is GONE and the test asserts. The original diagnosis was correct and is worth keeping: OCR was never the problem (TEXT_EDIT_READY|9 reported correctly), the break was the click -> spanActivated hop. Fix: a testSpanActivatePipe / testSpanActivateResultPipe pair on MainWindow that calls TextEditTool::selectSpanForTesting(), which invokes the PRODUCTION selectSpan() and so emits the real spanActivated -- the seam the xfail reason itself asked for. The test names a span by INDEX rather than a coordinate, removing a second way to fail that the test is not about. MUTATION-VERIFIED: asking for span 999 reddens it with verdict 'err|bad-span-index'; unmutated it passes in 46s. NOTE the function name in the old entry ('test_canvas_click_tre') never existed. -- CLOSED  [tracker: GitHub #219]
+
+P-P86-XFAIL-2: tests/ui_automation/test_render_images.py::test_mixed_dpi_region_not_smeared AND tests/ui_automation/test_render_oracle_proof.py::test_mixed_dpi_region_not_smeared -- RESOLVED (pipeline p94 phase-3). Both xfail markers are GONE and both probes assert. This entry passed through THREE causes and it matters which were fixed and which merely stopped reproducing, because they are not the same claim. (1) FIXED: the recomposite was never reached, because MainWindow gates it on spanInfo.isOcrInvisibleLayer() -- a font name containing 'glyphless' -- and mixed_dpi_page.pdf had NO font resources at all (get_fonts() == []). The fixture now carries a generated glyphless OCR layer, and the earlier diagnosis ('timing is not deterministic under automation') was wrong: the recomposite-complete seam that diagnosis asked for is exactly what disproved it. (2) NOT REPRODUCING, NEVER FIXED: the '0.0 baseline sharpness from the crop pipeline' recorded 2026-09-22 measures 2.18 on this rig with the OLD fixture as well as the new one, so it was never fixture-dependent and nothing here addressed it. It is not closed by a fix; it is simply absent, and the `sharp_before > 0.0` assertion in the probe is the standing guard that catches it if it returns. Do not record this half as fixed. (3) FIXED, GitHub #262: after a SUCCESSFUL recomposite the region's pixels did not change at all (changed=False, sharpness 2.18 -> 2.18). Cause: PdfContentWriter::findPageImageXObject() chose the write-back target by pixel area alone -- 'find largest image XObject' -- so an edit over the 150-DPI thumbnail was committed into the 300-DPI photo beneath it, which the thumbnail (drawn second) then painted over. It was NOT defect #2: #2 predicts changed-but-smeared, per-region DPI was already correct, and Page::sourceImageDpiAt() had been doing the region-aware selection this writer lacked all along. Fix: findImageXObjectForRegion(), placement-relative coordinate mapping, and a post-write rendered-pixel check so an invisible recomposite reports FAILED rather than DONE. Headless oracles: tests/test_recomposite_writes_visible_pixels.cpp (11 cases incl. a parametrised arrangement suite). MUTATION-VERIFIED via tests/scripts/mutations/p94_phase3.json. Analysis: docs/audit/dca/0105-a-success-reported-without-checking-the-thing-it-claims.md. -- CLOSED  [tracker: GitHub #262]
+
+P-P86-XFAIL-3: tests/ui_automation/test_render_text_edit.py::test_scanned_page_text_edit_changes_canvas -- RESOLVED (fixture fixed in e397de51, 2026-09-25; verified p94 phase-3). The xfail marker is GONE and the test asserts. ORIGINAL CAUSE, now fixed: test_scanned_with_ocr.pdf's only font resource was Helvetica, not a glyphless OCR font, so isOcrInvisibleLayer() was false for every span and the ImageReplacer recomposite never engaged -- MEASURED 2026-09-17, 6 of 32 spans probed, all answering RECOMPOSITE_SKIPPED|span-not-ocr-invisible. Commit e397de51 regenerated BOTH OCR-layer fixtures with a real glyphless font (see docs/audit/dca/0095-two-fixtures-named-for-an-ocr-layer-that-neither-carried.md). RE-MEASURED 2026-09-29 on the current tree: the fixture's font resource is GlyphLessFont (TrueType) across all 42 spans, and running the probe live leaves RECOMPOSITE_DONE|0|5|ok in the status file -- a fresh sequence number, so the recomposite genuinely engaged and completed. The test's own assertion status == RECOMPOSITE_DONE would have failed had it been skipped, so this is not a vacuous pass. A CORRECTION TO A CORRECTION, recorded because the mistake is the one this file exists to prevent: p94 phase-3 first rewrote this entry to claim the test 'passes without reaching the recomposite' and filed GitHub #267 on that basis. That was the 2026-09-17 measurement repeated as though it were current, four days after the fixture was fixed and without re-checking it. The karen gate caught it. #267 is closed as invalid. Reading a registry entry is not measuring the tree. -- CLOSED  [tracker: GitHub #218]
+
+P-P86-XFAIL-4: tests/ui_automation/test_render_view_nav.py dark-theme canvas repaint probe -- RESOLVED (pipeline p87 phase-3). The xfail is GONE; the case is now the plain positive assertion test_theme_toggle_repaints_canvas_gap20. CORRECTION TO THE ORIGINAL DIAGNOSIS: the "24 sequential launches, settled frames PIXEL-IDENTICAL" evidence was real but was read one step too early. The probe drove themeToggleAction, whose checked state was seeded from nothing and started UNCHECKED regardless of the PERSISTED theme, so a run that launched already in Dark toggled to Dark and changed nothing - identical frames meant the action did not fire, not that the canvas ignores the palette. Three real defects were found and fixed underneath it: (1) themeToggleAction's checked state is now synced to the effective theme, so the toggle is a toggle (MainWindow.cpp); (2) ThemeManager::paletteFor(Dark) never set the five SHADE roles, so QPalette::Dark - the role PdfCanvas::paintEvent fills its viewport with - kept its light-mode value (ThemeManager.cpp); (3) AccessibilityHelper::isHighContrastMode()'s fallback heuristic classified ANY palette above WCAG AAA (7.0) as a Windows High-Contrast theme, which both of PDFE's themes clear (18.3 and 12.3), so it was permanently true and adaptColor discarded the canvas's shade role before it reached a pixel (AccessibilityHelper.cpp). The new probe drives themeLightAction/themeDarkAction explicitly so it never measures the previous run's persisted state. Covered headlessly by tests/test_panel_raise_and_canvas_theme.cpp. -- CLOSED  [tracker: GitHub #217]
+
+P-P86-SKIP-1: tests/ui_automation/test_new_coverage_f7c2a4e8.py::test_f2b_select_pages_then_extract -- RESOLVED (pipeline p87 phase-4). The unconditional skip is GONE and the test asserts on the WRITTEN FILE. The karen f7c2a4e8 review was right on both counts, and both were addressed rather than argued away: the UIA menu walk is replaced by a testExtractPipe / testExtractResultPipe pair mirroring testSaveAsPipe, and the oracle opens the extracted file with pymupdf and counts pages, cross-checked against the 3-page source so a whole-document copy cannot pass as a 2-page extract. MUTATION-VERIFIED: requesting '0,1,2' instead of '0,2' reddens it with 'ok|3' != 'ok|2'. -- CLOSED  [tracker: GitHub #220]
+
+P-P86-MAT-1: 3 rows in tests/ui_automation/matrix/ui_test_matrix.csv -- MAT-2 canvas rubber-band, canvas scroll, canvas gesture -- 2 RESOLVED, 1 RECLASSIFIED (pipeline p87 phase-4). The stale P-GAP-92 citation is corrected in the CSV. canvas_rubber_band and canvas_scroll_wheel are now real asserting tests in tests/ui_automation/test_ui_canvas_gestures_mat2_live.py, driven through the existing testCanvasDragPipe / testScrollPipe seams and asserted through the view-state seam (selCount, scrollY) with a pre-gesture control value; MUTATION-VERIFIED by a degenerate zero-area drag (selCount 0, expected >=2) and a zero-pixel wheel (scrollY unchanged). canvas_gesture_multiselect is NOT a harness limitation at all: Ctrl+click additive annotation selection IS NOT IMPLEMENTED -- SelectTool::onMousePress clears selectedAnnotIndices_ unconditionally on a hit (SelectTool.cpp:293-294) and never reads event->modifiers(); the rubber band is the only producer of a multi-selection. No seam can make that row pass. Recorded as PDFE-LIMITATION-NO-CTRL-CLICK-MULTISELECT in tests/docs/known_issues.md. -- OPEN (1 of 3, product gap not test gap)  [tracker: GitHub #221]
+
+P-P86-MAT-2: 3 rows in tests/ui_automation/matrix/ui_test_matrix.csv with status=xfail -- P-GAP-C1-IMG2PDF (ImageToPdfWizard) -- MEASURED CAUSE: ImageToPdfWizard::runInteractive() is a static utility that opens QFileDialog directly and constructs no custom dialog, so there is no PDFE-owned widget tree to audit and no objectName contract to assert against. This is the BLOCKED-EXTERNAL Qt-supplied-dialog class described in tests/docs/test_strategy.md section 3. Not previously tracked in this registry at all. Fix path: none at the UI layer; if the wizard ever grows a custom page, the rows become auditable. -- OPEN (BLOCKED-EXTERNAL)
+
+P-P87-FLAKY-1: tests/ui_automation/test_canvas_click_subsystems.py::test_atlas_mode_combo_set_persist -- MEASURED CAUSE: FLAKY, not deterministic. Failed 2 of 3 runs on 2026-09-17 on an unchanged tree, always with 'AtlasComparisonDialog unreachable'; the third run passed and the whole 5-test suite was green. NOT caused by p87 phase-4 -- verified by reverting that phase's two selector edits in the file and re-running, which failed identically. The failure is a RECORDED non-pass (record_matrix_result 'blocked' then pytest.fail), so it is not a false green, but an intermittent red in a suite whose other four tests share the same prerequisite chain leaves those rows unexercised whenever it fires early. HYPOTHESIS (not established): _activate_text_edit_tool confirms OCR via TEXT_EDIT_READY|N, so the marginal step is the single synthetic click at the hard-coded WORD_POINT_PDF -> spanActivated hop -- the same mechanism GitHub #219 measured and closed for test_canvas_click_tre.py, in a suite #219 did not cover. A FIX WAS ATTEMPTED AND REVERTED: routing activation through testSpanActivatePipe with a raw set_edit_text() turned 1 failure into 5 plus a COMError from pywinauto uia_controls.py:462. Retry with pdfe_app_fixture.write_pipe(), which has the fallbacks for a zero-size QLineEdit, and re-run the WHOLE file -- the regression was invisible from the single test. -- OPEN  [tracker: GitHub #227]
+
+P-P86-MAT-3: 2 rows in tests/ui_automation/matrix/ui_test_matrix.csv -- sendinput_ctrl_click, sendinput_shift_click -- CAUSE CORRECTED AND RESOLVED (pipeline p87 phase-4). The recorded cause ('needs multi-page fixture') was wrong twice over. tests/fixtures/test_multipage.pdf EXISTS and has 5 pages, more than the 2 and 3 the two tests need, and both tests were already running and PASSING -- on `assert session.proc.poll() is None`, a liveness check that passes whether the gesture selected two pages, one page or nothing. The real gap was the absence of an oracle: there was a pipe to SET a page selection (testSelectPagesPipe) and none to READ one. Fixed by adding testSelectedPagesQueryPipe / testSelectedPagesResultPipe, and both tests now assert the actual selected index set. This entry is a caution about its own genre: a row whose stated blocker is a missing fixture is cheap to believe and was believed for two pipelines. -- CLOSED  [tracker: GitHub #222]

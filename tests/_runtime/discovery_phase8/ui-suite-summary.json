@@ -1,0 +1,1033 @@
+{
+  "files_run": 110,
+  "wall_clock_s": 22710.6,
+  "totals": {
+    "tests": 3369,
+    "failures": 11,
+    "errors": 0,
+    "skipped": 427,
+    "time": 20325.658999999992
+  },
+  "failure_count": 11,
+  "per_file": [
+    {
+      "file": "tests/test_ui_annotations.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_annotations.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_annotations.log",
+      "returncode": 0,
+      "elapsed_s": 1376.5,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_annotations_smoke.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_annotations_smoke.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_annotations_smoke.log",
+      "returncode": 0,
+      "elapsed_s": 29.5,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_canvas_coords_sendinput.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_canvas_coords_sendinput.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_canvas_coords_sendinput.log",
+      "returncode": 0,
+      "elapsed_s": 56.4,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_canvas_functional_sendinput.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_canvas_functional_sendinput.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_canvas_functional_sendinput.log",
+      "returncode": 0,
+      "elapsed_s": 93.5,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_canvas_sendinput.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_canvas_sendinput.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_canvas_sendinput.log",
+      "returncode": 0,
+      "elapsed_s": 59.9,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_chrome_smoke.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_chrome_smoke.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_chrome_smoke.log",
+      "returncode": 0,
+      "elapsed_s": 119.1,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_compliance_accessibility.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_compliance_accessibility.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_compliance_accessibility.log",
+      "returncode": 0,
+      "elapsed_s": 1580.6,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_e2e_workflows.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_e2e_workflows.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_e2e_workflows.log",
+      "returncode": 0,
+      "elapsed_s": 67.1,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_encryption_signatures.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_encryption_signatures.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_encryption_signatures.log",
+      "returncode": 0,
+      "elapsed_s": 470.0,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_file_operations.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_file_operations.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_file_operations.log",
+      "returncode": 0,
+      "elapsed_s": 592.8,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_forms.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_forms.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_forms.log",
+      "returncode": 0,
+      "elapsed_s": 975.7,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_forms_smoke.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_forms_smoke.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_forms_smoke.log",
+      "returncode": 0,
+      "elapsed_s": 30.5,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_harness_smoke.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_harness_smoke.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_harness_smoke.log",
+      "returncode": 0,
+      "elapsed_s": 17.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_hidden_widgets_e2e.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_hidden_widgets_e2e.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_hidden_widgets_e2e.log",
+      "returncode": 0,
+      "elapsed_s": 65.8,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_image_redaction_smoke.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_image_redaction_smoke.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_image_redaction_smoke.log",
+      "returncode": 0,
+      "elapsed_s": 25.6,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_js_sandbox.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_js_sandbox.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_js_sandbox.log",
+      "returncode": 0,
+      "elapsed_s": 13.9,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_specimen_a_green_subset.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_specimen_a_green_subset.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_specimen_a_green_subset.log",
+      "returncode": 0,
+      "elapsed_s": 21.5,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_leak_detection.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_leak_detection.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_leak_detection.log",
+      "returncode": 0,
+      "elapsed_s": 86.9,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_menu_full_walk.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_menu_full_walk.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_menu_full_walk.log",
+      "returncode": 0,
+      "elapsed_s": 243.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_page_operations.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_page_operations.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_page_operations.log",
+      "returncode": 0,
+      "elapsed_s": 905.5,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_page_ops_smoke.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_page_ops_smoke.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_page_ops_smoke.log",
+      "returncode": 0,
+      "elapsed_s": 14.9,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_pdfe_smoke.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_pdfe_smoke.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_pdfe_smoke.log",
+      "returncode": 0,
+      "elapsed_s": 4.7,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_preferences_chrome.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_preferences_chrome.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_preferences_chrome.log",
+      "returncode": 0,
+      "elapsed_s": 842.0,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_redaction.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_redaction.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_redaction.log",
+      "returncode": 0,
+      "elapsed_s": 559.5,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_redaction_roundtrip.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_redaction_roundtrip.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_redaction_roundtrip.log",
+      "returncode": 0,
+      "elapsed_s": 36.7,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_security.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_security.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_security.log",
+      "returncode": 0,
+      "elapsed_s": 13.7,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_security_smoke.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_security_smoke.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_security_smoke.log",
+      "returncode": 0,
+      "elapsed_s": 35.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_sendinput.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_sendinput.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_sendinput.log",
+      "returncode": 0,
+      "elapsed_s": 39.7,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_stress.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_stress.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_stress.log",
+      "returncode": 0,
+      "elapsed_s": 1097.8,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_text_edit.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_text_edit.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_text_edit.log",
+      "returncode": 0,
+      "elapsed_s": 40.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_text_edit_selection.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_text_edit_selection.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_text_edit_selection.log",
+      "returncode": 0,
+      "elapsed_s": 35.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_text_edit_smoke.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_text_edit_smoke.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_text_edit_smoke.log",
+      "returncode": 0,
+      "elapsed_s": 25.6,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_text_edit_undo.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_text_edit_undo.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_text_edit_undo.log",
+      "returncode": 0,
+      "elapsed_s": 40.4,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_text_editing.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_text_editing.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_text_editing.log",
+      "returncode": 0,
+      "elapsed_s": 908.7,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_titlebar_icon.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_titlebar_icon.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_titlebar_icon.log",
+      "returncode": 0,
+      "elapsed_s": 12.8,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_view_navigation.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_view_navigation.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_view_navigation.log",
+      "returncode": 0,
+      "elapsed_s": 729.8,
+      "timed_out": false
+    },
+    {
+      "file": "tests/test_ui_widget_smoke.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_widget_smoke.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__test_ui_widget_smoke.log",
+      "returncode": 0,
+      "elapsed_s": 5.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_annotations_p1.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_annotations_p1.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_annotations_p1.log",
+      "returncode": 0,
+      "elapsed_s": 402.9,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_broader_phase_post.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_broader_phase_post.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_broader_phase_post.log",
+      "returncode": 0,
+      "elapsed_s": 25.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_canvas_click_subsystems.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_canvas_click_subsystems.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_canvas_click_subsystems.log",
+      "returncode": 0,
+      "elapsed_s": 471.1,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_canvas_click_tre.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_canvas_click_tre.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_canvas_click_tre.log",
+      "returncode": 0,
+      "elapsed_s": 138.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_canvas_coords_p2.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_canvas_coords_p2.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_canvas_coords_p2.log",
+      "returncode": 0,
+      "elapsed_s": 73.0,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_canvas_phase3.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_canvas_phase3.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_canvas_phase3.log",
+      "returncode": 0,
+      "elapsed_s": 34.8,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_canvas_phase4.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_canvas_phase4.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_canvas_phase4.log",
+      "returncode": 0,
+      "elapsed_s": 273.2,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_critical_flows_p0.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_critical_flows_p0.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_critical_flows_p0.log",
+      "returncode": 0,
+      "elapsed_s": 165.5,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_dialog_cache_unit.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_dialog_cache_unit.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_dialog_cache_unit.log",
+      "returncode": 0,
+      "elapsed_s": 5.2,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_dialog_reachability_p0.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_dialog_reachability_p0.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_dialog_reachability_p0.log",
+      "returncode": 1,
+      "elapsed_s": 397.8,
+      "timed_out": false,
+      "reruns_used": 2
+    },
+    {
+      "file": "tests/ui_automation/test_features_phase7.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_features_phase7.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_features_phase7.log",
+      "returncode": 0,
+      "elapsed_s": 219.9,
+      "timed_out": false,
+      "reruns_used": 1
+    },
+    {
+      "file": "tests/ui_automation/test_final_phase8.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_final_phase8.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_final_phase8.log",
+      "returncode": 0,
+      "elapsed_s": 70.2,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_flaui_bridge_unit.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_flaui_bridge_unit.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_flaui_bridge_unit.log",
+      "returncode": 0,
+      "elapsed_s": 7.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_follow_link_phase_post.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_follow_link_phase_post.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_follow_link_phase_post.log",
+      "returncode": 0,
+      "elapsed_s": 107.1,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_forked_marker_unit.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_forked_marker_unit.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_forked_marker_unit.log",
+      "returncode": 0,
+      "elapsed_s": 10.5,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_form_fields_p1.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_form_fields_p1.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_form_fields_p1.log",
+      "returncode": 0,
+      "elapsed_s": 311.5,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_forms_palette_phase_post.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_forms_palette_phase_post.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_forms_palette_phase_post.log",
+      "returncode": 0,
+      "elapsed_s": 100.0,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_harness_self_test.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_harness_self_test.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_harness_self_test.log",
+      "returncode": 0,
+      "elapsed_s": 9.2,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_menu_navigation_p0.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_menu_navigation_p0.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_menu_navigation_p0.log",
+      "returncode": 0,
+      "elapsed_s": 368.2,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_misc_phase_post.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_misc_phase_post.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_misc_phase_post.log",
+      "returncode": 0,
+      "elapsed_s": 63.1,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_missing_features_phase6.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_missing_features_phase6.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_missing_features_phase6.log",
+      "returncode": 0,
+      "elapsed_s": 139.5,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_new_coverage_f7c2a4e8.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_new_coverage_f7c2a4e8.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_new_coverage_f7c2a4e8.log",
+      "returncode": 0,
+      "elapsed_s": 113.4,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_page_operations_p1.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_page_operations_p1.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_page_operations_p1.log",
+      "returncode": 0,
+      "elapsed_s": 406.0,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_per_line_font_size_ui.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_per_line_font_size_ui.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_per_line_font_size_ui.log",
+      "returncode": 0,
+      "elapsed_s": 26.1,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_phase7_new_features.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_phase7_new_features.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_phase7_new_features.log",
+      "returncode": 0,
+      "elapsed_s": 254.2,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_precondition_panels_phase4.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_precondition_panels_phase4.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_precondition_panels_phase4.log",
+      "returncode": 0,
+      "elapsed_s": 700.1,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_preflight_phase_post.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_preflight_phase_post.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_preflight_phase_post.log",
+      "returncode": 0,
+      "elapsed_s": 33.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_remaining_preconditions_phase5.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_remaining_preconditions_phase5.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_remaining_preconditions_phase5.log",
+      "returncode": 0,
+      "elapsed_s": 423.6,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_render_annotations.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_annotations.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_annotations.log",
+      "returncode": 1,
+      "elapsed_s": 109.2,
+      "timed_out": false,
+      "reruns_used": 2
+    },
+    {
+      "file": "tests/ui_automation/test_render_coord_rotation.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_coord_rotation.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_coord_rotation.log",
+      "returncode": 1,
+      "elapsed_s": 11.0,
+      "timed_out": false,
+      "reruns_used": 2
+    },
+    {
+      "file": "tests/ui_automation/test_render_images.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_images.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_images.log",
+      "returncode": 0,
+      "elapsed_s": 45.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_render_ocr.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_ocr.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_ocr.log",
+      "returncode": 0,
+      "elapsed_s": 37.9,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_render_oracle_proof.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_oracle_proof.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_oracle_proof.log",
+      "returncode": 1,
+      "elapsed_s": 130.9,
+      "timed_out": false,
+      "reruns_used": 2
+    },
+    {
+      "file": "tests/ui_automation/test_render_page_ops.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_page_ops.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_page_ops.log",
+      "returncode": 1,
+      "elapsed_s": 60.9,
+      "timed_out": false,
+      "reruns_used": 2
+    },
+    {
+      "file": "tests/ui_automation/test_render_redaction.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_redaction.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_redaction.log",
+      "returncode": 1,
+      "elapsed_s": 31.7,
+      "timed_out": false,
+      "reruns_used": 2
+    },
+    {
+      "file": "tests/ui_automation/test_render_signatures.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_signatures.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_signatures.log",
+      "returncode": 0,
+      "elapsed_s": 50.0,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_render_text_edit.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_text_edit.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_text_edit.log",
+      "returncode": 1,
+      "elapsed_s": 186.4,
+      "timed_out": false,
+      "reruns_used": 2
+    },
+    {
+      "file": "tests/ui_automation/test_render_view_nav.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_view_nav.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_render_view_nav.log",
+      "returncode": 1,
+      "elapsed_s": 83.7,
+      "timed_out": false,
+      "reruns_used": 2
+    },
+    {
+      "file": "tests/ui_automation/test_security_compliance_p1.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_security_compliance_p1.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_security_compliance_p1.log",
+      "returncode": 0,
+      "elapsed_s": 359.2,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_security_e1_e4.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_security_e1_e4.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_security_e1_e4.log",
+      "returncode": 0,
+      "elapsed_s": 49.0,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_text_formatting_p2.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_text_formatting_p2.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_text_formatting_p2.log",
+      "returncode": 0,
+      "elapsed_s": 228.0,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_alt_text.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_alt_text.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_alt_text.log",
+      "returncode": 0,
+      "elapsed_s": 23.8,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_batch1_actions.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch1_actions.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch1_actions.log",
+      "returncode": 0,
+      "elapsed_s": 125.2,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_batch2_annotations.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch2_annotations.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch2_annotations.log",
+      "returncode": 0,
+      "elapsed_s": 244.9,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_batch2_forms.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch2_forms.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch2_forms.log",
+      "returncode": 0,
+      "elapsed_s": 336.8,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_batch2_images.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch2_images.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch2_images.log",
+      "returncode": 0,
+      "elapsed_s": 185.8,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_batch2_redaction.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch2_redaction.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch2_redaction.log",
+      "returncode": 0,
+      "elapsed_s": 48.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_batch2_scenarios.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch2_scenarios.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch2_scenarios.log",
+      "returncode": 0,
+      "elapsed_s": 99.5,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_batch2_text_edit.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch2_text_edit.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch2_text_edit.log",
+      "returncode": 0,
+      "elapsed_s": 163.0,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_batch3_actions.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch3_actions.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch3_actions.log",
+      "returncode": 0,
+      "elapsed_s": 121.1,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_batch3_flows.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch3_flows.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch3_flows.log",
+      "returncode": 0,
+      "elapsed_s": 117.9,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_batch3_preferences.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch3_preferences.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch3_preferences.log",
+      "returncode": 0,
+      "elapsed_s": 23.2,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_batch3_scenarios.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch3_scenarios.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_batch3_scenarios.log",
+      "returncode": 0,
+      "elapsed_s": 26.8,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_bookmark_panel.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_bookmark_panel.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_bookmark_panel.log",
+      "returncode": 0,
+      "elapsed_s": 24.2,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_calc_order.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_calc_order.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_calc_order.log",
+      "returncode": 0,
+      "elapsed_s": 22.7,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_comment_panel.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_comment_panel.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_comment_panel.log",
+      "returncode": 0,
+      "elapsed_s": 13.7,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_dialog_coverage.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_dialog_coverage.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_dialog_coverage.log",
+      "returncode": 0,
+      "elapsed_s": 145.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_encryption_flows.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_encryption_flows.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_encryption_flows.log",
+      "returncode": 0,
+      "elapsed_s": 70.6,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_encryption_flows_wad.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_encryption_flows_wad.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_encryption_flows_wad.log",
+      "returncode": 0,
+      "elapsed_s": 62.1,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_file_dialog_flows.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_file_dialog_flows.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_file_dialog_flows.log",
+      "returncode": 0,
+      "elapsed_s": 93.4,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_file_dialog_flows_wad.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_file_dialog_flows_wad.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_file_dialog_flows_wad.log",
+      "returncode": 0,
+      "elapsed_s": 102.4,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_follow_links.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_follow_links.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_follow_links.log",
+      "returncode": 0,
+      "elapsed_s": 87.5,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_form_palette.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_form_palette.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_form_palette.log",
+      "returncode": 0,
+      "elapsed_s": 41.2,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_ltv.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_ltv.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_ltv.log",
+      "returncode": 0,
+      "elapsed_s": 32.7,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_ocr_all_pages.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_ocr_all_pages.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_ocr_all_pages.log",
+      "returncode": 0,
+      "elapsed_s": 33.3,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_preferences.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_preferences.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_preferences.log",
+      "returncode": 0,
+      "elapsed_s": 15.9,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_recent_files.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_recent_files.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_recent_files.log",
+      "returncode": 0,
+      "elapsed_s": 27.7,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_search_replace.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_search_replace.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_search_replace.log",
+      "returncode": 0,
+      "elapsed_s": 39.4,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_sign_dialog.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_sign_dialog.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_sign_dialog.log",
+      "returncode": 0,
+      "elapsed_s": 30.9,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_statusbar.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_statusbar.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_statusbar.log",
+      "returncode": 0,
+      "elapsed_s": 12.1,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_theme.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_theme.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_theme.log",
+      "returncode": 0,
+      "elapsed_s": 25.8,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_ui_view_rotate.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_view_rotate.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_ui_view_rotate.log",
+      "returncode": 0,
+      "elapsed_s": 16.8,
+      "timed_out": false
+    },
+    {
+      "file": "tests/ui_automation/test_winappdriver_smoke.py",
+      "junit": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_winappdriver_smoke.xml",
+      "log": "tests/_runtime/discovery_phase8/per-file/tests__ui_automation__test_winappdriver_smoke.log",
+      "returncode": 0,
+      "elapsed_s": 15.1,
+      "timed_out": false
+    }
+  ],
+  "failures": [
+    {
+      "classname": "tests.ui_automation.test_dialog_reachability_p0",
+      "name": "test_p0_dialog_widget_reachable[dlg_commentPanel_commentContextMenu]",
+      "time_s": 7.002,
+      "kind": "failure",
+      "msg": "Failed: commentPanel.commentContextMenu: widget with suffix 'commentContextMenu' not found in commentPanel"
+    },
+    {
+      "classname": "tests.ui_automation.test_render_annotations",
+      "name": "test_rectangle_shape_changes_canvas",
+      "time_s": 18.434,
+      "kind": "failure",
+      "msg": "AssertionError: capture diverged from committed golden annot_rectangle_multispan.png (> 6% pixels differ)"
+    },
+    {
+      "classname": "tests.ui_automation.test_render_coord_rotation",
+      "name": "test_rotated_text_maps_on_screen",
+      "time_s": 8.749,
+      "kind": "failure",
+      "msg": "AssertionError: capture diverged from committed golden coord_rotation_page.png (> 8% pixels differ)"
+    },
+    {
+      "classname": "tests.ui_automation.test_render_oracle_proof",
+      "name": "test_vector_text_edit_visible",
+      "time_s": 36.125,
+      "kind": "failure",
+      "msg": "AssertionError: heading text collapsed after edit: top-half ink 0.168 -> 0.032 (kept 19%, need >= 60%); selection diag='86,13,0,7;0:16.4,45.9,67.2,12.0;1:16.4,75.2,89.9,12.0;2:16.4,89.8,101.4,12.0;3:1"
+    },
+    {
+      "classname": "tests.ui_automation.test_render_oracle_proof",
+      "name": "test_ctrl_z_reverts_canvas",
+      "time_s": 36.834,
+      "kind": "failure",
+      "msg": "AssertionError: heading not restored after Ctrl-Z: top-half ink 0.168 -> 0.083 (recovered 50%, need >= 60%); selection diag='86,13,0,7;0:16.4,45.9,67.2,12.0;1:16.4,75.2,89.9,12.0;2:16.4,89.8,101.4,12."
+    },
+    {
+      "classname": "tests.ui_automation.test_render_page_ops",
+      "name": "test_rotate_page_cw_changes_canvas",
+      "time_s": 11.096,
+      "kind": "failure",
+      "msg": "AssertionError: capture diverged from committed golden page_ops_rotate_cw_multispan.png (> 6% pixels differ)"
+    },
+    {
+      "classname": "tests.ui_automation.test_render_redaction",
+      "name": "test_redaction_mark_paints_on_canvas",
+      "time_s": 12.913,
+      "kind": "failure",
+      "msg": "AssertionError: capture diverged from committed golden redaction_mark_multispan.png (> 6% pixels differ)"
+    },
+    {
+      "classname": "tests.ui_automation.test_render_text_edit",
+      "name": "test_vector_text_edit_visible",
+      "time_s": 36.309,
+      "kind": "failure",
+      "msg": "AssertionError: heading collapsed after edit: ink 0.168 -> 0.032; diag='86,13,0,7;0:16.4,45.9,67.2,12.0;1:16.4,75.2,89.9,12.0;2:16.4,89.8,101.4,12.0;3:16.4,60.5,53.8,12.0;4:456.3,45.9,52.8,12.0;5:544."
+    },
+    {
+      "classname": "tests.ui_automation.test_render_text_edit",
+      "name": "test_vector_text_edit_undo_reverts",
+      "time_s": 33.732,
+      "kind": "failure",
+      "msg": "AssertionError: heading not restored after undo: ink 0.168 -> 0.083\nassert 0.08346374543557643 >= (0.6 * 0.16770996348461137)"
+    },
+    {
+      "classname": "tests.ui_automation.test_render_text_edit",
+      "name": "test_vector_text_edit_redo_stays_visible",
+      "time_s": 37.335,
+      "kind": "failure",
+      "msg": "AssertionError: heading invisible after redo: ink 0.168 -> 0.032\nassert 0.03155972874282734 >= (0.6 * 0.16770996348461137)"
+    },
+    {
+      "classname": "tests.ui_automation.test_render_view_nav",
+      "name": "test_rotate_page_cw_changes_canvas",
+      "time_s": 10.233,
+      "kind": "failure",
+      "msg": "AssertionError: capture diverged from committed golden view_nav_rotate_cw_multispan.png (> 6% pixels differ)"
+    }
+  ],
+  "files_with_problems_count": 8,
+  "files_with_problems": [
+    {
+      "file": "tests/ui_automation/test_dialog_reachability_p0.py",
+      "rc": 1,
+      "timed_out": false,
+      "elapsed_s": 397.8
+    },
+    {
+      "file": "tests/ui_automation/test_render_annotations.py",
+      "rc": 1,
+      "timed_out": false,
+      "elapsed_s": 109.2
+    },
+    {
+      "file": "tests/ui_automation/test_render_coord_rotation.py",
+      "rc": 1,
+      "timed_out": false,
+      "elapsed_s": 11.0
+    },
+    {
+      "file": "tests/ui_automation/test_render_oracle_proof.py",
+      "rc": 1,
+      "timed_out": false,
+      "elapsed_s": 130.9
+    },
+    {
+      "file": "tests/ui_automation/test_render_page_ops.py",
+      "rc": 1,
+      "timed_out": false,
+      "elapsed_s": 60.9
+    },
+    {
+      "file": "tests/ui_automation/test_render_redaction.py",
+      "rc": 1,
+      "timed_out": false,
+      "elapsed_s": 31.7
+    },
+    {
+      "file": "tests/ui_automation/test_render_text_edit.py",
+      "rc": 1,
+      "timed_out": false,
+      "elapsed_s": 186.4
+    },
+    {
+      "file": "tests/ui_automation/test_render_view_nav.py",
+      "rc": 1,
+      "timed_out": false,
+      "elapsed_s": 83.7
+    }
+  ]
+}

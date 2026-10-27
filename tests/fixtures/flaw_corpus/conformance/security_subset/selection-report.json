@@ -1,0 +1,151 @@
+{
+  "_what": "Selection of the structurally-valid subset of tests/security/corpus/ (GitHub #37).",
+  "_method": "tests/scripts/select_structurally_valid_corpus.py -- read its module docstring for the six rules and for why malicious_pdf/ is out of the population.",
+  "_not_claimed": "Structural validity is NOT safety, renderability or semantic correctness. It means only that a conforming reader need not RECONSTRUCT the cross-reference table.",
+  "rules": {
+    "S1": "%PDF-1.x / %PDF-2.x header at offset 0",
+    "S2": "%%EOF present",
+    "S3": "startxref operand is inside the file",
+    "S4": "the xref section at that offset parses strictly (table with in-range subsections, or an /Type /XRef stream)",
+    "S5": "/Root present in a trailer or xref-stream dictionary",
+    "S6": "at least one /Type /Page object"
+  },
+  "population": "git-tracked *.pdf under tests/security/corpus/",
+  "candidates": 8,
+  "accepted": 5,
+  "rejected": 3,
+  "destination": "tests/fixtures/flaw_corpus/conformance/security_subset",
+  "files": [
+    {
+      "source": "tests/security/corpus/pdfjs/GHOSTSCRIPT-698804-1-fuzzed.pdf",
+      "size": 627,
+      "sha256": "62e518ca7894e8b8b8ed9927da3007cdc5e9ccc5b111bbb22d6101d4a8d7490e",
+      "rules": {
+        "S1": true,
+        "S2": true,
+        "S3": true,
+        "S4": false,
+        "S5": true,
+        "S6": true
+      },
+      "failed_rules": [
+        "S4"
+      ],
+      "structurally_valid": false
+    },
+    {
+      "source": "tests/security/corpus/pdfjs/asciihexdecode.pdf",
+      "size": 743,
+      "sha256": "17cc92aa58ec48f75b01c6b6e7f8c8bade0a36f7295d0f833a16bafae854dc79",
+      "rules": {
+        "S1": true,
+        "S2": true,
+        "S3": true,
+        "S4": true,
+        "S5": true,
+        "S6": true
+      },
+      "failed_rules": [],
+      "structurally_valid": true
+    },
+    {
+      "source": "tests/security/corpus/pdfjs/bug1020226.pdf",
+      "size": 184,
+      "sha256": "50e91d373aa313537972519c65b050f8d4d5bd996859fa20756432c2029c3ff6",
+      "rules": {
+        "S1": true,
+        "S2": false,
+        "S3": false,
+        "S4": false,
+        "S5": true,
+        "S6": false
+      },
+      "failed_rules": [
+        "S2",
+        "S3",
+        "S4",
+        "S6"
+      ],
+      "structurally_valid": false
+    },
+    {
+      "source": "tests/security/corpus/pdfjs/checkbox_no_appearance.pdf",
+      "size": 694,
+      "sha256": "31e82e933f4d4664c6ae1c4418cc44efce0c614c10c85c34b515b38e04e08bcd",
+      "rules": {
+        "S1": true,
+        "S2": true,
+        "S3": true,
+        "S4": true,
+        "S5": true,
+        "S6": true
+      },
+      "failed_rules": [],
+      "structurally_valid": true
+    },
+    {
+      "source": "tests/security/corpus/pdfjs/clippath.pdf",
+      "size": 459,
+      "sha256": "cbcbf53e8109ed56f9a3fbc696081455c8a5d32cc5cff4e741e85250788dcbff",
+      "rules": {
+        "S1": true,
+        "S2": true,
+        "S3": true,
+        "S4": true,
+        "S5": true,
+        "S6": true
+      },
+      "failed_rules": [],
+      "structurally_valid": true
+    },
+    {
+      "source": "tests/security/corpus/pdfjs/extractPages_null_in_array.pdf",
+      "size": 360,
+      "sha256": "37c087807b2a6a0a4545a077ee45ebb23c3d297e0307feebd1897391d23fa843",
+      "rules": {
+        "S1": true,
+        "S2": true,
+        "S3": true,
+        "S4": true,
+        "S5": true,
+        "S6": true
+      },
+      "failed_rules": [],
+      "structurally_valid": true
+    },
+    {
+      "source": "tests/security/corpus/pdfjs/issue15590.pdf",
+      "size": 191,
+      "sha256": "c711bb3357eccec499968ac7b4e286ebd3f49910b458b0596d81731c890eedb6",
+      "rules": {
+        "S1": true,
+        "S2": true,
+        "S3": false,
+        "S4": false,
+        "S5": true,
+        "S6": false
+      },
+      "failed_rules": [
+        "S3",
+        "S4",
+        "S6"
+      ],
+      "structurally_valid": false
+    },
+    {
+      "source": "tests/security/corpus/pdfjs/issue4461.pdf",
+      "size": 476,
+      "sha256": "86f561b0b17a9487326fba41f717b7e085ff838bc101c07ebad929c29466f52e",
+      "rules": {
+        "S1": true,
+        "S2": true,
+        "S3": true,
+        "S4": true,
+        "S5": true,
+        "S6": true
+      },
+      "failed_rules": [],
+      "structurally_valid": true
+    }
+  ]
+}

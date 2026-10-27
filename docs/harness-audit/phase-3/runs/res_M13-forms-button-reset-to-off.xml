@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="27" failures="1" disabled="0" errors="0" time="0.19" timestamp="2026-07-28T14:48:06.681" name="AllTests">
+  <testsuite name="FormManagerTest" tests="17" failures="0" disabled="0" skipped="0" errors="0" time="0.071" timestamp="2026-07-28T14:48:06.683">
+    <testcase name="GetFormFieldsOnPageWithForms" file="tests/test_form_manager.cpp" line="46" status="run" result="completed" time="0.009" timestamp="2026-07-28T14:48:06.683" classname="FormManagerTest" />
+    <testcase name="GetFormFieldsOnPageWithoutForms" file="tests/test_form_manager.cpp" line="65" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:48:06.692" classname="FormManagerTest" />
+    <testcase name="GetFormFieldByIndex" file="tests/test_form_manager.cpp" line="74" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:48:06.695" classname="FormManagerTest" />
+    <testcase name="GetFormFieldByIndex_Invalid" file="tests/test_form_manager.cpp" line="88" status="run" result="completed" time="0.005" timestamp="2026-07-28T14:48:06.700" classname="FormManagerTest" />
+    <testcase name="HitTestFormField" file="tests/test_form_manager.cpp" line="95" status="run" result="completed" time="0.005" timestamp="2026-07-28T14:48:06.705" classname="FormManagerTest" />
+    <testcase name="HitTestMiss" file="tests/test_form_manager.cpp" line="109" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:48:06.711" classname="FormManagerTest" />
+    <testcase name="SetTextFieldValue" file="tests/test_form_manager.cpp" line="117" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:48:06.716" classname="FormManagerTest" />
+    <testcase name="ToggleCheckbox" file="tests/test_form_manager.cpp" line="139" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:48:06.720" classname="FormManagerTest" />
+    <testcase name="HasFormFields_True" file="tests/test_form_manager.cpp" line="164" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:48:06.725" classname="FormManagerTest" />
+    <testcase name="HasFormFields_False" file="tests/test_form_manager.cpp" line="171" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:48:06.728" classname="FormManagerTest" />
+    <testcase name="NullPageThrows" file="tests/test_form_manager.cpp" line="178" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:48:06.731" classname="FormManagerTest" />
+    <testcase name="GetTabOrder" file="tests/test_form_manager.cpp" line="187" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:48:06.734" classname="FormManagerTest" />
+    <testcase name="FormFieldDataHasType" file="tests/test_form_manager.cpp" line="204" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:48:06.738" classname="FormManagerTest" />
+    <testcase name="ResetForm_NoWidgets_NocrashNullGuard" file="tests/test_form_manager.cpp" line="242" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:48:06.742" classname="FormManagerTest" />
+    <testcase name="ResetForm_WithWidgets_NocrashNullGuard" file="tests/test_form_manager.cpp" line="251" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:48:06.745" classname="FormManagerTest" />
+    <testcase name="ResetTxWidgetFromObj_NullFieldObj_GuardReturnsFalse" file="tests/test_form_manager.cpp" line="282" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:48:06.748" classname="FormManagerTest" />
+    <testcase name="ResetTxWidgetFromObj_NonNullFieldObj_ReturnsTrueEntersBody" file="tests/test_form_manager.cpp" line="298" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:48:06.751" classname="FormManagerTest" />
+  </testsuite>
+  <testsuite name="Phase5FormsTest" tests="10" failures="1" disabled="0" skipped="0" errors="0" time="0.116" timestamp="2026-07-28T14:48:06.754">
+    <testcase name="TextFieldValueCommitsAndPersists" file="tests/test_forms_phase5.cpp" line="127" status="run" result="completed" time="0.003" timestamp="2026-07-28T14:48:06.754" classname="Phase5FormsTest" />
+    <testcase name="RadioGroupExclusivity" file="tests/test_forms_phase5.cpp" line="152" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:48:06.758" classname="Phase5FormsTest" />
+    <testcase name="PushButtonToggleNoCrash" file="tests/test_forms_phase5.cpp" line="186" status="run" result="completed" time="0.006" timestamp="2026-07-28T14:48:06.760" classname="Phase5FormsTest" />
+    <testcase name="JavaScriptValidateEventReturnsBoolean" file="tests/test_forms_phase5.cpp" line="219" status="run" result="completed" time="0.015" timestamp="2026-07-28T14:48:06.767" classname="Phase5FormsTest" />
+    <testcase name="XfdfRoundTripPreservesFieldValues" file="tests/test_forms_phase5.cpp" line="264" status="run" result="completed" time="0.005" timestamp="2026-07-28T14:48:06.782" classname="Phase5FormsTest" />
+    <testcase name="ResetFormRestoresDefaultValues" file="tests/test_forms_phase5.cpp" line="294" status="run" result="completed" time="0.049" timestamp="2026-07-28T14:48:06.788" classname="Phase5FormsTest" />
+    <testcase name="ResetFormRestoresCheckboxDefaultOnState" file="tests/test_forms_phase5.cpp" line="425" status="run" result="completed" time="0.014" timestamp="2026-07-28T14:48:06.838" classname="Phase5FormsTest">
+      <failure message="tests/test_forms_phase5.cpp:461&#10;Expected equality of these values:&#10;  mgr.getFormField(dvPage.get(), cbIdx).value&#10;    Which is: &quot;Off&quot;&#10;  kAgreeTermsDvOn&#10;    Which is: &quot;Yes&quot;&#10;resetForm must restore a checkbox to its /DV on-state (/Yes), not hard-code it to /Off.&#10;" type="">tests/test_forms_phase5.cpp:461
+Expected equality of these values:
+  mgr.getFormField(dvPage.get(), cbIdx).value
+    Which is: "Off"
+  kAgreeTermsDvOn
+    Which is: "Yes"
+resetForm must restore a checkbox to its /DV on-state (/Yes), not hard-code it to /Off.
+</failure>
+      <failure message="tests/test_forms_phase5.cpp:483&#10;Expected equality of these values:&#10;  rMgr.getFormField(rPage.get(), rIdx).value&#10;    Which is: &quot;Off&quot;&#10;  kAgreeTermsDvOn&#10;    Which is: &quot;Yes&quot;&#10;The checkbox reset-to-/DV on-state must persist across save+reopen.&#10;" type="">tests/test_forms_phase5.cpp:483
+Expected equality of these values:
+  rMgr.getFormField(rPage.get(), rIdx).value
+    Which is: "Off"
+  kAgreeTermsDvOn
+    Which is: "Yes"
+The checkbox reset-to-/DV on-state must persist across save+reopen.
+</failure>
+    </testcase>
+    <testcase name="FlattenFormRemovesInteractiveWidgets" file="tests/test_forms_phase5.cpp" line="490" status="run" result="completed" time="0.013" timestamp="2026-07-28T14:48:06.853" classname="Phase5FormsTest" />
+    <testcase name="HostAllowlistBlocksDisallowedHosts" file="tests/test_forms_phase5.cpp" line="524" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:48:06.866" classname="Phase5FormsTest" />
+    <testcase name="SignatureWidgetTypeIsDistinctFromOthers" file="tests/test_forms_phase5.cpp" line="551" status="run" result="completed" time="0.002" timestamp="2026-07-28T14:48:06.869" classname="Phase5FormsTest" />
+  </testsuite>
+</testsuites>

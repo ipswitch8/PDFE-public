@@ -1,0 +1,79 @@
+{
+  "captured_at": "2026-06-16T14:56:43Z",
+  "pipeline_id": "a7c2e541-3f8b-4d96-b025-9e1f6c84d307",
+  "run_id": "7555ca3e",
+  "scenarios": {
+    "test_stress_1000_annotation_undo_redo": {
+      "budget_s": 300.0,
+      "samples": 1,
+      "wall_clock_s_avg": 111.913,
+      "wall_clock_s_max": 111.913
+    },
+    "test_stress_100_redactions_apply_and_save": {
+      "budget_s": 120.0,
+      "samples": 1,
+      "wall_clock_s_avg": 52.574,
+      "wall_clock_s_max": 52.574
+    },
+    "test_stress_annotate_then_redact_overlapping": {
+      "budget_s": 120.0,
+      "samples": 1,
+      "wall_clock_s_avg": 89.189,
+      "wall_clock_s_max": 89.189
+    },
+    "test_stress_combinatorial_save_modes": {
+      "budget_s": 300.0,
+      "samples": 8,
+      "wall_clock_s_avg": 35.65,
+      "wall_clock_s_max": 58.379
+    },
+    "test_stress_combined_text_edit_annotate_redact": {
+      "budget_s": 180.0,
+      "samples": 1,
+      "wall_clock_s_avg": 58.685,
+      "wall_clock_s_max": 58.685
+    },
+    "test_stress_conflicting_ops_encrypt_then_sign": {
+      "budget_s": 120.0,
+      "samples": 1,
+      "wall_clock_s_avg": 37.64,
+      "wall_clock_s_max": 37.64
+    },
+    "test_stress_form_fill_500_fields_save": {
+      "budget_s": 120.0,
+      "samples": 1,
+      "wall_clock_s_avg": 40.319,
+      "wall_clock_s_max": 40.319
+    },
+    "test_stress_large_doc_random_page_navigation": {
+      "budget_s": 180.0,
+      "samples": 1,
+      "wall_clock_s_avg": 114.532,
+      "wall_clock_s_max": 114.532
+    },
+    "test_stress_open_close_cycle_100x": {
+      "budget_s": 300.0,
+      "samples": 1,
+      "wall_clock_s_avg": 145.405,
+      "wall_clock_s_max": 145.405
+    },
+    "test_stress_rotate_then_extract_then_save": {
+      "budget_s": 60.0,
+      "samples": 1,
+      "wall_clock_s_avg": 22.706,
+      "wall_clock_s_max": 22.706
+    },
+    "test_stress_unicode_metadata_round_trip_per_codepoint_range": {
+      "budget_s": 30.0,
+      "samples": 1,
+      "wall_clock_s_avg": 19.297,
+      "wall_clock_s_max": 19.297
+    },
+    "test_stress_zoom_pan_rotate_navigation_storm": {
+      "budget_s": 120.0,
+      "samples": 1,
+      "wall_clock_s_avg": 107.847,
+      "wall_clock_s_max": 107.847
+    }
+  }
+}

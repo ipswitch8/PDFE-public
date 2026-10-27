@@ -1,0 +1,59 @@
+%PDF-1.4
+%¿÷¢þ
+1 0 obj
+<< /Lang (en-US) /MarkInfo << /Marked true >> /Metadata 3 0 R /Pages 4 0 R /StructTreeRoot 5 0 R /Type /Catalog /ViewerPreferences << /DisplayDocTitle true >> >>
+endobj
+2 0 obj
+<< /Title (Test PDF/UA-1) >>
+endobj
+3 0 obj
+<< /Subtype /XML /Type /Metadata /Length 839 >>
+stream
+<?xpacket begin="ï»¿" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:pdfuaid="http://www.aiim.org/pdfua/ns/id/" xmlns:pdf="http://ns.adobe.com/pdf/1.3/" rdf:about="">
+   <dc:title><rdf:Alt><rdf:li xml:lang="x-default">Test PDF/UA-1</rdf:li></rdf:Alt></dc:title>
+   <dc:creator><rdf:Seq><rdf:li>PDFE Test Fixtures</rdf:li></rdf:Seq></dc:creator>
+   <xmp:CreateDate>2026-01-01T00:00:00+00:00</xmp:CreateDate>
+   <xmp:ModifyDate>2026-01-01T00:00:00+00:00</xmp:ModifyDate>
+   <pdfuaid:part>1</pdfuaid:part>
+   <pdf:Producer>pikepdf + PDFE test fixture generator</pdf:Producer>
+  </rdf:Description>
+ </rdf:RDF>
+</x:xmpmeta>
+
+<?xpacket end="w"?>
+
+endstream
+endobj
+4 0 obj
+<< /Count 1 /Kids [ 6 0 R ] /Type /Pages >>
+endobj
+5 0 obj
+<< /K 7 0 R /ParentTree << /Nums [ ] >> /Type /StructTreeRoot >>
+endobj
+6 0 obj
+<< /MediaBox [ 0 0 612.0 792.0 ] /Parent 4 0 R /Type /Page >>
+endobj
+7 0 obj
+<< /K 8 0 R /Lang (en-US) /S /Document /Type /StructElem >>
+endobj
+8 0 obj
+<< /Lang (en-US) /S /P /Type /StructElem >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000192 00000 n 
+0000000236 00000 n 
+0000001156 00000 n 
+0000001215 00000 n 
+0000001295 00000 n 
+0000001372 00000 n 
+0000001447 00000 n 
+trailer << /Info 2 0 R /Root 1 0 R /Size 9 /ID [<29747194a39b03be48b756760fb45196><29747194a39b03be48b756760fb45196>] >>
+startxref
+1506
+%%EOF

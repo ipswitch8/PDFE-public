@@ -1,0 +1,32 @@
+# UndefinedBehaviorSanitizer suppression list for the PDFE phase-7 run.
+#
+# Format: <ub-rule>:<source-substring>
+# See https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html#issue-suppression
+#
+# Set UBSAN_OPTIONS=suppressions=tests/security/sanitizers/ubsan.supp
+# before running ctest. scripts/security/run_sanitizers.ps1 does this
+# automatically.
+#
+# Add new suppressions ONLY after recording rationale in
+# tests/security/sanitizers/triage.md.
+
+# --- Qt's intentional UB-on-purpose patterns ---
+# Qt's signal/slot meta-object machinery does QMetaObject::Connection
+# casts that UBSan flags as 'function-pointer-of-different-type' but
+# are guaranteed-to-work by the moc invariant.
+#
+# Format: <check>:<glob>. The glob matches against a function name
+# when the check supports it, or a source file path when the
+# `src:` form is used. Pick one — combining `function:src:...` is
+# invalid and silently never fires.
+function:QMetaObject*
+function:*qt_static_metacall*
+
+# --- MuPDF's setjmp/longjmp inside C++ ---
+# fz_try/fz_catch use setjmp/longjmp; the C++ frames they unwind
+# through are flagged as 'object-size' false positives. Documented
+# at: https://bugs.ghostscript.com/show_bug.cgi?id=701234 (closed
+# WONTFIX as intentional design).
+function:fz_try
+function:fz_catch
+function:fz_throw

@@ -1,0 +1,1707 @@
+{
+ "cluster": "C6_ui_core",
+ "method": "Adversarial oracle audit; harness as defendant. Every file opened and TEST bodies read (6 parallel batches, weakest-density-first). Oracle = dominant category; smells tallied at file:line. Known seed test_coord_mapper_rotation independently re-verified.",
+ "totals": {
+  "files": 122,
+  "tests": 1152,
+  "by_oracle": {
+   "true": 75,
+   "proxy": 26,
+   "metamorphic": 7,
+   "heuristic": 11,
+   "no-oracle-smoke": 3,
+   "pseudo": 0
+  },
+  "ui_files_widget_exists_only_dominant": "12 of the ~55 UI files are dominated by widget-exists-only or reopens/no-throw proxies (dialog_object_names_phase11, deferred_panels, dialog_widget_audit_phase2, ui_integration, phase_f5_menu_wiring, uncovered_dialogs, accessible_names, startup_ui_changes, main_window_q_invokable[MenuOnly], installer, chrome_phase9[signal-locks], panel_interaction_phase8[LayerPanel]).",
+  "by_smell": {
+   "assertion-free": 12,
+   "tautological": 11,
+   "EXPECT_NO_THROW-only": 13,
+   "over-tolerant-threshold": 10,
+   "extraction-only-for-visual": 10,
+   "widget-exists-only": 22,
+   "reopens-without-error-only": 16
+  },
+  "by_novel": {
+   "source-grep-proxy": 2
+  },
+  "oracle_token_leak_removed_from_smells": {
+   "proxy": 11,
+   "pseudo": 1
+  }
+ },
+ "per_file": [
+  {
+   "file": "tests/test_main.cpp",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "tests": 0,
+   "note": "Harness main()+CRT crash guards; zero TEST()/assertions by design \u2014 infrastructure, not a test.",
+   "smells_raw": [
+    "assertion-free:62"
+   ]
+  },
+  {
+   "file": "tests/test_link_tool.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "assertion-free",
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 5,
+   "note": "Enum name/roundtrip true; ToolTypeIsLink proxy; SetDefaultUri is SUCCEED() with no getter.",
+   "smells_raw": [
+    "assertion-free:45",
+    "EXPECT_NO_THROW-only:44"
+   ]
+  },
+  {
+   "file": "tests/test_dll_dependencies.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 23,
+   "note": "File-exists-on-disk DLL checks; prevents 0xC0000135 but no ABI/version check.",
+   "smells_raw": [
+    "reopens-without-error-only:81"
+   ]
+  },
+  {
+   "file": "tests/test_dialog_object_names_phase11.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 16,
+   "note": "Every test findChild<T>(objectName)!=null; zero behavior exercised.",
+   "smells_raw": [
+    "widget-exists-only:60,74,88,126,158"
+   ]
+  },
+  {
+   "file": "tests/test_app_resources.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 3,
+   "note": "Icon/resource file-exists + non-zero size; no render/embed verification.",
+   "smells_raw": [
+    "reopens-without-error-only:29"
+   ]
+  },
+  {
+   "file": "tests/test_a2_script_detection.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 15,
+   "note": "detectScript() asserts exact FontScript enum incl. majority-vote. Strong value oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_javascript_engine.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "tautological"
+   ],
+   "tests": 23,
+   "note": "JS effects (calc/keystroke/format) never asserted; no-throw + result||!result tautologies.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only:67,90,221,273,289",
+    "tautological:198,257"
+   ]
+  },
+  {
+   "file": "tests/test_pdfua_converter.cpp",
+   "oracle": "true",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 9,
+   "note": "Specific rule codes 7.1/7.2 + structure tree present after convert; CreatesFile is file-exists proxy.",
+   "smells_raw": [
+    "reopens-without-error-only:56"
+   ]
+  },
+  {
+   "file": "tests/test_pdfa_validator.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 12,
+   "note": "Specific PDF/A rule codes present/absent per level + fewer-errors-after-fix metamorphic. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_bates_tokens.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 10,
+   "note": "Exact-string equality on resolveTokens incl. overflow/clamp/invalid. Model true oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_mupdf_context.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 10,
+   "note": "Move semantics ptr transfer+null-out; throw-on-bad-open; per-thread clone distinct. get()!=null proxy but rest real.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_structure_tree_builder.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 9,
+   "note": "build->save->reopen->hasStructureTree presence-only; never asserts H1/P/Figure/altText/lang survived.",
+   "smells_raw": [
+    "reopens-without-error-only:99,141"
+   ]
+  },
+  {
+   "file": "tests/test_coord_mapper_rotation.cpp",
+   "oracle": "true",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 12,
+   "note": "SEED re-checked: pure decompose/residual hardcode expected degrees \u2014 NOT tautological. Only NonRotatedRunMatchesPageTransform is a weak integer-field self-consistency proxy.",
+   "smells_raw": [
+    "extraction-only-for-visual:116"
+   ]
+  },
+  {
+   "file": "tests/test_auto_tagger.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 10,
+   "note": "Structural props (mcid>=0, tag-in-set); 'children not empty' proxy for produced tags; no tag-vs-content correctness.",
+   "smells_raw": [
+    "widget-exists-only:46"
+   ]
+  },
+  {
+   "file": "tests/test_engine_unc_gate.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 8,
+   "note": "Each engine entry refuses UNC attacker path (throw or msg contains 'UNC'). Real security oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_mainwindow_size_sanity.cpp",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "assertion-free"
+   ],
+   "tests": 2,
+   "note": "sizeof>256 heuristic; ConstructDestruct only ASSERTs new!=null (never null).",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only:26",
+    "assertion-free:16"
+   ]
+  },
+  {
+   "file": "tests/test_main_window_q_invokable.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 13,
+   "note": "Mixed: real alt-text write->invoke->EXPECT_EQ round-trips TRUE; MenuOnlyDomain existence + activateTool return-bool are proxies.",
+   "smells_raw": [
+    "widget-exists-only:83,186,376",
+    "reopens-without-error-only:204"
+   ]
+  },
+  {
+   "file": "tests/test_preflight_open.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 5,
+   "note": "Isolation boundary: clean=safe, garbage/empty=refused, child-fail doesn't crash caller. Strong security oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_high_contrast.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 12,
+   "note": "WCAG contrast math exact (black/white~21, symmetric, AA pass/fail). Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_q_invokable_coverage.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 13,
+   "note": "Asserts invokeMethod dispatch true + no-doc guards; returned QRectF/scroll effect never checked.",
+   "smells_raw": [
+    "reopens-without-error-only:60,71,127,186"
+   ]
+  },
+  {
+   "file": "tests/test_fuzz_harness_smoke.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 12,
+   "note": "5 *CoreNoCrash pure no-throw; triage+builder tests (110-193) are real structural oracles.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only:96,99",
+    "reopens-without-error-only:197"
+   ]
+  },
+  {
+   "file": "tests/test_toolbar_toggles.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 8,
+   "note": "Filter get/set round-trips true; display-list tests only assert non-null pointer, not that annotations are actually filtered from render.",
+   "smells_raw": [
+    "reopens-without-error-only:64,82,117"
+   ]
+  },
+  {
+   "file": "tests/test_block_params_builder.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 10,
+   "note": "Pure-function oracles (lineHeight=12, alignment pass-through, wrap>1). Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_startup_ui_changes.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 21,
+   "note": "MainWindow half widget-exists/allowedAreas proxy; DefaultsLogPanel half (132-239) exercises real log/clear behavior.",
+   "smells_raw": [
+    "widget-exists-only:40,57,62,90"
+   ]
+  },
+  {
+   "file": "tests/test_follow_link.cpp",
+   "oracle": "true",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 6,
+   "note": "GoTo 0->2 and Named 0->1 assert real canvas currentPage change; URI test acknowledged no-crash proxy.",
+   "smells_raw": [
+    "reopens-without-error-only:143"
+   ]
+  },
+  {
+   "file": "tests/test_pdf_content_writer.cpp",
+   "oracle": "true",
+   "smells": [
+    "assertion-free",
+    "extraction-only-for-visual"
+   ],
+   "tests": 24,
+   "note": "SaveMutateRestore lossless pixel-diff true; two SUCCEED()-only ReturnsNonEmpty tests; writeTextBlock only greps BT/ET/Tf.",
+   "smells_raw": [
+    "assertion-free:289,317",
+    "extraction-only-for-visual:193"
+   ]
+  },
+  {
+   "file": "tests/test_compliance_manager.cpp",
+   "oracle": "true",
+   "smells": [
+    "tautological",
+    "reopens-without-error-only"
+   ],
+   "tests": 14,
+   "note": "Validator input-distrust tests strong true; convert tests only file-exists + echoed targetLevel (no re-validation).",
+   "smells_raw": [
+    "tautological:61",
+    "reopens-without-error-only:60,94"
+   ]
+  },
+  {
+   "file": "tests/test_compat_advanced.cpp",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 7,
+   "note": "Almost all open+createDisplayList no-throw; HiddenTextInOcgLayerDetected checks nothing (info-disclosure blind).",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only:82,158,275,304",
+    "reopens-without-error-only:245"
+   ]
+  },
+  {
+   "file": "tests/test_q_invokable_seams_phase1.cpp",
+   "oracle": "true",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 7,
+   "note": "Return-value checks (result==0/1, rotation==90) real; InsertBookmark only checks return bool, not outline state.",
+   "smells_raw": [
+    "proxy:92",
+    "reopens-without-error-only:135"
+   ]
+  },
+  {
+   "file": "tests/test_log_handler.cpp",
+   "oracle": "true",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 6,
+   "note": "MessageCapture asserts content+type; FileLogging only checks flag, never that file is written.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only:50",
+    "reopens-without-error-only:118"
+   ]
+  },
+  {
+   "file": "tests/test_deferred_panels.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 4,
+   "note": "Every test asserts only findChild dock!=nullptr; zero behavior exercised.",
+   "smells_raw": [
+    "widget-exists-only:33,43,53,63"
+   ]
+  },
+  {
+   "file": "tests/test_crash_handler.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 9,
+   "note": "install/uninstall/callback no-throw; WriteTestMinidump+IsAutomatedRun strong; callback set but never invoked.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only:45,77,123"
+   ]
+  },
+  {
+   "file": "tests/test_password_dialog.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 8,
+   "note": "OK enable/disable, echo mode, password retrieval, reject-preserves real; two object-name-exists tests.",
+   "smells_raw": [
+    "widget-exists-only:57,66"
+   ]
+  },
+  {
+   "file": "tests/test_fixture_corpus.cpp",
+   "oracle": "heuristic",
+   "smells": [],
+   "tests": 7,
+   "note": "Corpus meta-tests (file existence/JSON shape/PEM markers/every-fixture-opens); tests corpus not product, appropriate.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_link_actions.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 20,
+   "note": "set->save->reopen->get round-trips assert type+value for all action kinds; byte-grep tests complementary.",
+   "smells_raw": [
+    "pseudo:167"
+   ]
+  },
+  {
+   "file": "tests/test_coordinate_transform.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 12,
+   "note": "screen<->pdf round-trip identity solid; AnnotationRendersAtCorrectPosition uses loose +/-30px window.",
+   "smells_raw": [
+    "over-tolerant-threshold:311"
+   ]
+  },
+  {
+   "file": "tests/test_c5_lcd_subpixel.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold",
+    "assertion-free"
+   ],
+   "tests": 9,
+   "note": "Decision-table true; diff>0 over-tolerant; LcdBlackText computes distinct-alpha but never asserts the two differ.",
+   "smells_raw": [
+    "over-tolerant-threshold:163",
+    "assertion-free:249"
+   ]
+  },
+  {
+   "file": "tests/test_alt_text.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 6,
+   "note": "/Alt + /ActualText set/get + save/reload round-trip with independence check. Clean true oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_tile_prefetcher.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "tautological"
+   ],
+   "tests": 8,
+   "note": "Bounds/skip-cached/exclude-visible real; PrefetchAround_StoresResult recomputes expected via the method under test.",
+   "smells_raw": [
+    "tautological:178"
+   ]
+  },
+  {
+   "file": "tests/test_app_settings.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 20,
+   "note": "Recent-files add/dedup/trim/order + cross-instance INI read-back. Strong persistence oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_accessible_names.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 14,
+   "note": "Asserts accessibleName().isEmpty()==false; catches missing name but not wrong/duplicated. Source-scan tests are real guards.",
+   "smells_raw": [
+    "widget-exists-only:66-143,255-265"
+   ]
+  },
+  {
+   "file": "tests/test_b3_pattern_copy.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 10,
+   "note": "Pixel-exact match fraction >0.95 vs <0.01; magenta-count==0. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_c4_perceptual_alpha.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold",
+    "tautological"
+   ],
+   "tests": 10,
+   "note": "Per-pixel alpha real; MorphologicalClose 'vs-no-close' never computes baseline, only speckles<40.",
+   "smells_raw": [
+    "over-tolerant-threshold:205",
+    "tautological:192"
+   ]
+  },
+  {
+   "file": "tests/test_theme_and_field_count.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 10,
+   "note": "Exact palette colors + exact label text ('No form fields'/'7 form fields'). Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_hidpi.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "tautological",
+    "over-tolerant-threshold"
+   ],
+   "tests": 5,
+   "note": "ScaledTileRendering asserts test-side arithmetic only (no product code); cache test only memoryUsage>0.",
+   "smells_raw": [
+    "tautological:43",
+    "over-tolerant-threshold:84",
+    "proxy:58"
+   ]
+  },
+  {
+   "file": "tests/test_gap102_residuals.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 16,
+   "note": "Undo/redo+rotate true; dialog-reachable + IsPrintEnabledSeam are widget-exists/return-bool proxies.",
+   "smells_raw": [
+    "widget-exists-only:174-236",
+    "proxy:276"
+   ]
+  },
+  {
+   "file": "tests/test_calculation_order.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 11,
+   "note": "setCalculationOrder saveAs->reopen round-trip + MoveUp/checkstate true; one exposes-named-controls proxy.",
+   "smells_raw": [
+    "widget-exists-only:132"
+   ]
+  },
+  {
+   "file": "tests/test_pdfe_icons.cpp",
+   "oracle": "heuristic",
+   "smells": [],
+   "tests": 3,
+   "note": "Icon non-null + 16x16 frame >0 alpha pixel \u2014 thin 'invisible title bar' guard, meaningful.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_compliance_dialog.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 26,
+   "note": "PreviewTags/state-transition true (root=='Document'); several HasAccessibleNames proxies; AnalyzeButton only checks status non-empty.",
+   "smells_raw": [
+    "widget-exists-only:46-68",
+    "proxy:88"
+   ]
+  },
+  {
+   "file": "tests/test_accessibility.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 11,
+   "note": "role==Canvas, doAction leaves currentPage unchanged + zoom-direction verified; localizedActionName only non-empty.",
+   "smells_raw": [
+    "proxy:118"
+   ]
+  },
+  {
+   "file": "tests/test_header_footer.cpp",
+   "oracle": "true",
+   "smells": [
+    "assertion-free"
+   ],
+   "tests": 18,
+   "note": "Exact token resolution + extractPlainText contains/absent per page + idempotency; MarkersPresentInOutputStream is SUCCEED() no-op.",
+   "smells_raw": [
+    "assertion-free:198"
+   ]
+  },
+  {
+   "file": "tests/test_vector_subset_detector.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 10,
+   "note": "hasSubsetPrefix exact table, classify invariant, real-font findMissingGlyphs U+2FA1F. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_preflight_xplatform.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 5,
+   "note": "Fail-closed vs fail-open boundary via injected exec-dir seam; security-critical sandbox. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_ui_high_contrast.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 5,
+   "note": "adaptColor exact HC palette RGB per role + preserves alpha=80. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_preflight_fix_all.cpp",
+   "oracle": "true",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "tests": 22,
+   "note": "classify/filter/dedup/stillRemaining counts true; three live FixIssueApplies* assert only r.ok (removal not verified).",
+   "smells_raw": [
+    "proxy:193,211,218",
+    "reopens-without-error-only:197"
+   ]
+  },
+  {
+   "file": "tests/test_about_dialog.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 12,
+   "note": "Exact marketing strings, itwerx URL, {{VERSION}} substitution, AGPL text. Strong.",
+   "smells_raw": [
+    "widget-exists-only:82"
+   ]
+  },
+  {
+   "file": "tests/test_keyboard_navigation.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 8,
+   "note": "Zoom in/out change asserted; no-doc key tests hardened with page/zoom invariants. FocusPolicy proxy.",
+   "smells_raw": [
+    "proxy:120"
+   ]
+  },
+  {
+   "file": "tests/test_pdf_canvas_q_invokable.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 28,
+   "note": "Coord round-trip, signal-count, tool-dispatch, scroll direction. ScrollsToAnnotationRect only asserts currentPage unchanged (offset punted to Python diff).",
+   "smells_raw": [
+    "proxy:388"
+   ]
+  },
+  {
+   "file": "tests/test_b3_bg_classification.cpp",
+   "oracle": "true",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 10,
+   "note": "Classification+variance at 200/600 DPI proves DPI-aware kernel; many GTEST_SKIP when gitignored fixtures absent (silent CI coverage loss).",
+   "smells_raw": [
+    "extraction-only-for-visual:81"
+   ]
+  },
+  {
+   "file": "tests/test_navigation_history.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 11,
+   "note": "Exact back/forward cursor/page, coalesce, truncate-forward, replay suppression. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_probe_extent.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 1,
+   "note": "Diagnostic probe; skips in CI (local desktop PDF); only guarded EXPECT_GT(extent,0).",
+   "smells_raw": [
+    "extraction-only-for-visual:37"
+   ]
+  },
+  {
+   "file": "tests/test_cache_stats.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 10,
+   "note": "CacheStats/TileCache exact: hitRatio==0.75, memoryUtilization==0.5, put/hit/miss/eviction counts. Real oracles.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_version_update.cpp",
+   "oracle": "true",
+   "smells": [
+    "tautological"
+   ],
+   "tests": 10,
+   "note": "compareVersions exact UpdateStatus enum; CurrentVersionMatchesBuildSourceOfTruth mirrors macro (mildly tautological).",
+   "smells_raw": [
+    "tautological:108"
+   ]
+  },
+  {
+   "file": "tests/test_alt_text_dialog.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 9,
+   "note": "Save/Load/Cancel/Empty read back through AnnotationManager true; five accessibleName/objectName proxies.",
+   "smells_raw": [
+    "widget-exists-only:65,79,85,93,101"
+   ]
+  },
+  {
+   "file": "tests/test_cli.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "tautological"
+   ],
+   "tests": 9,
+   "note": "openFile tests no-crash only; parser tests exercise Qt's QCommandLineParser, not PDFE wiring.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only:44,49,61,66,85,241,252",
+    "tautological:109,141"
+   ]
+  },
+  {
+   "file": "tests/test_installer.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 17,
+   "note": "Most tests grep CMake/rc for a substring (present!=works); InstallerResidue symmetry tests stronger.",
+   "smells_raw": [
+    "widget-exists-only:35,47,59,94,124,152"
+   ]
+  },
+  {
+   "file": "tests/test_pdfa_converter.cpp",
+   "oracle": "true",
+   "smells": [
+    "assertion-free"
+   ],
+   "tests": 14,
+   "note": "ConvertAndSave reopens+detectPdfALevel+hasOutputIntent; 14-fonts-embedded true; ConstructDestroy SUCCEED; over-trusts self-declared level.",
+   "smells_raw": [
+    "assertion-free:39",
+    "proxy:98"
+   ]
+  },
+  {
+   "file": "tests/test_performance_stress.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold",
+    "EXPECT_NO_THROW-only",
+    "assertion-free"
+   ],
+   "tests": 7,
+   "note": "Timing+no-throw; ConcurrentMaliciousPdfRendering asserts nothing real; ContextLifecycleNoLeak is SUCCEED despite being the leak audit.",
+   "smells_raw": [
+    "over-tolerant-threshold:109,118,194",
+    "EXPECT_NO_THROW-only:243,358",
+    "assertion-free:328"
+   ]
+  },
+  {
+   "file": "tests/test_launch_link_follow.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 6,
+   "note": "Security seam: decline=>executed==0, accept=>executed==1, per-click reprompt counts. Load-bearing.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_preflight_dialog.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 10,
+   "note": "SetResult populates tree childCount, summary counts, items carry rule+desc, export-button enable tracks data. ExposesNamedControls proxy.",
+   "smells_raw": [
+    "widget-exists-only:49"
+   ]
+  },
+  {
+   "file": "tests/test_select_tool_enhanced.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 18,
+   "note": "resize/move/delete/copy-paste/context-menu assert callback values+rect deltas+min-size clamp+UAF-on-close. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_pdfa_roundtrip.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "tautological",
+    "assertion-free"
+   ],
+   "tests": 9,
+   "note": "errorCount(converted)<=errorCount(original); MissingOutputIntent detected+fixed; IccOutputIntent test vacuous (unsigned>=0+SUCCEED).",
+   "smells_raw": [
+    "tautological:184",
+    "assertion-free:185"
+   ]
+  },
+  {
+   "file": "tests/test_tile_renderer.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "assertion-free",
+    "tautological",
+    "extraction-only-for-visual"
+   ],
+   "tests": 10,
+   "note": "Signal/no-crash + image-non-null proxies; TileCoordinateCalculation recomputes formula, never calls renderer (pure tautology).",
+   "smells_raw": [
+    "assertion-free:61",
+    "tautological:306",
+    "extraction-only-for-visual:80"
+   ]
+  },
+  {
+   "file": "tests/test_adversarial_ambient_corpus.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 3,
+   "note": "Visual: edited text present+upright(isLeftToRight), neighbour survives, CMYK fill not collapsed. Mirror/state-leak guard.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_coordinate_diagnostic.cpp",
+   "oracle": "true",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 3,
+   "note": "NOT pure diagnostic: AnnotationRendersCorrectly pixel-scans red at TL AND absent at mirrored BL; TextExtractionIsFitzSpace soft heuristic.",
+   "smells_raw": [
+    "extraction-only-for-visual:50"
+   ]
+  },
+  {
+   "file": "tests/test_i18n_translations.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 3,
+   "note": "InstalledTranslatorRoutesTranslateCalls proves install=>localized string then reverts; two graceful-fallback proxies.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_stress_investigation.cpp",
+   "oracle": "true",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 8,
+   "note": "Undo-cap==500 and undo/redo cycle true; save-time tests only timing+file-exists, never verify 500 fields persisted.",
+   "smells_raw": [
+    "over-tolerant-threshold:128,240,270,300,328"
+   ]
+  },
+  {
+   "file": "tests/test_header_footer_state_leak.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 2,
+   "note": "Color oracle: header argb==black AND untouched neighbor color unchanged. Direct inbound fill-colour leak guard.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_main_window_icon.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 2,
+   "note": "AppIconHelperMatchesWindowIcon pixel-equal image compare true; WindowIconIsNonNull proxy.",
+   "smells_raw": [
+    "widget-exists-only:32"
+   ]
+  },
+  {
+   "file": "tests/test_page_panel_q_invokable.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 11,
+   "note": "selectPagesProgrammatic verifies actual QListWidget selection rows true; movePage valid case asserts only pageMoved signal args, not order change.",
+   "smells_raw": [
+    "proxy:102"
+   ]
+  },
+  {
+   "file": "tests/test_tile_cache.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 14,
+   "note": "Real state/eviction/memory oracles on LRU cache; exact byte tracking + LRU ordering. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_writing_mode_autoplumb.cpp",
+   "oracle": "metamorphic",
+   "smells": [],
+   "tests": 4,
+   "note": "source->carrier->sink propagation differential; sink test only exercises horizontal reset, no vertical end-to-end.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_ui_integration.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 22,
+   "note": "findChild!=null + shortcut/checkable/enabled state; NO action ever triggered to verify an effect.",
+   "smells_raw": [
+    "widget-exists-only:57,84,231,292"
+   ]
+  },
+  {
+   "file": "tests/test_render_fidelity.cpp",
+   "oracle": "metamorphic",
+   "smells": [
+    "over-tolerant-threshold",
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 5,
+   "note": "Determinism(memcmp)+zoom scaling strong; non-blank asserts >0 not the 5% comment claims; zero-zoom no-throw only.",
+   "smells_raw": [
+    "over-tolerant-threshold:108",
+    "EXPECT_NO_THROW-only:133"
+   ]
+  },
+  {
+   "file": "tests/test_thumbnails.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 5,
+   "note": "Thumbnail content only null-checked; ThumbnailSize real geometry; cancel semantics real.",
+   "smells_raw": [
+    "extraction-only-for-visual:51,97"
+   ]
+  },
+  {
+   "file": "tests/test_ci_fuzz_workflows.cpp",
+   "oracle": "proxy",
+   "smells": [],
+   "tests": 6,
+   "note": "Static YAML substring presence (schedule/cron/cache/harness names); presence != workflow runs/passes.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_view_rotation.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 9,
+   "note": "Rotation state cycling, dim transpose (w90==h0), sha256 file-immutability. Genuine oracles.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_recent_files.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 6,
+   "note": "Triggers actions, checks signal+arg, ordering, clear/refresh state. Real behavior.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_e2e_integration.cpp",
+   "oracle": "true",
+   "smells": [
+    "reopens-without-error-only",
+    "tautological"
+   ],
+   "tests": 5,
+   "note": "Redaction byte-grep + OCR recall strong; signature test only page count (byte-range not asserted); alignment exercises engine's own math.",
+   "smells_raw": [
+    "reopens-without-error-only:155",
+    "tautological:110"
+   ]
+  },
+  {
+   "file": "tests/test_journey_op99_crash.cpp",
+   "oracle": "true",
+   "smells": [
+    "tautological"
+   ],
+   "tests": 3,
+   "note": "Real UAF crash regression; harness itself performs production null-rebind so onDocumentStructureChanged regression not caught headlessly \u2014 only family-command null guards.",
+   "smells_raw": [
+    "tautological:191"
+   ]
+  },
+  {
+   "file": "tests/test_open_close_leak_cycle.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 2,
+   "note": "GDI/USER/handle bounded-growth trend; has armed inject-leak non-vacuity proof.",
+   "smells_raw": [
+    "over-tolerant-threshold:207"
+   ]
+  },
+  {
+   "file": "tests/test_fidelity_r3_19_pdfa_independent.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 5,
+   "note": "Independent QPDF + raw-MuPDF cross-check with convergence assertion; veraPDF skips honestly. Genuinely independent.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_page.cpp",
+   "oracle": "true",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "tests": 8,
+   "note": "bbox/index/rotation/scaling metamorphic + exact format; render content only null-checked.",
+   "smells_raw": [
+    "extraction-only-for-visual:89"
+   ]
+  },
+  {
+   "file": "tests/test_startup_timer.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 4,
+   "note": "Real checkpoint count/monotonic/summary-content assertions.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_mupdf_context_clone_lifecycle.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 3,
+   "note": "Clone-count returns to baseline, distinct clones per instance, execute() routes own clone. Strong concurrency oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_realworld_external_corpus.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "tests": 3,
+   "note": "Open builds+drops display list (no content); round-trip asserts only size>100 + pageCount>0 on reopen.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only:69",
+    "reopens-without-error-only:97"
+   ]
+  },
+  {
+   "file": "tests/test_external_flaw_corpus.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "extraction-only-for-visual"
+   ],
+   "tests": 47,
+   "note": "Dominant crash-bound no-throw contract (defensible for DoS); encryption bits + exact pageCounts real; extractPlainText output discarded.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only:73",
+    "extraction-only-for-visual:81"
+   ]
+  },
+  {
+   "file": "tests/test_dialog_widget_audit_phase2.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only",
+    "assertion-free"
+   ],
+   "tests": 14,
+   "note": "Construct+objectName+findChild!=null; ClosesCleanly tests SUCCEED-only. No control ever invoked.",
+   "smells_raw": [
+    "widget-exists-only:65,109,157",
+    "assertion-free:93,137,190"
+   ]
+  },
+  {
+   "file": "tests/test_bg_color_detector.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 13,
+   "note": "Exact dominantColor RGB, uniform/gradient/complex flags, gap-vs-edge confidence. Real algorithm oracles.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_phase_f5_menu_wiring.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 8,
+   "note": "Named 'menu_wiring' but only checks QAction existence/text/shortcut/checkable/enabled; never triggers to verify connected slot fires.",
+   "smells_raw": [
+    "widget-exists-only:74,92,120,178"
+   ]
+  },
+  {
+   "file": "tests/test_ci_supplychain.cpp",
+   "oracle": "proxy",
+   "smells": [],
+   "tests": 6,
+   "note": "Substring-greps CI/build/installer sources; stripHashComments hardening decent but asserts config text present, not CI behavior.",
+   "smells_raw": [
+    "proxy-source-grep:89,125,191"
+   ],
+   "novel_smells": [
+    "source-grep-proxy"
+   ]
+  },
+  {
+   "file": "tests/test_single_instance_guard.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 6,
+   "note": "Real QLocalServer primary/secondary + exact path payload round-trip via QSignalSpy strong; DefaultNameIsPerUser only prefix/length.",
+   "smells_raw": [
+    "proxy:152"
+   ]
+  },
+  {
+   "file": "tests/test_realworld_corpus.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "tests": 3,
+   "note": "Page-count==sidecar real pseudo-oracle; extractText test pure no-throw (content unasserted).",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only:136,144,176"
+   ]
+  },
+  {
+   "file": "tests/test_thumbnail_cache_cancel.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 3,
+   "note": "State oracle over renderCount() instrumentation: cache-hit and cancel both assert no rasterization increment. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_ui_structure_bugs.cpp",
+   "oracle": "true",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 3,
+   "note": "Dock forced-visible true state oracle; icon().isNull()==false only proves SOME icon set, not correct glyph.",
+   "smells_raw": [
+    "over-tolerant-threshold:48,54"
+   ]
+  },
+  {
+   "file": "tests/test_chrome_phase9.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only",
+    "extraction-only-for-visual"
+   ],
+   "tests": 25,
+   "note": "Mix: signal-existence/metaobject signature locks proxy alongside genuinely hardened dispatch tests (RecentFiles 307, UndoManager 339, metadata round-trip 234).",
+   "smells_raw": [
+    "widget-exists-only:114,121,151,192,647",
+    "extraction-only-for-visual:488",
+    "proxy-source-grep:731"
+   ],
+   "novel_smells": [
+    "source-grep-proxy"
+   ]
+  },
+  {
+   "file": "tests/test_cmyk_identity_preservation.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 4,
+   "note": "Edits span, saves, decompresses, inspects BT block for exact colour operator (k/scn/rg). Print-critical identity oracle.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_fidelity_r3_06_color_preservation.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 2,
+   "note": "Independent fitz handle checks Separation/ExtGState survival + VisualOracle runIsNotBlack. Colour-loss guard.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_toolbar_customization.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 7,
+   "note": "Save/reload/reset round-trips + applyLayoutToToolbar materializes correct action order; DialogExposesNamedControls widget-exists-only.",
+   "smells_raw": [
+    "widget-exists-only:184"
+   ]
+  },
+  {
+   "file": "tests/test_ui_pdfcanvas_accessible_text.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 6,
+   "note": "childCount==pageCount, per-page text split (leak-check), textAtOffset boundary, cache-owned-not-raw-deleted UAF guard. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_ui_clipboard_dragdrop.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 6,
+   "note": "Real QDropEvent opens doc; clipboard image dims match selection not page; paste increments page image count by 1. Strong end-to-end.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_branding_resources.cpp",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "tests": 3,
+   "note": "Bounded dim ranges + alpha channel + transparent-pixel fraction >=5%; plausible-property oracle.",
+   "smells_raw": [
+    "over-tolerant-threshold:52,85"
+   ]
+  },
+  {
+   "file": "tests/test_validation_request.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 11,
+   "note": "Mock NAM asserts createCount()==0 on cancel, /DSS written on valid OCSP, failed()+no-DSS on HTTP500/oversize. Strong.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_hidpi_render.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 4,
+   "note": "Spy records exact TileId.zoom==zoom*dpr AND rejects logical-zoom; DPR-invariance. Drives real product (unlike abstract test_hidpi).",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_canvas_stale_layout.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 1,
+   "note": "Forces stale pageLayouts_ via delete-without-rebuild; asserts findPageAtY returns -1 + live-range invariant. Deterministic.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_panel_interaction_phase8.cpp",
+   "oracle": "true",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "tests": 9,
+   "note": "DefaultsLog entryCount, Redaction enabled-mark filtering, PrintDialog radio->options() true; LayerPanel tests widget-exists-only.",
+   "smells_raw": [
+    "widget-exists-only:57,77"
+   ]
+  },
+  {
+   "file": "tests/test_uncovered_dialogs.cpp",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only",
+    "assertion-free"
+   ],
+   "tests": 18,
+   "note": "Coverage-farming: many tests only objectName + findChild!=nullptr; PropertiesPanel round-trip(218), ICC(300/335), Add/Reset(547/614) genuine.",
+   "smells_raw": [
+    "widget-exists-only:71,140,168,191,472",
+    "assertion-free:211"
+   ]
+  },
+  {
+   "file": "tests/test_vector_heading_commit.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 2,
+   "note": "Rendered-ink oracle: edits subset-font heading, composites over white, asserts >=60% ink kept \u2014 catches .notdef collapse geometry oracle false-greens.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_tile_renderer_leak.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 1,
+   "note": "Counting fz-allocator + one-shot OOM injection; live-byte/block growth < 1 tile over 50 throwing renders. Rigorous.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_path_roundtrips.cpp",
+   "oracle": "metamorphic",
+   "smells": [],
+   "tests": 4,
+   "note": "Real on-disk round-trips (non-ASCII, \\\\?\\ extlen, loopback UNC) asserting page-count+geometry survive; UNC-refusal deterministic.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_preferences_dialog.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 3,
+   "note": "NOT widget-exists: Load reflects AppSettings, Accept persists widget values back, Cancel does not. Real settings round-trip.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_struct_tree_preservation.cpp",
+   "oracle": "true",
+   "smells": [],
+   "tests": 4,
+   "note": "Object-level struct-tree inspection (StructParents->ParentTree->StructElem/Pg) + in-stream BDC/EMC/MCID + PDF/UA validator across 3 edit families. Strong.",
+   "smells_raw": []
+  }
+ ],
+ "ranked_weak_findings": [
+  {
+   "file": "tests/test_compat_advanced.cpp",
+   "line": 213,
+   "test": "HiddenTextInOcgLayerDetected",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "reopens-without-error-only",
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "Name claims it verifies hidden OFF-layer OCG text is NOT exposed, but body only asserts Document::open+createDisplayList don't throw. A regression leaking the 'SECRET HIDDEN' string from an OFF optional-content group via text extraction passes green \u2014 an information-disclosure defect.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_hidpi.cpp",
+   "line": 43,
+   "test": "HiDPITest.ScaledTileRendering",
+   "oracle": "tautological",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Test computes effectiveZoom=baseZoom*dpr and deviceTileSize=TILE_SIZE*dpr in the test body and asserts them ==2.0/==1024. No PdfCanvas/TileRenderer code runs; if the real renderer forgot to multiply tile dims by DPR, HiDPI pages render at half resolution (blurry) and this stays green.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_tile_renderer.cpp",
+   "line": 306,
+   "test": "TileCoordinateCalculation",
+   "oracle": "tautological",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Computes expectedX=col*TILE_SIZE/zoom itself and asserts ==768 \u2014 never calls TileRenderer/RenderTask. If the renderer's real tile->PDF-rect math is wrong (mis-mapped tiles, wrong zoom division), pages render shifted/blank and the test still passes.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_dialog_object_names_phase11.cpp",
+   "line": 88,
+   "test": "DialogObjectNames_SignDialog.TsaGroup",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "user_visible_failure_missed": "tsaGroup QGroupBox exists but its checkbox/URL edit could be unwired: user enables RFC-3161 timestamping, TSA URL is ignored, signature is saved WITHOUT a trusted timestamp -> LTV/long-term validity silently absent. Green because only container objectName is checked.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_javascript_engine.cpp",
+   "line": 67,
+   "test": "CalculateAllFields",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "calculateAll() could compute nothing (or wrong totals) and the test still passes \u2014 sole assertion is no-throw. A form whose Total field never recalculates after edits ships green.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_javascript_engine.cpp",
+   "line": 198,
+   "test": "FireValidateEvent",
+   "oracle": "proxy",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "EXPECT_TRUE(result || !result) is a tautology passing for ANY bool. A field-validation script that wrongly accepts/rejects input is invisible. FireFormatEvent (line 257) has the identical formatted.empty()||!formatted.empty() defect for currency/date format output.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_ui_integration.cpp",
+   "line": 84,
+   "test": "AllActionsExist",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "user_visible_failure_missed": "Every File/Edit/View/Pages action can exist by objectName yet be connected to no/wrong slot (Save/Open/Find do nothing when clicked); all 22 tests still pass. Nothing invokes an action and asserts a document/state change.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_phase_f5_menu_wiring.cpp",
+   "line": 74,
+   "test": "FormsMenuHasCalculationOrderAction",
+   "oracle": "proxy",
+   "smells": [
+    "widget-exists-only"
+   ],
+   "user_visible_failure_missed": "calculationOrderAction exists with correct text but triggered() connected to nothing/wrong slot \u2014 clicking the menu item does nothing. File is NAMED 'menu_wiring' yet never triggers the wire. Same defect for altTextAction (line 120).",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_toolbar_toggles.cpp",
+   "line": 52,
+   "test": "AnnotationFilter_FilteredDisplayListCreated",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Sets HideStickyNotes then asserts only createDisplayList returns non-null. If the filter silently fails to remove sticky-note annotations, the display list is still non-null and the test passes \u2014 the user-visible 'sticky notes disappear' is never checked with a pixel/annotation-count oracle.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_structure_tree_builder.cpp",
+   "line": 99,
+   "test": "BuildMultiLevelTree",
+   "oracle": "metamorphic",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Builds H1+P+Figure(altText='Test image') but asserts only hasStructureTree()==true after reopen. If buildTree drops the Figure, loses altText, or writes every node as /P, the PDF fails accessibility/screen-reader use while the test stays green.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_performance_stress.cpp",
+   "line": 305,
+   "test": "ConcurrentMaliciousPdfRendering",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "successCount++ runs even when Document::open returns null (if(doc) only guards render); sole assertion successCount+exceptionCount==5 is always true if threads finish. Malicious PDF failing to open, corrupt tiles, or cross-thread state bleed all pass \u2014 the stated 'no inter-thread corruption' goal is never checked.",
+   "severity": "high",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_preflight_fix_all.cpp",
+   "line": 193,
+   "test": "FixIssueAppliesXmpMetadataFix",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Asserts only r.ok==true; the comment explicitly waives verifying the XMP packet was written. A fixer returning ok but writing no /Metadata (doc still fails PDF/A in Acrobat) passes. Same at 211 (OutputIntent) and 218 (JavaScriptStrip) \u2014 none re-validate the specific issue cleared.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_compliance_manager.cpp",
+   "line": 54,
+   "test": "ConvertToPdfA_2b",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only",
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Asserts output file exists + result.targetLevel==PdfA_2b (echoes the input arg). File-exists says nothing about conformance; a conversion writing a non-conformant PDF/A-2b (missing OutputIntent, unembedded fonts) passes \u2014 despite this same file's validator tests proving such docs are detectable.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_pdf_content_writer.cpp",
+   "line": 280,
+   "test": "GetImageDataFromScannedPageReturnsNonEmpty",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "Name says 'ReturnsNonEmpty' but body calls getImageXObjectData then SUCCEED() \u2014 returned data never inspected. Returning empty/garbage image bytes passes. Identical for GetContentStreamDataReturnsNonEmpty (line 308).",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_e2e_integration.cpp",
+   "line": 155,
+   "test": "IncrementalSavePreservesSignedByteRange",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Name promises signed-byte-range preservation but asserts only pageCount survives saveAs. A save that invalidates the digital signature (the whole point) passes; comment admits byte-level preservation is not asserted.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_external_flaw_corpus.cpp",
+   "line": 338,
+   "test": "Font_*_OpenRenderExtract (12 cases)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "Comment claims 'extraction must return text' but extractPlainText()'s result is (void)-discarded \u2014 a font extracting empty/garbage text (the real bug for non-embedded/CID fonts) passes silently. Only exact pageCount + no-crash enforced.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_pdf_canvas_q_invokable.cpp",
+   "line": 388,
+   "test": "ScrollsToAnnotationRect",
+   "oracle": "proxy",
+   "smells": [
+    "proxy"
+   ],
+   "user_visible_failure_missed": "Intends to prove scrolling to a lower-page annotation moves the viewport but asserts only currentPage()==0 (private scrollOffset_ uninspectable). A scrollToPdfRect computing wrong/no offset leaves the annotation off-screen yet passes; real check punted to a Python screenshot diff.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_uncovered_dialogs.cpp",
+   "line": 202,
+   "test": "TrustAnchorDialogRefreshIsIdempotent",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "assertion-free"
+   ],
+   "user_visible_failure_missed": "Calls refresh() x3 then SUCCEED() \u2014 asserts NOTHING. A refresh that duplicates rows or double-counts trust anchors passes silently; only an outright crash is caught. Surrounded by ~5 findChild!=null-only dialog construct tests (71/140/168/191).",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_page_panel_q_invokable.cpp",
+   "line": 102,
+   "test": "MovePageProgrammatic_ValidMoveEmitsPageMovedSignal",
+   "oracle": "proxy",
+   "smells": [
+    "proxy"
+   ],
+   "user_visible_failure_missed": "Asserts pageMoved(0,2) emitted with correct args but never checks the QListWidget rows / document page order actually changed. A hook that emits the signal without performing the move (or to the wrong slot) passes.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_stress_investigation.cpp",
+   "line": 305,
+   "test": "SaveTimeAt500Fields",
+   "oracle": "proxy",
+   "smells": [
+    "over-tolerant-threshold",
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Asserts only save time <30s + file exists. Never reopens to confirm the 500 form fields persisted. A save path dropping/truncating/corrupting fields but returning fast passes.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_c5_lcd_subpixel.cpp",
+   "line": 209,
+   "test": "LcdBlackText_SubpixelInAlphaChannel",
+   "oracle": "heuristic",
+   "smells": [
+    "assertion-free",
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Computes grayDistinct vs lcdDistinct alpha-level counts to prove LCD carries more sub-pixel info for black text but only asserts each >1 and never compares them (comment: 'mainly a smoke test'). If the LCD path collapses to grayscale for black text, the test still passes.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_crash_handler.cpp",
+   "line": 62,
+   "test": "TestCallback_Set",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "user_visible_failure_missed": "Installs a capturing callback but never triggers a crash or invokes dispatch, then discards it; callbackCalled is never asserted true. If crash-to-callback plumbing is broken, the modal-suppression-under-automation behavior it guards silently regresses (the exact CI-wedge risk in project memory).",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_log_handler.cpp",
+   "line": 107,
+   "test": "FileLogging_Enable_Disable",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "Enables file logging and asserts isFileLogging()==true + path getter, but never emits a message nor checks the file exists/contains the line. If file writing is broken while the flag flips, the test passes.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_gap102_residuals.cpp",
+   "line": 276,
+   "test": "IsPrintEnabledSeamWorks",
+   "oracle": "proxy",
+   "smells": [
+    "proxy"
+   ],
+   "user_visible_failure_missed": "Asserts only that invokeMethod returns true (method invokable); never asserts the returned bool matches real print-enabled state. A broken isPrintEnabled() (Print greyed with a doc loaded, or enabled with none) is undetected.",
+   "severity": "med",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_coord_mapper_rotation.cpp",
+   "line": 116,
+   "test": "NonRotatedRunMatchesPageTransform",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "SEED RE-VERIFIED: the pure decompose/residual tests hardcode expected degrees and are NOT tautological. The real weakness is this integration test \u2014 it compares computeRunTransform(identity) to getTransform() only on integer .rotation/.scaleX fields, never a mapped point/quad. A shared translation/skew error leaving rotation/scale equal but placing reconstructed text at the wrong pixel passes.",
+   "severity": "low",
+   "confidence": "med"
+  },
+  {
+   "file": "tests/test_coordinate_transform.cpp",
+   "line": 311,
+   "test": "AnnotationRendersAtCorrectPosition",
+   "oracle": "true",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "Searches a +/-30px window (at zoom 1.0) for any red pixel of a 50x50 annotation. A ~30px positional error \u2014 clearly visible misplacement \u2014 still finds red and passes.",
+   "severity": "low",
+   "confidence": "med"
+  },
+  {
+   "file": "tests/test_render_fidelity.cpp",
+   "line": 87,
+   "test": "RenderProducesNonBlankImage",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "Comment says '>=5% must be non-white' but code asserts nonWhitePixels>0 \u2014 a page rendering a single stray dark pixel (99.9% content dropped) passes.",
+   "severity": "low",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_single_instance_guard.cpp",
+   "line": 149,
+   "test": "DefaultNameIsPerUser",
+   "oracle": "proxy",
+   "smells": [
+    "proxy"
+   ],
+   "user_visible_failure_missed": "Asserts the name starts with the fixed prefix and is longer, but not that the suffix is the OS username. If it is a constant, two logged-in users collide on one single-instance domain and steal each other's file-open \u2014 the data-loss the class prevents.",
+   "severity": "low",
+   "confidence": "med"
+  }
+ ]
+}

@@ -1,0 +1,102 @@
+Phase 4 — annotations subsystem baseline failure log
+======================================================
+
+This file documents the RED/GREEN state of the new failing-test-first
+regression locks for Phase 4 (annotations subsystem cycle).
+
+Test command:
+  build/vs2022/bin/Debug/pdfe_tests.exe \
+    --gtest_filter="Phase4AnnotationsTest.*"
+
+Build commit:    88083cd (Phase 3 commit, head before Phase 4 work)
+Tests added:     tests/test_annotations_phase4.cpp (9 cases)
+                 tests/test_ui_annotations_smoke.py (3 cases)
+
+
+─────────────────────────────────────────────────────────────────────
+RED BASELINE (pre-Phase-4-test-introduction)
+─────────────────────────────────────────────────────────────────────
+
+The 9 P0 contracts I wrote tests for are ALL satisfied by the current
+production code. There is no RED baseline to capture in the
+traditional sense — the existing src/annotations/* and src/ui/* code
+already meets the contracts described in UI-AN-01, 03, 06, 10, 12,
+13, 14, 18, 33.
+
+This is consistent with the Phase 3 outcome for UI-TE-SEL-01 and
+UI-TE-UNDO-01, where the audit's hypothetical bug pattern was already
+fixed by prior commits (Tm-sign canonical-matrix work, per-font extent
+scaling, etc.). The Phase 4 audit rows are gap-coverage rather than
+documented bug reports — the existing test_annotation_*.cpp suite
+covered placement and basic create paths but didn't lock the
+undo/save/signal-flow invariants.
+
+The 9 new tests serve as REGRESSION LOCKS rather than bug fixes:
+each invariant is now red-on-regression, so any future change to
+the annotation pipeline that breaks one of these contracts (e.g. a
+refactor of MainWindow's tool callback wiring, or a change to
+AnnotationManager that drops /A dict serialization) will be caught
+in CI immediately.
+
+
+─────────────────────────────────────────────────────────────────────
+GREEN STATE (post-test-introduction, no production changes)
+─────────────────────────────────────────────────────────────────────
+
+[==========] 9 tests from 1 test suite ran. (95 ms total)
+[  PASSED  ] 9 tests.
+
+Test cases:
+  StickyNotePlacementPushesCreateCommand        (UI-AN-01)
+  SelectToolDeleteKeyPushesDeleteCommand        (UI-AN-13)
+  SelectToolResizeWiringPushesModifyCommand     (UI-AN-12)
+  LinkAnnotationUriRoundTrip                    (UI-AN-10)
+  HighlightAcceptsMultipleQuadPoints            (UI-AN-06)
+  FreeTextDefaultAppearancePersistsThroughSave  (UI-AN-03)
+  CommentPanelReflectsNewAnnotation             (UI-AN-14)
+  CommentPanelDeleteSignalTriggersDeleteCommand (UI-AN-18)
+  AnnotationPastedCallbackCreatesNewAnnotation  (UI-AN-33)
+
+
+─────────────────────────────────────────────────────────────────────
+Coverage notes
+─────────────────────────────────────────────────────────────────────
+
+UI-AN-02 (StickyNote popup-on-click pixel assertion):
+  Deferred to Phase 9 / D1 -- requires real Qt event dispatch through
+  PdfCanvas. Smoke covered by tests/test_ui_annotations_smoke.py.
+
+UI-AN-22 (annotation toolbar setIcon): Audit-flagged as missing.
+  Smoke captures a baseline screenshot for D1's visual-regression
+  diff. The setIcon fix is consolidated with the broader visual-
+  fidelity / icon-glyph work (Phase 9).
+
+P1 rows (UI-AN-04, 05, 07, 09, 11, 15, 17, 19, 21, 23, 24, 29, 30,
+34, 35): 15 P1 rows in the audit. Phase 4 covers indirectly via the
+P0 wiring tests (resize/delete/markup quads paths) plus the existing
+test_annotation_*.cpp suite. Direct coverage of the remaining specific
+P1 invariants (italic/underline-quad alignment, stamp tokens UI
+integration, alt-text dialog, color round-trip across reopen) is
+deferred to Phase D1 with the consolidated test_annotation_*.cpp
+expansion. Deferral rate ~80% — comparable to Phase 3, structurally
+driven by the audit's per-row file decomposition that pushes most
+families to D1.
+
+
+Production source changed in Phase 4: NONE.
+  No edits to src/annotations/* or src/ui/* were required. The
+  contracts hold against current production code; the value of this
+  cycle is the regression locks plus the harness layer.
+
+Suite delta: +9 active C++ tests, +3 active Python tests, 0 failures.
+
+==================================================================
+Phase 10 closeout annotation (2026-04-29)
+==================================================================
+Status: ALL FAILURES RESOLVED (no production change required).
+Phase that fixed: phase-4 (commit 729fa36 — annotations subsystem
+fix-and-test cycle).
+Locked-by tests: tests/test_annotations_phase4.cpp, plus existing
+test_annotation_*.cpp.
+Deferrals to D1: P1 rows enumerated above; rationale in
+UI_MATRIX_GAPS.md Phase-4 closeout.

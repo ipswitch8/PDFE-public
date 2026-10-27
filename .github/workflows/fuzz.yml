@@ -1,0 +1,195 @@
+name: Fuzz Campaigns (Linux — RETIRED, dispatch-only)
+
+# -------------------------------------------------------------------
+# RETIRED — manual dispatch only. Do NOT add a push/schedule trigger.
+#
+# This Linux libFuzzer workflow is retired from auto-firing for the
+# same two compounding reasons as sanitizer.yml:
+#
+#   1. CI-LIMITATION-PDFE-IS-WINDOWS-ONLY — PDFE does not compile on
+#      Linux, so the fuzz harnesses cannot be built there.
+#   2. CI-LIMITATION-GITHUB-FREE-TIER — the free-tier ubuntu-22.04
+#      runner cannot complete the vcpkg cold-cache build.
+#
+# ACTIVE replacement: .github/workflows/windows-fuzz.yml
+# (clang-cl libFuzzer, self-hosted pdfe-windows). That is the canonical
+# fuzzing path for this project.
+#
+# ITS ACTUAL TRIGGERS, quoted from that file's `on:` block:
+#     schedule:
+#       - cron: '30 3 * * *'      # nightly, 03:30 UTC
+#     workflow_dispatch:
+#       inputs: duration_seconds, detect_leaks
+# CORRECTED 2026-08-01 by meta-audit follow-up F5 (gap SEC-30 class /
+# SEC-109). This notice previously claimed the replacement ran on
+# "push + schedule". There is NO push trigger on windows-fuzz.yml and
+# there never was one after R2-13; its own header states push and
+# pull_request are "deliberately NOT added" so the single self-hosted
+# runner is not tied up on every commit. If windows-fuzz.yml's `on:`
+# block changes, change these quoted lines in the same commit.
+#
+# Kept for a future Linux port — which is blocked by deferred tracker
+# #42. See GAP-C3 in tests/docs/gap_checklist.md,
+# tests/docs/security_workflows.md, and
+# docs/audit/meta-audit-2026-07/followup/phase-5-dispositions.md.
+# -------------------------------------------------------------------
+
+on:
+  # Auto-triggers intentionally retired — see header above. Manual
+  # dispatch retained for opportunistic Linux-port verification.
+  workflow_dispatch:
+    inputs:
+      duration_seconds:
+        description: 'Per-harness fuzz duration (seconds)'
+        required: false
+        default: '1800'
+
+jobs:
+  fuzz:
+    name: libFuzzer ${{ matrix.harness }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    env:
+      VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
+      VCPKG_MAX_CONCURRENCY: '2'
+      MAKEFLAGS: '-j2'
+      # ninja (inside vcpkg per-port builds) defaults to nproc=4 on
+      # free runner — limits compile parallelism to fit 7GB memory.
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
+      NINJAFLAGS: '-j2'
+
+    strategy:
+      fail-fast: false
+      # Throttle: parallel Qt6 builds OOM the 7GB free-tier runner.
+      # Sequential lets first job populate vcpkg binary cache; the
+      # rest then pull cached Qt6 instead of rebuilding.
+      max-parallel: 1
+      matrix:
+        # RE-SYNCED IN PHASE-73. This list had drifted five harnesses behind
+        # tests/security/fuzz/CMakeLists.txt: the four R2-15/16 write-surface
+        # targets and fuzz_image_decode were added to windows-fuzz.yml and
+        # never here. Adding only the three new signature harnesses would
+        # have left it wrong in a different way, so the whole list is
+        # reconciled. The workflow is RETIRED (Linux cannot build PDFE at
+        # all -- see the header), so this is bookkeeping for a future port,
+        # not a lane anyone is relying on today. It is corrected because a
+        # stale list is what a future porter would trust.
+        harness:
+          - fuzz_document_open
+          - fuzz_page_render
+          - fuzz_text_extract
+          - fuzz_annotation_walk
+          - fuzz_form_parse
+          - fuzz_embedded_files
+          - fuzz_encryption_dict
+          - fuzz_content_stream_edit
+          - fuzz_save_roundtrip
+          - fuzz_mujs_exec
+          - fuzz_redaction_apply
+          - fuzz_image_decode
+          - fuzz_font_program
+          # Phase-73 signature harnesses: DER input, not PDF bytes.
+          - fuzz_ocsp_response
+          - fuzz_crl_parse
+          - fuzz_pkcs7_verify
+          - fuzz_tsa_response
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          # Need full history so we can record the SHA of the corpus
+          fetch-depth: 0
+
+      - name: Export GitHub Actions cache env (for vcpkg x-gha)
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7.1.0
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Install clang + deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-15 ninja-build cmake \
+            autoconf autoconf-archive automake libtool \
+            qt6-base-dev qt6-base-dev-tools libqt6test6 \
+            libfreetype-dev libharfbuzz-dev \
+            libssl-dev zlib1g-dev libpng-dev libjpeg-dev libtiff-dev \
+            libopenjp2-7-dev libtesseract-dev libleptonica-dev \
+            libpugixml-dev libsqlite3-dev \
+            libgl1-mesa-dev libfontconfig1-dev \
+            '^libxcb.*-dev' libx11-xcb-dev libglu1-mesa-dev \
+            libxrender-dev libxi-dev libxkbcommon-dev \
+            libxkbcommon-x11-dev libegl1-mesa-dev libdbus-1-dev
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2  # v11.6
+        with:
+          vcpkgGitCommitId: '15e5f3820f0370f1ba7150853762cec0688cd396'
+
+      - name: Configure with libFuzzer
+        env:
+          CC: clang-15
+          CXX: clang++-15
+          CFLAGS: -fsanitize=address,undefined,fuzzer-no-link -g -O1
+          CXXFLAGS: -fsanitize=address,undefined,fuzzer-no-link -g -O1
+        run: |
+          cmake -B build-fuzz -S . \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_TARGET_TRIPLET=x64-linux \
+            -DPDFE_ENABLE_FUZZING=ON \
+            -DPDFE_FUZZ_BACKEND=libfuzzer
+
+      - name: Build harness
+        run: cmake --build build-fuzz --target ${{ matrix.harness }}
+
+      - name: Run fuzz campaign
+        env:
+          DURATION: ${{ github.event.inputs.duration_seconds || '1800' }}
+        run: |
+          mkdir -p corpus/${{ matrix.harness }}
+          mkdir -p artifacts/${{ matrix.harness }}
+          # Seed from existing corpus if available. fuzz_pkcs7_verify seeds
+          # from the pre-existing tests/corpus/pkcs7/ rather than a second
+          # copy under seeds/ (phase-73 criterion 3).
+          seed_dir="tests/security/fuzz/seeds/${{ matrix.harness }}"
+          if [ "${{ matrix.harness }}" = "fuzz_pkcs7_verify" ]; then
+            seed_dir="tests/corpus/pkcs7"
+          fi
+          if [ -d "$seed_dir" ]; then
+            cp "$seed_dir"/* corpus/${{ matrix.harness }}/ 2>/dev/null || true
+          fi
+          # Dictionary, per input class: the signature harnesses parse DER,
+          # where PDF tokens cannot appear in a valid input.
+          dict="tests/security/fuzz/pdf.dict"
+          case "${{ matrix.harness }}" in
+            fuzz_ocsp_response|fuzz_crl_parse|fuzz_pkcs7_verify|fuzz_tsa_response)
+              dict="tests/security/fuzz/asn1.dict" ;;
+          esac
+          # Run with bounded duration; artifacts on crash
+          ./build-fuzz/bin/${{ matrix.harness }} \
+            corpus/${{ matrix.harness }} \
+            "-dict=$dict" \
+            -max_total_time=$DURATION \
+            -timeout=60 \
+            -rss_limit_mb=4096 \
+            -artifact_prefix=artifacts/${{ matrix.harness }}/ \
+            || true
+
+      - name: Upload findings
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: fuzz-${{ matrix.harness }}-findings
+          path: artifacts/${{ matrix.harness }}/
+          if-no-files-found: ignore
+
+      - name: Upload corpus
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: fuzz-${{ matrix.harness }}-corpus
+          path: corpus/${{ matrix.harness }}/
+          retention-days: 7

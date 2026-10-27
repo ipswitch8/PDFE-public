@@ -1,0 +1,978 @@
+[
+ {
+  "file": "tests/test_main.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 0,
+  "assertions": 0,
+  "assert_density": 0.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_link_tool.cpp",
+  "subsystem": "ui",
+  "tests": 5,
+  "assertions": 4,
+  "assert_density": 0.8,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_dll_dependencies.cpp",
+  "subsystem": "core/infra",
+  "tests": 23,
+  "assertions": 23,
+  "assert_density": 1.0,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_dialog_object_names_phase11.cpp",
+  "subsystem": "ui",
+  "tests": 16,
+  "assertions": 16,
+  "assert_density": 1.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_app_resources.cpp",
+  "subsystem": "ui",
+  "tests": 3,
+  "assertions": 3,
+  "assert_density": 1.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_a2_script_detection.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 15,
+  "assertions": 17,
+  "assert_density": 1.13,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_javascript_engine.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 23,
+  "assertions": 28,
+  "assert_density": 1.22,
+  "gtest_skip_sites": 18
+ },
+ {
+  "file": "tests/test_pdfua_converter.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 9,
+  "assertions": 11,
+  "assert_density": 1.22,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_pdfa_validator.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 12,
+  "assertions": 15,
+  "assert_density": 1.25,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_bates_tokens.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 10,
+  "assertions": 14,
+  "assert_density": 1.4,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_mupdf_context.cpp",
+  "subsystem": "core/infra",
+  "tests": 10,
+  "assertions": 14,
+  "assert_density": 1.4,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_structure_tree_builder.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 9,
+  "assertions": 13,
+  "assert_density": 1.44,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_coord_mapper_rotation.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 12,
+  "assertions": 18,
+  "assert_density": 1.5,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_auto_tagger.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 10,
+  "assertions": 15,
+  "assert_density": 1.5,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_engine_unc_gate.cpp",
+  "subsystem": "core/infra",
+  "tests": 8,
+  "assertions": 12,
+  "assert_density": 1.5,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_mainwindow_size_sanity.cpp",
+  "subsystem": "ui",
+  "tests": 2,
+  "assertions": 3,
+  "assert_density": 1.5,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_main_window_q_invokable.cpp",
+  "subsystem": "ui",
+  "tests": 13,
+  "assertions": 20,
+  "assert_density": 1.54,
+  "gtest_skip_sites": 7
+ },
+ {
+  "file": "tests/test_preflight_open.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 5,
+  "assertions": 8,
+  "assert_density": 1.6,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_high_contrast.cpp",
+  "subsystem": "ui",
+  "tests": 12,
+  "assertions": 20,
+  "assert_density": 1.67,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_q_invokable_coverage.cpp",
+  "subsystem": "ui",
+  "tests": 13,
+  "assertions": 22,
+  "assert_density": 1.69,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_fuzz_harness_smoke.cpp",
+  "subsystem": "core/infra",
+  "tests": 12,
+  "assertions": 21,
+  "assert_density": 1.75,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_toolbar_toggles.cpp",
+  "subsystem": "ui",
+  "tests": 8,
+  "assertions": 14,
+  "assert_density": 1.75,
+  "gtest_skip_sites": 9
+ },
+ {
+  "file": "tests/test_block_params_builder.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 10,
+  "assertions": 18,
+  "assert_density": 1.8,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_startup_ui_changes.cpp",
+  "subsystem": "ui",
+  "tests": 21,
+  "assertions": 38,
+  "assert_density": 1.81,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_follow_link.cpp",
+  "subsystem": "ui",
+  "tests": 6,
+  "assertions": 11,
+  "assert_density": 1.83,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_pdf_content_writer.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 24,
+  "assertions": 48,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 23
+ },
+ {
+  "file": "tests/test_compliance_manager.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 14,
+  "assertions": 28,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_compat_advanced.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 7,
+  "assertions": 14,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_q_invokable_seams_phase1.cpp",
+  "subsystem": "ui",
+  "tests": 7,
+  "assertions": 14,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 7
+ },
+ {
+  "file": "tests/test_log_handler.cpp",
+  "subsystem": "core/infra",
+  "tests": 6,
+  "assertions": 12,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_deferred_panels.cpp",
+  "subsystem": "ui",
+  "tests": 4,
+  "assertions": 8,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_crash_handler.cpp",
+  "subsystem": "core/infra",
+  "tests": 9,
+  "assertions": 20,
+  "assert_density": 2.22,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_password_dialog.cpp",
+  "subsystem": "ui",
+  "tests": 8,
+  "assertions": 18,
+  "assert_density": 2.25,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_fixture_corpus.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 7,
+  "assertions": 16,
+  "assert_density": 2.29,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_link_actions.cpp",
+  "subsystem": "ui",
+  "tests": 20,
+  "assertions": 46,
+  "assert_density": 2.3,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_coordinate_transform.cpp",
+  "subsystem": "core/infra",
+  "tests": 12,
+  "assertions": 28,
+  "assert_density": 2.33,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_c5_lcd_subpixel.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 9,
+  "assertions": 21,
+  "assert_density": 2.33,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_alt_text.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 6,
+  "assertions": 14,
+  "assert_density": 2.33,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_tile_prefetcher.cpp",
+  "subsystem": "core/infra",
+  "tests": 8,
+  "assertions": 19,
+  "assert_density": 2.38,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_app_settings.cpp",
+  "subsystem": "ui",
+  "tests": 20,
+  "assertions": 48,
+  "assert_density": 2.4,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_accessible_names.cpp",
+  "subsystem": "ui",
+  "tests": 14,
+  "assertions": 35,
+  "assert_density": 2.5,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_b3_pattern_copy.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 10,
+  "assertions": 26,
+  "assert_density": 2.6,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_c4_perceptual_alpha.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 10,
+  "assertions": 26,
+  "assert_density": 2.6,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_theme_and_field_count.cpp",
+  "subsystem": "ui",
+  "tests": 10,
+  "assertions": 26,
+  "assert_density": 2.6,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_hidpi.cpp",
+  "subsystem": "ui",
+  "tests": 5,
+  "assertions": 13,
+  "assert_density": 2.6,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_gap102_residuals.cpp",
+  "subsystem": "core/infra",
+  "tests": 16,
+  "assertions": 42,
+  "assert_density": 2.62,
+  "gtest_skip_sites": 9
+ },
+ {
+  "file": "tests/test_calculation_order.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 11,
+  "assertions": 29,
+  "assert_density": 2.64,
+  "gtest_skip_sites": 5
+ },
+ {
+  "file": "tests/test_pdfe_icons.cpp",
+  "subsystem": "ui",
+  "tests": 3,
+  "assertions": 8,
+  "assert_density": 2.67,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_compliance_dialog.cpp",
+  "subsystem": "ui",
+  "tests": 26,
+  "assertions": 70,
+  "assert_density": 2.69,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_accessibility.cpp",
+  "subsystem": "ui",
+  "tests": 11,
+  "assertions": 30,
+  "assert_density": 2.73,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_header_footer.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 18,
+  "assertions": 50,
+  "assert_density": 2.78,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_vector_subset_detector.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 10,
+  "assertions": 28,
+  "assert_density": 2.8,
+  "gtest_skip_sites": 6
+ },
+ {
+  "file": "tests/test_preflight_xplatform.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 5,
+  "assertions": 14,
+  "assert_density": 2.8,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_ui_high_contrast.cpp",
+  "subsystem": "ui",
+  "tests": 5,
+  "assertions": 14,
+  "assert_density": 2.8,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_preflight_fix_all.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 22,
+  "assertions": 62,
+  "assert_density": 2.82,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_about_dialog.cpp",
+  "subsystem": "ui",
+  "tests": 12,
+  "assertions": 34,
+  "assert_density": 2.83,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_keyboard_navigation.cpp",
+  "subsystem": "ui",
+  "tests": 8,
+  "assertions": 23,
+  "assert_density": 2.88,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_pdf_canvas_q_invokable.cpp",
+  "subsystem": "ui",
+  "tests": 28,
+  "assertions": 81,
+  "assert_density": 2.89,
+  "gtest_skip_sites": 51
+ },
+ {
+  "file": "tests/test_b3_bg_classification.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 10,
+  "assertions": 29,
+  "assert_density": 2.9,
+  "gtest_skip_sites": 6
+ },
+ {
+  "file": "tests/test_navigation_history.cpp",
+  "subsystem": "ui",
+  "tests": 11,
+  "assertions": 33,
+  "assert_density": 3.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_probe_extent.cpp",
+  "subsystem": "core/infra",
+  "tests": 1,
+  "assertions": 3,
+  "assert_density": 3.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_cache_stats.cpp",
+  "subsystem": "core/infra",
+  "tests": 10,
+  "assertions": 31,
+  "assert_density": 3.1,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_version_update.cpp",
+  "subsystem": "ui",
+  "tests": 10,
+  "assertions": 31,
+  "assert_density": 3.1,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_alt_text_dialog.cpp",
+  "subsystem": "ui",
+  "tests": 9,
+  "assertions": 28,
+  "assert_density": 3.11,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_cli.cpp",
+  "subsystem": "core/infra",
+  "tests": 9,
+  "assertions": 28,
+  "assert_density": 3.11,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_installer.cpp",
+  "subsystem": "core/infra",
+  "tests": 17,
+  "assertions": 53,
+  "assert_density": 3.12,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_pdfa_converter.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 14,
+  "assertions": 44,
+  "assert_density": 3.14,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_performance_stress.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 7,
+  "assertions": 22,
+  "assert_density": 3.14,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_launch_link_follow.cpp",
+  "subsystem": "ui",
+  "tests": 6,
+  "assertions": 19,
+  "assert_density": 3.17,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_preflight_dialog.cpp",
+  "subsystem": "ui",
+  "tests": 10,
+  "assertions": 32,
+  "assert_density": 3.2,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_select_tool_enhanced.cpp",
+  "subsystem": "ui",
+  "tests": 18,
+  "assertions": 58,
+  "assert_density": 3.22,
+  "gtest_skip_sites": 18
+ },
+ {
+  "file": "tests/test_pdfa_roundtrip.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 9,
+  "assertions": 29,
+  "assert_density": 3.22,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_tile_renderer.cpp",
+  "subsystem": "core/infra",
+  "tests": 10,
+  "assertions": 33,
+  "assert_density": 3.3,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_adversarial_ambient_corpus.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 3,
+  "assertions": 10,
+  "assert_density": 3.33,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_coordinate_diagnostic.cpp",
+  "subsystem": "core/infra",
+  "tests": 3,
+  "assertions": 10,
+  "assert_density": 3.33,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_i18n_translations.cpp",
+  "subsystem": "ui",
+  "tests": 3,
+  "assertions": 10,
+  "assert_density": 3.33,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_stress_investigation.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 8,
+  "assertions": 27,
+  "assert_density": 3.38,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_header_footer_state_leak.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 2,
+  "assertions": 7,
+  "assert_density": 3.5,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_main_window_icon.cpp",
+  "subsystem": "ui",
+  "tests": 2,
+  "assertions": 7,
+  "assert_density": 3.5,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_page_panel_q_invokable.cpp",
+  "subsystem": "ui",
+  "tests": 11,
+  "assertions": 39,
+  "assert_density": 3.55,
+  "gtest_skip_sites": 20
+ },
+ {
+  "file": "tests/test_tile_cache.cpp",
+  "subsystem": "core/infra",
+  "tests": 14,
+  "assertions": 51,
+  "assert_density": 3.64,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_writing_mode_autoplumb.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 4,
+  "assertions": 15,
+  "assert_density": 3.75,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_ui_integration.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 22,
+  "assertions": 83,
+  "assert_density": 3.77,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_render_fidelity.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 5,
+  "assertions": 19,
+  "assert_density": 3.8,
+  "gtest_skip_sites": 5
+ },
+ {
+  "file": "tests/test_thumbnails.cpp",
+  "subsystem": "ui",
+  "tests": 5,
+  "assertions": 19,
+  "assert_density": 3.8,
+  "gtest_skip_sites": 5
+ },
+ {
+  "file": "tests/test_ci_fuzz_workflows.cpp",
+  "subsystem": "core/infra",
+  "tests": 6,
+  "assertions": 23,
+  "assert_density": 3.83,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_view_rotation.cpp",
+  "subsystem": "ui",
+  "tests": 9,
+  "assertions": 36,
+  "assert_density": 4.0,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_recent_files.cpp",
+  "subsystem": "ui",
+  "tests": 6,
+  "assertions": 24,
+  "assert_density": 4.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_e2e_integration.cpp",
+  "subsystem": "core/infra",
+  "tests": 5,
+  "assertions": 20,
+  "assert_density": 4.0,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_journey_op99_crash.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 3,
+  "assertions": 12,
+  "assert_density": 4.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_open_close_leak_cycle.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 2,
+  "assertions": 8,
+  "assert_density": 4.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_fidelity_r3_19_pdfa_independent.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 5,
+  "assertions": 21,
+  "assert_density": 4.2,
+  "gtest_skip_sites": 7
+ },
+ {
+  "file": "tests/test_page.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 8,
+  "assertions": 34,
+  "assert_density": 4.25,
+  "gtest_skip_sites": 9
+ },
+ {
+  "file": "tests/test_startup_timer.cpp",
+  "subsystem": "ui",
+  "tests": 4,
+  "assertions": 17,
+  "assert_density": 4.25,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_mupdf_context_clone_lifecycle.cpp",
+  "subsystem": "core/infra",
+  "tests": 3,
+  "assertions": 13,
+  "assert_density": 4.33,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_realworld_external_corpus.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 3,
+  "assertions": 13,
+  "assert_density": 4.33,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_external_flaw_corpus.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 47,
+  "assertions": 205,
+  "assert_density": 4.36,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_dialog_widget_audit_phase2.cpp",
+  "subsystem": "ui",
+  "tests": 14,
+  "assertions": 62,
+  "assert_density": 4.43,
+  "gtest_skip_sites": 22
+ },
+ {
+  "file": "tests/test_bg_color_detector.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 13,
+  "assertions": 58,
+  "assert_density": 4.46,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_phase_f5_menu_wiring.cpp",
+  "subsystem": "ui",
+  "tests": 8,
+  "assertions": 37,
+  "assert_density": 4.62,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_ci_supplychain.cpp",
+  "subsystem": "core/infra",
+  "tests": 6,
+  "assertions": 28,
+  "assert_density": 4.67,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_single_instance_guard.cpp",
+  "subsystem": "core/infra",
+  "tests": 6,
+  "assertions": 28,
+  "assert_density": 4.67,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_realworld_corpus.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 3,
+  "assertions": 14,
+  "assert_density": 4.67,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_thumbnail_cache_cancel.cpp",
+  "subsystem": "ui",
+  "tests": 3,
+  "assertions": 14,
+  "assert_density": 4.67,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_ui_structure_bugs.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 3,
+  "assertions": 14,
+  "assert_density": 4.67,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_chrome_phase9.cpp",
+  "subsystem": "ui",
+  "tests": 25,
+  "assertions": 123,
+  "assert_density": 4.92,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_cmyk_identity_preservation.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 4,
+  "assertions": 21,
+  "assert_density": 5.25,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_fidelity_r3_06_color_preservation.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 2,
+  "assertions": 11,
+  "assert_density": 5.5,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_toolbar_customization.cpp",
+  "subsystem": "ui",
+  "tests": 7,
+  "assertions": 40,
+  "assert_density": 5.71,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_ui_pdfcanvas_accessible_text.cpp",
+  "subsystem": "ui",
+  "tests": 6,
+  "assertions": 35,
+  "assert_density": 5.83,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_ui_clipboard_dragdrop.cpp",
+  "subsystem": "ui",
+  "tests": 6,
+  "assertions": 37,
+  "assert_density": 6.17,
+  "gtest_skip_sites": 6
+ },
+ {
+  "file": "tests/test_branding_resources.cpp",
+  "subsystem": "ui",
+  "tests": 3,
+  "assertions": 20,
+  "assert_density": 6.67,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_validation_request.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 11,
+  "assertions": 74,
+  "assert_density": 6.73,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_hidpi_render.cpp",
+  "subsystem": "ui",
+  "tests": 4,
+  "assertions": 28,
+  "assert_density": 7.0,
+  "gtest_skip_sites": 9
+ },
+ {
+  "file": "tests/test_canvas_stale_layout.cpp",
+  "subsystem": "ui",
+  "tests": 1,
+  "assertions": 7,
+  "assert_density": 7.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_panel_interaction_phase8.cpp",
+  "subsystem": "ui",
+  "tests": 9,
+  "assertions": 64,
+  "assert_density": 7.11,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_uncovered_dialogs.cpp",
+  "subsystem": "ui",
+  "tests": 18,
+  "assertions": 129,
+  "assert_density": 7.17,
+  "gtest_skip_sites": 17
+ },
+ {
+  "file": "tests/test_vector_heading_commit.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 2,
+  "assertions": 15,
+  "assert_density": 7.5,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_tile_renderer_leak.cpp",
+  "subsystem": "core/infra",
+  "tests": 1,
+  "assertions": 10,
+  "assert_density": 10.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_path_roundtrips.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 4,
+  "assertions": 43,
+  "assert_density": 10.75,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_preferences_dialog.cpp",
+  "subsystem": "ui",
+  "tests": 3,
+  "assertions": 37,
+  "assert_density": 12.33,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_struct_tree_preservation.cpp",
+  "subsystem": "other/uncategorized",
+  "tests": 4,
+  "assertions": 65,
+  "assert_density": 16.25,
+  "gtest_skip_sites": 1
+ }
+]

@@ -1,0 +1,37 @@
+Note: Google Test filter = AlignmentInjectorTest.*
+[==========] Running 5 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 5 tests from AlignmentInjectorTest
+[ RUN      ] AlignmentInjectorTest.ApplyInjectsBlockAndFileRemainsParseable
+[       OK ] AlignmentInjectorTest.ApplyInjectsBlockAndFileRemainsParseable (9 ms)
+[ RUN      ] AlignmentInjectorTest.ReApplyDoesNotStackDuplicates
+[       OK ] AlignmentInjectorTest.ReApplyDoesNotStackDuplicates (23 ms)
+[ RUN      ] AlignmentInjectorTest.RemoveDropsPreviouslyInjectedBlocks
+[       OK ] AlignmentInjectorTest.RemoveDropsPreviouslyInjectedBlocks (14 ms)
+[ RUN      ] AlignmentInjectorTest.MultipleBlocksOnDifferentPagesEachLand
+[       OK ] AlignmentInjectorTest.MultipleBlocksOnDifferentPagesEachLand (13 ms)
+[ RUN      ] AlignmentInjectorTest.EmptyBlockListProducesParseableFile
+[       OK ] AlignmentInjectorTest.EmptyBlockListProducesParseableFile (4 ms)
+[----------] 5 tests from AlignmentInjectorTest (65 ms total)
+
+[----------] Global test environment tear-down
+
+============ ADVERSARIAL-AMBIENT GAP REGISTER (content-stream-continuity phase-1 discovery) ============
+injector               hostile_op   injected  neighbor  probed   notes
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+CONFIRMED corrupting cells (probed AND injected_ok==false OR neighbor_ok==false):
+cells=0 probed=0 confirmed_corrupt=0
+====================================================================================================
+
+[AdversarialAmbient] no cells this run (filtered subset) — leaving gap-register.json intact
+
+================ AUTOSAVE CAPTURE GAP REGISTER (phase-1 discovery) ================
+family                 undoAP dirty    autosave  capture  restore  probed 
+------------------------------------------------------------------------------------
+====================================================================================
+GAP = probed family whose edit is NOT captured by autosave (capture_present == NO).
+
+[AutosaveCaptureAudit] no audit rows this run (filtered subset) — leaving gap-register.json intact
+[==========] 5 tests from 1 test suite ran. (67 ms total)
+[  PASSED  ] 5 tests.

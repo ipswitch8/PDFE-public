@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="14" failures="1" disabled="0" errors="0" time="0.263" timestamp="2026-07-28T13:36:56.627" name="AllTests">
+  <testsuite name="ContentStreamSubstitutionTest" tests="9" failures="1" disabled="0" skipped="0" errors="0" time="0.101" timestamp="2026-07-28T13:36:56.629">
+    <testcase name="EmptySubstitutionsDelegatesToApplyEdits" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="225" status="run" result="completed" time="0.018" timestamp="2026-07-28T13:36:56.629" classname="ContentStreamSubstitutionTest" />
+    <testcase name="NullPageIsNoOp" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="242" status="run" result="completed" time="0.005" timestamp="2026-07-28T13:36:56.647" classname="ContentStreamSubstitutionTest" />
+    <testcase name="NullDocIsNoOp" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="254" status="run" result="completed" time="0.005" timestamp="2026-07-28T13:36:56.653" classname="ContentStreamSubstitutionTest" />
+    <testcase name="EmptyModificationsIsNoOp" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="266" status="run" result="completed" time="0.011" timestamp="2026-07-28T13:36:56.658" classname="ContentStreamSubstitutionTest" />
+    <testcase name="AccentedSubstitutionTextIsPresent" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="279" status="run" result="completed" time="0.011" timestamp="2026-07-28T13:36:56.670" classname="ContentStreamSubstitutionTest" />
+    <testcase name="BackwardCompatibleEditLands" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="301" status="run" result="completed" time="0.011" timestamp="2026-07-28T13:36:56.682" classname="ContentStreamSubstitutionTest" />
+    <testcase name="ScaledSubstitutionEditLands" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="320" status="run" result="completed" time="0.01" timestamp="2026-07-28T13:36:56.693" classname="ContentStreamSubstitutionTest" />
+    <testcase name="PerRunSubstitutionEditNotMirroredKeepsColor" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="343" status="run" result="completed" time="0.012" timestamp="2026-07-28T13:36:56.704" classname="ContentStreamSubstitutionTest" />
+    <testcase name="LegacySubstitutionEditFullSizeKeepsColor" file="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp" line="372" status="run" result="completed" time="0.014" timestamp="2026-07-28T13:36:56.716" classname="ContentStreamSubstitutionTest">
+      <failure message="C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp:383&#x0A;Expected: (ratio) &gt; (0.80f), actual: 0.5 vs 0.8&#x0A;edited text is HALF-SIZE (sizeRatio=0.5) — substitution path halved initialFontSize&#x0A;" type=""><![CDATA[C:\Users\dev\source\PDFE\tests\test_content_stream_substitution.cpp:383
+Expected: (ratio) > (0.80f), actual: 0.5 vs 0.8
+edited text is HALF-SIZE (sizeRatio=0.5) — substitution path halved initialFontSize
+]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="PerRunEmissionTest" tests="5" failures="0" disabled="0" skipped="0" errors="0" time="0.159" timestamp="2026-07-28T13:36:56.731">
+    <testcase name="EmptyRunSegmentsFallsThroughToLegacyPath" file="C:\Users\dev\source\PDFE\tests\test_content_stream_per_run_emission.cpp" line="163" status="run" result="completed" time="0.026" timestamp="2026-07-28T13:36:56.731" classname="PerRunEmissionTest" />
+    <testcase name="TwoSegmentsProduceMultipleTfOps" file="C:\Users\dev\source\PDFE\tests\test_content_stream_per_run_emission.cpp" line="206" status="run" result="completed" time="0.029" timestamp="2026-07-28T13:36:56.757" classname="PerRunEmissionTest" />
+    <testcase name="SingleSegmentEmitsSingleTf" file="C:\Users\dev\source\PDFE\tests\test_content_stream_per_run_emission.cpp" line="241" status="run" result="completed" time="0.046" timestamp="2026-07-28T13:36:56.787" classname="PerRunEmissionTest" />
+    <testcase name="EmptySegmentSkipped" file="C:\Users\dev\source\PDFE\tests\test_content_stream_per_run_emission.cpp" line="283" status="run" result="completed" time="0.027" timestamp="2026-07-28T13:36:56.833" classname="PerRunEmissionTest" />
+    <testcase name="OutOfBoundsSegmentClamped" file="C:\Users\dev\source\PDFE\tests\test_content_stream_per_run_emission.cpp" line="321" status="run" result="completed" time="0.029" timestamp="2026-07-28T13:36:56.860" classname="PerRunEmissionTest" />
+  </testsuite>
+</testsuites>

@@ -1,0 +1,15 @@
+== BASELINE: 13 distinct filters ==
+  [GREEN] tests=5 fail=0  AlignmentInjectorTest.*
+  [GREEN] tests=5 fail=0  AutosaveRecoveryTest.*
+  [GREEN] tests=5 fail=0  CommandPageRebindTest.*:*OrdinarySaveDrains*
+  [GREEN] tests=2 fail=0  ContentStreamOutOfClass.*
+  [GREEN] tests=7 fail=0  ContentStreamSubstitutionTest.*
+  [GREEN] tests=12 fail=0  ContentStreamSubstitutionTest.*:PerRunEmissionTest.*
+  [GREEN] tests=3 fail=0  CtmReset.*
+  [GREEN] tests=15 fail=0  GlyphScaleAdjusterTest.*
+  [GREEN] tests=2 fail=0  NegTzGreyTextEdit.*
+  [GREEN] tests=26 fail=0  Phase5FormsTest.*:FormManagerTest.*
+  [GREEN] tests=1 fail=0  Phase5FormsTest.ResetFormRestoresDefaultValues
+  [GREEN] tests=2 fail=0  RedactionPartialOverlap.*
+  [GREEN] tests=15 fail=0  RedactionVerifierTest.*:RedactionVerifierFailPathTest.*
+baseline-only done.

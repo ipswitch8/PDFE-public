@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="16" failures="1" disabled="0" errors="0" time="0.088" timestamp="2026-07-28T14:48:38.234" name="AllTests">
+  <testsuite name="GlyphScaleAdjusterTest" tests="16" failures="1" disabled="0" skipped="0" errors="0" time="0.086" timestamp="2026-07-28T14:48:38.236">
+    <testcase name="SameFontScaleIsOne" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="60" status="run" result="completed" time="0.006" timestamp="2026-07-28T14:48:38.236" classname="GlyphScaleAdjusterTest" />
+    <testcase name="DifferentFontsScaleNonOne" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="85" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:48:38.243" classname="GlyphScaleAdjusterTest" />
+    <testcase name="HorizontalScaleIsOriginalOverSubstituteNotInverted" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="124" status="run" result="completed" time="0.01" timestamp="2026-07-28T14:48:38.247" classname="GlyphScaleAdjusterTest">
+      <failure message="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp:160&#x0A;The difference between result.horizontalScale and expected is 0.092684805393218994, which exceeds 1e-3f, where&#x0A;result.horizontalScale evaluates to 0.9547308087348938,&#x0A;expected evaluates to 1.0474156141281128, and&#x0A;1e-3f evaluates to 0.0010000000474974513.&#x0A;horizontalScale must equal originalWidth/substituteWidth (1.0474156141281128), squeezing the substitute to the original run width.&#x0A;" type=""><![CDATA[C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp:160
+The difference between result.horizontalScale and expected is 0.092684805393218994, which exceeds 1e-3f, where
+result.horizontalScale evaluates to 0.9547308087348938,
+expected evaluates to 1.0474156141281128, and
+1e-3f evaluates to 0.0010000000474974513.
+horizontalScale must equal originalWidth/substituteWidth (1.0474156141281128), squeezing the substitute to the original run width.
+]]></failure>
+      <failure message="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp:164&#x0A;Expected: (std::fabs(result.horizontalScale - inverted)) &gt; (1e-3f), actual: 0 vs 0.001&#x0A;horizontalScale must NOT equal the inverse substituteWidth/originalWidth (0.9547308087348938) — that renders substituted text at the wrong width (the M15 inversion defect).&#x0A;" type=""><![CDATA[C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp:164
+Expected: (std::fabs(result.horizontalScale - inverted)) > (1e-3f), actual: 0 vs 0.001
+horizontalScale must NOT equal the inverse substituteWidth/originalWidth (0.9547308087348938) — that renders substituted text at the wrong width (the M15 inversion defect).
+]]></failure>
+      <failure message="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp:172&#x0A;Expected: (result.horizontalScale) &gt; (1.0f), actual: 0.954730809 vs 1&#x0A;Original wider than substitute → scale must stretch (&gt;1).&#x0A;" type=""><![CDATA[C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp:172
+Expected: (result.horizontalScale) > (1.0f), actual: 0.954730809 vs 1
+Original wider than substitute → scale must stretch (>1).
+]]></failure>
+    </testcase>
+    <testcase name="EmptyTextReturnsDefault" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="180" status="run" result="completed" time="0." timestamp="2026-07-28T14:48:38.257" classname="GlyphScaleAdjusterTest" />
+    <testcase name="NullFaceReturnsDefault" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="203" status="run" result="completed" time="0." timestamp="2026-07-28T14:48:38.258" classname="GlyphScaleAdjusterTest" />
+    <testcase name="FontSizePreserved" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="251" status="run" result="completed" time="0.018" timestamp="2026-07-28T14:48:38.259" classname="GlyphScaleAdjusterTest" />
+    <testcase name="ConsistentResultsForSameInput" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="275" status="run" result="completed" time="0.008" timestamp="2026-07-28T14:48:38.277" classname="GlyphScaleAdjusterTest" />
+    <testcase name="DifferentTextProducesDifferentScales" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="307" status="run" result="completed" time="0.007" timestamp="2026-07-28T14:48:38.286" classname="GlyphScaleAdjusterTest" />
+    <testcase name="LongTextHandledCorrectly" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="339" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:48:38.294" classname="GlyphScaleAdjusterTest" />
+    <testcase name="SpecialCharactersHandled" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="362" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:48:38.298" classname="GlyphScaleAdjusterTest" />
+    <testcase name="ZeroFontSizeHandledGracefully" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="382" status="run" result="completed" time="0." timestamp="2026-07-28T14:48:38.303" classname="GlyphScaleAdjusterTest" />
+    <testcase name="NegativeFontSizeHandledGracefully" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="404" status="run" result="completed" time="0." timestamp="2026-07-28T14:48:38.304" classname="GlyphScaleAdjusterTest" />
+    <testcase name="VeryLargeFontSizeHandled" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="424" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:48:38.305" classname="GlyphScaleAdjusterTest" />
+    <testcase name="UnicodeTextHandled" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="443" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:48:38.309" classname="GlyphScaleAdjusterTest" />
+    <testcase name="SingleCharacterText" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="465" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:48:38.314" classname="GlyphScaleAdjusterTest" />
+    <testcase name="WhitespaceOnlyText" file="C:\Users\dev\source\PDFE\tests\test_glyph_scale_adjuster.cpp" line="486" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:48:38.319" classname="GlyphScaleAdjusterTest" />
+  </testsuite>
+</testsuites>

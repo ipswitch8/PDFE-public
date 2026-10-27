@@ -1,0 +1,23 @@
+{
+  "pageCount": 1,
+  "isEncrypted": true,
+  "hasForm": false,
+  "hasForms": false,
+  "hasAnnotations": false,
+  "hasImages": false,
+  "pdfVersion": "1.6",
+  "fileSize": 1968,
+  "origin": "phase3-generator",
+  "category_tags": [
+    "aes-128",
+    "encrypted",
+    "ascii-only",
+    "vector-text"
+  ],
+  "description": "AES-128 (V=4 R=4) encryption. user pw='user', owner pw='owner-pw-phase3'.",
+  "encryptionAlgo": "AES-128",
+  "scripts": [
+    "ascii"
+  ],
+  "contentKind": "vector-text"
+}

@@ -1,0 +1,243 @@
+{
+  "_comment": "REAL mutant manifest for tools/gate/mutation_kill.py — the 16 single-edit source mutants from docs/harness-audit/phase-3/mutants.json, converted into the gate's execution schema (test_filter -> killing_test, + target). BEFORE remediation phases 1-4, 10 of these SURVIVED (false-green oracles). AFTER phases 1-4 the strengthened oracles KILL all 16 (see docs/harness-audit/remediation/phase-{1,2,3}-mutation-reverify.json). The mutation-kill.yml workflow rebuilds pdfe_tests once per mutant and applies the floor: ANY surviving mutant (a killing_test that still PASSES on the behaviour-breaking edit) fails the job. Floor default 1.0 = 100% kill = zero tolerated false-green oracles. Grow this set as new Register findings close; each `find` must occur exactly once in its file (enforced by --dry-run).",
+  "build": {
+    "cmake": "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe",
+    "build_preset": "debug-vs2022",
+    "test_exe": "build/vs2022/bin/Debug/pdfe_tests.exe"
+  },
+  "mutants": [
+    {
+      "id": "M01-statecont-ctm-guard-drop-Q",
+      "subsystem": "content-editing/state-continuity",
+      "file": "src/core/PageContentGuard.h",
+      "find": "    fz_buffer* QbufEnd = fz_new_buffer_from_copied_data(\n        ctx, reinterpret_cast<const unsigned char*>(\"Q\\n\"), 2);",
+      "replace": "    fz_buffer* QbufEnd = fz_new_buffer_from_copied_data(\n        ctx, reinterpret_cast<const unsigned char*>(\"%\\n\"), 2);",
+      "target": "pdfe_tests",
+      "killing_test": "CtmReset.*",
+      "expected": "killed",
+      "note": "MANDATORY state-continuity cross-check: drops the outer Q of the q...Q CTM bracket; injected text inherits the ambient 0.5x CTM and renders half-size. test_content_stream_ctm_reset pins glyph height in [0.80,1.20]."
+    },
+    {
+      "id": "M02-statecont-preamble-tz-mirror",
+      "subsystem": "content-editing/state-continuity",
+      "file": "src/core/ContentStreamPreamble.h",
+      "find": "\"%.6g %.6g %.6g rg\\n100 Tz\\n0 Tc\\n0 Tw\\n0 Ts\\n0 Tr\\n\"",
+      "replace": "\"%.6g %.6g %.6g rg\\n-100 Tz\\n0 Tc\\n0 Tw\\n0 Ts\\n0 Tr\\n\"",
+      "target": "pdfe_tests",
+      "killing_test": "CtmReset.*",
+      "expected": "killed",
+      "note": "Flips 100 Tz -> -100 Tz, mirroring every injected glyph. test_content_stream_ctm_reset asserts EXPECT_GT(firstUrx, firstUlx)."
+    },
+    {
+      "id": "M03-statecont-editor-tz-mirror",
+      "subsystem": "content-editing/state-continuity",
+      "file": "src/textedit/ContentStreamEditor.cpp",
+      "find": "        chain->op_Tz(ctx, chain, 100.0f);",
+      "replace": "        chain->op_Tz(ctx, chain, -100.0f);",
+      "target": "pdfe_tests",
+      "killing_test": "NegTzGreyTextEdit.*",
+      "expected": "killed",
+      "note": "Re-introduces the -100 Tz mirror on the non-substitution edit path. test_content_stream_neg_tz reads saved glyph quads and asserts ur.x > ul.x."
+    },
+    {
+      "id": "M04-statecont-subst-tz-mirror",
+      "subsystem": "content-editing/state-continuity",
+      "file": "src/textedit/ContentStreamEditor.cpp",
+      "find": "        float hScale = 100.0f;",
+      "replace": "        float hScale = -100.0f;",
+      "target": "pdfe_tests",
+      "killing_test": "ContentStreamSubstitutionTest.PerRunSubstitutionEditNotMirroredKeepsColor",
+      "expected": "killed",
+      "note": "Mirror defect in the font-substitution path. Phase-2 added a glyph-quad mirror+colour oracle (was SURVIVED)."
+    },
+    {
+      "id": "M05-statecont-alignment-offset-noop",
+      "subsystem": "content-editing/state-continuity",
+      "file": "src/reflow/TextReflowEngine.cpp",
+      "find": "        case Alignment::Center:  return (blockWidth - lineWidth) / 2.0f;",
+      "replace": "        case Alignment::Center:  return 0.0f;",
+      "target": "pdfe_tests",
+      "killing_test": "AlignmentInjectorTest.CenteredLineIsActuallyCenteredNotLeftAligned",
+      "expected": "killed",
+      "note": "Forces Center offset to 0 (centered text renders left-aligned). Phase-2 added a glyph-x-offset oracle (was SURVIVED)."
+    },
+    {
+      "id": "M06-statecont-subst-drop-fill-color",
+      "subsystem": "content-editing/state-continuity",
+      "file": "src/textedit/ContentStreamEditor.cpp",
+      "find": "        // R3-06: reproduce the captured source colourspace operator (k/g/scn)\n        // when non-RGB; DeviceRGB/unknown fall through to the legacy rg path.\n        if (!emitCapturedFill(ctx, chain, inj.capturedFill) && inj.textColorKnown) {",
+      "replace": "        // R3-06: reproduce the captured source colourspace operator (k/g/scn)\n        // when non-RGB; DeviceRGB/unknown fall through to the legacy rg path.\n        if (!emitCapturedFill(ctx, chain, inj.capturedFill) && false) {",
+      "target": "pdfe_tests",
+      "killing_test": "ContentStreamSubstitutionTest.PerRunSubstitutionEditNotMirroredKeepsColor:ContentStreamSubstitutionTest.LegacySubstitutionEditFullSizeKeepsColor",
+      "expected": "killed",
+      "note": "Short-circuits the captured fill-colour re-emit (colour-loss bug class). Phase-2 added a per-glyph argb oracle (was SURVIVED)."
+    },
+    {
+      "id": "M07-statecont-subst-fontsize-halved",
+      "subsystem": "content-editing/state-continuity",
+      "file": "src/textedit/ContentStreamEditor.cpp",
+      "find": "        float initialFontSize = inj.fontSize;",
+      "replace": "        float initialFontSize = inj.fontSize * 0.5f;",
+      "target": "pdfe_tests",
+      "killing_test": "ContentStreamSubstitutionTest.LegacySubstitutionEditFullSizeKeepsColor",
+      "expected": "killed",
+      "note": "Halves substituted/per-run point size. Phase-2 added an absolute-size oracle (was SURVIVED)."
+    },
+    {
+      "id": "M08-save-recovery-force-image-recompress",
+      "subsystem": "save/rewrite-routing",
+      "file": "src/core/Document.cpp",
+      "find": "        opts.do_compress_images = 0;",
+      "replace": "        opts.do_compress_images = 1;",
+      "target": "pdfe_tests",
+      "killing_test": "AutosaveRecoveryTest.*",
+      "expected": "killed",
+      "note": "Forces image recompress on every autosave tick (perf regression). Phase-1 added a no-recompress/perf oracle (was SURVIVED)."
+    },
+    {
+      "id": "M09-save-fullgc-downgrade",
+      "subsystem": "save/rewrite-routing",
+      "file": "src/core/Document.cpp",
+      "find": "    return pImpl->needsFullGc_ ? 3 : kDefaultFullRewriteGc;",
+      "replace": "    return pImpl->needsFullGc_ ? 1 : kDefaultFullRewriteGc;",
+      "target": "pdfe_tests",
+      "killing_test": "CommandPageRebindTest.*:*OrdinarySaveDrains*",
+      "expected": "killed",
+      "note": "Downgrades escalated full-GC (skips dedup sweep -> object bloat/retention). Phase-1 added a gc-level/bloat oracle (was SURVIVED)."
+    },
+    {
+      "id": "M10-redaction-intersection-flip",
+      "subsystem": "redaction-confidentiality",
+      "file": "src/redaction/RedactionVerifier.cpp",
+      "find": "                            charRect.x0 < redactRect.x1 && charRect.x1 > redactRect.x0 &&",
+      "replace": "                            charRect.x0 > redactRect.x1 && charRect.x1 > redactRect.x0 &&",
+      "target": "pdfe_tests",
+      "killing_test": "RedactionPartialOverlap.*",
+      "expected": "killed",
+      "note": "CONTROL (always killed): flips the intersection predicate -> leftover un-redacted text reported clear. test_redaction_partial_overlap asserts EXPECT_FALSE(clear)."
+    },
+    {
+      "id": "M11-redaction-singlerev-always-clean",
+      "subsystem": "redaction-confidentiality",
+      "file": "src/redaction/RedactionVerifier.cpp",
+      "find": "        for (const auto& obj : q.getAllObjects()) {\n            if (obj.getGeneration() > 0) {\n                return false;\n            }\n        }\n",
+      "replace": "        if (!q.getAllObjects().empty()) {\n            return true;\n        }\n",
+      "target": "pdfe_tests",
+      "killing_test": "RedactionVerifierTest.*:RedactionVerifierFailPathTest.*",
+      "expected": "killed",
+      "note": "Makes checkSingleRevision always report clean (recoverable pre-redaction content ignored). Phase-1 added a genuinely-multi-revision fail-path oracle (was SURVIVED). F31 RE-ANCHOR: PDF-68 (commit ed75a5a) replaced the old generation-only heuristic — whose single `return maxGeneration == 0;` this mutant used to anchor on — with a structural test that has three independent fail signals (object generation > 0; /Prev in the trailer; more startxref/%%EOF markers than linearization allows) and four `return false;` sites. There is no successor to the old line, so the mutant is re-anchored to the FIRST signal's block and replaces it with an unconditional-clean early return that short-circuits ALL THREE signals for any parseable PDF, preserving the mutant's original intent verbatim (\"always report clean\") rather than neutering one signal. `!q.getAllObjects().empty()` keeps the early return runtime-conditional so the remaining body is not statically unreachable (no MSVC C4702). Deliberately NOT split into per-signal mutants: no committed fixture isolates a single signal (redaction_multi_revision.pdf trips generation AND /Prev AND the marker count; the runtime-built appended_revision.pdf trips /Prev AND the marker count), so per-signal mutants would be SURVIVORS by construction — see docs/audit/meta-audit-2026-07/followup/phase-31-dispositions.md."
+    },
+    {
+      "id": "M12-forms-reset-dv-break",
+      "subsystem": "forms",
+      "file": "src/forms/FormManager.cpp",
+      "find": "            pdf_set_field_value(ctx, pdfDoc, fieldObj,\n                                 dvStr ? dvStr : \"\", 1);",
+      "replace": "            pdf_set_field_value(ctx, pdfDoc, fieldObj,\n                                 \"\", 1);",
+      "target": "pdfe_tests",
+      "killing_test": "Phase5FormsTest.ResetFormRestoresDefaultValues",
+      "expected": "killed",
+      "note": "CONTROL: Reset Form blanks a text field instead of restoring /DV. Asserted in-memory AND after save/reopen (/V==/DV)."
+    },
+    {
+      "id": "M13-forms-button-reset-to-off",
+      "subsystem": "forms",
+      "file": "src/forms/FormManager.cpp",
+      "find": "                pdf_set_field_value(ctx, pdfDoc, fieldObj, dvName, 1);",
+      "replace": "                pdf_set_field_value(ctx, pdfDoc, fieldObj, \"Off\", 1);",
+      "target": "pdfe_tests",
+      "killing_test": "Phase5FormsTest.ResetFormRestoresCheckboxDefaultOnState",
+      "expected": "killed",
+      "note": "Reverts a defaulted-on checkbox/radio to Off on Reset. Phase-3 added a checkbox /DV-restore oracle (was SURVIVED)."
+    },
+    {
+      "id": "M14-fonts-glyph-emit-codepoint",
+      "subsystem": "fonts",
+      "file": "src/tre/PdfContentWriter.cpp",
+      "find": "        oss << std::setw(4) << (gid & 0xFFFF);",
+      "replace": "        oss << std::setw(4) << (static_cast<int>(cp) & 0xFFFF);",
+      "target": "pdfe_tests",
+      "killing_test": "ContentStreamOutOfClass.*",
+      "expected": "killed",
+      "note": "CONTROL: emits the raw codepoint instead of the glyph index in the TRE Identity-H reconstruction font. test_content_stream_out_of_class asserts emitted==hex4(gid) AND !=hex4(cp)."
+    },
+    {
+      "id": "M15-fonts-glyph-scale-invert",
+      "subsystem": "fonts",
+      "file": "src/fonts/GlyphScaleAdjuster.cpp",
+      "find": "    result.horizontalScale = originalWidth / substituteWidth;",
+      "replace": "    result.horizontalScale = substituteWidth / originalWidth;",
+      "target": "pdfe_tests",
+      "killing_test": "GlyphScaleAdjusterTest.HorizontalScaleIsOriginalOverSubstituteNotInverted",
+      "expected": "killed",
+      "note": "Inverts the substitute-font horizontal scale ratio. Phase-3 added a golden per-string width-ratio oracle (was SURVIVED)."
+    },
+    {
+      "id": "M16-save-recovery-force-compress",
+      "subsystem": "save/rewrite-routing",
+      "file": "src/core/Document.cpp",
+      "find": "        opts.do_compress = 0;",
+      "replace": "        opts.do_compress = 1;",
+      "target": "pdfe_tests",
+      "killing_test": "AutosaveRecoveryTest.*",
+      "expected": "killed",
+      "note": "Forces stream re-deflate on every autosave tick (companion to M08). Phase-1 added the no-recompress perf oracle (was SURVIVED)."
+    },
+    {
+      "id": "M17-pdfua-watermark-rule-disabled",
+      "subsystem": "compliance/pdf-ua-artifacts",
+      "file": "src/compliance/PageFurnitureDetector.cpp",
+      "find": "    if (pageCount <= 0) return watermarks;",
+      "replace": "    if (pageCount <= 0) return watermarks;\n    return watermarks;",
+      "target": "pdfe_tests",
+      "killing_test": "RotatedWatermarkTest.*",
+      "expected": "killed",
+      "note": "GitHub #173 second heuristic. Switches the rotated-centred watermark rule off entirely; the watermark must then wrongly appear in the structure tree. The oracle deliberately has NO 'something was detected' setup guard, so this dies on the exclusion property rather than on a fixture assertion."
+    },
+    {
+      "id": "M18-pdfua-watermark-match-overbroad",
+      "subsystem": "compliance/pdf-ua-artifacts",
+      "file": "src/compliance/AutoTagger.cpp",
+      "find": "        if (r.match == FurnitureMatch::BlockBoxEquals) {",
+      "replace": "        if (false) {",
+      "target": "pdfe_tests",
+      "killing_test": "RotatedWatermarkTest.*",
+      "expected": "killed",
+      "note": "The over-broadening direction. Makes a watermark region match by block-centre containment like a header/footer band. A rotated watermark's axis-aligned box covers most of the page, so genuine body text under it is wrongly artifacted -- the 'the heuristic excluded everything' failure."
+    },
+    {
+      "id": "M19-extraction-inhibit-synthesized-spaces",
+      "subsystem": "core/text-extraction",
+      "file": "src/core/StextOptions.h",
+      "find": "    opts.flags = extraFlags | FZ_STEXT_IGNORE_ACTUALTEXT;",
+      "replace": "    opts.flags = extraFlags | FZ_STEXT_IGNORE_ACTUALTEXT | FZ_STEXT_INHIBIT_SPACES;",
+      "target": "pdfe_tests",
+      "killing_test": "FidelityR3_07_TextExtraction.KernedAndTjOffsetGapsReconstructWordBoundaries",
+      "expected": "killed",
+      "note": "The UNDER-eager direction for word boundaries. Turns off MuPDF's gap->space synthesis, so a TJ numeric-offset word gap that carries no 0x20 byte ('[(Hello)-400(World)]TJ') extracts FUSED as 'HelloWorld'. PDF-76 / GitHub #26. The tight-kerning control in the same test must stay green under this mutant -- it is the OVER-eager direction (see M20) that the control exists for."
+    },
+    {
+      "id": "M20-extraction-row-major-reading-order",
+      "subsystem": "core/text-extraction",
+      "file": "src/core/TextExtractor.cpp",
+      "find": "                fz_buffer* buf = fz_new_buffer_from_stext_page(ctx, stextPage);",
+      "replace": "                // PDFE_MUTANT: reorder blocks ROW-MAJOR (top-to-bottom by y0,\n                // then left-to-right) instead of MuPDF's column-major order.\n                // Pointer-only insertion sort: no owning locals, so it is safe\n                // inside the setjmp/longjmp lambda.\n                {\n                    fz_stext_block* sorted = nullptr;\n                    fz_stext_block* b = stextPage->first_block;\n                    while (b) {\n                        fz_stext_block* nxt = b->next;\n                        b->next = nullptr; b->prev = nullptr;\n                        if (!sorted || b->bbox.y0 < sorted->bbox.y0 ||\n                            (b->bbox.y0 == sorted->bbox.y0 &&\n                             b->bbox.x0 < sorted->bbox.x0)) {\n                            b->next = sorted;\n                            if (sorted) sorted->prev = b;\n                            sorted = b;\n                        } else {\n                            fz_stext_block* c = sorted;\n                            while (c->next &&\n                                   (c->next->bbox.y0 < b->bbox.y0 ||\n                                    (c->next->bbox.y0 == b->bbox.y0 &&\n                                     c->next->bbox.x0 <= b->bbox.x0))) {\n                                c = c->next;\n                            }\n                            b->next = c->next;\n                            if (c->next) c->next->prev = b;\n                            c->next = b;\n                            b->prev = c;\n                        }\n                        b = nxt;\n                    }\n                    stextPage->first_block = sorted;\n                    fz_stext_block* last = sorted;\n                    while (last && last->next) last = last->next;\n                    stextPage->last_block = last;\n                }\n                fz_buffer* buf = fz_new_buffer_from_stext_page(ctx, stextPage);",
+      "target": "pdfe_tests",
+      "killing_test": "ExtractionLayoutRealworld.ArxivTwoColumnPageReadsColumnMajor",
+      "expected": "killed",
+      "note": "Row-major reading order on a multi-column page: emits blocks sorted by y0 then x0, so a heading at the TOP of the RIGHT column is read before one lower in the LEFT column. PDF-77 / GitHub #27. Also killed by FidelityR3_07_TextExtraction.MultiColumnReadingOrderIsColumnMajor, but that oracle resolves its fixture from the gitignored test_PDFs/ corpus and skips to green on a clean checkout; the arxiv_bert.pdf oracle is the committed one."
+    }
+  ],
+  "totals": {
+    "mutants": 20,
+    "expected_killed": 20,
+    "floor": 1.0,
+    "source_catalog": "docs/harness-audit/phase-3/mutants.json",
+    "reverify_evidence": [
+      "docs/harness-audit/remediation/phase-1-mutation-reverify.json",
+      "docs/harness-audit/remediation/phase-2-mutation-reverify.json",
+      "docs/harness-audit/remediation/phase-3-mutation-reverify.json",
+      "docs/audit/p84-remaining-open/phase-4/notes-cpp.md",
+      "docs/audit/p84-remaining-open/phase-7/notes-layout.md"
+    ]
+  }
+}

@@ -1,0 +1,961 @@
+# ---------------------------------------------------------------------------
+# Windows Build Validation
+#
+# Runs the full pdfe_tests GoogleTest suite on a github-hosted
+# windows-2022 runner. This is the Windows counterpart to
+# linux-validation.yml and gates push/PR to master.
+#
+# IMPORTANT — DLL PATH PREFIX (step "Run pdfe_tests"):
+#   The test binary depends on Qt6, MuPDF, QPDF, Tesseract, FreeType,
+#   HarfBuzz, etc. shipped by vcpkg. Without prepending the build
+#   output dir AND the vcpkg debug/release bin dirs to PATH, the
+#   binary fails to start with 0xC0000135 (STATUS_DLL_NOT_FOUND).
+#   We hit this on 2026-06-05 — do not remove the PATH prefix step.
+#
+# IMPORTANT — NO CTEST FOR THE GTEST SUITE:
+#   gtest_discover_tests' default 5s probe timeout is one the pdfe_tests
+#   suite blows through during discovery, so the GoogleTest suite is NOT
+#   driven through ctest — pdfe_tests.exe is invoked directly (via
+#   tests/scripts/run_gtest.py, which also owns the rerun-on-failure and
+#   JUnit-XML pass semantics). Do not route the gtest suite back through
+#   ctest.
+#
+#   This does NOT extend to the security-labelled CTest entries. Those are
+#   plain add_test() registrations in tests/security/CMakeLists.txt (script
+#   and pytest invocations, not discovered gtests), and
+#   tests/CMakeLists.txt:735 now uses DISCOVERY_TIMEOUT 30 with
+#   DISCOVERY_MODE PRE_TEST, under which `ctest -C Debug -L security`
+#   enumerates and runs cleanly — verified locally 2026-08-01 (5 tests
+#   listed, discovery completed). See the "Run ctest -L security" step and
+#   meta-audit follow-up F5 / gap SEC-23.
+# ---------------------------------------------------------------------------
+
+name: Windows Build Validation
+
+on:
+  # NIGHTLY SCHEDULE + on-demand (R2-14). A bounded nightly run gives the
+  # suite a real, unattended trigger so regressions surface within a day —
+  # without the per-commit push/PR auto-triggers that were removed
+  # 2026-07-20 to keep the single self-hosted runner free during the day.
+  # 04:20 UTC is staggered AFTER windows-fuzz's 03:30 slot so the two
+  # scheduled jobs do not contend for the one runner. To additionally
+  # restore per-commit validation, re-add a `push:` (and optionally
+  # `pull_request:`) block here.
+  schedule:
+    - cron: '20 4 * * *'
+  workflow_dispatch:
+    inputs:
+      ui_only:
+        description: >-
+          Comma-separated substrings; run ONLY matching UI test files for a fast
+          targeted validation in the runner context (e.g. "batch1_actions,
+          batch3,canvas_pyautogui"). Empty = full suite. When set, the gtest,
+          matrix-health, and render-verification steps are skipped (a subset run
+          can't satisfy the full-suite gates).
+        required: false
+        default: ""
+
+concurrency:
+  group: windows-validation-${{ github.ref }}
+  # Gap A1-71 (UI-HYGIENE-01): this lane is the ~9-hour full-sweep validation
+  # on a SINGLE self-hosted runner. cancel-in-progress:true meant any new push
+  # or dispatch killed a run that was hours in, destroying the only evidence
+  # the lane produces -- and cancelling a self-hosted job mid-build is what
+  # wedges the runner (see docs/audit/ui-e2e-critique.md:210). A queued second
+  # run is cheap; a destroyed 9-hour run is not. Short lanes (fast-checks,
+  # governance, fuzz, sanitizer) keep cancel-in-progress:true deliberately.
+  cancel-in-progress: false
+
+env:
+  VCPKG_FEATURE_FLAGS: manifests,binarycaching
+  VCPKG_DEFAULT_TRIPLET: x64-windows
+  CMAKE_GENERATOR_PLATFORM: x64
+  # Persistent LOCAL binary cache first (this self-hosted box has a stable disk),
+  # then GitHub Actions cache. Once a port is built for a given ABI it is restored
+  # from C:\vcpkg-bincache on every later run — no source re-download, no rebuild —
+  # so the build no longer depends on upstream (e.g. codeberg/mujs) being reachable
+  # on an x-gha miss. vcpkg keys the cache by exact ABI hash, so it stays hermetic.
+  # Matches windows-fuzz.yml. See selfhosted runner notes / docs.
+  VCPKG_BINARY_SOURCES: 'clear;files,C:\vcpkg-bincache,readwrite;x-gha,readwrite'
+  # Local vcpkg ASSET (source-distfile) cache on this self-hosted box. vcpkg serves
+  # a port's source archive from C:\vcpkg-assets by SHA512 before contacting the
+  # authoritative URL, so an upstream forge that regenerates a tag tarball with
+  # different bytes (e.g. codeberg's mujs 1.3.8, which drifted from vcpkg's pinned
+  # hash) no longer breaks the build — the known-good archive is served locally.
+  # Cache misses still download normally (then populate the cache). Not x-block-origin.
+  X_VCPKG_ASSET_SOURCES: 'clear;x-azurl,file:///C:/vcpkg-assets,,readwrite'
+
+jobs:
+  windows-validation:
+    name: windows-validation
+    # Self-hosted runner. GitHub-hosted windows-2022 minutes are
+    # disabled for this account; the local "pdfe-windows" runner
+    # has VS 2022 Community + Git + vcpkg dependencies preinstalled.
+    runs-on: [self-hosted, Windows, X64, pdfe-windows]
+    # Generous timeout to fit: cold vcpkg build (~100 min), build of
+    # pdfe_tests + PDFE.exe (~45 min), gtest suite (~13 min), pytest
+    # UI E2E suite (~3-4 hr — 87 UI test files each launching
+    # PDFE.exe one-or-more times, with --timeout=120 per-test cap).
+    # First 360 min ceiling cancelled the UI step at run 27082833605.
+    timeout-minutes: 720
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Export GitHub Actions cache env (for vcpkg x-gha)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up vcpkg (manifest mode)
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 15e5f3820f0370f1ba7150853762cec0688cd396
+
+      - name: Fetch CNN font_embedder.onnx model
+        # The CNN font re-ranker uses font_embedder.onnx (~44 MB,
+        # gitignored). Without it the POST_BUILD step in tests/
+        # CMakeLists.txt skips deploying the model, modelAvailable()
+        # returns false, and 4 CNNFontClassifierTest cases SKIP.
+        # Fetched from the project's "assets-v1" release where the
+        # model lives as an attached asset. SHA256 verified.
+        #
+        # This repo is private — anonymous download from
+        # github.com/.../releases/download/... returns 404. The
+        # GitHub REST API asset endpoint accepts the workflow's
+        # GITHUB_TOKEN as a Bearer token and returns the binary
+        # when Accept: application/octet-stream is set.
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $expected = "476a74328a45b23245949ab9e1f4a205c61f7b6e83b17330b8b35a17d7d32b46"
+          $dest = "$env:GITHUB_WORKSPACE\models\font_embedder.onnx"
+          if (Test-Path $dest) {
+            $h = (Get-FileHash $dest -Algorithm SHA256).Hash.ToLower()
+            if ($h -eq $expected) {
+              Write-Host "Model already present and SHA matches: $dest"
+              return
+            }
+            Write-Host "Existing model SHA mismatch ($h), redownloading"
+            Remove-Item $dest -Force
+          }
+          New-Item -ItemType Directory -Path (Split-Path $dest) -Force | Out-Null
+          # Asset id is stable for a given release upload. To replace the
+          # model: delete the asset, re-upload, update assetId and $expected
+          # to the new SHA. `gh` is not guaranteed to be on the runner's
+          # PATH (verified: run 27066959150 failed with "term 'gh' not
+          # recognized"), so we use raw Invoke-WebRequest with the
+          # workflow's GITHUB_TOKEN as a Bearer auth header.
+          $assetId = 440223541
+          $apiUrl = "https://api.github.com/repos/${{ github.repository }}/releases/assets/$assetId"
+          Write-Host "Downloading asset id=$assetId via REST API"
+          Invoke-WebRequest -Uri $apiUrl -OutFile $dest -UseBasicParsing `
+            -Headers @{
+              "Accept" = "application/octet-stream"
+              "Authorization" = "Bearer $env:GH_TOKEN"
+              "X-GitHub-Api-Version" = "2022-11-28"
+            }
+          $actual = (Get-FileHash $dest -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $expected) {
+            throw "font_embedder.onnx SHA256 mismatch: expected $expected, got $actual"
+          }
+          Write-Host "Model downloaded and SHA verified: $dest"
+
+      - name: Generate image-PDF test fixtures (a3_*.pdf + b3_*.pdf)
+        # tests/fixtures/image_pdf/ has a local .gitignore with *.pdf,
+        # so a3_*.pdf and b3_*.pdf are not in git. They are produced
+        # deterministically by gen_fixtures.py (seeded RNG). Without
+        # this step, 3 SourceImageDpi + 6 B3BgClassification tests
+        # SKIP because the iterated fixture filenames don't exist.
+        #
+        # Dependencies are pinned via requirements.txt (pip-compile
+        # --generate-hashes) and verified with --require-hashes — a
+        # supply-chain attack on PyPI for pymupdf or Pillow cannot
+        # smuggle code into this self-hosted runner without breaking
+        # the hash check.
+        shell: pwsh
+        run: |
+          Write-Host "Installing pinned pymupdf + Pillow for fixture generation"
+          python -m pip install --quiet --upgrade pip
+          $req = "$env:GITHUB_WORKSPACE\tests\fixtures\image_pdf\requirements.txt"
+          python -m pip install --quiet --require-hashes -r $req
+          $script = "$env:GITHUB_WORKSPACE\tests\fixtures\image_pdf\gen_fixtures.py"
+          Write-Host "Running $script"
+          python $script
+          $produced = Get-ChildItem "$env:GITHUB_WORKSPACE\tests\fixtures\image_pdf" -Filter "*.pdf"
+          Write-Host "Generated $($produced.Count) fixture PDFs:"
+          $produced | ForEach-Object { "  $($_.Name) ($([math]::Round($_.Length/1KB,1)) KB)" }
+          # Sanity-check the specific fixtures the failing tests need.
+          $required = @(
+            "a3_72dpi_web_letter.pdf",
+            "a3_mixed_dpi_5page.pdf",
+            "b3_uniform_white_300dpi.pdf",
+            "b3_yellowed_news_300dpi.pdf",
+            "b3_halftone_news_200dpi.pdf",
+            "b3_halftone_news_600dpi.pdf",
+            "b3_textured_gray_300dpi.pdf"
+          )
+          foreach ($f in $required) {
+            $p = "$env:GITHUB_WORKSPACE\tests\fixtures\image_pdf\$f"
+            if (-not (Test-Path $p)) {
+              throw "Required fixture missing after generation: $f"
+            }
+          }
+          Write-Host "All required fixtures present."
+
+      - name: Fetch ONNX Runtime pre-built SDK
+        # ONNX Runtime is too large to build from source via vcpkg
+        # (see top of CMakeLists.txt), so the project loads it from
+        # external/onnxruntime-win-x64-1.20.1/. That directory is in
+        # .gitignore and absent on a fresh checkout — without it,
+        # PDFE_HAS_ONNXRUNTIME is OFF and the CNN font re-ranker is
+        # disabled, which fails DllDependencyTest.OnnxRuntimePresent.
+        shell: pwsh
+        run: |
+          $version = "1.20.1"
+          $dest = "$env:GITHUB_WORKSPACE\external\onnxruntime-win-x64-$version"
+          if (Test-Path "$dest\lib\onnxruntime.lib") {
+            Write-Host "ONNX Runtime already present at $dest"
+          } else {
+            $url = "https://github.com/microsoft/onnxruntime/releases/download/v$version/onnxruntime-win-x64-$version.zip"
+            $zip = "$env:RUNNER_TEMP\onnxruntime.zip"
+            Write-Host "Downloading $url"
+            Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+            $extractRoot = "$env:GITHUB_WORKSPACE\external"
+            New-Item -ItemType Directory -Path $extractRoot -Force | Out-Null
+            Expand-Archive -Path $zip -DestinationPath $extractRoot -Force
+            Remove-Item $zip
+            if (-not (Test-Path "$dest\lib\onnxruntime.lib")) {
+              throw "ONNX Runtime extraction failed: $dest\lib\onnxruntime.lib not found"
+            }
+            Write-Host "Extracted ONNX Runtime to $dest"
+          }
+
+      - name: Configure (windows-vs2022 preset)
+        # PDFE_ENABLE_SECURITY_TESTS=ON (meta-audit follow-up F5, gap SEC-23).
+        #
+        # THE GAP THIS CLOSES: `grep -rn PDFE_ENABLE_SECURITY_TESTS
+        # .github/workflows/` returned ZERO before this change, and the option
+        # defaults OFF, so tests/security/CMakeLists.txt was never reached by
+        # ANY lane — `ctest -L security` ran nowhere in CI and the whole
+        # security-labelled suite was opt-in-and-never-opted-in.
+        #
+        # WHY THIS LANE: windows-validation is the only lane that already
+        # configures the standard windows-vs2022 preset, builds Debug, and runs
+        # nightly on the self-hosted host where pwsh + python are present —
+        # the four security entries need exactly that. The sanitizer and fuzz
+        # lanes use different presets/triplets and already carry long runtimes.
+        #
+        # RUNTIME COST — deliberate and bounded. `ctest -C Debug -L security`
+        # selects exactly 5 tests (verified locally 2026-08-01):
+        #   security_verify_optin            TIMEOUT  60 s
+        #   security_runner_decision_unit    TIMEOUT  60 s
+        #   security_runner_listener_unit    TIMEOUT 120 s
+        #   security_runner_firewall_log_unit TIMEOUT 60 s
+        #   security_regression_check        TIMEOUT 600 s
+        # Worst case 900 s = 15 min on a job whose timeout is hours. That is
+        # why this lane was chosen rather than adding a new one.
+        #
+        # NOTE: the flag is passed ON TOP of the preset rather than added to
+        # CMakePresets.json, so a developer's `cmake --preset windows-vs2022`
+        # keeps the documented OFF-by-default opt-in posture
+        # (docs/security-testing.md section (b)); only CI opts in.
+        shell: pwsh
+        run: |
+          cmake --preset windows-vs2022 -DPDFE_ENABLE_SECURITY_TESTS=ON
+
+      - name: Build app + tests (debug-vs2022 preset)
+        # Builds the GUI application (PDFE.exe) and, for full runs, the headless
+        # gtest binary (pdfe_tests). For a targeted UI subset run (ui_only),
+        # gtest is skipped (see the "Run pdfe_tests" step), so building the large
+        # pdfe_tests binary is pure overhead — build ONLY the pdfe app target,
+        # which cuts most of the build time. The pdfe target's own POST_BUILD
+        # deploys its Qt plugins (platform/imageformats/TLS), so the app is fully
+        # functional without pdfe_tests being built.
+        shell: pwsh
+        run: |
+          $targets = if ("${{ inputs.ui_only }}") { @('pdfe') } else { @('pdfe_tests','pdfe') }
+          Write-Host "Building Debug targets: $($targets -join ', ')"
+          cmake --build --preset debug-vs2022 --target $targets --parallel 4
+
+      - name: Run pdfe_tests
+        # Skipped for a targeted UI subset run (workflow_dispatch ui_only): the
+        # gtest layer is unrelated to a UI-harness fix and adds ~13 min.
+        if: ${{ !inputs.ui_only }}
+        # GAP-A15 (Phase 6): continue-on-error REMOVED. It was added in
+        # Phase 2-3 to tolerate the then-flaky
+        # MainWindowIntegrationTest.ZoomComboExists so the UI suite would
+        # still run. That flag also turned the WHOLE JOB green on ANY
+        # gtest failure — it is precisely why 2 real BatchDialogTest
+        # failures rode green for 3 phases (the exit-code masking failed
+        # the step, but continue-on-error swallowed it at the job level).
+        # ZoomComboExists has been stable across runs 27310588193,
+        # 27335387425, 27367556829, 27446597142 (verified: 0 failure
+        # children in each XML), so the flag is no longer needed. The
+        # step now (a) returns the real gtest exit code and (b) parses
+        # gtest-results.xml and exits 1 on any failures/errors — and that
+        # exit-1 now fails the job, as it must.
+        shell: pwsh
+        run: |
+          # NOTE on PATH: we use vcpkg in MANIFEST mode (vcpkg.json in
+          # repo root). In manifest mode, vcpkg installs deps under the
+          # CMake build directory at build/<preset>/vcpkg_installed/<triplet>/
+          # — NOT under $VCPKG_ROOT/installed/<triplet>/ (which is
+          # vcpkg-classic-mode and is empty here).
+          $buildBin = "$env:GITHUB_WORKSPACE\build\vs2022\bin\Debug"
+          $vcpkgDbg = "$env:GITHUB_WORKSPACE\build\vs2022\vcpkg_installed\x64-windows\debug\bin"
+          $vcpkgRel = "$env:GITHUB_WORKSPACE\build\vs2022\vcpkg_installed\x64-windows\bin"
+          $env:PATH = "$buildBin;$vcpkgDbg;$vcpkgRel;$env:PATH"
+
+          # Sanity check the paths exist before we try to run the binary.
+          # Without this the failure mode is opaque (exit 1, no stdout).
+          foreach ($p in @($buildBin, $vcpkgDbg, $vcpkgRel)) {
+            if (-not (Test-Path $p)) {
+              Write-Warning "PATH segment missing: $p"
+            }
+          }
+
+          $testExe = Join-Path $buildBin "pdfe_tests.exe"
+          if (-not (Test-Path $testExe)) {
+            Write-Error "pdfe_tests.exe not found at $testExe"
+            exit 1
+          }
+
+          $logPath = "$env:GITHUB_WORKSPACE\pdfe_tests.log"
+          $outDir  = "$env:GITHUB_WORKSPACE\build\gtest_ci_out"
+
+          # Run via the rerun-on-failure wrapper. A small number of
+          # MainWindow-integration tests (e.g. MainWindowIntegrationTest.
+          # ZoomComboExists) are PROBABILISTICALLY flaky under the cumulative
+          # state of the ~3900-test single process on the headless runner:
+          # createToolBar() occasionally fails to populate the toolbar after
+          # thousands of prior tests, though the test passes reliably in a
+          # FRESH process and in isolation (verified). run_gtest.py runs the
+          # full suite once, then re-runs ONLY the failed tests in a fresh
+          # process; a transient flake heals, a GENUINE failure fails every
+          # rerun and the wrapper exits non-zero. This is rerun-on-failure
+          # (NOT skipping) and mirrors run_ui_suite.py's --reruns. The wrapper
+          # parses the JUnit XML itself (not the exit code) for failure
+          # detection, preserving the false-green defense (run 27446597142:
+          # pdfe_tests.exe exited 0 with failures in the XML).
+          python "$env:GITHUB_WORKSPACE\tests\scripts\run_gtest.py" `
+            --exe $testExe `
+            --output-dir $outDir `
+            --reruns 2 `
+            *>&1 | Tee-Object -FilePath $logPath
+          $gtestExit = $LASTEXITCODE
+
+          # Copy the full-run JUnit to the conventional path for artifact
+          # upload / downstream tooling.
+          $fullXml = Join-Path $outDir "gtest_full.xml"
+          if (Test-Path $fullXml) {
+            Copy-Item $fullXml "$env:GITHUB_WORKSPACE\gtest-results.xml" -Force
+          } else {
+            Write-Error "gtest XML not produced at $fullXml -- cannot verify results"
+            exit 1
+          }
+          if ($gtestExit -ne 0) {
+            Write-Host "::error::gtest reported failures that did NOT heal on a fresh rerun (genuine failures) -- see log"
+            exit 1
+          }
+          Write-Host "gtest: clean (failures, if any, were transient flakes that passed on a fresh rerun)"
+          exit 0
+
+      - name: Verify gtest JUnit XML (single-source checker — GAP-A15 / Register H6)
+        # Explicit machine-check of the produced gtest-results.xml using the
+        # SAME authority the gate hook uses (tools/gate/check_junit_xml.py), so
+        # CI and the local test-runner gate agree on what "passed" means and
+        # neither trusts the process exit code. Redundant with run_gtest.py's
+        # own XML parse on purpose: it pins the pass/fail contract to one shared
+        # script. See docs/gate-verification.md §4.
+        if: ${{ !inputs.ui_only }}
+        shell: pwsh
+        run: |
+          $xml = "$env:GITHUB_WORKSPACE\gtest-results.xml"
+          python "$env:GITHUB_WORKSPACE\tools\gate\check_junit_xml.py" $xml
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "check_junit_xml.py rejected $xml (failures/errors present or empty run). Failing the job."
+            exit 1
+          }
+          Write-Host "check_junit_xml.py: gtest-results.xml verified clean."
+
+      - name: Run + verify CROSS-PLATFORM CORE PARITY suite (C-10)
+        # C-10: run the platform-INDEPENDENT behavioral core as an EXPLICIT, named
+        # selection so Windows asserts the SAME cross-platform contract the Linux and
+        # macOS lanes assert. The full pdfe_tests run above is a superset, but this
+        # step pins the parity axis: tools/gate/parity_filter.py generates the
+        # gtest_filter from tools/gate/parity_suite.txt -- the SAME script + SAME
+        # source list all three lanes use, so the filter is byte-identical on every
+        # platform by construction. If a suite is added to (or removed from)
+        # parity_suite.txt, all three lanes track it in lock-step. GAP-A15: the
+        # produced XML (not the exit code) is the authority; --min-tests 200 guards a
+        # silently-shrunk selection (this run selects ~950 core tests locally).
+        if: ${{ !inputs.ui_only }}
+        shell: pwsh
+        run: |
+          $buildBin = "$env:GITHUB_WORKSPACE\build\vs2022\bin\Debug"
+          $vcpkgDbg = "$env:GITHUB_WORKSPACE\build\vs2022\vcpkg_installed\x64-windows\debug\bin"
+          $vcpkgRel = "$env:GITHUB_WORKSPACE\build\vs2022\vcpkg_installed\x64-windows\bin"
+          $env:PATH = "$buildBin;$vcpkgDbg;$vcpkgRel;$env:PATH"
+          $testExe = Join-Path $buildBin "pdfe_tests.exe"
+          if (-not (Test-Path $testExe)) { Write-Error "pdfe_tests.exe not found"; exit 1 }
+
+          $filter = & python "$env:GITHUB_WORKSPACE\tools\gate\parity_filter.py"
+          if ($LASTEXITCODE -ne 0 -or -not $filter) {
+            Write-Error "parity_filter.py did not emit a filter"; exit 1
+          }
+          Write-Host "parity gtest_filter length: $($filter.Length)"
+          $parityXml = "$env:GITHUB_WORKSPACE\parity-results.xml"
+          & $testExe --gtest_filter="$filter" --gtest_output=("xml:" + $parityXml) --gtest_brief=1
+          if (-not (Test-Path $parityXml)) {
+            Write-Error "parity-results.xml not produced -- cannot verify results"; exit 1
+          }
+          python "$env:GITHUB_WORKSPACE\tools\gate\check_junit_xml.py" $parityXml --min-tests 200
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "check_junit_xml.py rejected the parity results (C-10). Failing the job."
+            exit 1
+          }
+          Write-Host "Cross-platform parity suite (C-10): verified clean."
+
+      - name: Flaky-quarantine gate — reruns must not mask an untracked flake (R-37)
+        # Remediation Phase 5, R-37. run_gtest.py re-runs failed tests in a fresh
+        # process; a test that heals goes green. Without a ledger that silently
+        # masks a degrading test. run_gtest.py now writes healed_flakes.json; this
+        # gate FAILS if any test healed on rerun this run is NOT registered in
+        # tools/gate/flaky_quarantine.json (or a registry entry has expired).
+        if: ${{ !inputs.ui_only }}
+        shell: pwsh
+        run: |
+          $healed = "$env:GITHUB_WORKSPACE\build\gtest_ci_out\healed_flakes.json"
+          python "$env:GITHUB_WORKSPACE\tools\gate\check_flaky_quarantine.py" `
+            --registry "$env:GITHUB_WORKSPACE\tools\gate\flaky_quarantine.json" `
+            --healed $healed
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Flaky-quarantine gate FAILED: an untracked/expired flake healed on rerun (R-37). Register it in tools/gate/flaky_quarantine.json or fix it."
+            exit 1
+          }
+          Write-Host "Flaky-quarantine gate clean."
+
+      - name: Code coverage (OpenCppCoverage → Cobertura) — ENFORCED FLOOR (R-32)
+        # Remediation Phase 5, R-32: this was `continue-on-error: true` (best-
+        # effort) — the Cobertura report was uploaded but NEVER gated, and a
+        # runner WITHOUT OpenCppCoverage silently skipped coverage. Both let a
+        # coverage collapse ship green. Now:
+        #   * OpenCppCoverage ABSENCE is a HARD error (fail the job) — the tool is
+        #     a required runner dependency, not an optional nicety. We attempt a
+        #     choco install first; if it still is not on PATH we FAIL.
+        #   * the produced Cobertura line-rate is gated by
+        #     tools/gate/check_coverage_floor.py against COVERAGE_FLOOR: below the
+        #     floor fails the job; a missing/corrupt report is a HARD error.
+        # continue-on-error REMOVED.
+        if: ${{ !inputs.ui_only }}
+        shell: pwsh
+        env:
+          # Conservative starting floor. RATCHET UP after the first measured
+          # nightly run (see docs/harness-audit/remediation/phase-5-report.md).
+          COVERAGE_FLOOR: "0.50"
+        run: |
+          $occ = Get-Command OpenCppCoverage.exe -ErrorAction SilentlyContinue
+          if (-not $occ) {
+            Write-Host "OpenCppCoverage not on PATH; attempting choco install..."
+            choco install opencppcoverage -y --no-progress 2>&1 | Out-Host
+            $candidate = "C:\Program Files\OpenCppCoverage\OpenCppCoverage.exe"
+            if (Test-Path $candidate) { $env:PATH = "C:\Program Files\OpenCppCoverage;$env:PATH" }
+            $occ = Get-Command OpenCppCoverage.exe -ErrorAction SilentlyContinue
+          }
+          if (-not $occ) {
+            Write-Error "OpenCppCoverage is REQUIRED but not installed (R-32: tool-absence is a hard error, not a silent skip). Install it on the runner."
+            exit 1
+          }
+          $buildBin = "$env:GITHUB_WORKSPACE\build\vs2022\bin\Debug"
+          $vcpkgDbg = "$env:GITHUB_WORKSPACE\build\vs2022\vcpkg_installed\x64-windows\debug\bin"
+          $vcpkgRel = "$env:GITHUB_WORKSPACE\build\vs2022\vcpkg_installed\x64-windows\bin"
+          $env:PATH = "$buildBin;$vcpkgDbg;$vcpkgRel;$env:PATH"
+          $cov = "$env:GITHUB_WORKSPACE\coverage-cobertura.xml"
+          & OpenCppCoverage.exe --quiet --export_type "cobertura:$cov" `
+            --sources "$env:GITHUB_WORKSPACE\src" `
+            --modules "$buildBin" `
+            -- "$buildBin\pdfe_tests.exe" --gtest_brief=1
+          $line = "## Coverage"
+          # Floor gate — missing/corrupt report = hard error (exit 2 -> job fails).
+          python "$env:GITHUB_WORKSPACE\tools\gate\check_coverage_floor.py" $cov --floor $env:COVERAGE_FLOOR
+          $covExit = $LASTEXITCODE
+          if ($covExit -eq 2) {
+            $line += "`nHARD ERROR: coverage report missing/unparseable — failing (R-32)."
+            $line | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            Write-Error "Coverage report missing/unparseable (R-32 hard error)."
+            exit 1
+          }
+          if ($covExit -ne 0) {
+            $line += "`nCoverage BELOW floor $($env:COVERAGE_FLOOR) — failing the job (R-32)."
+            $line | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            Write-Error "Coverage below floor $($env:COVERAGE_FLOOR) (R-32)."
+            exit 1
+          }
+          $line += "`nCoverage at/above floor $($env:COVERAGE_FLOOR); Cobertura uploaded as an artifact."
+          $line | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+      - name: Performance-regression floor gate (C-07)
+        # C-07: the perf tests MEASURE hot paths but assert no floor. This lane
+        # runs the PerfBenchmark harness (emits per-metric medians to a measured
+        # JSON) then gates it with tools/gate/check_perf_floor.py against the
+        # committed SAME-MACHINE baseline (tools/gate/perf_baselines.json). A
+        # regression beyond the generous 3x threshold fails the job; a dropped /
+        # unmeasured metric or a missing baseline is a HARD error. This is the
+        # gate the perf-benchmarks gate agent consumes.
+        #
+        # MACHINE-VARIANCE: absolute wall-clock is machine/thermal-dependent, so
+        # the gate is RELATIVE to a same-machine baseline with a 3x threshold --
+        # ordinary run-to-run noise (<2x on this runner) does not trip it, only a
+        # real large hot-path regression (the XFA-save 10x-100x class) does. The
+        # baseline must be regenerated on THIS runner if the host changes.
+        if: ${{ !inputs.ui_only }}
+        shell: pwsh
+        run: |
+          $buildBin = "$env:GITHUB_WORKSPACE\build\vs2022\bin\Debug"
+          $vcpkgDbg = "$env:GITHUB_WORKSPACE\build\vs2022\vcpkg_installed\x64-windows\debug\bin"
+          $vcpkgRel = "$env:GITHUB_WORKSPACE\build\vs2022\vcpkg_installed\x64-windows\bin"
+          $env:PATH = "$buildBin;$vcpkgDbg;$vcpkgRel;$env:PATH"
+          $testExe = Join-Path $buildBin "pdfe_tests.exe"
+          if (-not (Test-Path $testExe)) { Write-Error "pdfe_tests.exe not found"; exit 1 }
+
+          $measured = "$env:GITHUB_WORKSPACE\perf-measured.json"
+          $env:PDFE_PERF_JSON = $measured
+          # Run only the perf benchmark suite (fast: small fixture, few iters).
+          & $testExe --gtest_filter=PerfBenchmark.* --gtest_brief=1
+          if (-not (Test-Path $measured)) {
+            Write-Error "PerfBenchmark produced no measured JSON at $measured"
+            exit 1
+          }
+          $report = "$env:GITHUB_WORKSPACE\perf-gate-report.json"
+          python "$env:GITHUB_WORKSPACE\tools\gate\check_perf_floor.py" `
+            --baselines "$env:GITHUB_WORKSPACE\tools\gate\perf_baselines.json" `
+            --measured $measured `
+            --json-out $report
+          $perfExit = $LASTEXITCODE
+          $line = "## Performance floor (C-07)"
+          if ($perfExit -eq 2) {
+            $line += "`nHARD ERROR: a metric was dropped or a baseline is missing — failing (C-07)."
+            $line | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            Write-Error "Perf gate hard error (dropped metric / bad input)."
+            exit 1
+          }
+          if ($perfExit -ne 0) {
+            $line += "`nA hot path REGRESSED beyond the threshold — failing the job (C-07)."
+            $line | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            Write-Error "Perf regression beyond threshold (C-07)."
+            exit 1
+          }
+          $line += "`nAll hot paths within the same-machine regression threshold."
+          $line | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+      - name: Install Python UI test dependencies
+        # Phase 2 of pipeline f3c91a2e: wire UI E2E into CI. Closes
+        # GAP-A1 (no CI step installs pywinauto/Pillow). Deps pinned
+        # via tests/ui_automation/requirements-locked.txt
+        # (pip-compile --generate-hashes), 33 packages locked.
+        shell: pwsh
+        run: |
+          Write-Host "Installing pinned UI test deps"
+          python -m pip install --quiet --upgrade pip
+          $req = "$env:GITHUB_WORKSPACE\tests\ui_automation\requirements-locked.txt"
+          python -m pip install --quiet --require-hashes -r $req
+
+      - name: Run ctest -L security (meta-audit F5 / SEC-23)
+        # The other half of SEC-23: configuring PDFE_ENABLE_SECURITY_TESTS=ON
+        # only REGISTERS the security-labelled CTest entries — this step is
+        # what actually RUNS them. Without it the flag would be theatre.
+        #
+        # Placed AFTER "Install Python UI test dependencies" on purpose: three
+        # of the five entries are `python -m pytest` invocations
+        # (security_runner_decision_unit / _listener_unit / _firewall_log_unit)
+        # and would fail if pytest were not yet installed.
+        #
+        # -C Debug is REQUIRED, not optional: the Visual Studio generator is
+        # multi-config, and `ctest -L security` without -C fails while resolving
+        # the per-config include file (reproduced locally 2026-08-01:
+        # "include could not find requested file: pdfe_tests[1]_include-.cmake").
+        #
+        # This step GATES: no continue-on-error, no `|| true`. A failing
+        # security entry fails the nightly, which is the entire point of the
+        # gap. Skipped for a targeted UI subset dispatch, exactly like the
+        # gtest step, because the build it needs is not produced then.
+        if: ${{ !inputs.ui_only }}
+        shell: pwsh
+        run: |
+          # gtest_discover_tests uses DISCOVERY_MODE PRE_TEST, so ctest launches
+          # pdfe_tests.exe once to enumerate before running anything. That probe
+          # needs the same DLL PATH prefix the "Run pdfe_tests" step documents.
+          $buildBin = "$env:GITHUB_WORKSPACE\build\vs2022\bin\Debug"
+          $vcpkgDbg = "$env:GITHUB_WORKSPACE\build\vs2022\vcpkg_installed\x64-windows\debug\bin"
+          $vcpkgRel = "$env:GITHUB_WORKSPACE\build\vs2022\vcpkg_installed\x64-windows\bin"
+          $env:PATH = "$buildBin;$vcpkgDbg;$vcpkgRel;$env:PATH"
+
+          $buildDir = "$env:GITHUB_WORKSPACE\build\vs2022"
+          Push-Location $buildDir
+          try {
+            Write-Host "Security-labelled CTest entries selected by -L security:"
+            ctest -C Debug -L security -N
+            ctest -C Debug -L security --output-on-failure `
+              --output-junit "$env:GITHUB_WORKSPACE\ctest-security-results.xml"
+            $ctestExit = $LASTEXITCODE
+          } finally {
+            Pop-Location
+          }
+          if ($ctestExit -ne 0) {
+            Write-Error "ctest -L security reported failures (exit $ctestExit). See the output above and ctest-security-results.xml."
+            exit 1
+          }
+          Write-Host "ctest -L security: clean."
+
+      - name: Verify WinAppDriver version (PDFE-LIMITATION-WINAPPDRIVER-V0)
+        # Phase 6 of pipeline f3c91a2e. WinAppDriver >= 1.2.1 is required;
+        # the 2016 v0 beta answers /status but cannot create sessions.
+        # WAD-driven tests self-skip when the service is absent, so this
+        # step never fails the run — it records the detected version (or
+        # its absence) in the step summary so the WAD test results are
+        # interpretable. See tests/docs/winappdriver_setup.md.
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $exe = "C:\Program Files (x86)\Windows Application Driver\WinAppDriver.exe"
+          $line = "## WinAppDriver"
+          if (Test-Path $exe) {
+            $ver = (Get-Item $exe).VersionInfo.ProductVersion
+            $line += "`nInstalled WinAppDriver version: $ver"
+            try {
+              $parts = ($ver -split '\.') | ForEach-Object { [int]($_ -replace '\D','') }
+              if ($parts.Count -ge 3 -and ($parts[0] -lt 1 -or ($parts[0] -eq 1 -and ($parts[1] -lt 2 -or ($parts[1] -eq 2 -and $parts[2] -lt 1))))) {
+                $line += "`n:warning: Below the supported minimum 1.2.1 (PDFE-LIMITATION-WINAPPDRIVER-V0); WAD tests will skip."
+              } else {
+                $line += "`nMeets minimum 1.2.1 requirement."
+              }
+            } catch {
+              $line += "`nCould not parse version string; relying on session-create probe."
+            }
+          } else {
+            $line += "`nWinAppDriver not installed on this runner; WAD-driven UI tests self-skip."
+          }
+          $line | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+      - name: Build PDFE.exe (Release) — needed by Release-tagged UI + render tests
+        # Pipeline c4a9e271 Phase 10 fix. The batch-action UI suites
+        # (test_ui_batch1_actions / test_ui_batch3_actions / _scenarios / _flows)
+        # AND the render-verification suite force PDFE_BUILD_CONFIG=Release
+        # (matrix greens are recorded against the Release build), so they resolve
+        # build/vs2022/bin/Release/pdfe.exe. Build it BEFORE the UI E2E sweep so
+        # those tests find it — previously Release was built only AFTER the sweep,
+        # so the batch suites errored "pdfe.exe not found" at setup (run
+        # 28186683294: ~78 setup errors). The Release output dir carries its own
+        # Qt/vcpkg DLLs (exe-dir wins the DLL search), so a Release pdfe.exe
+        # launched from the Debug-PATH UI step still loads Release DLLs — no
+        # debug/release mismatch. The Debug PDFE.exe (built above) continues to
+        # drive the Debug-tagged test_ui_*.py tests; both configs now coexist.
+        shell: pwsh
+        run: |
+          cmake --build "$env:GITHUB_WORKSPACE\build\vs2022" --config Release --target pdfe --parallel 4
+
+      - name: Build installer (CPack NSIS)
+        # Package the Release build into the NSIS installer so the dependency
+        # smoke test below exercises the ACTUAL shipped bundle (windeployqt Qt
+        # runtime deploy + the explicit non-Qt DLL list). pdfe_preflight is part
+        # of the package, so build it too. Requires NSIS on the self-hosted runner.
+        shell: pwsh
+        run: |
+          cmake --build "$env:GITHUB_WORKSPACE\build\vs2022" --config Release --target pdfe_preflight --parallel 4
+          $nsis = "C:\Program Files (x86)\NSIS"
+          if (Test-Path $nsis) { $env:PATH = "$env:PATH;$nsis" }
+          Remove-Item -Recurse -Force "$env:GITHUB_WORKSPACE\build\vs2022\_CPack_Packages" -ErrorAction SilentlyContinue
+          cpack -C Release -G NSIS --config "$env:GITHUB_WORKSPACE\build\vs2022\CPackConfig.cmake"
+          if ($LASTEXITCODE -ne 0) { throw "cpack (NSIS installer) failed with exit $LASTEXITCODE" }
+
+      - name: Verify installer is self-contained (clean-machine DLL smoke test)
+        # Guards the "app installs but won't start -- Qt6*.dll was not found" class
+        # of bug (v0.1.0 shipped without Qt6Network/Qt6Svg). Extracts the installer
+        # and launches pdfe.exe with PATH stripped to the Windows system dirs only,
+        # so the loader must resolve every dependency from inside the bundle -- the
+        # build box's own vcpkg DLLs on PATH otherwise mask a missing bundled DLL.
+        # Fails the job if pdfe.exe cannot reach its main window.
+        shell: pwsh
+        run: |
+          pwsh -File "$env:GITHUB_WORKSPACE\scripts\verify-installer-deps.ps1"
+          if ($LASTEXITCODE -ne 0) { throw "installer dependency smoke test FAILED -- bundle is missing a runtime DLL" }
+
+      - name: Run UI E2E suite (pywinauto + pyautogui via pytest)
+        # Pipeline f3c91a2e. Builds PDFE.exe, sets the DLL PATH, invokes all
+        # tests/test_ui_*.py + tests/ui_automation/test_*.py through the real
+        # native PDFE window via tests/scripts/run_ui_suite.py.
+        #
+        # GATING (phase-8, GAP-A15-style false-green fix): run_ui_suite.py
+        # ALWAYS exits 0 by design (its result lives in ui-suite-summary.json,
+        # because per-file pytest subprocesses + reruns mean the wrapper's own
+        # exit code is meaningless). Trusting that exit code — as the prior
+        # Phase-2 `continue-on-error: true` configuration did — let the job go
+        # green regardless of UI failures, the same false-green the gtest layer
+        # had. We therefore REMOVE continue-on-error and explicitly gate on the
+        # summary JSON below: any unresolved failing test OR any file with a
+        # crash/timeout after reruns fails this job.
+        shell: pwsh
+        env:
+          # Surface the EXE path so tests/helpers/pdfe_session.py and
+          # the test_ui_*.py modules can find it regardless of CWD.
+          PDFE_EXE: ${{ github.workspace }}\build\vs2022\bin\Debug\PDFE.exe
+          # Cumulative single-session journey soak (pipeline f4a82c1e P4 CI lane).
+          # run_ui_suite.py's `test_ui_*.py` glob already collects
+          # test_ui_journey_soak.py (the long-lived journey against the committed
+          # CI-portable corpus; SpecimenA variant skip-if-absent) AND
+          # test_ui_save_lock_rebind.py (the P3 onSaveFile drain/rebind check),
+          # so no separate job is needed. Bound the journey op budget EXPLICITLY
+          # here rather than relying on the harness default: JOURNEY_OP_BUDGET=120
+          # is ~30 min wall-clock (P2 measured ~9.5 min / 40 ops), comfortably
+          # inside this job's 720-min timeout (> the ~9h self-hosted budget) and
+          # under the per-file cap in run_ui_suite.py FILE_TIMEOUT_OVERRIDES_S. An
+          # extended/nightly run raises it via the repo/workflow variable
+          # JOURNEY_OP_BUDGET (env-tunable; see the methodology doc §8).
+          JOURNEY_OP_BUDGET: ${{ vars.JOURNEY_OP_BUDGET || '120' }}
+        run: |
+          $buildBin = "$env:GITHUB_WORKSPACE\build\vs2022\bin\Debug"
+          $vcpkgDbg = "$env:GITHUB_WORKSPACE\build\vs2022\vcpkg_installed\x64-windows\debug\bin"
+          $vcpkgRel = "$env:GITHUB_WORKSPACE\build\vs2022\vcpkg_installed\x64-windows\bin"
+          $env:PATH = "$buildBin;$vcpkgDbg;$vcpkgRel;$env:PATH"
+
+          if (-not (Test-Path "$buildBin\PDFE.exe")) {
+            Write-Error "PDFE.exe not found at $buildBin\PDFE.exe"
+            exit 1
+          }
+
+          $junitXml = "$env:GITHUB_WORKSPACE\ui-junit.xml"
+          $logPath  = "$env:GITHUB_WORKSPACE\ui-suite.log"
+          Write-Host "Launching pytest UI suite. PDFE_EXE=$env:PDFE_EXE"
+
+          # Use the per-file isolation runner (tests/scripts/run_ui_suite.py)
+          # rather than a single pytest invocation. Background: on the
+          # prior run (27097560166), the UI suite collected 3015 tests
+          # and only ~30 of them in test_ui_file_operations.py ran
+          # before test_export_plain_text_opens_save_dialog hung
+          # pywinauto inside a native COM call that pytest-timeout's
+          # thread-method could not interrupt. pytest-timeout then
+          # hard-killed the entire pytest process via os._exit(1),
+          # aborting every remaining test in the session.
+          #
+          # The wrapper script gives each UI test file its own pytest
+          # subprocess with a 20-min outer wall-clock timeout, so a
+          # single hung test kills only its file's pytest — the rest
+          # of the suite continues. Per-test 120s pytest-timeout is
+          # still applied inside each pytest. After each file, the
+          # wrapper taskkill's pdfe.exe to clean up any leaked window.
+          #
+          # Outputs land in $outDir/ui-junit-merged.xml (combined
+          # JUnit XML for the publish step) and
+          # $outDir/ui-suite-summary.json (per-file stats + failure
+          # list — the Phase 3 input).
+          $outDir = "$env:GITHUB_WORKSPACE\ui-out"
+          New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+          # --file-timeout 5400 = 90-min hard wall-clock ceiling per test file
+          # (pipeline c4a9e271 Phase 10). The per-test pytest-timeout=120 stays
+          # the inner cap; the heavy all-pass-but-slow files have their own
+          # FILE_TIMEOUT_OVERRIDES_S (all < 90 min). run_ui_suite.py taskkills
+          # pdfe.exe between every file (the orphan watchdog before the next
+          # file starts).
+          # --only is empty on push/PR/full-dispatch (runs every file) and a
+          # comma-separated filter on a targeted subset dispatch.
+          python "$env:GITHUB_WORKSPACE\tests\scripts\run_ui_suite.py" `
+              --repo-root "$env:GITHUB_WORKSPACE" `
+              --output-dir $outDir `
+              --pdfe-exe "$env:PDFE_EXE" `
+              --file-timeout 5400 `
+              --only "${{ inputs.ui_only }}" `
+              *>&1 | Tee-Object -FilePath $logPath
+          # Stage merged junit at the location the publish step reads.
+          Copy-Item "$outDir\ui-junit-merged.xml" $junitXml -Force -ErrorAction SilentlyContinue
+          Write-Host "run_ui_suite.py exit code (always 0 by design): $LASTEXITCODE"
+
+          # False-green backstop: gate on the summary JSON, not the exit code.
+          $summaryPath = "$outDir\ui-suite-summary.json"
+          if (-not (Test-Path $summaryPath)) {
+            Write-Error "UI suite summary not found ($summaryPath) — the suite did not complete; failing the job."
+            exit 1
+          }
+          $sum = Get-Content $summaryPath -Raw | ConvertFrom-Json
+          $failingTests   = [int]$sum.failure_count
+          $filesWithProbs = [int]$sum.files_with_problems_count
+          Write-Host ("UI E2E: files_run={0} tests={1} failing_tests={2} files_with_problems={3}" -f `
+            $sum.files_run, $sum.totals.tests, $failingTests, $filesWithProbs)
+          $unresolved = $failingTests + $filesWithProbs
+          if ($unresolved -gt 0) {
+            Write-Error ("UI E2E suite FAILED: $failingTests failing test(s) + $filesWithProbs file(s) with crash/timeout, unresolved after reruns. See the ui-suite-summary.json / ui-junit-merged.xml artifacts.")
+            exit 1
+          }
+          Write-Host "UI E2E suite clean: 0 unresolved failures after reruns."
+          exit 0
+
+      - name: Matrix-health gate (green floor + no green->red regressions)
+        # Skipped for a targeted UI subset run: a handful of files can't satisfy
+        # the closeout green floor, so the gate is meaningless on a subset.
+        if: ${{ !inputs.ui_only }}
+        # Pipeline c4a9e271 Phase 10. The UI sweep above writes per-file matrix
+        # CSVs that run_ui_suite.py aggregates into ui_test_matrix_aggregate.csv.
+        # check_matrix_health.py compares that aggregate to the committed
+        # closeout matrix and FAILS the job if (a) the live green-row count drops
+        # below closeout at all, (b) ANY committed-green row recorded red this
+        # run (the GAP-A15 false-green defense at the matrix layer), or (c) a
+        # committed-green row did not RUN at all. Runs only when the UI step
+        # above passed (a UI failure already reds the job).
+        #
+        # Gap A1-81 (C-3): this step used to pass `--floor-delta 5` and omit
+        # `--require-ran`. That combination tolerated five committed-green rows
+        # silently going away every run -- a slow, invisible coverage leak --
+        # and counted a row that never executed as "not red". This IS the full
+        # sweep (the step is skipped entirely for `ui_only` subset runs, see the
+        # `if:` above), so the full-sweep semantics apply: delta 0 and
+        # --require-ran. A genuine flake now has to be triaged rather than
+        # absorbed by the tolerance band.
+        shell: pwsh
+        run: |
+          $agg = "$env:GITHUB_WORKSPACE\ui-out\ui_test_matrix_aggregate.csv"
+          if (-not (Test-Path $agg)) {
+            Write-Error "matrix aggregate not found ($agg) — the UI sweep did not produce it; failing."
+            exit 1
+          }
+          python "$env:GITHUB_WORKSPACE\tests\scripts\check_matrix_health.py" `
+              --repo-root "$env:GITHUB_WORKSPACE" `
+              --runtime-csv $agg `
+              --floor-delta 0 `
+              --require-ran
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Matrix-health gate FAILED (green floor breached, a committed-green row went red, or a committed-green row did not run). See output above."
+            exit 1
+          }
+          Write-Host "Matrix-health gate clean."
+          exit 0
+
+      - name: Run render-verification suite (Release pdfe.exe)
+        # Skipped for a targeted UI subset run (the subset is the validation
+        # target; the render suite is a separate full-suite concern).
+        if: ${{ !inputs.ui_only }}
+        # Pipeline e7d3c2a1 Phase 6: oracle-backed render checks that assert
+        # user-visible functions actually display/update on the canvas, plus the
+        # systemic-defect proofs (#1/#2/#4 visibility, DPI, routing). The Release
+        # pdfe.exe is built earlier (before the UI E2E sweep) so it is already
+        # present here. FAILS THE JOB on any
+        # UNEXPECTED failure — xfail stays xfail (exit 0), a real regression or a
+        # strict xpass returns non-zero.
+        shell: pwsh
+        env:
+          PDFE_BUILD_CONFIG: Release
+        run: |
+          $relBin   = "$env:GITHUB_WORKSPACE\build\vs2022\bin\Release"
+          $vcpkgRel = "$env:GITHUB_WORKSPACE\build\vs2022\vcpkg_installed\x64-windows\bin"
+          $env:PATH = "$relBin;$vcpkgRel;$env:PATH"
+          if (-not (Test-Path "$relBin\pdfe.exe")) {
+            Write-Error "Release pdfe.exe not found at $relBin\pdfe.exe"
+            exit 1
+          }
+          $renderTests = Get-ChildItem "$env:GITHUB_WORKSPACE\tests\ui_automation\test_render_*.py" |
+            ForEach-Object { $_.FullName }
+          if (-not $renderTests) {
+            Write-Error "No test_render_*.py files found"
+            exit 1
+          }
+          $junit = "$env:GITHUB_WORKSPACE\render-junit.xml"
+          $log   = "$env:GITHUB_WORKSPACE\render-suite.log"
+          # Run from the repo root so the `tests.ui_automation.harness` package
+          # imports resolve (the suite uses absolute `from tests...` imports).
+          Push-Location "$env:GITHUB_WORKSPACE"
+          python -m pytest @renderTests --timeout=240 --junitxml=$junit -v `
+            *>&1 | Tee-Object -FilePath $log
+          $code = $LASTEXITCODE
+          Pop-Location
+          if ($code -ne 0) {
+            Write-Error "Render-verification suite reported unexpected failures (exit $code). See render-suite.log / render-junit.xml."
+            exit 1
+          }
+          Write-Host "Render-verification suite clean (all pass / xfail as expected)."
+          exit 0
+
+      - name: Publish combined test summary (gtest + UI E2E)
+        if: always()
+        shell: pwsh
+        run: |
+          # --- gtest summary ---
+          $gtestLog = "$env:GITHUB_WORKSPACE\pdfe_tests.log"
+          if (Test-Path $gtestLog) {
+            "## pdfe_tests (gtest)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            Select-String -Path $gtestLog -Pattern 'tests from|PASSED|FAILED|SKIPPED' |
+              ForEach-Object { $_.Line } |
+              Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          } else {
+            "## pdfe_tests (gtest): no log produced" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          }
+
+          # --- UI E2E summary ---
+          "" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $uiJunit = "$env:GITHUB_WORKSPACE\ui-junit.xml"
+          $uiLog   = "$env:GITHUB_WORKSPACE\ui-suite.log"
+          "## UI E2E (pytest + pywinauto)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          if (Test-Path $uiJunit) {
+            try {
+              [xml]$xml = Get-Content $uiJunit
+              $ts = $xml.testsuites.testsuite
+              if ($ts -is [array]) { $ts = $ts[0] }
+              "- tests=$($ts.tests) failures=$($ts.failures) errors=$($ts.errors) skipped=$($ts.skipped) time=$($ts.time)s" |
+                Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+              # List failure IDs
+              $fails = $xml.SelectNodes("//testcase[failure or error]")
+              if ($fails.Count -gt 0) {
+                "" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+                "### Failing tests (Phase 2 input → Phase 3 to fix)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+                '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+                $fails | ForEach-Object {
+                  "$($_.classname)::$($_.name)"
+                } | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+                '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+              }
+            } catch {
+              "Could not parse ui-junit.xml: $_" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            }
+          } elseif (Test-Path $uiLog) {
+            "- ui-junit.xml missing; tail of ui-suite.log:" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            Get-Content $uiLog -Tail 30 | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          } else {
+            "- UI suite did not run (no ui-suite.log)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          }
+
+      - name: Upload test artifacts (always)
+        # Promoted from on-failure to always: Phase 2 wants the UI
+        # failure list available even when the gtest step is green.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-validation-logs
+          path: |
+            pdfe_tests.log
+            gtest-results.xml
+            ctest-security-results.xml
+            parity-results.xml
+            coverage-cobertura.xml
+            ui-suite.log
+            ui-junit.xml
+            ui-out/**
+            render-suite.log
+            render-junit.xml
+            tests/_tmp/**
+            tests/visual/_failure_artifacts/**
+            build/vs2022/**/*.log
+          if-no-files-found: ignore
+          retention-days: 14

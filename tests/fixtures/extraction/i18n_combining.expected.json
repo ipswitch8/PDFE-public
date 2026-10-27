@@ -1,0 +1,47 @@
+{
+  "schema": "pdfe.extraction-fidelity/1",
+  "fixture": "i18n_combining.pdf",
+  "page": 0,
+  "gap_ids": [
+    "PDF-78",
+    "PDF-79"
+  ],
+  "description": "Combining-mark stability (PDF-78). U+0301 has no precomposed form with 'x', so NFC must leave the pair decomposed; the U+00B4 band is the spacing-accent control that must NOT be folded into the base.",
+  "validation": "expected_codepoints is what extraction returns; folding it through presentation_form_folding reproduces authored_codepoints exactly and in order. Both directions are re-checked by gen_extraction_sidecars.py --check.",
+  "authored_source": "tests/fixtures/gen_i18n_render_corpus.py",
+  "forbidden_codepoints": [
+    "U+FFFD"
+  ],
+  "lines": [
+    {
+      "authored": "x́N",
+      "authored_codepoints": [
+        "U+0078",
+        "U+0301",
+        "U+004E"
+      ],
+      "expected_extracted": "x́N",
+      "expected_codepoints": [
+        "U+0078",
+        "U+0301",
+        "U+004E"
+      ],
+      "presentation_form_folding": {}
+    },
+    {
+      "authored": "x´N",
+      "authored_codepoints": [
+        "U+0078",
+        "U+00B4",
+        "U+004E"
+      ],
+      "expected_extracted": "x´N",
+      "expected_codepoints": [
+        "U+0078",
+        "U+00B4",
+        "U+004E"
+      ],
+      "presentation_form_folding": {}
+    }
+  ]
+}

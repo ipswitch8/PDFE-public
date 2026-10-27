@@ -1,0 +1,28 @@
+{
+  "page_count": 4,
+  "has_xref_repair": false,
+  "description": "Letter + A4 + Legal + custom-narrow page sizes",
+  "fixture_type": "mixed_page_sizes",
+  "sizes": [
+    [
+      "Letter",
+      612.0,
+      792.0
+    ],
+    [
+      "A4",
+      595.0,
+      842.0
+    ],
+    [
+      "Legal",
+      612.0,
+      1008.0
+    ],
+    [
+      "Custom",
+      200.0,
+      800.0
+    ]
+  ]
+}

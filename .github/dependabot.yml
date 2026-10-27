@@ -1,0 +1,46 @@
+# GitHub #64 (SEC-81). See docs/security/dependabot-coverage.md for the full
+# decision record of what this file does and does not cover.
+#
+# WHY THIS IS A HALF ANSWER, SAID UP FRONT: PDFE's actual third-party risk is
+# vcpkg (MuPDF, QPDF, Qt, freetype, harfbuzz, tesseract, onnxruntime, sqlite3),
+# and Dependabot does NOT support vcpkg as a package-ecosystem. So this file
+# cannot watch the dependencies that matter most. What it CAN watch is the
+# GitHub Actions supply chain, which is a real exposure in its own right: this
+# repo runs a self-hosted Windows runner with a build toolchain and signing
+# material nearby, and #147 already found and fixed 44 actions pinned to
+# mutable tags (one of them not even a tag -- a branch) rather than a SHA.
+#
+# The vcpkg half is covered by scripts/security/run_deps.ps1 via the
+# dependency-audit.yml workflow (#50/#63) instead -- an accept-and-document
+# split, not something this file silently claims to cover.
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "supply-chain"
+
+# NOT INCLUDED, deliberately:
+#   - package-ecosystem: "vcpkg"   <- does not exist; Dependabot has no vcpkg support
+#   - pip: CORRECTED from an earlier draft of this file, which claimed no pip
+#     requirements exist -- FALSE, there are five (tests/fixtures/image_pdf/,
+#     tests/security/, tests/ui_automation/{requirements.txt,
+#     requirements-locked.txt}, tools/font_classifier/). Left OUT anyway,
+#     for a real reason rather than an absent one: tests/ui_automation/'s pair
+#     is a pip-compile SOURCE + HASH-PINNED LOCK file
+#     (requirements.txt -> requirements-locked.txt via
+#     `pip-compile --generate-hashes`), and CI installs the LOCKED file with
+#     --require-hashes. Dependabot bumps requirements.txt but does not run
+#     pip-compile, so pointing it here would open PRs that silently leave the
+#     hash-pinned file CI actually uses out of sync with the bump -- a PR that
+#     looks like a fix and would break `pip install --require-hashes` the
+#     moment it merged. Wiring this correctly needs a re-lock step (e.g. a
+#     workflow reacting to Dependabot's PR), which is a real follow-up, not
+#     something this file should paper over by omission.

@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="1" failures="0" disabled="0" errors="0" time="0.048" timestamp="2026-07-28T02:01:47.421" name="AllTests">
+  <testsuite name="Phase5FormsTest" tests="1" failures="0" disabled="0" skipped="0" errors="0" time="0.046" timestamp="2026-07-28T02:01:47.423">
+    <testcase name="ResetFormRestoresDefaultValues" file="tests/test_forms_phase5.cpp" line="294" status="run" result="completed" time="0.046" timestamp="2026-07-28T02:01:47.423" classname="Phase5FormsTest" />
+  </testsuite>
+</testsuites>

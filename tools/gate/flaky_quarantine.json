@@ -1,0 +1,34 @@
+{
+  "_comment": "Machine-readable flaky/xfail quarantine registry (remediation Phase 5, target R-37). run_gtest.py and run_ui_suite.py re-run a failed test in a FRESH process; a test that FAILS then PASSES on rerun 'heals' and the suite goes green. Without this registry that self-healing silently MASKS a degrading test forever. Rule enforced by tools/gate/check_flaky_quarantine.py: every test that HEALED on rerun this run MUST be listed here with a reason, owner, and expiry, otherwise the run FAILS. Adding a test here is a deliberate, reviewed, auditable act — not a silent skip. 'known_flaky' entries are tolerated (documented transient); when an entry's 'expires' date passes, the check fails so the quarantine is revisited (a flake is never quarantined forever by default). 'status: xfail' entries are expected-to-fail (a real open defect) and are NOT counted as passing.",
+  "schema": 1,
+  "known_flaky": [
+    {
+      "test": "MainWindowIntegrationTest.ZoomComboExists",
+      "reason": "Cumulative single-process Qt resource artifact: after ~3900 prior tests, a freshly constructed MainWindow's createToolBar() occasionally fails to populate the zoomCombo QWidgetAction. Passes reliably in isolation and in a fresh process. Not a product defect (see tests/scripts/run_gtest.py header).",
+      "owner": "harness",
+      "layer": "gtest",
+      "expires": "2026-12-31",
+      "status": "known_flaky"
+    },
+    {
+      "test": "ClipboardNativeFormatsTest.PlainTextCopyPublishesUnicodeTextButNoBitmap",
+      "reason": "rdpclip swallows the clipboard WRITE. This host is driven over RDP, and rdpclip.exe races the test's OpenClipboard/SetClipboardData pair: the write is accepted but the subsequent read sees the previous owner's contents or an empty board. It is an RDP-session artifact of the harness, not a product defect -- the same test passes in a fresh process and on a console session. Root cause is already recorded in this project's flaky-test notes; registered here after it healed on rerun during p84-remaining-open phase-2, because narrating a heal without registering it is what check_flaky_quarantine.py exists to catch.",
+      "owner": "harness",
+      "layer": "gtest",
+      "expires": "2026-12-31",
+      "status": "known_flaky"
+    }
+  ],
+  "_root_caused": [
+    {
+      "test": "ComplianceConverterPublishTocttou.PoisoningAnyStagedPdfUAArtifactCannotSubstituteTheConvertedDocument",
+      "was": "known_flaky",
+      "retired": "2026-10-01",
+      "retired_by": "p95-i272-i273 phase-2",
+      "root_cause_fixed": "The entry's own recommended fix was applied rather than a wider timeout: DirectoryAttacker now counts completed directory sweeps and beginOperation() waits (deadline-bounded, 2s) for at least one to finish, so the operation cannot run to completion before the attacker thread has looked even once. Applied in BOTH copies of the helper -- it was duplicated, at test_publish_handle_hardening_phase58.cpp and _phase59.cpp, and only one had been fixed initially.",
+      "evidence": "A/B under identical load (3 spinners on 4 cores, 12 repeats per arm), exploiting the duplication so the two arms differed only by the fix: phase58 WITH the rendezvous 12/12 pass and 0 vacuity trips; phase59 WITHOUT it 3/12 pass and 9 trips of the `attacker.saw > 0` guard. UNLOADED both copies passed 12/12, which is why the race survived review. After fixing both: 24/24 pass, 0 trips, under the same load.",
+      "note": "Removed rather than left in place because check_flaky_quarantine.py tolerates a registered entry that never heals, so a stale entry would silently absorb a genuine future regression of this test. A recurrence should now be loud. The sibling cause is unchanged for MainWindowIntegrationTest.ZoomComboExists and ClipboardNativeFormatsTest.PlainTextCopyPublishesUnicodeTextButNoBitmap, which remain registered -- neither is this race."
+    }
+  ],
+  "xfail": []
+}

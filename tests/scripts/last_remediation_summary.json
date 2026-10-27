@@ -1,0 +1,307 @@
+{
+  "pipeline_id": "b3d7f942-1c8e-4a06-9e51-d2f60c87a314",
+  "current_pipeline_id": "b3d7f942",
+  "phase1_hardening": {
+    "files": [
+      {
+        "path": "tests/test_accessibility.cpp",
+        "skip": 0,
+        "expect_ge": 0,
+        "no_throw": 4
+      },
+      {
+        "path": "tests/test_annotation_manager.cpp",
+        "skip": 14,
+        "expect_ge": 3,
+        "no_throw": 0
+      },
+      {
+        "path": "tests/test_app_settings.cpp",
+        "skip": 0,
+        "expect_ge": 0,
+        "no_throw": 1
+      },
+      {
+        "path": "tests/test_bookmarks.cpp",
+        "skip": 0,
+        "expect_ge": 1,
+        "no_throw": 1
+      },
+      {
+        "path": "tests/test_chrome_phase9.cpp",
+        "skip": 0,
+        "expect_ge": 0,
+        "no_throw": 1
+      },
+      {
+        "path": "tests/test_encryption_manager.cpp",
+        "skip": 2,
+        "expect_ge": 0,
+        "no_throw": 0
+      },
+      {
+        "path": "tests/test_form_creation.cpp",
+        "skip": 0,
+        "expect_ge": 5,
+        "no_throw": 0
+      },
+      {
+        "path": "tests/test_form_manager.cpp",
+        "skip": 14,
+        "expect_ge": 0,
+        "no_throw": 0
+      },
+      {
+        "path": "tests/test_form_tool.cpp",
+        "skip": 19,
+        "expect_ge": 2,
+        "no_throw": 0
+      },
+      {
+        "path": "tests/test_image_commands.cpp",
+        "skip": 0,
+        "expect_ge": 1,
+        "no_throw": 0
+      },
+      {
+        "path": "tests/test_image_manager.cpp",
+        "skip": 0,
+        "expect_ge": 0,
+        "no_throw": 1
+      },
+      {
+        "path": "tests/test_image_redaction_phase7.cpp",
+        "skip": 0,
+        "expect_ge": 5,
+        "no_throw": 0
+      },
+      {
+        "path": "tests/test_image_tool.cpp",
+        "skip": 0,
+        "expect_ge": 0,
+        "no_throw": 1
+      },
+      {
+        "path": "tests/test_keyboard_navigation.cpp",
+        "skip": 0,
+        "expect_ge": 0,
+        "no_throw": 4
+      },
+      {
+        "path": "tests/test_redaction_apply_pending_edit.cpp",
+        "skip": 0,
+        "expect_ge": 1,
+        "no_throw": 0
+      },
+      {
+        "path": "tests/test_redaction_commands.cpp",
+        "skip": 0,
+        "expect_ge": 2,
+        "no_throw": 0
+      },
+      {
+        "path": "tests/test_redaction_edge_cases.cpp",
+        "skip": 0,
+        "expect_ge": 2,
+        "no_throw": 0
+      },
+      {
+        "path": "tests/test_redaction_manager.cpp",
+        "skip": 1,
+        "expect_ge": 2,
+        "no_throw": 0
+      },
+      {
+        "path": "tests/test_save.cpp",
+        "skip": 9,
+        "expect_ge": 0,
+        "no_throw": 0
+      },
+      {
+        "path": "tests/test_save_operations.cpp",
+        "skip": 9,
+        "expect_ge": 0,
+        "no_throw": 2
+      }
+    ],
+    "totals": {
+      "skip": 68,
+      "expect_ge": 24,
+      "no_throw": 15
+    }
+  },
+  "round_trip_tests": {
+    "files": [
+      {
+        "path": "tests/test_annotation_roundtrip.cpp",
+        "test_count": 12,
+        "disabled_count": 0
+      },
+      {
+        "path": "tests/test_form_roundtrip.cpp",
+        "test_count": 9,
+        "disabled_count": 0
+      },
+      {
+        "path": "tests/test_xfdf_encode_decode.cpp",
+        "test_count": 5,
+        "disabled_count": 0
+      },
+      {
+        "path": "tests/test_encryption_roundtrip.cpp",
+        "test_count": 7,
+        "disabled_count": 0
+      },
+      {
+        "path": "tests/test_signature_roundtrip.cpp",
+        "test_count": 6,
+        "disabled_count": 0
+      },
+      {
+        "path": "tests/test_pdfa_roundtrip.cpp",
+        "test_count": 9,
+        "disabled_count": 0
+      },
+      {
+        "path": "tests/test_pkcs7_roundtrip.cpp",
+        "test_count": 4,
+        "disabled_count": 0
+      },
+      {
+        "path": "tests/test_redaction_roundtrip.cpp",
+        "test_count": 6,
+        "disabled_count": 0
+      },
+      {
+        "path": "tests/test_image_roundtrip.cpp",
+        "test_count": 8,
+        "disabled_count": 0
+      },
+      {
+        "path": "tests/test_metadata_roundtrip.cpp",
+        "test_count": 7,
+        "disabled_count": 0
+      },
+      {
+        "path": "tests/test_realworld_corpus.cpp",
+        "test_count": 3,
+        "disabled_count": 0
+      }
+    ],
+    "total_tests": 76,
+    "total_disabled": 0
+  },
+  "realworld_fixtures": {
+    "pdfs": 12,
+    "sidecars": 12,
+    "pdf_paths": [
+      "tests/fixtures/realworld/cid_mixed/cid_mixed_encoding.pdf",
+      "tests/fixtures/realworld/corrupt_xref/corrupt_xref_recoverable.pdf",
+      "tests/fixtures/realworld/embedded_files/embedded_file_attachment.pdf",
+      "tests/fixtures/realworld/form_calc/form_with_calculation_order.pdf",
+      "tests/fixtures/realworld/icc_profiles/icc_outputintent.pdf",
+      "tests/fixtures/realworld/jpeg2000/jpeg2000_image.pdf",
+      "tests/fixtures/realworld/linearized/linearized.pdf",
+      "tests/fixtures/realworld/mixed_page_sizes/mixed_page_sizes.pdf",
+      "tests/fixtures/realworld/object_streams/object_streams.pdf",
+      "tests/fixtures/realworld/rotated_pages/rotated_mixed.pdf",
+      "tests/fixtures/realworld/subsetted_fonts/subset_prefix_conflict.pdf",
+      "tests/fixtures/realworld/unicode_metadata/unicode_metadata.pdf"
+    ]
+  },
+  "known_weak_tests": {
+    "count": 13,
+    "entries": [
+      "P-H-INFRA-1: RESOLVED pipeline c91e7f3a phase-3 (commit 609e2cd) then re-fixed phase-7 karen remediation.  tests/test_ui_text_edit_selection.py::test_ui_te_ui_01_selection_highlight_visible AND tests/test_ui_text_edit_undo.py::test_ui_te_ui_03_five_keystrokes_five_undos_restore_pixels.  Phase-3 initial fixes: (1) _wait_for_canvas() auto_id=\"pdfCanvas\" lookup; (2) session.app refresh on Strategy B success; (3) _activate_text_edit_tool() textEditToolActionButton search; (4) canvas horizontal-centre click.  Phase-7 re-regression: the phase-7 dynamic scale formula (canvas_w/595) computed scale=1.39 instead of 1.0 at 100% zoom, placing click at y≈266 (below text at y≈120-140).  Phase-7 fix: replaced scale formula with testClickByPdfCoordPipe seam (descendants suffix-scan for QApplication.mainWindow.testClickByPdfCoordPipe; pipe writes \"0,298.0,98.0\" in fitz coords; C++ clickByPdfCoord handles all zoom/DPI math and calls canvas->setFocus()).  Verified 3/3 PASS.",
+      "P-H-INFRA-2: RESOLVED pipeline c91e7f3a phase-3 (commit 609e2cd; NCC bypass removed and pipe-verified round-trip completed in phase-3 remediation commit 88f3f01).  tests/test_ui_specimen_a_green_subset.py::test_specimen_a_green_subsetted_font_round_trip.  Root cause: fontComboBox inside TextEditToolBar (mounted via addToolBar()) is NOT reachable via child_window(auto_id=\"fontComboBox\") on Server 2019 Qt6 — confirmed via 8 s Strategy-B polling, never appears in UIA tree.  Fix: switched from UIA combo lookup to testFontFamiliesQueryPipe/testFontFamiliesResultPipe Q_INVOKABLE seam (new in phase-3).  The pipe reads directly from the QFontComboBox widget object (findChild<QFontComboBox*>(\"fontComboBox\")) bypassing the UIA bridge entirely.  Result pipe returns newline-separated list where index 0 is current selection.  get_text_edit_toolbar_font_families() helper added to tests/helpers/qinvoke.py.  Path B (Karen recommendation): post-save proc2 block replaced with pipe-verified font round-trip — reopen saved PDF, activate text-edit, click same span, assert pipe returns \"Alef\".  NCC visual check removed and deferred to a separate visual-regression test.  Test now PASSES (not skips) when the SpecimenA PDF and pipeline c91e7f3a build are present.",
+      "P-H-INFRA-3: tests/test_ui_file_operations.py::test_save_as_overwrite_existing_file — RESOLVED pipeline c91e7f3a phase-2 (commit 35857c2).  Root cause: accept_overwrite_prompt() was called AFTER the Save BM_CLICK, but SendMessageW(Save) blocks while Qt's Confirm Save As modal loop is running, so accept_overwrite_prompt() was unreachable.  Fix: set_save_dialog_filename_only() + click_save_with_overwrite_dispatcher() split the filename-set and Save-click steps; a daemon thread starts BEFORE BM_CLICK(Save) and polls for the Confirm dialog, clicking Yes so Qt unwinds the modal and SendMessageW returns.  An OS-kill watchdog (threading.Timer → os.kill) fires if the daemon fails, preventing session wedge.  Hard skip removed; @pytest.mark.timeout(60) retained as outer safety net.  Live-verified PASS on Windows Server 2019 rig.",
+      "P-H-INFRA-4: RESOLVED pipeline c91e7f3a phase-1 (commit 8187af6) — tests/test_ui_annotations.py: test_sticky_note_typed_content_appears_in_popup, test_sticky_note_appears_in_comment_panel, test_sticky_note_persists_across_save_reopen, test_free_text_annotation_creates_text_box, test_free_text_typed_content_persists, test_free_text_font_change, test_free_text_color_change, test_free_text_can_be_deleted, test_free_text_persists_across_save_reopen.  Root cause: typewrite_assuming_foreground() called verify_foreground_is(session.hwnd) which returned False when the sticky-note popup / free-text edit box was in the foreground as a SEPARATE top-level HWND owned by PDFE.  Fix: PID-based foreground check — verify_foreground_is() updated to compare the foreground window's process ID to the target process ID (not the specific HWND), so any PDFE-owned top-level window satisfies the foreground assertion.  All 9 tests now PASS.  xfail markers removed.",
+      "P-H-INFRA-5: RESOLVED (pipeline c91e7f3a phase-4 final) — tests/test_ui_annotations.py: test_ink_color_change, test_shape_color_change_via_properties_panel, test_comment_panel_navigates_to_annotation.  test_ink_color_change + test_shape_color_change_via_properties_panel: timing fix (settle extended); PASSES.  test_comment_panel_navigates_to_annotation: three root causes fixed: (1) Product bug — PdfCanvas::keyPressEvent had inverted scroll directions (Key_Down used -= SCROLL_STEP scrolling UP; Key_Up used += scrolling DOWN).  Fixed in src/ui/PdfCanvas.cpp with correct += / -= and clamping.  4 new C++ unit tests (PdfCanvasKeyboardScroll.*) lock the corrected semantics.  (2) Zoom-in hotkey mismatch — test sent Ctrl+= before canvas focus; QKeySequence::ZoomIn on Windows is Ctrl++ (needs Shift).  Fixed: click canvas first, then use bare \"=\" key (PdfCanvas handles Qt::Key_Equal directly).  (3) pywinauto double_click_input() does not reliably trigger Qt itemDoubleClicked for QTreeWidgetItem.  Fixed: use pyautogui.doubleClick at exact screen coordinates.  All 3 tests PASS.  xfail markers removed.",
+      "P-H-INFRA-6: RESOLVED 9bf7804 — tests/test_ui_annotations.py::test_text_markup_appears_in_comment_panel.  Root cause was a comment-panel refresh race: _comment_tree_highlight_row_count() was read immediately after _settle(1.0) before the panel processed the annotationCreated signal.  Fix: bounded-wait poll (up to 5 s / 0.5 s increments) retries the row count until >= 2 Highlight rows appear.  xfail marker removed.",
+      "P-H-INFRA-7: RESOLVED 26f86c7 — tests/test_ui_forms.py::test_form_reset_restores_default_values, test_form_field_persistence_across_save_reopen.  Root cause: _set_text_field_via_panel used UIA set_edit_text() on formFieldTextEdit (QLineEdit), which sets the widget text but does NOT fire editingFinished — the only signal wired to onTextValueChanged() and then to SetFieldValueCommand.  So the value was visible in the panel but never committed to the PDF on save.  Fix: added FormFieldPropertiesPanel::setTextValueForTesting() (sets text + directly calls onTextValueChanged, bypassing editingFinished), exposed via testFormFieldValueSetPipe_ in MainWindow (always-on pipe; RESOLVED in pipeline b3d7f942 phase-1 (commit 433b2a8) via PDFE_TEST_PIPES env-var guard. Pipe now ONLY active when env var is set; production builds do not expose it via UIA.), added set_form_field_panel_value() Python helper to qinvoke.py, and rewrote _set_text_field_via_panel to use the pipe as its primary path.  4 new C++ GoogleTests (FormFieldPropertiesPanelTest.SetTextValueForTesting*) lock the seam invariants.  xfail markers removed.",
+      "P-H-INFRA-8: RESOLVED 26f86c7 — tests/test_ui_compliance_accessibility.py::test_alt_text_round_trip_persists_to_pdf, test_alt_text_actual_text_round_trip, test_alt_text_in_memory_round_trip_via_dialog_readback.  Root cause: _open_alt_text_dialog triggers altTextAction_, whose handler opened AltTextDialog with annotIndex=0 but did NOT update selectedAnnotationPageIndex_ / selectedAnnotationIndex_ (left them at -1).  After the dialog accepted, getCurrentAnnotationAltText() found selectedAnnotationPageIndex_ < 0 and returned \"\".  Fix: in the altTextAction_ handler, set selectedAnnotationPageIndex_ = pageIdx and selectedAnnotationIndex_ = 0 before opening the dialog, and enable openAltTextDialogAction_ (mirrors what openAltTextDialogAction_'s own flow does).  No Python or test changes needed.  xfail markers removed.",
+      "P-H-INFRA-10: RESOLVED pipeline c91e7f3a phase-6 (commit e5054c6) then completed phase-7 karen remediation.  Root cause (phase-6): ``_click_field_by_name`` on a checkbox dispatches a canvas click through FormTool which executes ``ToggleFieldCommand`` as a side effect (Off→On), THEN ``_toggle_checkbox_via_panel`` fired ``SetFieldValueCommand(\"Off\")``, leaving net state Off — so save serialised /Off.  Phase-6 fix: replaced ``_click_field_by_name`` with ``_tab_to_field_named`` in all 3 checkbox tests.  Phase-7 re-regression: ``_tab_to_field_named`` calls ``_activate_form_tool`` via the testToolActivatePipe QLineEdit seam; UIA set_edit_text() steals Win32 OS focus from PdfCanvas to the pipe HWND; subsequent PostMessageW Tab messages went to the pipe/whatever-had-focus rather than PdfCanvas, so FormTool::onKeyPress never received them, tabOrder_ was never walked, and the editor signature check always returned \"\" → False.  Phase-7 fix: added ``canvas_->setFocus(Qt::OtherFocusReason)`` in ``activateToolByObjectName()`` after ``action->trigger()``; PdfCanvas gets Qt focus immediately after the tool activates, routing subsequent WM_KEYDOWN to PdfCanvas::event().  Verified PASSED.",
+      "P-H-INFRA-9: RESOLVED pipeline c91e7f3a phase-3 (commit 609e2cd).  tests/test_ui_preferences_chrome.py — test_customize_toolbars_available_list_includes_non_default_action, test_customize_toolbars_add_action_appears_in_toolbar, test_customize_toolbars_widgets_have_accessible_names.  Root cause: QListView rows (QStandardItem entries in availableList / currentList) are NOT exposed as ListItem descendants in the UIA tree on Server 2019 Qt6 regardless of polling interval or retry count — confirmed via 5 s / 0.5 s retry loop returning 0 items consistently.  Fix (option a from prior ACCEPTED-INFRA-GAP entry): added Q_INVOKABLE list-enumeration pipes to CustomizeToolbarsDialog:  testCustomizeAvailableActionsQueryPipe/ResultPipe (available actions list), testCustomizeToolbarContentsQueryPipe/ResultPipe (current toolbar contents by name or \"current\"), testCustomizeWidgetNamesQueryPipe/ResultPipe (objectName:accessibleName pairs for all interactive widgets).  Python helpers added to tests/helpers/qinvoke.py: customize_toolbars_available_actions(), customize_toolbars_toolbar_contents(), customize_toolbars_widget_accessible_names().  All 3 tests updated to use the new pipes; xfail markers removed.  The tests now PASS (pipe query returns model data directly from QStandardItemModel, bypassing UIA entirely) or SKIP gracefully if the pipes are not built into the PDFE binary.",
+      "P-H-INFRA-11: tests/test_ui_forms.py::test_xfdf_import_populates_fields — OPEN — suite-contention flake: passes standalone in ~41s, fails under full-suite contention (Karen verified c91e7f3a phase-6 retro-gate review); currently uses silent pytest.skip paths on import/click failure rather than xfail or explicit single-test-only gating — proposed fix: replace silent skips with @pytest.mark.xfail(strict=False, reason=\"P-H-INFRA-11: suite-contention flake; passes standalone in ~41s but races with concurrent UI tests for file dialog focus\") OR a @pytest.mark.skipif that detects multi-test invocation and skips explicitly — affected test: tests/test_ui_forms.py:2708 — open as of pipeline b3d7f942 phase-2 (post-c91e7f3a audit follow-up).",
+      "P-COV-1: Phase5FormsTest.PushButtonToggleNoCrash -- SKIP -- tests/test_forms_phase5.cpp:184 -- Skips with \"Fixture has no pushbutton\" when test_form.pdf contains no PushButton-type field. Coverage gap: FormManager::toggleField dispatch path for PushButton widgets is never exercised under CI. Fix: add a PDF fixture containing a pushbutton field (test_form_with_pushbutton.pdf) and update the test to prefer it. -- OPEN (b3d7f942 phase-6)",
+      "P-COV-2: Phase5FormsTest.ResetFormRestoresDefaultValues -- SKIP -- tests/test_forms_phase5.cpp:273 -- Skips with \"Fixture missing: test_form_with_dv.pdf\" because no PDF fixture with /DV (default value) entries in form fields has been created. Coverage gap: FormManager::resetForm() path for fields with /DV is not exercised. Fix: create tests/fixtures/test_form_with_dv.pdf (a PDF with at least one text field that has a /DV entry) and commit it to the fixtures directory. -- OPEN (b3d7f942 phase-6)"
+    ]
+  },
+  "lint": {
+    "exit_code": 0,
+    "findings": 0,
+    "stdout_tail": "\n[lint_save_without_verify] 0 finding(s) in 1 path(s).\n"
+  },
+  "ui_catalog_completeness": {
+    "catalog_path": "tests/docs/ui_element_catalog.json",
+    "widget_count": 310,
+    "action_count": 143,
+    "dialog_count": 42,
+    "menu_count": 15,
+    "toolbar_count": 3,
+    "objectName_coverage_pct": 91.94,
+    "accessibleName_coverage_pct": 81.29,
+    "total_setObjectName_calls": 641,
+    "total_setAccessibleName_calls": 373,
+    "duplicate_objectName_warnings": 30
+  },
+  "fixture_diversity_count": {
+    "total_pdfs": 83,
+    "total_sidecars": 81,
+    "categories": {
+      "batch_output": 1,
+      "image_pdf": 21,
+      "realworld": 12,
+      "root": 49
+    },
+    "realworld_pdfs": 12
+  },
+  "visual_baseline_count": {
+    "screenshot_baselines": 22,
+    "ui_screenshot_baselines": 28,
+    "ssim_reference_jsons": 0,
+    "total_pngs": 50
+  },
+  "e2e_test_count_per_subsystem": {
+    "file_operations": 47,
+    "view_navigation": 35,
+    "text_editing": 37,
+    "annotations": 45,
+    "forms": 39,
+    "page_operations": 27,
+    "redaction": 21,
+    "encryption_signatures": 23,
+    "compliance_accessibility": 97,
+    "preferences_chrome": 70,
+    "stress": 20,
+    "total": 461
+  },
+  "methodology_lint_results": {
+    "save_without_verify": {
+      "exit_code": 0,
+      "findings": 0,
+      "label": "save_without_verify"
+    },
+    "qt_test_gaps": {
+      "exit_code": 0,
+      "total": 32,
+      "fixed": 27,
+      "allowlisted": 5,
+      "unresolved": 0
+    },
+    "python_ui_gaps": {
+      "exit_code": 0,
+      "findings": -1,
+      "label": "python_ui_gaps"
+    }
+  },
+  "stress_perf_baseline": {
+    "baseline_path": "tests/docs/stress_perf_baseline.json",
+    "captured_at": "2026-05-17T23:05:26Z",
+    "scenarios_recorded": 12,
+    "scenarios_within_budget": 12,
+    "scenarios_over_budget": 0,
+    "all_within_budget": true,
+    "over_budget_scenarios": []
+  }
+}

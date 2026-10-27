@@ -1,0 +1,144 @@
+# ---------------------------------------------------------------------------
+# CI liveness alarm — meta-audit follow-up F44 (deferred-backlog rows F38-b, F46)
+#
+# WHY THIS LANE EXISTS
+# ====================
+# `governance.yml` was given a second job by F5 / SEC-31: be the daily runner
+# liveness probe, on the stated mechanism that an unserviced run "times out
+# RED, which is the alert". F38 measured that this is FALSE — `timeout-minutes`
+# does not run while a job is queued, so an unserviced run sits in the queue and
+# is then `cancelled`, either at the ~24 h queue-cancellation limit or sooner by
+# governance's own `cancel-in-progress: true`. `cancelled` is not a failure and
+# notifies nobody. `gh run list --workflow=governance.yml --status=success`
+# returns EMPTY: since F5 scheduled it that job has never once succeeded and
+# never once alerted, while the runner was dead for two weeks (F46).
+#
+# THE LOAD-BEARING CONSTRAINT
+# ===========================
+# **A probe hosted on the machine it monitors cannot report that machine being
+# down.** That is exactly how F38-b happened. So this lane runs on a
+# GitHub-hosted `ubuntu-latest` runner — deliberately NOT `[self-hosted, ...,
+# pdfe-windows]` — and needs no C++ toolchain, no build, and no access to the
+# self-hosted host. `tools/gate/test_check_governance_liveness.py` asserts that
+# property mechanically, so a future edit cannot move the alarm back onto the
+# thing it watches.
+#
+# `cancel-in-progress: false`, for the same reason governance's `true` helped
+# hide the outage: an alarm that supersedes its own queued run can be silenced
+# by the very condition it reports.
+#
+# WHAT IT ASSERTS
+# ===============
+# Positive evidence only: a run of `Governance` concluded `success` within
+# `--max-success-age-hours` (48 — one tolerated missed night plus the ~70 min
+# of scheduled-dispatch lateness measured on this repo). Everything else —
+# no runs, never-succeeded, queued-then-cancelled, a success gone stale — is
+# ALARM, exit 1, RED. There is no input for which "no data" reads as healthy.
+#
+# EXPECT THIS LANE TO BE RED AT INTRODUCTION. The governance workflow has never
+# succeeded, so the first scheduled run of this alarm WILL fail. That is the
+# alarm working, not a defect in it; it goes green the first night governance
+# actually executes and passes. See
+# docs/audit/meta-audit-2026-07/followup/phase-44-dispositions.md.
+#
+# RESIDUAL, stated rather than papered over: a red workflow notifies through
+# GitHub's own channels (the Actions UI and whatever notification settings the
+# repository owner has). This lane converts a SILENT failure into a VISIBLE
+# one; it is not a pager, and nothing in the working tree can make it one.
+# ---------------------------------------------------------------------------
+
+# ===========================================================================
+# PREMISE REMOVED 2026-08-13 — READ THIS BEFORE TRUSTING OR "FIXING" THIS LANE.
+# ===========================================================================
+# Everything above describes an alarm over a DAILY SCHEDULED `governance` run.
+# On 2026-08-13 every `schedule:` trigger in this repository was removed
+# (docs/audit/ci-manual-only-posture.md), including governance's and this
+# lane's own. The subject of the assertion no longer exists.
+#
+# WHAT THAT MEANS CONCRETELY, rather than by implication:
+#
+#   * The check below asserts a `Governance` run concluded `success` within 48
+#     hours. Nothing dispatches governance on a timer any more, so unless a
+#     human ran it, this lane RED means "nobody ran governance recently" — a
+#     true statement, and not the outage it was built to report.
+#   * It cannot fire by itself either: it is `workflow_dispatch` only. An alarm
+#     that must be triggered by hand is a report, not an alarm.
+#   * The failure mode it was built for — an unserviced SCHEDULED run queueing
+#     and then being reported `cancelled`, notifying nobody — cannot occur
+#     without schedules. A manual dispatch is watched by whoever dispatched it.
+#
+# IT IS KEPT, NOT DELETED, and the reasoning is recorded rather than assumed:
+# the check and its 30 self-tests are the only mechanised statement of what a
+# healthy runner looks like, and `--max-success-age-hours` still answers a real
+# question on demand ("when did governance last actually pass?"). Deleting it
+# would take that with it, and the file would have to be reconstructed the day
+# a schedule comes back.
+#
+# IF A SCHEDULE IS EVER RESTORED: restore this lane's cron FIRST. The posture
+# document is the single place that decision is recorded, and three gate
+# checkers read it.
+# ===========================================================================
+
+name: CI Liveness
+
+on:
+  # NO SCHEDULED TRIGGER — REMOVED 2026-08-13, DELIBERATELY, DO NOT RESTORE.
+  #
+  # Every workflow in this repository is now MANUAL (`workflow_dispatch`) only.
+  # Three separate reasons, each independently sufficient:
+  #
+  #   1. THE RUNNER IS NOT A SERVICE. The self-hosted Windows runner is started
+  #      by hand (`run.cmd`) and dies silently. An unserviced scheduled run
+  #      QUEUES and is then reported `cancelled` — a status that alerts nobody
+  #      and is indistinguishable from a deliberate cancellation. The
+  #      audit-of-audits records this lane as having no green in eight runs for
+  #      exactly that reason.
+  #   2. A SCHEDULED RUN WEDGES CONCURRENT LOCAL WORK. PDFE's single-instance
+  #      mutex is MACHINE-GLOBAL, so a scheduled job's UI E2E / render steps
+  #      hold it for hours and red `ShellAndInstanceLaunchTest` in every
+  #      concurrent local suite run on the same host — a false red that has been
+  #      misread as a product regression in three separate phases.
+  #   3. IT IS THE OWNER'S STANDING INSTRUCTION: there are to be no recurring
+  #      scheduled items on this project.
+  #
+  # Run it deliberately instead: `gh workflow run <this file>`, after checking
+  # the runner is actually online. A manual run that a human is watching is
+  # worth more than a nightly one nobody reads.
+  workflow_dispatch:
+
+concurrency:
+  group: ci-liveness-${{ github.ref }}
+  # NOT `true`. See the header: self-cancellation is how the previous alarm
+  # design managed to stay quiet through a two-week outage.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  liveness:
+    name: governance-liveness
+    # GitHub-hosted, ON PURPOSE. Do not move this to the self-hosted runner.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Governance lane has a recent genuine success (F44 / F38-b / F46)
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          python tools/gate/check_governance_liveness.py
+          --from-gh
+          --workflow-file governance.yml
+          --workflow Governance
+          --max-success-age-hours 48
+          --repo ${{ github.repository }}

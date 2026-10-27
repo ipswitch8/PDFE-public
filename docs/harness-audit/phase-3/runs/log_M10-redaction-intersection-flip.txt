@@ -1,0 +1,46 @@
+Note: Google Test filter = RedactionPartialOverlap.*
+[==========] Running 2 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 2 tests from RedactionPartialOverlap
+[ RUN      ] RedactionPartialOverlap.PartiallyOverlappingLeftoverTextIsDetected
+C:\Users\dev\source\PDFE\tests\test_redaction_partial_overlap.cpp(85): error: Value of: clear
+  Actual: true
+Expected: false
+partial-overlap leftover text was not detected -- full-containment check missed a glyph straddling the redaction boundary (security false-negative)
+
+[  FAILED  ] RedactionPartialOverlap.PartiallyOverlappingLeftoverTextIsDetected (12 ms)
+[ RUN      ] RedactionPartialOverlap.FullyContainedTextStillDetected
+C:\Users\dev\source\PDFE\tests\test_redaction_partial_overlap.cpp(104): error: Value of: verifier.checkTextRemoved(fixture(), {full})
+  Actual: true
+Expected: false
+fully-contained leftover text must still be detected
+
+[  FAILED  ] RedactionPartialOverlap.FullyContainedTextStillDetected (8 ms)
+[----------] 2 tests from RedactionPartialOverlap (21 ms total)
+
+[----------] Global test environment tear-down
+
+============ ADVERSARIAL-AMBIENT GAP REGISTER (content-stream-continuity phase-1 discovery) ============
+injector               hostile_op   injected  neighbor  probed   notes
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+CONFIRMED corrupting cells (probed AND injected_ok==false OR neighbor_ok==false):
+cells=0 probed=0 confirmed_corrupt=0
+====================================================================================================
+
+[AdversarialAmbient] no cells this run (filtered subset) — leaving gap-register.json intact
+
+================ AUTOSAVE CAPTURE GAP REGISTER (phase-1 discovery) ================
+family                 undoAP dirty    autosave  capture  restore  probed 
+------------------------------------------------------------------------------------
+====================================================================================
+GAP = probed family whose edit is NOT captured by autosave (capture_present == NO).
+
+[AutosaveCaptureAudit] no audit rows this run (filtered subset) — leaving gap-register.json intact
+[==========] 2 tests from 1 test suite ran. (22 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 2 tests, listed below:
+[  FAILED  ] RedactionPartialOverlap.PartiallyOverlappingLeftoverTextIsDetected
+[  FAILED  ] RedactionPartialOverlap.FullyContainedTextStillDetected
+
+ 2 FAILED TESTS

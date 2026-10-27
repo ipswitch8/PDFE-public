@@ -1,0 +1,41 @@
+Note: Google Test filter = ContentStreamSubstitutionTest.*
+[==========] Running 7 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 7 tests from ContentStreamSubstitutionTest
+[ RUN      ] ContentStreamSubstitutionTest.EmptySubstitutionsDelegatesToApplyEdits
+[       OK ] ContentStreamSubstitutionTest.EmptySubstitutionsDelegatesToApplyEdits (18 ms)
+[ RUN      ] ContentStreamSubstitutionTest.NullPageIsNoOp
+[       OK ] ContentStreamSubstitutionTest.NullPageIsNoOp (5 ms)
+[ RUN      ] ContentStreamSubstitutionTest.NullDocIsNoOp
+[       OK ] ContentStreamSubstitutionTest.NullDocIsNoOp (4 ms)
+[ RUN      ] ContentStreamSubstitutionTest.EmptyModificationsIsNoOp
+[       OK ] ContentStreamSubstitutionTest.EmptyModificationsIsNoOp (10 ms)
+[ RUN      ] ContentStreamSubstitutionTest.AccentedSubstitutionTextIsPresent
+[       OK ] ContentStreamSubstitutionTest.AccentedSubstitutionTextIsPresent (11 ms)
+[ RUN      ] ContentStreamSubstitutionTest.BackwardCompatibleEditLands
+[       OK ] ContentStreamSubstitutionTest.BackwardCompatibleEditLands (11 ms)
+[ RUN      ] ContentStreamSubstitutionTest.ScaledSubstitutionEditLands
+[       OK ] ContentStreamSubstitutionTest.ScaledSubstitutionEditLands (11 ms)
+[----------] 7 tests from ContentStreamSubstitutionTest (73 ms total)
+
+[----------] Global test environment tear-down
+
+============ ADVERSARIAL-AMBIENT GAP REGISTER (content-stream-continuity phase-1 discovery) ============
+injector               hostile_op   injected  neighbor  probed   notes
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+CONFIRMED corrupting cells (probed AND injected_ok==false OR neighbor_ok==false):
+cells=0 probed=0 confirmed_corrupt=0
+====================================================================================================
+
+[AdversarialAmbient] no cells this run (filtered subset) — leaving gap-register.json intact
+
+================ AUTOSAVE CAPTURE GAP REGISTER (phase-1 discovery) ================
+family                 undoAP dirty    autosave  capture  restore  probed 
+------------------------------------------------------------------------------------
+====================================================================================
+GAP = probed family whose edit is NOT captured by autosave (capture_present == NO).
+
+[AutosaveCaptureAudit] no audit rows this run (filtered subset) — leaving gap-register.json intact
+[==========] 7 tests from 1 test suite ran. (76 ms total)
+[  PASSED  ] 7 tests.

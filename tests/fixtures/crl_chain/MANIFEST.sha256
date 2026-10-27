@@ -1,0 +1,19 @@
+# SHA-256 of the byte-deterministic artifacts produced by
+# tests/fixtures/gen_two_level_ca_signer.py
+#
+# The .pfx members are deliberately ABSENT: PKCS#12 uses a
+# random salt/IV so their bytes vary per run. Verify those with
+# --check, which compares their unwrapped contents instead.
+b4de8ccf8d93363f18fc78ef6ad3609a08e4224b37ffbe8f8defd1551d191f04  inter_crlsign.der
+09a35aba9db3fd9f30a351ed38f8298ba8b6f1174830e36f46b316215a93a967  inter_crlsign_key.pem
+c62c558fd9c96f49238d46bf94852965648a9515d5405cfc1e3a85ecd48488cf  inter_malformed_ca.der
+da8c82feb5aef86a54223d277d5e36a6771f4fcfa873aabd9d44cfc6916ee4d7  inter_nocrlsign.der
+6dee754cb299e8afb4228b9976267f998357b530b465fcdb8383c229ec6e2d38  inter_nocrlsign_key.pem
+dac7843923c0cfbe88d7ad4d60cf36377320207802ce6299da5cecbfcb7b01e5  inter_noku.der
+535147afa82139e440fc23477c8520e1dd9e20e2df848873a839d87bf91e61d5  inter_noku_key.pem
+bd4aa4a10b217d3950c978499e1d6817cd4291f68850ab267fdf3e7d2f05ee20  leaf_crldp.der
+2a7efcbed8cf2956d21ec43f82a1090544f999b52579ffce1576d8468d54bb16  leaf_crlsign.der
+89bda8826245c620aa6349c9ce3712030007aaa85a5dff4c559a1bcdad6e840a  leaf_nocrlsign.der
+ee8106ddb6c53ceeaefabb259fed025ea6feecc835436d70ffe1e6e4bb334889  leaf_noku.der
+8b504cb2b5d539de1e0def618cfb228b6dee810ddbf63629ed407ece0e6b56ee  root.der
+042762f9c12afd7d7d4ca18a50f804d3d1485bd0c103f5c990ebad75a86c2b7a  root_key.pem

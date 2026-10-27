@@ -1,0 +1,1028 @@
+{
+ "cluster": "C4_redaction_image_visual",
+ "auditor_stance": "adversarial; harness is the defendant; redaction carries a confidentiality/data-leak dimension",
+ "totals": {
+  "files": 44,
+  "tests": 604,
+  "by_oracle": {
+   "true": 22,
+   "pseudo": 0,
+   "metamorphic": 1,
+   "heuristic": 4,
+   "proxy": 16,
+   "no-oracle-smoke": 1
+  },
+  "by_smell": {
+   "assertion-free": 0,
+   "tautological": 9,
+   "EXPECT_NO_THROW-only": 12,
+   "over-tolerant-threshold": 11,
+   "extraction-only-for-visual": 12,
+   "widget-exists-only": 9,
+   "reopens-without-error-only": 14
+  },
+  "by_novel": {
+   "skip-hidden-coverage": 10,
+   "partial-contract-assert": 1,
+   "no-removal-check": 1,
+   "misnamed-test": 2,
+   "weak-positive-detection": 1
+  },
+  "oracle_token_leak_removed_from_smells": {
+   "no-oracle-smoke": 9,
+   "proxy": 5
+  }
+ },
+ "confidentiality_summary": {
+  "text_redaction_flate_blindness": "ADDRESSED. Completeness + phase7 decompress the content stream (pdfe::testsupport::decompressedPageContent) and grep the DECODED operators, explicitly noting the old raw-ASCII grep was Flate-blind. Extraction-based checks (extractPlainText/stext) are backstopped by the decompressed-stream check.",
+  "image_pixel_destruction": "ADDRESSED. test_fidelity_r3_23_image_redaction renders and asserts every interior pixel of the redacted image sub-region is wiped to the colorspace-white cleared fill and NO pixel still shows the original raster; control asserts pixels outside survive. This is the only test that proves the raster (not just the /XObject ref) is destroyed.",
+  "boundary_straddle_intersection_vs_containment": "ADDRESSED. test_redaction_partial_overlap builds a region that intersects every glyph but contains none and asserts checkTextRemoved returns FALSE (intersection semantics of the b63ad8c fix), plus a full-containment control.",
+  "residual_confidentiality_escape": "The STRONGEST byte/pixel-absence oracles are CONDITIONALLY SKIPPED unless the specific known-secret fixture test_redaction.pdf is present (completeness:67-69, phase7:428-430; roundtrip text-absence is #ifndef _WIN32 skipped). If that fixture is absent (or on Linux for the extraction path), confidentiality assurance silently degrades to counter/no-throw proxies and the suite still reports green.",
+  "verifier_self_coverage": "The RedactionVerifier's OWN unit file (test_redaction_verifier.cpp) never asserts checkTextRemoved returns FALSE for genuine leftover text on a real PDF; its only FALSE cases are non-PDF/nonexistent files, and VerifyResult_HasCorrectFields is tautological. Positive leak-detection lives only in test_redaction_edge_cases (CheckTextRemoved_TextStillPresent, B4/B5/B6)."
+ },
+ "per_file": [
+  {
+   "file": "tests/test_redaction_partial_overlap.cpp",
+   "subsystem": "redaction",
+   "oracle": "true",
+   "tests": 2,
+   "smells": [],
+   "note": "Confidentiality-strong: intersection-vs-containment security regression. PartiallyOverlappingLeftoverTextIsDetected@67 asserts checkTextRemoved==FALSE for a boundary-straddling glyph; FullyContainedTextStillDetected@93 control.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_fidelity_r3_23_image_redaction.cpp",
+   "subsystem": "redaction",
+   "oracle": "true",
+   "tests": 2,
+   "smells": [],
+   "note": "Best-in-cluster. ImagePixelsUnderRedactionAreDestroyed@160 renders reopened doc and asserts stillOriginal==0 AND notCleared==0 over interior; ImagePixelsOutsideRedactionSurvive@260 control. Proves raster destruction, not just XObject removal.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_redaction_roundtrip.cpp",
+   "subsystem": "redaction",
+   "oracle": "true",
+   "tests": 6,
+   "smells": [
+    "reopens-without-error-only"
+   ],
+   "note": "Pixel-black ROI means (RedactedRegionPixelsAreBlackAfterApply@86) + text substring absence (@119) + untouched-neighbor pixel match (@200). Text-absence test SKIPPED on non-Windows (@120-128); ApplyClearsMarks@250 & corrupt-xref@271 are state/reopen-only.",
+   "smells_raw": [
+    "reopens-without-error-only@250",
+    "reopens-without-error-only@271",
+    "platform-skip-on-confidentiality@120"
+   ],
+   "novel_smells": [
+    "skip-hidden-coverage"
+   ]
+  },
+  {
+   "file": "tests/test_redaction_edge_cases.cpp",
+   "subsystem": "redaction",
+   "oracle": "true",
+   "tests": 77,
+   "smells": [
+    "widget-exists-only",
+    "extraction-only-for-visual"
+   ],
+   "note": "Bulk is null-guard EXPECT_THROW + panel formatting (legit contracts). Confidentiality-strong core: CheckTextRemoved_TextStillPresent@646 (EXPECT_FALSE on unredacted full-page = the verifier's real positive-detection test), B4 RedactionOnEncryptedPdf@1489 (secret absent after redact+re-encrypt+reopen), B5 RedactionPreservesAnnotations@1584, B6 OcrTextLayerRedaction@1673 (hidden Tr=3 layer stripped).",
+   "smells_raw": [
+    "widget-exists-only@982",
+    "extraction-only-for-visual@659"
+   ]
+  },
+  {
+   "file": "tests/test_image_redaction_phase7.cpp",
+   "subsystem": "redaction",
+   "oracle": "true",
+   "tests": 14,
+   "smells": [
+    "reopens-without-error-only",
+    "tautological"
+   ],
+   "note": "AppliedRedactionRemovesSecretTextBytes@427 is the strong truth oracle (SSN absent from extraction AND decompressed stream + control survives) but GTEST_SKIPs unless fixture==test_redaction.pdf@428. AppliedRedactionPersistsThroughSaveReopen@397 is honestly-labeled reopen-only proxy. Rotate check reads back the CTM it wrote (@268).",
+   "smells_raw": [
+    "conditional-skip-on-confidentiality@428",
+    "reopens-without-error-only@397",
+    "tautological@268"
+   ],
+   "novel_smells": [
+    "skip-hidden-coverage"
+   ]
+  },
+  {
+   "file": "tests/test_redaction_apply_pending_edit.cpp",
+   "subsystem": "redaction",
+   "oracle": "true",
+   "tests": 2,
+   "smells": [],
+   "note": "EditCommittedBeforeApplyPersists@93 asserts sentinel survives via extraction; ApplyWithoutPriorEdit@197 negative. Header claims 'redacted region content removed' but no assertion verifies redaction completeness \u2014 only the text-edit-persistence half is tested.",
+   "smells_raw": [
+    "gtest-skip-guards(5)@100-110",
+    "unasserted-half-of-stated-contract"
+   ],
+   "novel_smells": [
+    "skip-hidden-coverage",
+    "partial-contract-assert"
+   ]
+  },
+  {
+   "file": "tests/test_redaction_panel_delete_mark.cpp",
+   "subsystem": "redaction",
+   "oracle": "true",
+   "tests": 3,
+   "smells": [
+    "widget-exists-only"
+   ],
+   "note": "UI contract: delete-click emits deleteMarkRequested with correct (page,annot) payload@128, no-selection emits nothing@156, disabled marks filtered@181. Not a confidentiality test; genuine signal/row-count oracle.",
+   "smells_raw": [
+    "widget-exists-only@77"
+   ]
+  },
+  {
+   "file": "tests/test_redaction_commands.cpp",
+   "subsystem": "redaction",
+   "oracle": "true",
+   "tests": 20,
+   "smells": [
+    "widget-exists-only"
+   ],
+   "note": "Command model: mark-count deltas, undo/redo symmetry, property readback (fillColor/overlayText/rect), merge rules. Real for the undo model; several tests assert only description() literal strings; NONE assert actual content removal (by design \u2014 roundtrip covers that).",
+   "smells_raw": [
+    "description-string-only@50",
+    "no-content-removal-check"
+   ],
+   "novel_smells": [
+    "no-removal-check"
+   ]
+  },
+  {
+   "file": "tests/test_redaction_manager.cpp",
+   "subsystem": "redaction",
+   "oracle": "proxy",
+   "tests": 19,
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only"
+   ],
+   "note": "State-management: mark count/index/property/hit-test are true for the manager layer, but ApplyPageRedactions@234 asserts only NO_THROW + marks-cleared-to-0 \u2014 no content/pixel check. This is exactly the gap test_redaction_roundtrip's header says it closes.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only@238",
+    "state-only-apply@234"
+   ]
+  },
+  {
+   "file": "tests/test_redaction_apply.cpp",
+   "subsystem": "redaction",
+   "oracle": "proxy",
+   "tests": 18,
+   "smells": [
+    "reopens-without-error-only",
+    "tautological",
+    "widget-exists-only"
+   ],
+   "note": "Apply workflow asserts result.success/marksApplied/pagesAffected counters + marks consumed \u2014 no bytes/pixels. VerifyAfterApply@209 delegates to verifier.verify()==success (proxy on top of a weakly-self-tested verifier). Panel tests are genuine widget contracts (button-enable, signal signature@442).",
+   "smells_raw": [
+    "counter-only-apply@92",
+    "verifier-as-oracle@229",
+    "widget-exists-only@246"
+   ]
+  },
+  {
+   "file": "tests/test_redaction_completeness.cpp",
+   "subsystem": "redaction",
+   "oracle": "proxy",
+   "tests": 4,
+   "smells": [
+    "reopens-without-error-only",
+    "EXPECT_NO_THROW-only"
+   ],
+   "note": "RedactedTextAbsentFromBytes@51 is strong (decompressed-stream grep, Flate-aware) but GTEST_SKIPs@67 unless fixture==test_redaction.pdf. The other 3 are weak: RedactionUndoDoesNotRestoreAfterSave@96 NEVER tests undo (only pageCount>=1); MultipleRedactionMarksApplied@117 is NO_THROW+exists; FullPageRedaction@137 is pageCount-equal only.",
+   "smells_raw": [
+    "conditional-skip-on-only-real-oracle@67",
+    "reopens-without-error-only@96",
+    "reopens-without-error-only@137",
+    "EXPECT_NO_THROW-only@133",
+    "misnamed-test@96"
+   ],
+   "novel_smells": [
+    "skip-hidden-coverage",
+    "misnamed-test"
+   ]
+  },
+  {
+   "file": "tests/test_redaction_verifier.cpp",
+   "subsystem": "redaction",
+   "oracle": "proxy",
+   "tests": 15,
+   "smells": [
+    "tautological"
+   ],
+   "note": "WEAKEST redaction file. VerifyResult_HasCorrectFields@107 is textbook tautology (EXPECT_TRUE(x||!x)@114-117; unsigned>=0@119-120). ConstructDestroy@41 SUCCEED(). checkTextRemoved only asserted TRUE (empty/no-text) or FALSE (bad files); no positive-leak FALSE on a real PDF in THIS file \u2014 the security-detector's own unit file barely constrains it. Fail-path tests (non-PDF) are legit.",
+   "smells_raw": [
+    "tautological@114",
+    "tautological@119",
+    "no-oracle-smoke@41",
+    "weak-positive-detection"
+   ],
+   "novel_smells": [
+    "weak-positive-detection"
+   ]
+  },
+  {
+   "file": "tests/test_image_data.cpp",
+   "subsystem": "image",
+   "oracle": "true",
+   "tests": 39,
+   "smells": [],
+   "note": "POD accessor/predicate tests with exact-value oracles (pixelArea@69, colorSpaceString map@96-127). Low-value but genuinely fails on regression.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_lanczos_resize.cpp",
+   "subsystem": "image",
+   "oracle": "true",
+   "tests": 15,
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "note": "Strong: exact kernel values@67, bit-exact identity/routing@143, preserved white/black. DownscaleAntiAliases@181 (named for AA) asserts only qAlpha>=253 at one corner \u2014 never measures smoothing.",
+   "smells_raw": [
+    "over-tolerant-threshold@130",
+    "proxy@181"
+   ]
+  },
+  {
+   "file": "tests/test_image_replacer_dpi.cpp",
+   "subsystem": "image",
+   "oracle": "true",
+   "tests": 6,
+   "smells": [],
+   "note": "Genuine per-region DPI value oracle vs known fixture geometry (nearDpi 150 vs 300@85; differential thumbDpi<photoDpi*0.75@113). Directly locks the reported regression.",
+   "smells_raw": [
+    "gtest-skip-guard@155"
+   ],
+   "novel_smells": [
+    "skip-hidden-coverage"
+   ]
+  },
+  {
+   "file": "tests/test_image_masker.cpp",
+   "subsystem": "image",
+   "oracle": "true",
+   "tests": 12,
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "note": "Real pixel readback: masked channels EXPECT_NEAR(center.red,255,20)@65. Feather-edge band asserted with loose 20..235 range@121-122 that any non-extreme value satisfies.",
+   "smells_raw": [
+    "over-tolerant-threshold@121"
+   ]
+  },
+  {
+   "file": "tests/test_image_roundtrip.cpp",
+   "subsystem": "image",
+   "oracle": "true",
+   "tests": 8,
+   "smells": [
+    "reopens-without-error-only",
+    "extraction-only-for-visual"
+   ],
+   "note": "Save+reopen count deltas@89 + real EXIF byte-scan bytes.find(exifSig)==npos@206. Jpeg2000 test degrades to reopen-non-null@259 with no content assertion.",
+   "smells_raw": [
+    "reopens-without-error-only@259",
+    "extraction-only-for-visual@219"
+   ]
+  },
+  {
+   "file": "tests/test_crop_tool.cpp",
+   "subsystem": "image",
+   "oracle": "true",
+   "tests": 6,
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "note": "CropBox geometry round-trips through undo/redo/save-reopen (EXPECT_NEAR width@62,@117). Asserts the /CropBox dict value, not that rendered content is clipped. OutOfRangePageIndexNoOps@131 ends in bare SUCCEED().",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only@131"
+   ]
+  },
+  {
+   "file": "tests/test_grayscale_converter.cpp",
+   "subsystem": "image",
+   "oracle": "true",
+   "tests": 5,
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "note": "Renders converted page and asserts R==G==B (allPixelsAreGray@91). Samples only every 8th pixel, tol=4 \u2014 a residual color patch <8px could slip; genuinely visual though.",
+   "smells_raw": [
+    "over-tolerant-threshold@41"
+   ]
+  },
+  {
+   "file": "tests/test_text_reflow.cpp",
+   "subsystem": "reflow",
+   "oracle": "true",
+   "tests": 20,
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "note": "Real algorithmic oracle: exact line-break text@93 + justifyExtraSpace FLOAT_EQ@166. Only ReflowAdaptive@204-205 degrades to inequalities and @227 is a wall-clock budget.",
+   "smells_raw": [
+    "heuristic-threshold@204",
+    "over-tolerant-threshold@227"
+   ]
+  },
+  {
+   "file": "tests/test_fidelity_r3_21_print_vs_screen.cpp",
+   "subsystem": "print",
+   "oracle": "true",
+   "tests": 2,
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "note": "Genuine print raster oracle: ink check + EXPECT_GE(ncc,0.70)@174 + discrimination sameNcc>crossNcc@206. 0.70 NCC floor + only page 0 tested leaves headroom for partial-content loss.",
+   "smells_raw": [
+    "over-tolerant-threshold@174"
+   ]
+  },
+  {
+   "file": "tests/test_image_to_pdf_wizard.cpp",
+   "subsystem": "image",
+   "oracle": "true",
+   "tests": 7,
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "note": "Verifies page count + geometry (widthPt NEAR 300@77) but never renders \u2014 a wizard emitting correctly-sized BLANK pages passes every assertion.",
+   "smells_raw": [
+    "extraction-only-for-visual@77",
+    "extraction-only-for-visual@100"
+   ]
+  },
+  {
+   "file": "tests/test_image_properties_panel.cpp",
+   "subsystem": "image",
+   "oracle": "true",
+   "tests": 10,
+   "smells": [
+    "widget-exists-only",
+    "EXPECT_NO_THROW-only",
+    "over-tolerant-threshold"
+   ],
+   "note": "Panel state/signals genuine (spy.count@354, spin NEAR@179). HasAllWidgets@46 pure existence; DPI oracle dpiText.contains('72')@145 weak substring a '720'/'1972' satisfies.",
+   "smells_raw": [
+    "widget-exists-only@46",
+    "EXPECT_NO_THROW-only@37",
+    "over-tolerant-threshold@145"
+   ]
+  },
+  {
+   "file": "tests/test_mediabox_origin_crop.cpp",
+   "subsystem": "image",
+   "oracle": "true",
+   "tests": 2,
+   "smells": [],
+   "note": "Strong visual oracle: crops a known colored block and asserts sampled centre colour dRed<60@202 & dBlue>120@205 \u2014 pins MediaBox origin offset AND Y-flip against pixels.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_image_ctm_leak.cpp",
+   "subsystem": "image",
+   "oracle": "true",
+   "tests": 2,
+   "smells": [],
+   "note": "Measures the ambient-CTM leak in rendered geometry: bb.w>150 (expected ~200, halved ~100)@124 + untouched-neighbor glyph geometry/colour@157-161. Discriminates the bug from pixels.",
+   "smells_raw": []
+  },
+  {
+   "file": "tests/test_image_undo_after_save.cpp",
+   "subsystem": "image",
+   "oracle": "true",
+   "tests": 1,
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "note": "Parametrized UAF: ASSERT_NO_THROW(undo)@300 backed by observable image-count deltas + ctmMaxDelta<0.5@315. No-throw is the correct detector for a heap-UAF crash; not no-throw-only.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only(justified)@300"
+   ]
+  },
+  {
+   "file": "tests/test_source_image_dpi.cpp",
+   "subsystem": "image",
+   "oracle": "metamorphic",
+   "tests": 4,
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "note": "Detected DPI vs filename-declared DPI within 5%@99. Sound relation but all 4 self-skip when gitignored fixtures absent@105 \u2192 false-green on CI without gen_fixtures.py.",
+   "smells_raw": [
+    "over-tolerant-threshold@99",
+    "skips-hide-coverage@105"
+   ],
+   "novel_smells": [
+    "skip-hidden-coverage"
+   ]
+  },
+  {
+   "file": "tests/test_image_similarity.cpp",
+   "subsystem": "image",
+   "oracle": "heuristic",
+   "tests": 12,
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "note": "NCC/MSE identity real (EXPECT_NEAR(ncc,1.0,0.01)@76) but OtsuThresholdBimodal accepts any threshold in [20,230]@65-66 for modes 20/230 \u2014 a broken Otsu returning 21 or 229 passes.",
+   "smells_raw": [
+    "over-tolerant-threshold@65",
+    "proxy@100"
+   ]
+  },
+  {
+   "file": "tests/test_bitmap_compositor.cpp",
+   "subsystem": "image",
+   "oracle": "heuristic",
+   "tests": 18,
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "extraction-only-for-visual",
+    "over-tolerant-threshold"
+   ],
+   "note": "Every render test asserts only non-transparent PIXEL COUNT>0@81, never glyph shape/position \u2014 garbled/wrong-glyph output with any ink passes. ConstructAndDestroy@62 pure NO_THROW.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only@60",
+    "extraction-only-for-visual@81",
+    "over-tolerant-threshold@248"
+   ]
+  },
+  {
+   "file": "tests/test_image_tool.cpp",
+   "subsystem": "image",
+   "oracle": "heuristic",
+   "tests": 11,
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "note": "State/signal contracts real (Deselect@141, Delete removeRequested@182). Paint/NullEvent NO_THROW-only@235,250; selection tests self-skip if click misses hit-test@174,213 \u2014 a broken hit-test silently voids the assertion.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only@231",
+    "EXPECT_NO_THROW-only@249",
+    "skips-hide-coverage@174"
+   ],
+   "novel_smells": [
+    "skip-hidden-coverage"
+   ]
+  },
+  {
+   "file": "tests/test_c2_image_cache.cpp",
+   "subsystem": "image",
+   "oracle": "heuristic",
+   "tests": 12,
+   "smells": [
+    "tautological",
+    "over-tolerant-threshold"
+   ],
+   "note": "Asserts internal cache counters not user-visible results; constant restated against itself@66. The 3 real-eviction tests depend on a hardcoded Desktop PDF and GTEST_SKIP on CI@228 \u2014 the byte-budget eviction (the point of C2) never runs in CI.",
+   "smells_raw": [
+    "tautological@66",
+    "hardcoded-private-path-skip@227",
+    "over-tolerant-threshold@299"
+   ],
+   "novel_smells": [
+    "skip-hidden-coverage"
+   ]
+  },
+  {
+   "file": "tests/test_icc_profile_manager.cpp",
+   "subsystem": "image",
+   "oracle": "proxy",
+   "tests": 8,
+   "smells": [
+    "reopens-without-error-only",
+    "extraction-only-for-visual"
+   ],
+   "note": "Add-intent tests assert only bool hasOutputIntent()@55 after reopen \u2014 never the ICC stream bytes/N-components. AddSrgbOutputIntent_VerifyStream@101 does NOT inspect the stream. ConstructDestroy@34 SUCCEED().",
+   "smells_raw": [
+    "no-oracle-smoke@34",
+    "reopens-without-error-only@55",
+    "extraction-only-for-visual@112",
+    "mislabeled-test@101"
+   ],
+   "novel_smells": [
+    "misnamed-test"
+   ]
+  },
+  {
+   "file": "tests/test_image_commands.cpp",
+   "subsystem": "image",
+   "oracle": "proxy",
+   "tests": 12,
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "note": "Insert/remove verified only by enumerated-image COUNT delta@59 \u2014 never the inserted image's pixels/rect/DPI. Undo/redo count-symmetry only. DestructorSafety ends SUCCEED()@456.",
+   "smells_raw": [
+    "extraction-only-for-visual@59",
+    "no-oracle-smoke@456",
+    "proxy@191"
+   ]
+  },
+  {
+   "file": "tests/test_exif_stripper.cpp",
+   "subsystem": "image",
+   "oracle": "proxy",
+   "tests": 11,
+   "smells": [
+    "EXPECT_NO_THROW-only"
+   ],
+   "note": "One genuine truth oracle (StripExif_Static_RemovesGps textKeys().isEmpty()@107). But ALL PDF-path tests assert only return bool/count@148,226 and never reopen the saved PDF to confirm EXIF gone from embedded image bytes \u2014 the shipped-file privacy guarantee is unverified.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only@49",
+    "proxy@148",
+    "proxy@226"
+   ]
+  },
+  {
+   "file": "tests/test_image_exporter.cpp",
+   "subsystem": "image",
+   "oracle": "proxy",
+   "tests": 11,
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "note": "Pattern-substitution tests are exact-string@52. But every end-to-end export asserts only file COUNT@119 / non-null reopen@141 \u2014 blank/black/wrong-page/wrong-DPI export passes.",
+   "smells_raw": [
+    "extraction-only-for-visual@119",
+    "reopens-without-error-only@141"
+   ]
+  },
+  {
+   "file": "tests/test_image_content_editor.cpp",
+   "subsystem": "image",
+   "oracle": "proxy",
+   "tests": 12,
+   "smells": [
+    "reopens-without-error-only",
+    "extraction-only-for-visual",
+    "EXPECT_NO_THROW-only"
+   ],
+   "note": "Every mutation asserts only bool return + unchanged count@63,89. resizeImage/rotateImage/cropImage that silently no-ops or corrupts the CTM passes all 12 \u2014 no-op is indistinguishable from correct.",
+   "smells_raw": [
+    "reopens-without-error-only@63",
+    "extraction-only-for-visual@89",
+    "EXPECT_NO_THROW-only@45"
+   ]
+  },
+  {
+   "file": "tests/test_image_replacer.cpp",
+   "subsystem": "image",
+   "oracle": "proxy",
+   "tests": 10,
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "reopens-without-error-only",
+    "extraction-only-for-visual"
+   ],
+   "note": "replace() validated only by echoed struct fields (approach/editedText)@171-173 \u2014 never the masked/re-rendered pixels. The ghost-text/mirror defects this project repeatedly hits would pass. MoveConstructor@146 empty NO_THROW.",
+   "smells_raw": [
+    "EXPECT_NO_THROW-only@146",
+    "reopens-without-error-only@171",
+    "extraction-only-for-visual@213"
+   ]
+  },
+  {
+   "file": "tests/test_image_flow_oracle.cpp",
+   "subsystem": "image",
+   "oracle": "proxy",
+   "tests": 6,
+   "smells": [
+    "reopens-without-error-only",
+    "tautological",
+    "widget-exists-only"
+   ],
+   "note": "Advertised 'PdfCanvas rendering oracle' only asserts display list non-null@71 \u2014 never rasterizes, so a visually-wrong rotate/crop passes. Rotate judged by CTM-array delta>0.01@123; panel tests pure findChild@246.",
+   "smells_raw": [
+    "reopens-without-error-only@68",
+    "tautological@123",
+    "widget-exists-only@246"
+   ]
+  },
+  {
+   "file": "tests/test_image_manager.cpp",
+   "subsystem": "image",
+   "oracle": "proxy",
+   "tests": 25,
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only",
+    "EXPECT_NO_THROW-only"
+   ],
+   "note": "Insert/remove asserted purely by in-memory count delta@271 (no save/reopen, no pixels); extract only non-null/dimensions@467. 27 GTEST_SKIP fixture-guards \u2192 whole suite SKIPPED-green when fixtures absent.",
+   "smells_raw": [
+    "extraction-only-for-visual@271",
+    "reopens-without-error-only@467",
+    "skips-hide-coverage(27)@56",
+    "EXPECT_NO_THROW-only@579"
+   ],
+   "novel_smells": [
+    "skip-hidden-coverage"
+   ]
+  },
+  {
+   "file": "tests/test_image_text_edit_bugs.cpp",
+   "subsystem": "image",
+   "oracle": "proxy",
+   "tests": 55,
+   "smells": [
+    "tautological"
+   ],
+   "note": "Pervasive tautology: computeExpandedWidth tests recompute the production ratio*1.2 formula in-test then compare@189-192,227-231; renderBbox union recomputed with std::min/max in test body@286-300; atlas-skip 'oracle' is a boolean of local vars@705,833. AtlasSetterWorks@445 never calls the setter.",
+   "smells_raw": [
+    "tautological@189",
+    "tautological@227",
+    "no-oracle-smoke@286",
+    "no-oracle-smoke@705",
+    "no-oracle-smoke@445"
+   ]
+  },
+  {
+   "file": "tests/test_layers.cpp",
+   "subsystem": "layers",
+   "oracle": "proxy",
+   "tests": 21,
+   "smells": [
+    "tautological",
+    "extraction-only-for-visual",
+    "widget-exists-only"
+   ],
+   "note": "Layer VISIBILITY (the user-visible behavior) never rendered: setVisible(false);isVisible()==false@96-97 round-trips a stored flag \u2014 an OCG /OFF state never written to the PDF (render ignores it) still passes. ConstructDestroy@37 SUCCEED().",
+   "smells_raw": [
+    "no-oracle-smoke@39",
+    "tautological@96",
+    "extraction-only-for-visual@97",
+    "widget-exists-only@214"
+   ]
+  },
+  {
+   "file": "tests/test_printing.cpp",
+   "subsystem": "print",
+   "oracle": "proxy",
+   "tests": 10,
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "note": "Print output content never inspected: EXPECT_TRUE(result)@84 + fileSize>0@92 pass for blank/wrong-page/garbage PDF. PrintEngineConstruction@45 SUCCEED(). Mitigated only by the separate fidelity_r3_21 file.",
+   "smells_raw": [
+    "no-oracle-smoke@52",
+    "extraction-only-for-visual@84",
+    "reopens-without-error-only@88"
+   ]
+  },
+  {
+   "file": "tests/test_image_text_edit_display.cpp",
+   "subsystem": "image",
+   "oracle": "proxy",
+   "tests": 42,
+   "smells": [
+    "reopens-without-error-only",
+    "tautological",
+    "over-tolerant-threshold",
+    "EXPECT_NO_THROW-only",
+    "widget-exists-only"
+   ],
+   "note": "Dominant oracle EXPECT_NE(xobjBefore,xobjAfter)@317 proves a change not the correct edit. Font-cap test recomputes production formula in-test@1626 then asserts@1629 (tautological). 41 GTEST_SKIP \u2192 fixture/tessdata-less run goes green with zero image-edit coverage.",
+   "smells_raw": [
+    "reopens-without-error-only@317",
+    "tautological@1629",
+    "over-tolerant-threshold@1797",
+    "EXPECT_NO_THROW-only@802",
+    "no-oracle-smoke@454",
+    "skips-hide-coverage(41)@202",
+    "widget-exists-only@1481"
+   ],
+   "novel_smells": [
+    "skip-hidden-coverage"
+   ]
+  },
+  {
+   "file": "tests/test_image_tool_wiring.cpp",
+   "subsystem": "image",
+   "oracle": "no-oracle-smoke",
+   "tests": 7,
+   "smells": [
+    "widget-exists-only",
+    "tautological"
+   ],
+   "note": "Only a raw pointer setter/getter@41. RepaintRequestedSignal emits the signal itself then asserts it was received@92-93 \u2014 tests Qt's moc, not product behavior.",
+   "smells_raw": [
+    "widget-exists-only@41",
+    "tautological@92"
+   ]
+  }
+ ],
+ "ranked_weak_findings": [
+  {
+   "file": "tests/test_redaction_completeness.cpp",
+   "line": 67,
+   "test": "RedactedTextAbsentFromBytes",
+   "oracle": "proxy",
+   "smells": [
+    "conditional-skip-on-only-real-oracle",
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "The single decompressed-stream byte-absence assertion (the one test in this file that proves the redacted secret is gone from Flate-compressed content) is GTEST_SKIPPED@67-69 whenever SetUp falls back from test_redaction.pdf to test_single.pdf. In that config a redaction that paints a box but leaves the secret's Tj operators intact ships GREEN. Redacted SSN survives in the saved stream; nothing catches it.",
+   "severity": "High",
+   "confidence": "high",
+   "confidentiality": true
+  },
+  {
+   "file": "tests/test_image_redaction_phase7.cpp",
+   "line": 428,
+   "test": "AppliedRedactionRemovesSecretTextBytes",
+   "oracle": "true-but-conditionally-skipped",
+   "smells": [
+    "conditional-skip-on-confidentiality"
+   ],
+   "user_visible_failure_missed": "The strongest text-redaction truth oracle (SSN absent from extraction AND decompressed content stream, control survives) GTEST_SKIPs@428-430 unless the fixture is exactly test_redaction.pdf. Under fixture absence the redaction P0 coverage collapses to mark-count/index proxies (UI-RED-01..05) \u2014 a real leak escapes green.",
+   "severity": "High",
+   "confidence": "high",
+   "confidentiality": true
+  },
+  {
+   "file": "tests/test_redaction_verifier.cpp",
+   "line": 114,
+   "test": "VerifyResult_HasCorrectFields (+ ConstructDestroy@41)",
+   "oracle": "proxy",
+   "smells": [
+    "tautological",
+    "no-oracle-smoke"
+   ],
+   "user_visible_failure_missed": "The security VERIFIER's own unit file constrains it almost not at all: EXPECT_TRUE(result.success||!result.success)@114-117 and EXPECT_GE(unsigned,0)@119-120 are always-true; ConstructDestroy@41 is SUCCEED(). checkTextRemoved is only ever asserted TRUE (empty/no-text) here; no test in this file asserts it returns FALSE for genuine leftover text on a real PDF. A mutation making checkTextRemoved always-return-true (never detect a leak) passes this entire file \u2014 positive detection is caught ONLY in test_redaction_edge_cases:646.",
+   "severity": "High",
+   "confidence": "high",
+   "confidentiality": true
+  },
+  {
+   "file": "tests/test_exif_stripper.cpp",
+   "line": 148,
+   "test": "StripImage_ValidName_ReturnsTrue / StripPageImages_ReturnsCount",
+   "oracle": "proxy",
+   "smells": [
+    "proxy",
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "All PDF-path EXIF strips assert only a return bool/count@148,226 and never reopen the saved PDF to inspect the embedded image XObject bytes. A no-op strip that touches the images but removes no GPS/camera metadata passes \u2014 the privacy guarantee (EXIF actually gone from the shipped file) is unverified on the real product path (only the in-memory QImage path is checked).",
+   "severity": "High",
+   "confidence": "high",
+   "confidentiality": true
+  },
+  {
+   "file": "tests/test_image_content_editor.cpp",
+   "line": 63,
+   "test": "ResizeImage_Success / RotateImage_Success / CropImage_Success",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only",
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "resize/rotate/crop that returns true but does not alter the XObject geometry \u2014 or writes a wrong CTM producing a mirrored/half-size image (the exact bug class fixed in a03f6b6/half-size-under-CTM) \u2014 passes: the only assertions are EXPECT_TRUE(result) and unchanged count. A no-op is indistinguishable from correct.",
+   "severity": "High",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_image_flow_oracle.cpp",
+   "line": 71,
+   "test": "InsertImageAndVerifyViaDisplayList / RotateImageAndVerifyViaDisplayList / CropImageAndVerifyViaDisplayList",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only",
+    "tautological",
+    "mislabeled"
+   ],
+   "user_visible_failure_missed": "The file advertises a 'PdfCanvas rendering oracle' but verifyDisplayListOracle only asserts the display list is non-null@71 \u2014 never rasterizes. An image inserted at the wrong position, rotated the wrong way, or rendered invisibly still builds a valid display list and passes. Rotate correctness reduces to CTM-array delta>0.01@123, which any CTM perturbation satisfies.",
+   "severity": "High",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_image_replacer.cpp",
+   "line": 171,
+   "test": "ReplaceBasicRegion / ReplaceReturnsApproachC / ReplacePopulatesRegionData",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Text-into-image replacement validated only by echoed struct fields (approach==C, editedText==input)@171-173. If the masker fails to erase the original scanned text, or the new glyphs render blank/mispositioned/mirrored (defects this subsystem has repeatedly hit), the test still reports success.",
+   "severity": "High",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_image_text_edit_display.cpp",
+   "line": 202,
+   "test": "whole file (41 GTEST_SKIP sites)",
+   "oracle": "proxy",
+   "smells": [
+    "skips-hide-coverage",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "On any runner lacking tessdata/eng.traineddata or the scanned fixtures (a realistic CI config) ~30-41 of 42 tests GTEST_SKIP and the file reports GREEN with zero image-text-edit verification \u2014 a totally broken ImageReplacer ships undetected. No unconditional smoke assertion. Dominant surviving oracle EXPECT_NE(xobjBefore,xobjAfter)@317 proves only that something changed.",
+   "severity": "High",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_image_text_edit_bugs.cpp",
+   "line": 286,
+   "test": "PixelRectUnionCoversFullArea / PixelWidthExpandedForLongerText (and siblings)",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "tautological",
+    "no-oracle-smoke"
+   ],
+   "user_visible_failure_missed": "The ghost-text renderBbox-union fix AND the pixel-width-expansion formula are re-implemented inside the test body (@286-300, @189-192) then asserted against copies of themselves \u2014 production ImageReplacer is never invoked. A regression in the actual union/width path would not fail these tests; they only prove std::min/std::max and ceil() work.",
+   "severity": "High",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_redaction_completeness.cpp",
+   "line": 96,
+   "test": "RedactionUndoDoesNotRestoreAfterSave",
+   "oracle": "proxy",
+   "smells": [
+    "misnamed-test",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "The test name promises 'undo does not restore redacted content after save' \u2014 a real confidentiality property \u2014 but the body never invokes undo and asserts only reopened->pageCount()>=1@114. If undo-after-save DID resurrect the redacted secret (a plausible UAF/rebind bug this project tracks), this test stays green.",
+   "severity": "Medium",
+   "confidence": "high",
+   "confidentiality": true
+  },
+  {
+   "file": "tests/test_redaction_manager.cpp",
+   "line": 234,
+   "test": "ApplyPageRedactions",
+   "oracle": "proxy",
+   "smells": [
+    "EXPECT_NO_THROW-only",
+    "state-only"
+   ],
+   "user_visible_failure_missed": "Apply is asserted only by NO_THROW + marks-cleared-to-0@238-241. A redaction that clears the mark list and reports done but removes NO content passes. This is exactly the gap test_redaction_roundtrip's header cites; acceptable here only because roundtrip/edge_cases carry the real oracle \u2014 in isolation the manager's core operation is content-blind.",
+   "severity": "Medium",
+   "confidence": "high",
+   "confidentiality": true
+  },
+  {
+   "file": "tests/test_layers.cpp",
+   "line": 96,
+   "test": "SetVisibilityChangesState",
+   "oracle": "proxy",
+   "smells": [
+    "tautological",
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Toggling a layer invisible that does NOT hide its content on the rendered page (OCG /OFF never written to the PDF, or render ignores OCG config) passes \u2014 the test only reads back the in-memory flag it just set via isVisible()@96-97; the page is never rendered, no pixels checked. Hidden-content-still-visible = an information-disclosure escape for layered PDFs.",
+   "severity": "Medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_printing.cpp",
+   "line": 84,
+   "test": "PrintToFile / PrintAllPages / PrintCurrentPage",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "reopens-without-error-only"
+   ],
+   "user_visible_failure_missed": "PrintEngine emitting a blank page, wrong page, or garbage passes: EXPECT_TRUE(result)@84 + fileSize>0@92 pass for any non-empty PDF. Content-blind within this file; mitigated only by the separate test_fidelity_r3_21 raster oracle.",
+   "severity": "Medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_image_manager.cpp",
+   "line": 271,
+   "test": "InsertImage_Success / RemoveImage_Success (+27 skip guards)",
+   "oracle": "proxy",
+   "smells": [
+    "extraction-only-for-visual",
+    "skips-hide-coverage"
+   ],
+   "user_visible_failure_missed": "Insert/remove verified by in-memory count delta only@271,392 (no save/reopen, no pixel/placement). An insert that adds the XObject but never references it in the content stream (invisible image) or places it off-page passes. Plus 27 GTEST_SKIP guards \u2192 whole suite SKIPPED-green when fixtures absent.",
+   "severity": "Medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_image_to_pdf_wizard.cpp",
+   "line": 77,
+   "test": "SingleImageProducesOnePagePdf / MultipleImagesProduceMultiPagePdf",
+   "oracle": "true",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Wizard producing correctly-counted, correctly-sized pages that are BLANK (image decode/embed silently dropped): widthPt NEAR 300@77 checks only geometry, no render/pixel check confirms the source image is actually visible.",
+   "severity": "Medium",
+   "confidence": "med"
+  },
+  {
+   "file": "tests/test_icc_profile_manager.cpp",
+   "line": 101,
+   "test": "AddSrgbOutputIntent_VerifyStream",
+   "oracle": "proxy",
+   "smells": [
+    "reopens-without-error-only",
+    "extraction-only-for-visual",
+    "mislabeled"
+   ],
+   "user_visible_failure_missed": "Named 'VerifyStream' but only checks hasOutputIntent()==true@112. A corrupt/empty/wrong-N-component or non-sRGB ICC profile still satisfies the boolean \u2014 a structurally-present-but-invalid PDF/A OutputIntent is never caught.",
+   "severity": "Medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_c2_image_cache.cpp",
+   "line": 227,
+   "test": "C2SpecimenBCacheTest.* (eviction tests)",
+   "oracle": "heuristic",
+   "smells": [
+    "hardcoded-private-path-skip"
+   ],
+   "user_visible_failure_missed": "The only tests exercising real byte-budget eviction depend on a hardcoded absolute path to a private PDF on the author's Desktop@164 and GTEST_SKIP otherwise@228. On CI the eviction logic \u2014 the entire point of C2 \u2014 never runs, so an eviction regression ships green.",
+   "severity": "Medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_image_text_edit_display.cpp",
+   "line": 1797,
+   "test": "EditTextCommand_UsesTr3_OnImageDominatedPage",
+   "oracle": "proxy",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "Invisible-text (Tr=3) edit that actually paints faint visible glyphs: imagesAreDifferent(...,0.05)@1797 tolerates up to 5% of pixels changing before failing; thin overlaid text on a busy scan stays under 5%, so a Tr-mode regression that makes OCR text visible passes.",
+   "severity": "Medium",
+   "confidence": "med"
+  },
+  {
+   "file": "tests/test_bitmap_compositor.cpp",
+   "line": 81,
+   "test": "RenderSimpleText",
+   "oracle": "heuristic",
+   "smells": [
+    "extraction-only-for-visual"
+   ],
+   "user_visible_failure_missed": "Only asserts >0 non-transparent pixels. Wrong glyphs, mirrored text, wrong font, or a single stray dot all pass \u2014 no positional/shape/OCR check ties output to the input string.",
+   "severity": "Medium",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_image_similarity.cpp",
+   "line": 65,
+   "test": "OtsuThresholdBimodal",
+   "oracle": "heuristic",
+   "smells": [
+    "over-tolerant-threshold"
+   ],
+   "user_visible_failure_missed": "Accepts any threshold in [20,230] for a bimodal image whose modes ARE 20 and 230 \u2014 essentially the entire meaningful range. An Otsu returning 21 or 229 (useless as a split) passes.",
+   "severity": "Low",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_image_tool_wiring.cpp",
+   "line": 92,
+   "test": "RepaintRequestedSignal",
+   "oracle": "no-oracle-smoke",
+   "smells": [
+    "tautological"
+   ],
+   "user_visible_failure_missed": "Manually emits the signal then asserts it was received@92-93 \u2014 proves only Qt's moc/QSignalSpy work; cannot fail for any product defect. The real contract (mouse selection triggers repaintRequested) is not exercised.",
+   "severity": "Low",
+   "confidence": "high"
+  },
+  {
+   "file": "tests/test_source_image_dpi.cpp",
+   "line": 105,
+   "test": "whole fixture (self-skip when fixtures absent)",
+   "oracle": "metamorphic",
+   "smells": [
+    "skips-hide-coverage"
+   ],
+   "user_visible_failure_missed": "All 4 DPI tests GTEST_SKIP when the gitignored generated fixtures are absent@105 \u2192 on CI without gen_fixtures.py the DPI-detection metamorphic relation is never checked and the file is green.",
+   "severity": "Low",
+   "confidence": "med"
+  },
+  {
+   "file": "tests/test_image_properties_panel.cpp",
+   "line": 145,
+   "test": "SetImageInfo_UpdatesLabels",
+   "oracle": "true",
+   "smells": [
+    "over-tolerant-threshold",
+    "widget-exists-only"
+   ],
+   "user_visible_failure_missed": "Mislabeled DPI (e.g. '720' or a stray '72' from another field): dpiText.contains('72')@145 is a bare substring any string containing '72' satisfies; the pixel-dimension label was hardened with a regex@135 but the DPI label was left weak.",
+   "severity": "Low",
+   "confidence": "high"
+  }
+ ]
+}

@@ -1,0 +1,22 @@
+%FDF-1.2
+1 0 obj
+<< /FDF << /Fields [
+<< /T (FirstName) /V (SpecimenA) >>
+<< /T (LastName) /V (Examplecorp) >>
+<< /T (Comments) /V (paren \) and backslash \\ survive) >>
+<< /T (Country) /V (Canada) >>
+<< /T (grp) /Kids [ << /T (child) /V (nested-value) >> ] >>
+]
+/JavaScript << /Before (app.alert\('f15-fdf-js-must-not-run'\);) /After (app.alert\('f15-fdf-js-must-not-run'\);) >>
+/F (C:\\does-not-exist\\f15.pdf)
+>> >>
+endobj
+xref
+0 2
+0000000000 65535 f 
+0000000009 00000 n 
+trailer
+<< /Size 2 /Root 1 0 R >>
+startxref
+426
+%%EOF

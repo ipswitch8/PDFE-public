@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="2" failures="2" disabled="0" errors="0" time="0.005" timestamp="2026-07-28T02:10:29.419" name="AllTests">
+  <testsuite name="ContentStreamOutOfClass" tests="2" failures="2" disabled="0" skipped="0" errors="0" time="0.004" timestamp="2026-07-28T02:10:29.420">
+    <testcase name="TreGlyphFallbackEmitsGlyphIndicesNotCodepoints" file="tests/test_content_stream_out_of_class.cpp" line="60" status="run" result="completed" time="0.003" timestamp="2026-07-28T02:10:29.420" classname="ContentStreamOutOfClass">
+      <failure message="tests/test_content_stream_out_of_class.cpp:99&#10;Expected equality of these values:&#10;  p.emitted&#10;    Which is: &quot;0020&quot;&#10;  hex4(p.gid)&#10;    Which is: &quot;0001&quot;&#10;codepoint U+0020 was not mapped to glyph index 1&#10;" type="">tests/test_content_stream_out_of_class.cpp:99
+Expected equality of these values:
+  p.emitted
+    Which is: "0020"
+  hex4(p.gid)
+    Which is: "0001"
+codepoint U+0020 was not mapped to glyph index 1
+</failure>
+      <failure message="tests/test_content_stream_out_of_class.cpp:105&#10;Expected: (p.emitted) != (hex4(static_cast&lt;int&gt;(p.cp))), actual: &quot;0020&quot; vs &quot;0020&quot;&#10;raw Unicode codepoint emitted as glyph index -&gt; wrong glyph rendered (out-of-class finding #3)&#10;" type="">tests/test_content_stream_out_of_class.cpp:105
+Expected: (p.emitted) != (hex4(static_cast&lt;int&gt;(p.cp))), actual: "0020" vs "0020"
+raw Unicode codepoint emitted as glyph index -&gt; wrong glyph rendered (out-of-class finding #3)
+</failure>
+    </testcase>
+    <testcase name="TreGlyphFallbackUnresolvableDegradesToNotdef" file="tests/test_content_stream_out_of_class.cpp" line="112" status="run" result="completed" time="0." timestamp="2026-07-28T02:10:29.424" classname="ContentStreamOutOfClass">
+      <failure message="tests/test_content_stream_out_of_class.cpp:128&#10;Expected equality of these values:&#10;  emitted&#10;    Which is: &quot;fffd&quot;&#10;  &quot;0000&quot;&#10;unresolvable codepoint must degrade to .notdef (GID 0), not the raw codepoint&#10;" type="">tests/test_content_stream_out_of_class.cpp:128
+Expected equality of these values:
+  emitted
+    Which is: "fffd"
+  "0000"
+unresolvable codepoint must degrade to .notdef (GID 0), not the raw codepoint
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -1,0 +1,354 @@
+[
+ {
+  "file": "tests/test_image_similarity.cpp",
+  "subsystem": "image",
+  "tests": 12,
+  "assertions": 22,
+  "assert_density": 1.83,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_bitmap_compositor.cpp",
+  "subsystem": "image",
+  "tests": 18,
+  "assertions": 35,
+  "assert_density": 1.94,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_text_reflow.cpp",
+  "subsystem": "reflow",
+  "tests": 20,
+  "assertions": 40,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_icc_profile_manager.cpp",
+  "subsystem": "image",
+  "tests": 8,
+  "assertions": 16,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_redaction_partial_overlap.cpp",
+  "subsystem": "redaction",
+  "tests": 2,
+  "assertions": 4,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_image_data.cpp",
+  "subsystem": "image",
+  "tests": 39,
+  "assertions": 81,
+  "assert_density": 2.08,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_layers.cpp",
+  "subsystem": "layers",
+  "tests": 21,
+  "assertions": 45,
+  "assert_density": 2.14,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_redaction_commands.cpp",
+  "subsystem": "redaction",
+  "tests": 20,
+  "assertions": 44,
+  "assert_density": 2.2,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_lanczos_resize.cpp",
+  "subsystem": "image",
+  "tests": 15,
+  "assertions": 33,
+  "assert_density": 2.2,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_image_text_edit_bugs.cpp",
+  "subsystem": "image",
+  "tests": 55,
+  "assertions": 122,
+  "assert_density": 2.22,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_image_commands.cpp",
+  "subsystem": "image",
+  "tests": 12,
+  "assertions": 27,
+  "assert_density": 2.25,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_exif_stripper.cpp",
+  "subsystem": "image",
+  "tests": 11,
+  "assertions": 25,
+  "assert_density": 2.27,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_image_tool.cpp",
+  "subsystem": "image",
+  "tests": 11,
+  "assertions": 25,
+  "assert_density": 2.27,
+  "gtest_skip_sites": 10
+ },
+ {
+  "file": "tests/test_image_tool_wiring.cpp",
+  "subsystem": "image",
+  "tests": 7,
+  "assertions": 16,
+  "assert_density": 2.29,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_redaction_manager.cpp",
+  "subsystem": "redaction",
+  "tests": 19,
+  "assertions": 44,
+  "assert_density": 2.32,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_redaction_verifier.cpp",
+  "subsystem": "redaction",
+  "tests": 15,
+  "assertions": 36,
+  "assert_density": 2.4,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_printing.cpp",
+  "subsystem": "print",
+  "tests": 10,
+  "assertions": 26,
+  "assert_density": 2.6,
+  "gtest_skip_sites": 10
+ },
+ {
+  "file": "tests/test_image_replacer_dpi.cpp",
+  "subsystem": "image",
+  "tests": 6,
+  "assertions": 16,
+  "assert_density": 2.67,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_image_exporter.cpp",
+  "subsystem": "image",
+  "tests": 11,
+  "assertions": 31,
+  "assert_density": 2.82,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_redaction_edge_cases.cpp",
+  "subsystem": "redaction",
+  "tests": 77,
+  "assertions": 219,
+  "assert_density": 2.84,
+  "gtest_skip_sites": 9
+ },
+ {
+  "file": "tests/test_image_content_editor.cpp",
+  "subsystem": "image",
+  "tests": 12,
+  "assertions": 36,
+  "assert_density": 3.0,
+  "gtest_skip_sites": 11
+ },
+ {
+  "file": "tests/test_image_replacer.cpp",
+  "subsystem": "image",
+  "tests": 10,
+  "assertions": 32,
+  "assert_density": 3.2,
+  "gtest_skip_sites": 10
+ },
+ {
+  "file": "tests/test_image_masker.cpp",
+  "subsystem": "image",
+  "tests": 12,
+  "assertions": 39,
+  "assert_density": 3.25,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_redaction_apply.cpp",
+  "subsystem": "redaction",
+  "tests": 18,
+  "assertions": 66,
+  "assert_density": 3.67,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_source_image_dpi.cpp",
+  "subsystem": "image",
+  "tests": 4,
+  "assertions": 15,
+  "assert_density": 3.75,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_image_redaction_phase7.cpp",
+  "subsystem": "redaction",
+  "tests": 14,
+  "assertions": 55,
+  "assert_density": 3.93,
+  "gtest_skip_sites": 10
+ },
+ {
+  "file": "tests/test_image_flow_oracle.cpp",
+  "subsystem": "image",
+  "tests": 6,
+  "assertions": 24,
+  "assert_density": 4.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_image_roundtrip.cpp",
+  "subsystem": "image",
+  "tests": 8,
+  "assertions": 33,
+  "assert_density": 4.12,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_c2_image_cache.cpp",
+  "subsystem": "image",
+  "tests": 12,
+  "assertions": 50,
+  "assert_density": 4.17,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_crop_tool.cpp",
+  "subsystem": "image",
+  "tests": 6,
+  "assertions": 25,
+  "assert_density": 4.17,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_redaction_completeness.cpp",
+  "subsystem": "redaction",
+  "tests": 4,
+  "assertions": 17,
+  "assert_density": 4.25,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_image_to_pdf_wizard.cpp",
+  "subsystem": "image",
+  "tests": 7,
+  "assertions": 32,
+  "assert_density": 4.57,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_grayscale_converter.cpp",
+  "subsystem": "image",
+  "tests": 5,
+  "assertions": 23,
+  "assert_density": 4.6,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_redaction_panel_delete_mark.cpp",
+  "subsystem": "redaction",
+  "tests": 3,
+  "assertions": 15,
+  "assert_density": 5.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_image_manager.cpp",
+  "subsystem": "image",
+  "tests": 25,
+  "assertions": 133,
+  "assert_density": 5.32,
+  "gtest_skip_sites": 27
+ },
+ {
+  "file": "tests/test_redaction_apply_pending_edit.cpp",
+  "subsystem": "redaction",
+  "tests": 2,
+  "assertions": 11,
+  "assert_density": 5.5,
+  "gtest_skip_sites": 5
+ },
+ {
+  "file": "tests/test_redaction_roundtrip.cpp",
+  "subsystem": "redaction",
+  "tests": 6,
+  "assertions": 37,
+  "assert_density": 6.17,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_fidelity_r3_21_print_vs_screen.cpp",
+  "subsystem": "print",
+  "tests": 2,
+  "assertions": 13,
+  "assert_density": 6.5,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_image_text_edit_display.cpp",
+  "subsystem": "image",
+  "tests": 42,
+  "assertions": 292,
+  "assert_density": 6.95,
+  "gtest_skip_sites": 41
+ },
+ {
+  "file": "tests/test_image_properties_panel.cpp",
+  "subsystem": "image",
+  "tests": 10,
+  "assertions": 77,
+  "assert_density": 7.7,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_mediabox_origin_crop.cpp",
+  "subsystem": "image",
+  "tests": 2,
+  "assertions": 17,
+  "assert_density": 8.5,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_image_ctm_leak.cpp",
+  "subsystem": "image",
+  "tests": 2,
+  "assertions": 18,
+  "assert_density": 9.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_fidelity_r3_23_image_redaction.cpp",
+  "subsystem": "redaction",
+  "tests": 2,
+  "assertions": 29,
+  "assert_density": 14.5,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_image_undo_after_save.cpp",
+  "subsystem": "image",
+  "tests": 1,
+  "assertions": 22,
+  "assert_density": 22.0,
+  "gtest_skip_sites": 1
+ }
+]

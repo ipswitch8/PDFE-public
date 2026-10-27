@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="3" failures="3" disabled="0" errors="0" time="0.717" timestamp="2026-07-28T02:02:59.884" name="AllTests">
+  <testsuite name="CtmReset" tests="3" failures="3" disabled="0" skipped="0" errors="0" time="0.715" timestamp="2026-07-28T02:02:59.886">
+    <testcase name="AlignmentInjectorFullSizeUnderAmbientCm" file="tests/test_content_stream_ctm_reset.cpp" line="217" status="run" result="completed" time="0.16" timestamp="2026-07-28T02:02:59.886" classname="CtmReset">
+      <failure message="tests/test_content_stream_ctm_reset.cpp:197&#10;Expected: (ratio) &gt; (0.80f), actual: 0.499998659 vs 0.8&#10;injected text is UNDER-SIZED (sizeRatio=0.49999865889549255) — ambient N-up CTM leaked into the fragment&#10;" type="">tests/test_content_stream_ctm_reset.cpp:197
+Expected: (ratio) &gt; (0.80f), actual: 0.499998659 vs 0.8
+injected text is UNDER-SIZED (sizeRatio=0.49999865889549255) — ambient N-up CTM leaked into the fragment
+</failure>
+    </testcase>
+    <testcase name="HeaderFooterEngineFullSizeUnderAmbientCm" file="tests/test_content_stream_ctm_reset.cpp" line="234" status="run" result="completed" time="0.137" timestamp="2026-07-28T02:03:00.047" classname="CtmReset">
+      <failure message="tests/test_content_stream_ctm_reset.cpp:197&#10;Expected: (ratio) &gt; (0.80f), actual: 0.499999881 vs 0.8&#10;injected text is UNDER-SIZED (sizeRatio=0.49999988079071045) — ambient N-up CTM leaked into the fragment&#10;" type="">tests/test_content_stream_ctm_reset.cpp:197
+Expected: (ratio) &gt; (0.80f), actual: 0.499999881 vs 0.8
+injected text is UNDER-SIZED (sizeRatio=0.49999988079071045) — ambient N-up CTM leaked into the fragment
+</failure>
+    </testcase>
+    <testcase name="TreWriteTextBlockFullSizeUnderAmbientCm" file="tests/test_content_stream_ctm_reset.cpp" line="251" status="run" result="completed" time="0.417" timestamp="2026-07-28T02:03:00.185" classname="CtmReset">
+      <failure message="tests/test_content_stream_ctm_reset.cpp:197&#10;Expected: (ratio) &gt; (0.80f), actual: 0.406113774 vs 0.8&#10;injected text is UNDER-SIZED (sizeRatio=0.40611377358436584) — ambient N-up CTM leaked into the fragment&#10;" type="">tests/test_content_stream_ctm_reset.cpp:197
+Expected: (ratio) &gt; (0.80f), actual: 0.406113774 vs 0.8
+injected text is UNDER-SIZED (sizeRatio=0.40611377358436584) — ambient N-up CTM leaked into the fragment
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

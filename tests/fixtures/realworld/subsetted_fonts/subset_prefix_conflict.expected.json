@@ -1,0 +1,7 @@
+{
+  "page_count": 2,
+  "has_xref_repair": false,
+  "description": "Two embedded fonts with the same AAAAAA+ subset prefix but different binaries",
+  "fixture_type": "subset_prefix_conflict",
+  "fonts_rewritten_to_aaaaaa": 2
+}

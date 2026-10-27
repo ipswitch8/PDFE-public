@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="16" failures="0" disabled="0" errors="0" time="0.084" timestamp="2026-07-28T14:47:36.316" name="AllTests">
+  <testsuite name="GlyphScaleAdjusterTest" tests="16" failures="0" disabled="0" skipped="0" errors="0" time="0.082" timestamp="2026-07-28T14:47:36.319">
+    <testcase name="SameFontScaleIsOne" file="tests/test_glyph_scale_adjuster.cpp" line="60" status="run" result="completed" time="0.006" timestamp="2026-07-28T14:47:36.319" classname="GlyphScaleAdjusterTest" />
+    <testcase name="DifferentFontsScaleNonOne" file="tests/test_glyph_scale_adjuster.cpp" line="85" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:47:36.325" classname="GlyphScaleAdjusterTest" />
+    <testcase name="HorizontalScaleIsOriginalOverSubstituteNotInverted" file="tests/test_glyph_scale_adjuster.cpp" line="124" status="run" result="completed" time="0.008" timestamp="2026-07-28T14:47:36.329" classname="GlyphScaleAdjusterTest" />
+    <testcase name="EmptyTextReturnsDefault" file="tests/test_glyph_scale_adjuster.cpp" line="180" status="run" result="completed" time="0." timestamp="2026-07-28T14:47:36.338" classname="GlyphScaleAdjusterTest" />
+    <testcase name="NullFaceReturnsDefault" file="tests/test_glyph_scale_adjuster.cpp" line="203" status="run" result="completed" time="0." timestamp="2026-07-28T14:47:36.338" classname="GlyphScaleAdjusterTest" />
+    <testcase name="FontSizePreserved" file="tests/test_glyph_scale_adjuster.cpp" line="251" status="run" result="completed" time="0.018" timestamp="2026-07-28T14:47:36.339" classname="GlyphScaleAdjusterTest" />
+    <testcase name="ConsistentResultsForSameInput" file="tests/test_glyph_scale_adjuster.cpp" line="275" status="run" result="completed" time="0.007" timestamp="2026-07-28T14:47:36.357" classname="GlyphScaleAdjusterTest" />
+    <testcase name="DifferentTextProducesDifferentScales" file="tests/test_glyph_scale_adjuster.cpp" line="307" status="run" result="completed" time="0.007" timestamp="2026-07-28T14:47:36.365" classname="GlyphScaleAdjusterTest" />
+    <testcase name="LongTextHandledCorrectly" file="tests/test_glyph_scale_adjuster.cpp" line="339" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:47:36.373" classname="GlyphScaleAdjusterTest" />
+    <testcase name="SpecialCharactersHandled" file="tests/test_glyph_scale_adjuster.cpp" line="362" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:47:36.378" classname="GlyphScaleAdjusterTest" />
+    <testcase name="ZeroFontSizeHandledGracefully" file="tests/test_glyph_scale_adjuster.cpp" line="382" status="run" result="completed" time="0." timestamp="2026-07-28T14:47:36.382" classname="GlyphScaleAdjusterTest" />
+    <testcase name="NegativeFontSizeHandledGracefully" file="tests/test_glyph_scale_adjuster.cpp" line="404" status="run" result="completed" time="0." timestamp="2026-07-28T14:47:36.383" classname="GlyphScaleAdjusterTest" />
+    <testcase name="VeryLargeFontSizeHandled" file="tests/test_glyph_scale_adjuster.cpp" line="424" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:47:36.384" classname="GlyphScaleAdjusterTest" />
+    <testcase name="UnicodeTextHandled" file="tests/test_glyph_scale_adjuster.cpp" line="443" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:47:36.388" classname="GlyphScaleAdjusterTest" />
+    <testcase name="SingleCharacterText" file="tests/test_glyph_scale_adjuster.cpp" line="465" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:47:36.392" classname="GlyphScaleAdjusterTest" />
+    <testcase name="WhitespaceOnlyText" file="tests/test_glyph_scale_adjuster.cpp" line="486" status="run" result="completed" time="0.004" timestamp="2026-07-28T14:47:36.397" classname="GlyphScaleAdjusterTest" />
+  </testsuite>
+</testsuites>

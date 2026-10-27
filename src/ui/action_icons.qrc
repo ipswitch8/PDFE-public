@@ -1,0 +1,30 @@
+<!DOCTYPE RCC><RCC version="1.0">
+  <qresource prefix="/icons/actions">
+    <file alias="open.svg">icons/action_open.svg</file>
+    <file alias="save.svg">icons/action_save.svg</file>
+    <file alias="undo.svg">icons/action_undo.svg</file>
+    <file alias="redo.svg">icons/action_redo.svg</file>
+    <file alias="zoom_in.svg">icons/action_zoom_in.svg</file>
+    <file alias="zoom_out.svg">icons/action_zoom_out.svg</file>
+    <file alias="fit_width.svg">icons/action_fit_width.svg</file>
+    <file alias="fit_page.svg">icons/action_fit_page.svg</file>
+    <file alias="select.svg">icons/action_select.svg</file>
+    <file alias="sticky_note.svg">icons/action_sticky_note.svg</file>
+    <file alias="highlight.svg">icons/action_highlight.svg</file>
+    <file alias="underline.svg">icons/action_underline.svg</file>
+    <file alias="strikeout.svg">icons/action_strikeout.svg</file>
+    <file alias="form.svg">icons/action_form.svg</file>
+    <file alias="image.svg">icons/action_image.svg</file>
+    <file alias="edit_text.svg">icons/action_edit_text.svg</file>
+    <file alias="redaction.svg">icons/action_redaction.svg</file>
+    <file alias="ink.svg">icons/action_ink.svg</file>
+    <file alias="text_box.svg">icons/action_text_box.svg</file>
+    <file alias="rectangle.svg">icons/action_rectangle.svg</file>
+    <file alias="circle.svg">icons/action_circle.svg</file>
+    <file alias="link.svg">icons/action_link.svg</file>
+    <file alias="line.svg">icons/action_line.svg</file>
+    <file alias="stamp.svg">icons/action_stamp.svg</file>
+    <file alias="attach_file.svg">icons/action_attach_file.svg</file>
+    <file alias="print_preview.svg">icons/action_print_preview.svg</file>
+  </qresource>
+</RCC>

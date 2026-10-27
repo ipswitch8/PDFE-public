@@ -1,0 +1,1210 @@
+{
+ "generated_note": "PDFE harness-adversarial-audit Phase-2 (RTM). Two-way requirements-traceability matrix mapping user-facing capabilities (README.md Features section + docs/pdfe-vs-acrobat-pro-comparison.md + UI action surface) to verifying tests. FIND-AND-DOCUMENT only; no product/test code changed. Coverage_class rubric: none=no test found; happy-path-only=only positive/valid-input tests; has-negative-or-boundary=at least one negative/malformed/boundary test file maps to the capability (orthogonal to oracle strength); strong-with-visual-oracle=verified against a rendered bitmap or a reopened saved artifact's actual content (not extraction-present / no-throw). oracle_note cites Phase-1 (docs/harness-audit/phase-1/oracle-audit-synthesis.json) where the covering tests are weak-oracle (proxy / no-oracle-smoke / tautological / conditionally-skipped). Sources: README=C:/Users/dev/source/PDFE/README.md, comparison=docs/pdfe-vs-acrobat-pro-comparison.md, census=docs/harness-audit/census.json.",
+ "capabilities": [
+  {
+   "capability": "Open / view / close document",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_document.cpp",
+    "tests/test_open_close_leak_cycle.cpp",
+    "tests/test_preflight_open.cpp",
+    "tests/test_external_flaw_corpus.cpp:47tests",
+    "tests/test_realworld_corpus.cpp",
+    "tests/test_fixture_corpus.cpp",
+    "tests/test_malicious_pdf_advanced.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "Flaw/realworld/malicious corpora exercise malformed input; open path is well covered. Malicious-input oracles are weak (no-throw only) but a broad happy path + corpus exists.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "Save As (full rewrite)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_save.cpp",
+    "tests/test_save_operations.cpp",
+    "tests/test_document_save_atomic.cpp",
+    "tests/test_save_structural_verify.cpp",
+    "tests/test_save_error_paths.cpp",
+    "tests/test_save_recompression.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "test_save_operations.SaveClearsDirtyPages (Phase-1 Med) is proxy/reopens-without-error-only: a save that silently drops or corrupts page content passes as long as the file reopens with >0 pages. Content fidelity not compared before/after.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "Incremental save (preserves signed byte-prefix)",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_incremental_save.cpp",
+    "tests/test_incremental_save_routing.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "High"
+  },
+  {
+   "capability": "Linearization (web-optimized output)",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_linearization.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Only 2 tests; asserts structure, not that output is genuinely linearized/faster.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Merge / Combine Files wizard",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_combine_files_wizard.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Extract pages to new PDF",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_page_operations.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 Med: ExtractPages_ReverseOrder / ExtractPages_Multiple assert only pageCount==N; requested page ORDER/identity not honored-checked, so extracting the wrong pages ships green.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Create PDF from images wizard",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_image_to_pdf_wizard.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Print + print preview",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_printing.cpp",
+    "tests/test_fidelity_r3_21_print_vs_screen.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "print subsystem: 2 true-oracle tests of 12; test_printing has 10 GTEST_SKIP sites (headless), so on a printer-less runner most of the file is inert.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Zoom / pan / fit-width/page / actual-size",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_hidpi.cpp",
+    "tests/test_hidpi_render.cpp",
+    "tests/test_pdf_canvas_q_invokable.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: HiDPI.ScaledTileRendering and TileRenderer.TileCoordinateCalculation are TAUTOLOGICAL \u2014 the test recomputes zoom*dpr / tile math in its own body and never calls the product renderer; a renderer that forgot the DPR multiply (blurry half-res pages) stays green.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "View rotation (display-only)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_view_rotation.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Page rotation (persisted /Rotate)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_page_commands.cpp",
+    "tests/test_page_ops_phase6.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Thumbnails panel",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_thumbnails.cpp",
+    "tests/test_thumbnail_cache_cancel.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Bookmarks / outline (CRUD + persistence)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_bookmark_manager.cpp",
+    "tests/test_bookmarks.cpp",
+    "tests/test_bookmark_panel_context_menu.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: bookmark_panel_context_menu.InsertBookmarkAddsToManager is proxy/widget-exists-only \u2014 checks only the boolean return; a no-op insert that returns true (or wrong title/index) passes because the panel doesn't expose the manager model.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Layers (OCG) view / edit",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_layers.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1: the entire layers subsystem (21 tests, 1 file) is classified PROXY with 0 true-oracle tests; visibility toggles not verified against rendered output.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Full-text search (Tantivy) + highlight quads",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_search.cpp",
+    "tests/test_tantivy_search.cpp",
+    "tests/test_search_engine_tantivy_parity.cpp",
+    "tests/test_search_performance.cpp",
+    "tests/test_document_search_index.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: SearchTest.BasicSearch and SearchPage_FindsText assert only totalMatches()>=0 (a tautology on size_t); hit-structure/quad-geometry checks live in for(hit:hits) loops that run zero times when search returns nothing. Broken indexing/highlight-quads that yield zero hits for present text stay green.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "Find + Replace",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_find_replace.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Only 2 tests / 7 assertions for a mutating feature.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Links \u2014 URI / GoTo / Named / Launch (with security prompt)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_link_tool.cpp",
+    "tests/test_link_actions.cpp",
+    "tests/test_follow_link.cpp",
+    "tests/test_launch_link_follow.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "Launch policy has genuine negatives (test_launch_link_follow: decline-blocks, every-click-reprompts). But test_link_tool assert_density 0.8 (4 asserts / 5 tests) is near-smoke for link creation.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Page labels (Decimal/Roman/Alpha + prefix + start)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_page_labels_editor.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Navigation history (Back/Forward)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_navigation_history.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Sticky notes",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_sticky_note_popup.cpp",
+    "tests/test_annotation_tools.cpp",
+    "tests/test_annotation_commands.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Highlight / underline / strikethrough markup",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_annotation_tools.cpp",
+    "tests/test_annotation_roundtrip.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: annotation_tools.HighlightFromSelection is proxy/assertion-free \u2014 the tool selects empty quads (no annotation created on drag) yet passes because the type assertion is inside if(annotationWasCreated). A completely broken markup tool ships green.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Ink / freehand drawing",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_annotation_tools.cpp",
+    "tests/test_annotation_commands.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Shapes (rectangle / circle / line / polygon)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_annotation_tools.cpp",
+    "tests/test_annotation_commands.cpp",
+    "tests/test_annotations_phase4.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Free text / text box annotation",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_annotations_phase4.cpp",
+    "tests/test_annotation_font_controls.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: annotations_phase4.FreeTextDefaultAppearancePersistsThroughSave sets Helv/14/red but asserts only daFontName non-empty & daFontSize>0 and never checks daColor; garbage-but-non-empty DA ships green. FreeText font-size spinner test skips its body when the control is missing (widget-exists-only).",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Stamps \u2014 static / dynamic tokens / custom image",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_stamp_and_watermark.cpp",
+    "tests/test_stamp_tokens.cpp",
+    "tests/test_image_stamp.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Comment panel + reply threading (/IRT)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_comment_panel.cpp",
+    "tests/test_comment_threading.cpp",
+    "tests/test_comment_panel_threading.cpp",
+    "tests/test_comment_panel_context_menu.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Measurement tools (distance / perimeter / area)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_measure.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "22 tests but assert_density 2.0; numeric measurement correctness lightly pinned.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "File-attachment annotations (embedded payload)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_file_attachment_annotation.cpp",
+    "tests/test_attachments.cpp",
+    "tests/test_attachment_panel.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Payload save/reopen round-trip is exercised; treated as happy-path (no malformed-attachment negative).",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Alt text / ActualText on annotations (PDF/UA)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_alt_text.cpp",
+    "tests/test_alt_text_dialog.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Form field types \u2014 Text/Checkbox/Radio/Combo/List/Push/Signature",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_form_manager.cpp",
+    "tests/test_form_creation.cpp",
+    "tests/test_form_field_data.cpp",
+    "tests/test_forms_phase5.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "Phase-1 Med: forms_phase5.RadioGroupExclusivity never re-reads sibling radio A to confirm de-selection (the named bug passes); SignatureWidgetTypeIsDistinct's only real assert is a compile-time tautology then SUCCEED().",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Interactive form designer (drag-to-place, properties panel)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_form_tool.cpp",
+    "tests/test_forms_designer.cpp",
+    "tests/test_form_field_properties_panel.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Tab-order editor",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_tsa_and_taborder.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Calculation-order (/CO) editor",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_calculation_order.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Per-field JavaScript (keystroke/validate/calc/format/focus/blur)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_javascript_engine.cpp",
+    "tests/test_form_javascript_xss.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "Phase-1 High: javascript_engine.CalculateAllFields asserts only no-throw (a form whose Total never recalculates passes); FireValidateEvent/FireFormatEvent use EXPECT_TRUE(result||!result) tautologies \u2014 a validator that wrongly accepts/rejects input is invisible. XSS file provides the negative inputs.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Document-level JS events (willSave/didSave/willPrint/didPrint/willClose)",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_document_js_events.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 Med: WillSaveFiresOnFixtureWithDocLevelJs asserts only that fireDocumentEvent doesn't throw and documents it cannot observe the script ran; a regression disabling doc-level JS stays green.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "FDF / XFDF import & export",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_form_data_io.cpp",
+    "tests/test_xfdf_encode_decode.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Form submit \u2014 URL-encoded / HTTP POST (host allowlist)",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_form_submit.cpp",
+    "tests/test_form_submitter.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "Host-allowlist rejection paths give a negative dimension.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Flatten form to static content",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_form_commands.cpp",
+    "tests/test_form_roundtrip.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Reset form (fields with /DV)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_form_manager.cpp",
+    "tests/test_form_commands.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 Med: form_commands.SetFieldValue_ExecuteAndUndo checks value only against in-memory FormManager, never saved+reopened \u2014 a regression that updates the widget cache but fails to write /V (value lost on save) passes.",
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Password encryption (RC4 / AES-128 / AES-256)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_encryption_manager.cpp",
+    "tests/test_encryption_roundtrip.cpp",
+    "tests/test_encryption_settings.cpp",
+    "tests/test_encryption_dialog.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "Roundtrip decrypts the saved artifact (relatively strong); wrong-password / restricted-permission negatives present.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "Permission flags (print / copy / modify / annotate)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_permission_enforcement.cpp",
+    "tests/test_encryption_roundtrip.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "CORRECTED (karen phase-2 gate): test_permission_enforcement.cpp DOES contain genuine behavioral-enforcement negatives that invoke product code and assert refusal, at both the engine boundary (PlainTextExporterRefusesCopyDenied:215 asserts write() returns false AND no output file created; PrintEngineRefusesPrintDeniedWithValidPrinter:257 asserts print() returns false before rasterization) and the UI-slot boundary (OnPrintRefuses*/OnExportPlainTextRefusesCopyDenied/OnCopyRefusesCopyDeniedEvenIfToggleCleared/TextEditCopyCutRefusesCopyDenied:312-385 drive real MainWindow slots and assert refusal). These are mutation-killable. RESIDUAL (narrower) gap: the flag-only check test_encryption_roundtrip.cpp::CopyFalsePermissionEnforcedOnReopen:410 only reads copyAllowed(); and saveEncrypted's own re-encryption path / a hypothetical NEW downstream consumer that ignores PermissionFlags are not covered by an enforcement test. Main surface is covered; residual is narrow.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Redaction \u2014 true content removal + verifier",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_redaction_apply.cpp",
+    "tests/test_redaction_completeness.cpp",
+    "tests/test_redaction_edge_cases.cpp:77tests",
+    "tests/test_image_redaction_phase7.cpp",
+    "tests/test_redaction_verifier.cpp",
+    "tests/test_redaction_roundtrip.cpp",
+    "tests/test_fidelity_r3_23_image_redaction.cpp",
+    "tests/test_malicious_pdf_security.cpp:179"
+   ],
+   "coverage_class": "strong-with-visual-oracle",
+   "oracle_note": "CONFIDENTIALITY RISK (Phase-1 High x3): the strongest text-removal oracles (RedactedTextAbsentFromBytes @completeness:67, AppliedRedactionRemovesSecretTextBytes @phase7:428 \u2014 both search the decompressed saved stream) are GTEST_SKIPPED whenever SetUp falls back from test_redaction.pdf to a substitute fixture; in that config a redaction that paints a box but leaves Tj operators intact ships GREEN. redaction_verifier.checkTextRemoved is never asserted to return FALSE for genuine leftover text (positive detection only at edge_cases:646). malicious_pdf_security.RedactionClearsUndoEvidence only greps for '/UndoStack', never the secret.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "Digital signatures \u2014 self-signed & PKCS#7",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_signature_manager.cpp",
+    "tests/test_signature_roundtrip.cpp",
+    "tests/test_pkcs7_roundtrip.cpp",
+    "tests/test_pkcs7_bridge.cpp",
+    "tests/test_pkcs7_fuzz.cpp",
+    "tests/test_signature_security_phase2.cpp",
+    "tests/test_signature_data.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "Phase-1 High: certificate TRUST-CHAIN is never positively validated (all fixtures self-signed, MuPDF has no trust store; cert tests assert only 'non-Okay OR !valid' which any self-signed cert satisfies). signature_security_phase2.TamperedPkcs7NotFullyValid has an operator-precedence bug ('&b == 0' always false) so it may write a no-op and assert on an unmodified doc \u2014 a tamper test that may not tamper. pkcs7_fuzz is assert_density 0.25.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "CA-chain certificate signing",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_signature_roundtrip.cpp",
+    "tests/test_certification_signatures.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "IntermediateCAChainSignatureVerifies asserts only a self-signed-satisfiable predicate; a real chain-build is not proven.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Certification signatures (/DocMDP, 3 permission levels)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_certification_signatures.cpp",
+    "tests/test_docmdp_byterange.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: DocMDP permission ENFORCEMENT is never tested negatively \u2014 /DocMDP + /P N are only byte-grepped, and the only behavioral tests confirm ALLOWED changes keep the digest valid. No test that a DISALLOWED change (content edit under P1 NoChanges) is FLAGGED as a violation; silent permit ships green.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "Invisible signatures (zero-area, no /AP)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_invisible_and_certification_signatures.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "assert_density 1.75.",
+   "user_impact": "Low"
+  },
+  {
+   "capability": "RFC 3161 timestamps",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_tsa_fixture.cpp",
+    "tests/test_tsa_real_endpoint.cpp",
+    "tests/test_tsa_and_taborder.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: tsa_real_endpoint only PRINTS the timestamp-token OID (never asserts it) and gates on a local file rather than the network; TSA timestamping could embed no token and pass. dialog_object_names_phase11.TsaGroup only checks the QGroupBox exists (checkbox/URL may be unwired).",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Long-term validation (PAdES-B-LT, /DSS + /VRI, OCSP/CRL)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_ltv_dss_writer.cpp",
+    "tests/test_ltv_validator.cpp",
+    "tests/test_ltv_responder_validation.cpp",
+    "tests/test_ocsp_crl_parser.cpp",
+    "tests/test_ocsp_crl_validation.cpp",
+    "tests/test_validation_request.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "Phase-1 High: ocsp_crl_validation staleness/expiry enforcement could be removed and the FIX-OCSP regression tests still pass (self-signed cert yields UntrustedChain in all cases, so freshness is never the deciding factor). ltv_validator has no test that a GOOD OCSP signed by an UNTRUSTED responder is rejected \u2014 an injected self-signed GOOD OCSP would be reported as validly revocation-checked.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "Malformed-PDF sandboxing (pdfe_preflight child process)",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_preflight_open.cpp",
+    "tests/test_preflight_xplatform.cpp",
+    "tests/test_cve_replay.cpp:21tests",
+    "tests/test_malicious_pdf_advanced.cpp",
+    "tests/test_malicious_pdf_security.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "Phase-1 CRITICAL: cve_replay (21 CVE replays / 1 timing assertion around a catch-all try/catch) verifies only that open returns in time and doesn't throw \u2014 a regression re-introducing CVE-2018-4993 NTLM leak / CVE-2021-30560 /AA JS exec / CVE-2024-4367 font PostScript ships GREEN; no test asserts the attack was neutralized. malicious_pdf_advanced.ProcessSpawnAttemptBlocked and malicious_pdf_security.GoToRRemotePathRejected/DataUriNotExecuted assert only no-throw \u2014 names promise blocks they never verify.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "Edit existing text (using document fonts)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_content_stream_editor.cpp",
+    "tests/test_text_edit_pipeline.cpp",
+    "tests/test_text_edit_integration.cpp",
+    "tests/test_text_edit_save_roundtrip.cpp",
+    "tests/test_smalltext_edit_render.cpp",
+    "tests/test_text_color_and_replace.cpp",
+    "tests/test_content_stream_adversarial_ambient.cpp:9tests",
+    "tests/test_content_stream_state_leak.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "Phase-1 High x many: the edit path is VISUAL but oracles are extraction-present (find(codepoints)!=npos). content_stream_editor.ApplySimpleEdit / text_edit_pipeline / text_edit_integration.MultiplePageEdits (ZERO assertions) / SaveAfterEdit \u2014 an edit rendered mirrored, white/invisible, wrong-glyph, wrong-position, or that clobbers neighbour spans (the shipped ambient-state-leak class) all pass. Adversarial-ambient corpus test is assertion-free (SUCCEED() only). ONE genuine pixel oracle exists: text_color_and_replace.ColorPersistsThroughSaveAndReopen counts red pixels.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "Metric-compatible font substitution (scoring)",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_font_substitution_engine.cpp",
+    "tests/test_substitute_font_selector.cpp",
+    "tests/test_font_matcher.cpp",
+    "tests/test_glyph_scale_adjuster.cpp",
+    "tests/test_font_metric_profile.cpp",
+    "tests/test_pdf_font_embedder.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: font_matching.findMatch(Arial,Bold) can silently return Regular and pass (asserts only familyName non-empty); glyph_scale_adjuster accepts a 1.6x scale where 1.05x is correct (bound 0.5-2.0, no golden width ratio); pdf_font_embedder asserts only a returned resource-name string, never reopens/rasterizes \u2014 a malformed FontFile2 rendering .notdef/tofu passes.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Rich-text formatting (family/size/bold/italic/underline/strike/color)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_formatting_run.cpp",
+    "tests/test_text_edit_toolbar.cpp",
+    "tests/test_text_edit_save_roundtrip.cpp",
+    "tests/test_textedit_ux_phase2.cpp",
+    "tests/test_textedit_toolbar_indicators.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: text_edit_save_roundtrip.BoldToggleReachesContentStream oracle is EXPECT_TRUE(nameMentionsBold||nameDiffers) \u2014 any font-name change (subset prefix/substitution) passes as 'bold survived' even if strokes aren't heavier. textedit_ux_phase2 checks the internal formattingRuns struct, never a rendered pixel.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Text alignment (Left/Center/Right/Justify) with persistence",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_alignment_writer.cpp",
+    "tests/test_alignment_injector.cpp",
+    "tests/test_alignment_pipeline.cpp",
+    "tests/test_alignment_e2e.cpp",
+    "tests/test_alignment_state_leak.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: alignment is inherently VISUAL yet every test uses extractPlainText().find(marker) \u2014 text drawn left when Center/Right requested, off-page, or invisible extracts identically and passes. alignment_writer.JustifyEmitsTwWordSpacing has a substring bug (' Tw' matches '0 Tw') so fully un-justified text passes. No geometry/x-offset/render oracle anywhere.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "Text Reconstruction Engine \u2014 edit scanned/image-only text",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_region_reconstructor.cpp",
+    "tests/test_tre_commands.cpp",
+    "tests/test_tre_region_tool.cpp",
+    "tests/test_tre_edit_dialog.cpp",
+    "tests/test_scan_style_transfer.cpp",
+    "tests/test_quality_assessor.cpp",
+    "tests/test_image_replacer.cpp",
+    "tests/test_tre_coord_mapper.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: region_reconstructor and tre_commands write NEW glyphs into the content stream (visual) but assert only success + non-empty originalText/editedText + bbox w/h>0, all inside if(result.success); nothing renders/re-extracts the produced PDF. tre_coord_mapper 'critical' Y-flip tests are TAUTOLOGICAL (recompute the mapping with the test's own arithmetic, never call the product mapper) \u2014 a mapper that inverts Y (selection lands opposite end of page) cannot fail. scan_style_transfer assert_density 1.25.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "OCR (Tesseract)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_ocr_pipeline.cpp",
+    "tests/test_ocr_all_pages_command.cpp",
+    "tests/test_hocr_parser.cpp",
+    "tests/test_fidelity_r3_08_ocr_wer.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High/Med: ocr_pipeline.OcrOnScannedPdf asserts hocr non-empty + blocks>0 \u2014 OCR mis-recognizing the page into gibberish passes; no assertion checks a KNOWN word from the fixture appears. RenderPageAt300Dpi asserts only >100px per axis (comment expects ~2550x3300) so a 72-DPI render silently degrades OCR input.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "Multi-language OCR (eng+fra, preferences)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_ocr_language_preference.cpp",
+    "tests/test_ocr_language_routing.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Visual font identification (PANOSE + correlation + optional CNN)",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_cnn_font_classifier.cpp",
+    "tests/test_cnn_font_ranker.cpp",
+    "tests/test_visual_font_ranker.cpp",
+    "tests/test_system_font_discovery_panose.cpp",
+    "tests/test_font_matcher.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: visual_font_ranker.MultipleCandidatesSortedByCombinedScore wraps its only correctness check in if(arialFirst){...} \u2014 when the ranker is WRONG and Arial doesn't win, the EXPECT is skipped and the test passes (assertion neutered exactly on the failure case). cnn_font_classifier.DifferentFontLowerSimilarity uses EXPECT_LT(sim,0.99) \u2014 a classifier that can't tell serif from sans passes.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Glyph atlas synthesis (harvest + synthesize for scanned fonts)",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_glyph_atlas.cpp",
+    "tests/test_glyph_synthesizer.cpp",
+    "tests/test_glyph_atlas_compositor.cpp",
+    "tests/test_vector_font_atlas_builder.cpp",
+    "tests/test_vector_enriched_atlas_builder.cpp",
+    "tests/test_synthesized_type3_font_bundler.cpp",
+    "tests/test_type3_font_builder.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: glyph_synthesizer.Synthesize_b_from_d_HFlip asserts success/!isNull/donorUsed/quality but inspects NO pixels \u2014 a synthesizer that copies 'd' WITHOUT the flip (visibly wrong 'b') passes. glyph_atlas_compositor blank-canvas passes (asserts only echoed width/height). glyph_atlas fixture paints 3 identical rectangles for A/B/C so wrong-glyph mapping is undetectable. type3_font_builder checks only stream contains 'd0/BI/ID/EI'.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "PDF/A conversion (1b/2b/2u/2a/3b) + validate",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_pdfa_converter.cpp",
+    "tests/test_pdfa_roundtrip.cpp",
+    "tests/test_pdfa_validator.cpp",
+    "tests/test_fidelity_r3_19_pdfa_independent.cpp",
+    "tests/test_xmp_metadata_writer.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: xmp_metadata_writer.BuildXmpPacket_PdfA1b asserts only that substrings '1' and 'B' appear ANYWHERE in the packet (timestamps/UUIDs contain both) \u2014 a malformed pdfaid part/conformance is undetectable. pdfa_validator assert_density 1.25.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "PDF/UA conversion + auto-tagging + structure-tree build",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_pdfua_converter.cpp",
+    "tests/test_auto_tagger.cpp",
+    "tests/test_structure_tree_builder.cpp",
+    "tests/test_struct_tree_preservation.cpp",
+    "tests/test_content_stream_tagger.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High/Med: structure_tree_builder.BuildMultiLevelTree asserts only hasStructureTree()==true after reopen \u2014 dropping the Figure, losing altText, or writing every node as /P (breaks screen-reader use) passes. content_stream_tagger.PreservesRendering asserts only pageCount>0 (BDC injection could render the page blank). pdfua_converter assert_density 1.22.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Preflight (profile picker, issue tree, report, Fix All)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_preflight_dialog.cpp",
+    "tests/test_preflight_fix_all.cpp",
+    "tests/test_compliance_dialog.cpp",
+    "tests/test_compliance_manager.cpp",
+    "tests/test_prohibited_feature_scanner.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: prohibited_feature_scanner only asserts the scanner reports NOTHING on a clean fixture \u2014 a scanner that NEVER detects encryption/JavaScript/external-refs (always returns empty) passes every test, so non-compliant documents pass compliance scanning silently.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "ICC color profiles (OutputIntent)",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_icc_profile_manager.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "assert_density 2.0.",
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Font-embedding compliance check",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_font_compliance_checker.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: AllFontsCompliant_Basic asserts EXPECT_TRUE(allCompliant||!allCompliant) and if(isEmbedded||!isEmbedded) \u2014 literal tautologies that can never fail; the compliance verdict is uncovered.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Light / Dark / System / high-contrast theme",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_high_contrast.cpp",
+    "tests/test_ui_high_contrast.cpp",
+    "tests/test_theme_and_field_count.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Insert / delete / replace image",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_image_manager.cpp",
+    "tests/test_image_commands.cpp",
+    "tests/test_image_content_editor.cpp",
+    "tests/test_image_replacer.cpp",
+    "tests/test_image_tool.cpp",
+    "tests/test_image_roundtrip.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: image_content_editor / image_replacer validate only echoed struct fields or a true return; a no-op or wrong-region insert is indistinguishable from correct. ocr_routing_fix ImageCommandsDirtyTest (15 cases) uses createDisplayList()!=nullptr as the sole oracle for insert/remove/resize/rotate/crop.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Resize / rotate / crop image (via CTM)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_image_content_editor.cpp",
+    "tests/test_image_flow_oracle.cpp",
+    "tests/test_crop_tool.cpp",
+    "tests/test_image_ctm_leak.cpp",
+    "tests/test_mediabox_origin_crop.cpp",
+    "tests/test_image_replacer_dpi.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "Phase-1 High: image_content_editor.Resize/Rotate/CropImage_Success and image_flow_oracle assert only EXPECT_TRUE(result) / display-list non-null \u2014 a wrong CTM producing a mirrored or HALF-SIZE image (the exact bug class fixed in a03f6b6) passes. image_ctm_leak/mediabox_origin_crop DO assert geometry (assert_density 9.0/8.5) giving a boundary/negative dimension.",
+   "user_impact": "High"
+  },
+  {
+   "capability": "EXIF stripping",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_exif_stripper.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High (privacy): all PDF-path strips assert only a return bool/count and never reopen the saved PDF to inspect image-XObject bytes \u2014 a no-op strip that removes no GPS/camera metadata passes; only the in-memory QImage path is checked.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Grayscale conversion (whole-document DeviceGray)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_grayscale_converter.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Batch export pages to PNG/JPG",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_image_exporter.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Optimize / compress (subset / garbage-collect / downsample)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_optimize.cpp",
+    "tests/test_save_recompression.cpp",
+    "tests/test_conditional_gc.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: optimize.OptimizeDoesNotLeakDeletedFormFieldValues (garbage=4) reopens and asserts only pageCount>0 \u2014 the exact data-leak the test is NAMED for (stale/deleted form-field values remaining embedded) ships green.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Page insert (blank/from file) / delete / reorder / replace",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_page_commands.cpp",
+    "tests/test_page_operations.cpp",
+    "tests/test_replace_page.cpp",
+    "tests/test_page_ops_phase6.cpp",
+    "tests/test_page_edit_destination_integrity.cpp",
+    "tests/test_page_integer_overflow.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "Phase-1 High/Med: replace_page.ReplacePageCommandUndoRestoresOriginal captures textAfter but never asserts textAfter!=textBefore \u2014 a page-replace that silently no-ops (user's replacement lost) passes. page_integer_overflow.DeletePageAtInvalidIndex is a bare try/catch with ZERO assertions (boundary present but unpinned). page_ops_phase6.PagePanelPageMovedSignalContract emits the signal itself, exercising no drag-drop reorder code.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Crop pages (interactive /CropBox tool, undoable)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_crop_tool.cpp",
+    "tests/test_mediabox_origin_crop.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "mediabox_origin_crop pins geometry on a non-zero-origin MediaBox (boundary).",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Headers & footers with tokens + Bates numbering",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_header_footer.cpp",
+    "tests/test_bates_tokens.cpp",
+    "tests/test_header_footer_state_leak.cpp",
+    "tests/test_hf_watermark_adversarial.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "hf_watermark_adversarial + state_leak provide hostile-ambient-state negatives; bates_tokens assert_density 1.4 (token expansion lightly pinned).",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Watermarks (text + image, page-range aware)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_stamp_and_watermark.cpp",
+    "tests/test_watermark_extended.cpp",
+    "tests/test_watermark_state_leak.cpp",
+    "tests/test_hf_watermark_adversarial.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "Phase-1 High: watermark_extended.ImageWatermarkRespectsPageRange asserts only open!=null and pageCount==3 \u2014 a logo stamped on EVERY page (range filter broken) or NO page passes; the even-pages-only contract is asserted nowhere (a logo could land on confidential pages meant to be excluded).",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Metadata (Info dict) + XMP editing",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_metadata_manager.cpp",
+    "tests/test_metadata_commands.cpp",
+    "tests/test_metadata_dialog.cpp",
+    "tests/test_metadata_roundtrip.cpp",
+    "tests/test_xmp_metadata_writer.cpp",
+    "tests/test_fidelity_r3_22_xmp_info_sync.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: metadata_manager.WriteMetadata_Roundtrip may stage 8 fields in an in-memory dict never serialized on save; readMetadata reads the same in-memory dict so all 8 EXPECT_EQ pass while the saved file carries no title/author/dates (only Title is genuinely save/reopen-verified). metadata_commands.Execute_WritesNewMetadata never reopens from disk.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Attachments panel (list / add / extract / delete) + Portfolio detection",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_attachment_panel.cpp",
+    "tests/test_attachment_panel_mainwindow_integration.cpp",
+    "tests/test_attachments.cpp",
+    "tests/test_portfolio.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "portfolio assert_density 1.67 (detection only).",
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Plain-text export (UTF-8 BOM, form-feed separators)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_export_plain_text.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Word (DOCX/RTF) export \u2014 engine only, UI not wired",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_word_export.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: word_export.BoldIsEmittedWhenFontNameImpliesBold's final assert is EXPECT_NE(bytes.find('<w:document'),npos) \u2014 a structural shell check unrelated to bold; bold never emitted into the DOCX passes. Engine-level, not click-to-use (UI coming soon).",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Excel (XLSX) export with table detection \u2014 engine only, UI not wired",
+   "source": "README/comparison",
+   "verifying_tests": [
+    "tests/test_excel_export.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 Med: OutputIsValidZipWithRequiredParts asserts only PK zip-magic + part-name presence \u2014 structurally valid but EMPTY/garbled sheets (no PDF-derived value reaches a cell) pass. Engine-level, not click-to-use.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Batch processing (watermark / flatten / PDF-A / set-permissions across files)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_batch.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "33 tests, assert_density 2.42.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Document comparison / diff (split-pane, change navigation)",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_diff.cpp",
+    "tests/test_compare_documents_view.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: compare_documents_view.HighlightCountMatchesDiffEngineOutput sets docA and docB to the SAME file (test_3page.pdf) so changedPages/expectedRegions are 0 \u2014 the entire change-highlighting path is asserted only against 0==0; a dialog that computes change counts completely wrong for real differing docs passes.",
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Command-line interface",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_cli.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Med"
+  },
+  {
+   "capability": "Undo / redo across all operations",
+   "source": "README/comparison/UI",
+   "verifying_tests": [
+    "tests/test_undo_manager.cpp",
+    "tests/test_page_commands.cpp",
+    "tests/test_command_page_rebind.cpp",
+    "tests/test_undo_after_save_crash.cpp",
+    "tests/test_save_throw_undo_safety.cpp",
+    "tests/test_command_family_undo_after_save_probe.cpp"
+   ],
+   "coverage_class": "has-negative-or-boundary",
+   "oracle_note": "undo/commands subsystem is comparatively strong (true+metamorphic, no proxy). But Phase-1 High: save_throw_undo_safety.ThrownSaveStillRebindsUndoStack (9 families) \u2014 after a save that throws, undo() can undo the WRONG op / corrupt the page and stay green (both clean-return and any throw satisfy the oracle; only a hard ASan crash fails it).",
+   "user_impact": "High"
+  },
+  {
+   "capability": "Customizable toolbars",
+   "source": "comparison/UI",
+   "verifying_tests": [
+    "tests/test_toolbar_customization.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Recent files menu",
+   "source": "comparison/UI",
+   "verifying_tests": [
+    "tests/test_recent_files.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Preferences dialog (general/view/OCR/advanced)",
+   "source": "comparison/UI",
+   "verifying_tests": [
+    "tests/test_preferences_dialog.cpp",
+    "tests/test_app_settings.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": null,
+   "user_impact": "Low"
+  },
+  {
+   "capability": "Menu / toolbar action wiring (invocability of user actions)",
+   "source": "UI",
+   "verifying_tests": [
+    "tests/test_ui_integration.cpp",
+    "tests/test_phase_f5_menu_wiring.cpp",
+    "tests/test_dialog_object_names_phase11.cpp",
+    "tests/test_main_window_q_invokable.cpp",
+    "tests/test_q_invokable_coverage.cpp"
+   ],
+   "coverage_class": "happy-path-only",
+   "oracle_note": "Phase-1 High: ui_integration.AllActionsExist and phase_f5_menu_wiring verify only that a QAction EXISTS by objectName \u2014 an action connected to no/wrong slot (Save/Open/Find/CalculationOrder do nothing when clicked) passes all 22+ tests; nothing invokes an action and asserts a resulting document/state change. Named 'menu_wiring' yet never triggers the wire.",
+   "user_impact": "Med"
+  }
+ ],
+ "uncovered_ranked": [
+  {
+   "capability": "Redaction \u2014 true content removal (confidentiality)",
+   "coverage_class": "strong-with-visual-oracle-but-conditionally-skipped",
+   "user_impact": "High",
+   "why": "The only oracles that prove the secret is gone from the saved decompressed stream (completeness:67, image_redaction_phase7:428) GTEST_SKIP under fixture fallback; verifier.checkTextRemoved is never asserted FALSE. A redaction that paints a box but leaves Tj operators intact can ship GREEN \u2014 a data-disclosure defect."
+  },
+  {
+   "capability": "Malformed-PDF sandbox / CVE neutralization",
+   "coverage_class": "has-negative-or-boundary (no-throw-only oracle)",
+   "user_impact": "High",
+   "why": "cve_replay: 21 CVE replays with 1 timing assertion around a catch-all try/catch; ProcessSpawnAttemptBlocked / GoToRRemotePathRejected / DataUriNotExecuted assert only no-throw. A regression re-enabling NTLM leak / /AA JS exec / font PostScript / SSRF ships green \u2014 none asserts the attack was neutralized."
+  },
+  {
+   "capability": "Signature trust-chain + tamper detection + LTV forged-GOOD",
+   "coverage_class": "has-negative-or-boundary (weak/broken negatives)",
+   "user_impact": "High",
+   "why": "Cert trust is never positively validated (self-signed satisfies every predicate); the tamper test has an operator-precedence bug that may write a no-op; no test rejects a GOOD OCSP from an untrusted responder. A signature from an attacker-controlled issuer is indistinguishable from a trusted one."
+  },
+  {
+   "capability": "Edit existing text \u2014 visual correctness",
+   "coverage_class": "has-negative-or-boundary (extraction-only oracle)",
+   "user_impact": "High",
+   "why": "The edit path is visual but oracles are extraction-present; mirror/invisible/white/wrong-glyph/wrong-position edits and neighbour-span clobbering (the shipped ambient-state-leak class) all pass. MultiplePageEdits has zero assertions; the adversarial-ambient corpus test is SUCCEED()-only."
+  },
+  {
+   "capability": "Text alignment (Left/Center/Right/Justify)",
+   "coverage_class": "happy-path-only (visual feature, no geometry oracle)",
+   "user_impact": "High",
+   "why": "Every alignment test uses extractPlainText().find(); position/x-offset is never asserted \u2014 text drawn left when Center/Right requested passes. Justify has a substring bug making fully un-justified output pass."
+  },
+  {
+   "capability": "TRE scanned-text reconstruction \u2014 visual correctness",
+   "coverage_class": "happy-path-only (visual, no render/re-extract oracle)",
+   "user_impact": "High",
+   "why": "Reconstruction writes new glyphs into the content stream but nothing renders/re-extracts the output; the 'critical' Y-flip coord-mapper tests are tautological (never call the product mapper). Wrong/garbled/mirrored/off-page reconstructed text ships green."
+  },
+  {
+   "capability": "Image resize / rotate / crop (CTM)",
+   "coverage_class": "has-negative-or-boundary (no-op indistinguishable)",
+   "user_impact": "High",
+   "why": "Success is asserted via return bool / non-null display list; a wrong CTM producing a mirrored or HALF-SIZE image (a bug class this subsystem has repeatedly hit) is indistinguishable from correct. Only image_ctm_leak/mediabox_origin_crop pin geometry."
+  },
+  {
+   "capability": "Autosave / crash-recovery capture",
+   "coverage_class": "happy-path-only (assertion-free probe)",
+   "user_impact": "High",
+   "why": "autosave_capture_audit (15 edit families) is SUCCEED()-only with ZERO EXPECT/ASSERT \u2014 finishRow() records capture_present=NO as passing data. A crash-recovery regression that drops all edits produces a green suite (the exact data-loss class this project keeps shipping)."
+  },
+  {
+   "capability": "Full-text search \u2014 non-empty result correctness",
+   "coverage_class": "happy-path-only (tautological oracle)",
+   "user_impact": "High",
+   "why": "BasicSearch/SearchPage_FindsText assert totalMatches()>=0 (a tautology); quad/hit checks are in loops that run zero times when empty. Broken indexing returning zero hits for text actually on the page is invisible."
+  },
+  {
+   "capability": "OCR recognition quality",
+   "coverage_class": "happy-path-only",
+   "user_impact": "High",
+   "why": "OcrOnScannedPdf asserts hocr non-empty + blocks>0; gibberish recognition passes because no known word from the fixture is checked. RenderPageAt300Dpi accepts >100px so a DPI regression silently degrades OCR input."
+  },
+  {
+   "capability": "Permission enforcement \u2014 residual (re-encryption path / new downstream consumers)",
+   "coverage_class": "has-negative-or-boundary (main surface covered; residual narrow)",
+   "user_impact": "Med",
+   "why": "CORRECTED (karen phase-2 gate): the main copy/print restriction surface IS enforced by real behavioral tests in test_permission_enforcement.cpp (engine + UI refusal, mutation-killable). Residual gap is narrow: test_encryption_roundtrip.cpp::CopyFalsePermissionEnforcedOnReopen is flag-read-only, and saveEncrypted's re-encryption path / future downstream consumers ignoring PermissionFlags have no enforcement test. Re-scoped from High to Med; not a rewrite-existing-tests item."
+  },
+  {
+   "capability": "Optimize \u2014 deleted-content leak",
+   "coverage_class": "happy-path-only",
+   "user_impact": "Med",
+   "why": "OptimizeDoesNotLeakDeletedFormFieldValues asserts only pageCount>0 after reopen \u2014 the named leak (stale/deleted form-field values remaining embedded after garbage=4) ships green."
+  },
+  {
+   "capability": "Menu / action wiring (do clicks do anything)",
+   "coverage_class": "happy-path-only (widget-exists-only)",
+   "user_impact": "Med",
+   "why": "Actions are verified to EXIST by objectName; an action wired to no/wrong slot passes. Nothing invokes an action and asserts a state change, so a Save/Open/Find that does nothing when clicked is undetected."
+  },
+  {
+   "capability": "EXIF stripping (privacy)",
+   "coverage_class": "happy-path-only",
+   "user_impact": "Med",
+   "why": "PDF-path strips assert only a return bool/count and never reopen the saved image XObject bytes; a no-op strip that leaves GPS/camera metadata in the shipped file passes."
+  }
+ ],
+ "orphan_tests": [
+  {
+   "file": "tests/test_main.cpp",
+   "note": "internal-only: GoogleTest harness bootstrap / crash-guard install (0 tests). Not a user capability."
+  },
+  {
+   "file": "tests/test_coordinate_transform.cpp / test_coord_mapper_rotation.cpp / test_coordinate_diagnostic.cpp / test_tre_coord_mapper.cpp",
+   "note": "internal-only: coordinate/CTM math primitives. Back scanned-text selection & rendering but no directly user-invokable action."
+  },
+  {
+   "file": "tests/test_mupdf_context.cpp / test_mupdf_context_clone_lifecycle.cpp",
+   "note": "internal-only: MuPDF context/clone lifecycle wrapper."
+  },
+  {
+   "file": "tests/test_tile_cache.cpp / test_tile_prefetcher.cpp / test_tile_renderer.cpp / test_tile_renderer_leak.cpp / test_cache_stats.cpp / test_c2_image_cache.cpp",
+   "note": "internal-only: tile-render caching/prefetch. Backs the 'view/zoom' capability but not a feature itself."
+  },
+  {
+   "file": "tests/test_log_handler.cpp / test_crash_handler.cpp / test_single_instance_guard.cpp / test_startup_timer.cpp / test_probe_extent.cpp / test_process_mitigations.cpp",
+   "note": "internal-only: infra/reliability/process-hardening. Not in the feature list."
+  },
+  {
+   "file": "tests/test_dll_dependencies.cpp / test_installer.cpp / test_ci_fuzz_workflows.cpp / test_ci_supplychain.cpp / test_branding_resources.cpp / test_app_resources.cpp / test_pdfe_icons.cpp / test_main_window_icon.cpp / test_version_update.cpp",
+   "note": "outside-feature-list: build/packaging/CI/branding/self-update meta-tests. Legitimate but not user-facing PDF capabilities."
+  },
+  {
+   "file": "tests/test_path_security.cpp / test_save_path_security.cpp / test_engine_unc_gate.cpp / test_prohibited_feature_scanner.cpp",
+   "note": "internal-only: path-traversal/UNC hardening + compliance scanner internals. Back the sandbox/compliance capabilities."
+  },
+  {
+   "file": "tests/test_open_close_leak_cycle.cpp / test_image_undo_after_save.cpp / test_tile_renderer_leak.cpp / test_journey_op99_crash.cpp / test_stress_investigation.cpp / test_performance_stress.cpp / test_open_close_leak_cycle.cpp",
+   "note": "internal-only: leak/stress/soak regression harness (reliability), not a discrete user feature. performance_stress.ConcurrentMaliciousPdfRendering is also a Phase-1 High assertion-free finding."
+  },
+  {
+   "file": "tests/test_block_params_builder.cpp / test_bg_color_detector.cpp / test_b3_bg_classification.cpp / test_b3_pattern_copy.cpp / test_b2_measured_width.cpp / test_c4_perceptual_alpha.cpp / test_c5_lcd_subpixel.cpp / test_bitmap_compositor.cpp / test_lanczos_resize.cpp / test_image_similarity.cpp",
+   "note": "internal-only: scanned-text / render sub-algorithms (background classification, perceptual alpha, LCD subpixel, Lanczos resample). Feed TRE & render quality but are not user-invokable."
+  },
+  {
+   "file": "tests/test_a2_script_detection.cpp / test_font_metric_profile.cpp / test_font_analysis_cache.cpp / test_overlay_font_mapping.cpp / test_hocr_parser.cpp / test_vector_subset_detector.cpp / test_embedded_font_analyzer.cpp / test_embedded_font_analyzer_multiscript.cpp / test_substitution_info_model.cpp / test_atlas_comparison.cpp",
+   "note": "internal-only: font/OCR analysis primitives beneath the substitution & font-ID capabilities."
+  },
+  {
+   "file": "tests/test_writing_mode_autoplumb.cpp / test_path_roundtrips.cpp / test_pdf_content_writer.cpp / test_content_stream_ctm_reset.cpp / test_content_stream_state_leak.cpp / test_content_stream_multi_injector.cpp / test_content_stream_out_of_class.cpp / test_content_stream_neg_tz.cpp / test_content_stream_per_run_emission.cpp",
+   "note": "internal-only: content-stream injector primitives (CTM reset, ambient-state neutralization, per-run emission). Back text-edit/alignment/watermark injectors; systemic-state-continuity coverage lives here."
+  },
+  {
+   "file": "tests/test_*_q_invokable*.cpp / test_q_invokable_seams_phase1.cpp / test_deferred_panels.cpp / test_panel_interaction_phase8.cpp / test_select_tool_enhanced.cpp / test_canvas_stale_layout.cpp",
+   "note": "internal-only: Qt test-seam / panel-plumbing scaffolding introduced to make the native UI observable to tests; not features."
+  },
+  {
+   "file": "tests/test_render_fidelity.cpp / test_fidelity_r3_06..24_*.cpp",
+   "note": "cross-cutting: render/edit fidelity probes that span several capabilities rather than mapping 1:1 (color preservation, text extraction, print-vs-screen, XMP/Info sync). Mapped opportunistically above; listed as spanning-probes."
+  },
+  {
+   "file": "tests/test_gap102_residuals.cpp / test_fuzz_harness_smoke.cpp / test_font_fuzz.cpp / test_pkcs7_fuzz.cpp / test_cve_replay.cpp / test_security_audit.cpp / test_prohibited_feature_scanner.cpp",
+   "note": "internal-only/security-harness: fuzz + CVE + audit harnesses. font_fuzz (0 asserts), pkcs7_fuzz (0.25), cve_replay (0.05) are Phase-1 weak-oracle findings \u2014 robustness harnesses whose behavioral oracle is essentially non-crash."
+  },
+  {
+   "file": "tests/test_coordinate_diagnostic.cpp / test_e2e_integration.cpp / test_ui_structure_bugs.cpp / test_startup_ui_changes.cpp / test_theme_and_field_count.cpp",
+   "note": "cross-cutting integration/diagnostic tests; partially map to view/theme but function as smoke/integration rather than a single capability."
+  }
+ ],
+ "totals": {
+  "capabilities": 87,
+  "none": 0,
+  "happy_path_only": 68,
+  "has_negative_or_boundary": 18,
+  "strong_visual": 1,
+  "note": "87 enumerated user-facing capability rows (some rows bundle sub-features). coverage_class distribution recomputed from the actual array (validator phase-2 gate fix): strong-with-visual-oracle=1 (redaction, and even that is conditionally GTEST_SKIP-gated); has-negative-or-boundary=18; happy-path-only=68; none=0 (every shipped feature has at least one test file -- the gap is oracle STRENGTH not test EXISTENCE). Roadmap/out-of-scope items (public-key encryption, scanner input, Office/HTML import, Read Out Loud, spell-check, reading-order editor, Portfolio, Action-wizard) are NOT counted as gaps (unimplemented by design). Phase-1 classified 147/402 files (36.6%) / 1712/4365 tests (39.2%) weak-oracle; this RTM localizes that weakness onto VISUAL and SECURITY-ENFORCEMENT capabilities."
+ }
+}

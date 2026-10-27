@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="17" failures="0" disabled="0" errors="0" time="0.097" timestamp="2026-07-28T12:46:07.921" name="AllTests">
+  <testsuite name="RedactionVerifierTest" tests="10" failures="0" disabled="0" skipped="0" errors="0" time="0.072" timestamp="2026-07-28T12:46:07.925">
+    <testcase name="ConstructDestroy" file="tests/test_redaction_verifier.cpp" line="37" status="run" result="completed" time="0.002" timestamp="2026-07-28T12:46:07.925" classname="RedactionVerifierTest" />
+    <testcase name="VerifyUnmodifiedPdf" file="tests/test_redaction_verifier.cpp" line="44" status="run" result="completed" time="0.014" timestamp="2026-07-28T12:46:07.927" classname="RedactionVerifierTest" />
+    <testcase name="CheckSingleRevision_UnmodifiedPdf" file="tests/test_redaction_verifier.cpp" line="59" status="run" result="completed" time="0.007" timestamp="2026-07-28T12:46:07.942" classname="RedactionVerifierTest" />
+    <testcase name="CheckNoOrphanStreams_UnmodifiedPdf" file="tests/test_redaction_verifier.cpp" line="69" status="run" result="completed" time="0.007" timestamp="2026-07-28T12:46:07.949" classname="RedactionVerifierTest" />
+    <testcase name="CheckTextRemoved_EmptyRegions" file="tests/test_redaction_verifier.cpp" line="79" status="run" result="completed" time="0.002" timestamp="2026-07-28T12:46:07.956" classname="RedactionVerifierTest" />
+    <testcase name="CheckTextRemoved_NoTextInRegion" file="tests/test_redaction_verifier.cpp" line="90" status="run" result="completed" time="0.011" timestamp="2026-07-28T12:46:07.959" classname="RedactionVerifierTest" />
+    <testcase name="VerifyResult_HasCorrectFields" file="tests/test_redaction_verifier.cpp" line="107" status="run" result="completed" time="0.012" timestamp="2026-07-28T12:46:07.971" classname="RedactionVerifierTest" />
+    <testcase name="CheckSingleRevision_Invalid" file="tests/test_redaction_verifier.cpp" line="125" status="run" result="completed" time="0." timestamp="2026-07-28T12:46:07.984" classname="RedactionVerifierTest" />
+    <testcase name="CheckNoOrphanStreams_Invalid" file="tests/test_redaction_verifier.cpp" line="133" status="run" result="completed" time="0." timestamp="2026-07-28T12:46:07.985" classname="RedactionVerifierTest" />
+    <testcase name="FullVerification_UnmodifiedPdf" file="tests/test_redaction_verifier.cpp" line="290" status="run" result="completed" time="0.011" timestamp="2026-07-28T12:46:07.985" classname="RedactionVerifierTest" />
+  </testsuite>
+  <testsuite name="RedactionVerifierFailPathTest" tests="7" failures="0" disabled="0" skipped="0" errors="0" time="0.021" timestamp="2026-07-28T12:46:07.997">
+    <testcase name="CheckSingleRevision_NonPdfFile_ReturnsFalse" file="tests/test_redaction_verifier.cpp" line="176" status="run" result="completed" time="0.002" timestamp="2026-07-28T12:46:07.997" classname="RedactionVerifierFailPathTest" />
+    <testcase name="CheckNoOrphanStreams_NonPdfFile_ReturnsFalse" file="tests/test_redaction_verifier.cpp" line="185" status="run" result="completed" time="0.002" timestamp="2026-07-28T12:46:08.000" classname="RedactionVerifierFailPathTest" />
+    <testcase name="CheckTextRemoved_EmptyRegions_NonPdfFile_ReturnsTrue" file="tests/test_redaction_verifier.cpp" line="192" status="run" result="completed" time="0.001" timestamp="2026-07-28T12:46:08.002" classname="RedactionVerifierFailPathTest" />
+    <testcase name="CheckTextRemoved_NonEmptyRegions_NonPdfFile_ThrowsOrReturnsFalse" file="tests/test_redaction_verifier.cpp" line="206" status="run" result="completed" time="0.003" timestamp="2026-07-28T12:46:08.003" classname="RedactionVerifierFailPathTest" />
+    <testcase name="FullVerify_NonPdfFile_ReturnsFailure" file="tests/test_redaction_verifier.cpp" line="235" status="run" result="completed" time="0.003" timestamp="2026-07-28T12:46:08.006" classname="RedactionVerifierFailPathTest" />
+    <testcase name="CheckSingleRevision_MultiRevisionPdf_ReturnsFalse" file="tests/test_redaction_verifier.cpp" line="254" status="run" result="completed" time="0.003" timestamp="2026-07-28T12:46:08.010" classname="RedactionVerifierFailPathTest" />
+    <testcase name="CheckTextRemoved_ResidualOverlappingText_ReturnsFalse" file="tests/test_redaction_verifier.cpp" line="270" status="run" result="completed" time="0.005" timestamp="2026-07-28T12:46:08.013" classname="RedactionVerifierFailPathTest" />
+  </testsuite>
+</testsuites>

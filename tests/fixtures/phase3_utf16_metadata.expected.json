@@ -1,0 +1,23 @@
+{
+  "pageCount": 1,
+  "isEncrypted": false,
+  "hasForm": false,
+  "hasForms": false,
+  "hasAnnotations": false,
+  "hasImages": false,
+  "pdfVersion": "1.7",
+  "fileSize": 1438,
+  "origin": "phase3-generator",
+  "category_tags": [
+    "utf-16",
+    "metadata-unicode",
+    "vector-text",
+    "ascii-body"
+  ],
+  "description": "ASCII body. Info dict Title/Author/Subject contain CJK/Greek/Cyrillic/Arabic — written as UTF-16BE per PDF spec.",
+  "scripts": [
+    "ascii",
+    "metadata-unicode"
+  ],
+  "contentKind": "vector-text"
+}

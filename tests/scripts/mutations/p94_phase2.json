@@ -1,0 +1,196 @@
+{
+  "pipeline": "p94-open-issues phase-2 (GitHub #240, GitHub #242)",
+  "mutations": [
+    {
+      "id": "P2-M1",
+      "what": "removes the origin condition, so a DOCUMENT-requested network path is admitted",
+      "file": "src/core/Document.cpp",
+      "find": "    if (isRemote && origin != OpenOrigin::UserInitiated) {",
+      "replace": "    if (false && isRemote && origin != OpenOrigin::UserInitiated) {  // MUTATION-P94-P2M1",
+      "marker": "MUTATION-P94-P2M1",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "NetworkOpenOrigin.*",
+      "expect_fail": [
+        "NetworkOpenOrigin.DocumentRequestedNetworkPathIsRefused",
+        "NetworkOpenOrigin.TheDefaultOriginRefusesANetworkPath"
+      ]
+    },
+    {
+      "id": "P2-M2",
+      "what": "flips the default origin to UserInitiated, so every silent call site becomes permissive",
+      "file": "src/core/Document.h",
+      "find": "        OpenOrigin origin = OpenOrigin::DocumentRequested\n    );",
+      "replace": "        OpenOrigin origin = OpenOrigin::UserInitiated  // MUTATION-P94-P2M2\n    );",
+      "marker": "MUTATION-P94-P2M2",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "NetworkOpenOrigin.*",
+      "expect_fail": [
+        "NetworkOpenOrigin.TheDefaultOriginRefusesANetworkPath"
+      ]
+    },
+    {
+      "id": "P2-M3",
+      "what": "returns only the HOST as the root, so any two shares on one host compare equal",
+      "file": "src/core/PathSecurity.cpp",
+      "find": "    return L\"\\\\\\\\\" + host + L\"\\\\\" + parts.front();",
+      "replace": "    return L\"\\\\\\\\\" + host;  // MUTATION-P94-P2M3: host only",
+      "marker": "MUTATION-P94-P2M3",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "NetworkShareScope.*",
+      "expect_fail": [
+        "NetworkShareScope.ADifferentShareOnTheSameHostDoesNotCompare",
+        "NetworkShareScope.TheRootIsTheServerAndShareOnly",
+        "NetworkShareScope.DotDotCannotEscapeIntoAnotherShare",
+        "NetworkShareScope.TrailingAndRepeatedSeparatorsDoNotChangeTheRoot"
+      ]
+    },
+    {
+      "id": "P2-M4",
+      "what": "removes BOTH empty-root guards, so two paths that are not on any share compare as the same share",
+      "file": "src/core/PathSecurity.cpp",
+      "find": "    const std::wstring a = network_share_root(documentPath);\n    if (a.empty()) return false;   // document is not on a share\n    const std::wstring b = network_share_root(resourcePath);\n    if (b.empty()) return false;   // resource is not on a share",
+      "replace": "    // MUTATION-P94-P2M4: both empty-root guards removed\n    const std::wstring a = network_share_root(documentPath);\n    const std::wstring b = network_share_root(resourcePath);",
+      "marker": "MUTATION-P94-P2M4",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "NetworkShareScope.*",
+      "expect_fail": [
+        "NetworkShareScope.LocalPathsAreNotTheSameShare"
+      ]
+    },
+    {
+      "id": "P2-M5",
+      "what": "makes the same-share setting default ON, silently reopening the document egress vector",
+      "file": "src/app/AppSettings.cpp",
+      "find": "    return settings_->value(\"Network/allowDocumentSameShareResources\", false).toBool();",
+      "replace": "    return settings_->value(\"Network/allowDocumentSameShareResources\", true).toBool();  // MUTATION-P94-P2M5",
+      "marker": "MUTATION-P94-P2M5",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "NetworkSettings*",
+      "expect_fail": [
+        "NetworkSettings.DocumentSameShareResourcesDefaultsOff"
+      ]
+    },
+    {
+      "id": "P2-M6",
+      "what": "stops the Preferences dialog writing the same-share control back (the F13 defect shape)",
+      "file": "src/ui/PreferencesDialog.cpp",
+      "find": "        if (allowDocumentSameShareCheck_) {\n            settings_->setAllowDocumentSameShareResources(\n                allowDocumentSameShareCheck_->isChecked());\n        }",
+      "replace": "        if (false && allowDocumentSameShareCheck_) {  // MUTATION-P94-P2M6\n            settings_->setAllowDocumentSameShareResources(\n                allowDocumentSameShareCheck_->isChecked());\n        }",
+      "marker": "MUTATION-P94-P2M6",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "NetworkSettings*",
+      "expect_fail": [
+        "NetworkSettingsUi.AcceptingTheDialogWritesTheControlsBack"
+      ]
+    },
+    {
+      "id": "P2-M7",
+      "what": "restores the hardcoded Insert Image placement rectangle",
+      "file": "src/ui/InsertImageDialog.cpp",
+      "find": "    const double x = (pageSize.width() - w) / 2.0;\n    const double y = (pageSize.height() - h) / 2.0;\n    return QRectF(x, y, w, h);",
+      "replace": "    // MUTATION-P94-P2M7: the literal this replaced\n    return QRectF(72, 72, 400, 300);",
+      "marker": "MUTATION-P94-P2M7",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "InsertImageDefaultPlacement.*",
+      "expect_fail": [
+        "InsertImageDefaultPlacement.DiffersWithThePageItIsPlacedOn",
+        "InsertImageDefaultPlacement.KeepsTheImageProportions",
+        "InsertImageDefaultPlacement.DoesNotEnlargeASmallImage",
+        "InsertImageDefaultPlacement.LeavesAMarginForALargeImage"
+      ]
+    },
+    {
+      "id": "P2-M8",
+      "what": "lets the default placement scale a small image UP to fill the page",
+      "file": "src/ui/InsertImageDialog.cpp",
+      "find": "    const double scale = std::min({1.0, availW / w, availH / h});",
+      "replace": "    const double scale = std::min({availW / w, availH / h});  // MUTATION-P94-P2M8",
+      "marker": "MUTATION-P94-P2M8",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "InsertImageDefaultPlacement.*",
+      "expect_fail": [
+        "InsertImageDefaultPlacement.DoesNotEnlargeASmallImage"
+      ]
+    },
+    {
+      "id": "P2-M9",
+      "what": "removes the Save As network policy check entirely",
+      "file": "src/ui/MainWindow.cpp",
+      "find": "    if (pdfe::core::path_security::is_unc_or_remote(fileName.toStdWString()) &&\n        (!appSettings_ || !appSettings_->allowUserNetworkPaths())) {",
+      "replace": "    if (false && pdfe::core::path_security::is_unc_or_remote(fileName.toStdWString()) &&  // MUTATION-P94-P2M9\n        (!appSettings_ || !appSettings_->allowUserNetworkPaths())) {",
+      "marker": "MUTATION-P94-P2M9",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "SaveAsNetworkPolicyTest.*",
+      "expect_fail": [
+        "SaveAsNetworkPolicyTest.RefusedOnTheUndoPreservingBranchWhenTurnedOff",
+        "SaveAsNetworkPolicyTest.RefusedOnTheFlushBranchWhenTurnedOff",
+        "SaveAsNetworkPolicyTest.TheTwoBranchesReachTheSameVerdict"
+      ]
+    },
+    {
+      "id": "P2-M10",
+      "what": "makes the Save As policy skip the flush branch, so the two branches disagree",
+      "file": "src/ui/MainWindow.cpp",
+      "find": "    if (pdfe::core::path_security::is_unc_or_remote(fileName.toStdWString()) &&\n        (!appSettings_ || !appSettings_->allowUserNetworkPaths())) {",
+      "replace": "    if (pdfe::core::path_security::is_unc_or_remote(fileName.toStdWString()) &&\n        !(alignmentPipeline_ && alignmentPipeline_->pendingPageCount() > 0) &&  // MUTATION-P94-P2M10\n        (!appSettings_ || !appSettings_->allowUserNetworkPaths())) {",
+      "marker": "MUTATION-P94-P2M10",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "SaveAsNetworkPolicyTest.*",
+      "expect_fail": [
+        "SaveAsNetworkPolicyTest.RefusedOnTheFlushBranchWhenTurnedOff",
+        "SaveAsNetworkPolicyTest.TheTwoBranchesReachTheSameVerdict"
+      ]
+    },
+    {
+      "id": "P2-M11",
+      "what": "stops resolving dot segments, reopening the cross-share bypass",
+      "file": "src/core/PathSecurity.cpp",
+      "find": "        if (seg == L\"..\") {",
+      "replace": "        if (false && seg == L\"..\") {  // MUTATION-P94-P2M11",
+      "marker": "MUTATION-P94-P2M11",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "NetworkShareScope.*",
+      "expect_fail": [
+        "NetworkShareScope.DotDotCannotEscapeIntoAnotherShare",
+        "NetworkShareScope.DotDotPastTheShareRootHasNoRoot"
+      ]
+    },
+    {
+      "id": "P2-M12",
+      "what": "stops activating the image tool after an insert (GitHub #242's discoverability gap)",
+      "file": "src/ui/MainWindow.cpp",
+      "find": "    if (imageToolAction_ && imageToolAction_->isEnabled()) {",
+      "replace": "    if (false && imageToolAction_ && imageToolAction_->isEnabled()) {  // MUTATION-P94-P2M12",
+      "marker": "MUTATION-P94-P2M12",
+      "targets": [
+        "pdfe_tests"
+      ],
+      "filter": "InsertImageActivatesToolTest.*",
+      "expect_fail": [
+        "InsertImageActivatesToolTest.TheImageToolIsActiveAfterInserting"
+      ]
+    }
+  ]
+}

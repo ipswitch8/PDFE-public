@@ -1,0 +1,29 @@
+{
+  "fixtures": {
+    "v4r4_cfm_aesv2.pdf": {
+      "bytes": 1011,
+      "cfm": "AESV2",
+      "expect_method": "AES-128",
+      "expect_stream_crypt_method": "AES",
+      "key_length_bits": 128,
+      "revision": 4,
+      "role": "control: /V 4 /R 4 that genuinely IS AES-128",
+      "version": 4
+    },
+    "v4r4_cfm_v2.pdf": {
+      "bytes": 976,
+      "cfm": "V2",
+      "expect_method": "RC4-128",
+      "expect_stream_crypt_method": "RC4",
+      "key_length_bits": 128,
+      "revision": 4,
+      "role": "the defect: /V 4 /R 4 that is NOT AES",
+      "version": 4
+    }
+  },
+  "generator": "tests/fixtures/gen_v4r4_cfm_corpus.py",
+  "owner_password": "owner",
+  "phase": "F24 (meta-audit-2026-07 follow-up phase-5)",
+  "synthetic": true,
+  "user_password": ""
+}

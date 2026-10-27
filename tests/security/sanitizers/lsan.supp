@@ -1,0 +1,46 @@
+# LeakSanitizer suppression list for the PDFE phase-7 ASan run.
+#
+# Format: one suppression per line. The leak top-stack-frame substring
+# match. See https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer
+# for the format reference.
+#
+# Set LSAN_OPTIONS=suppressions=tests/security/sanitizers/lsan.supp
+# (relative to repo root) before running ctest. scripts/security/run_sanitizers.ps1
+# does this automatically.
+#
+# Add new suppressions ONLY after recording rationale in
+# tests/security/sanitizers/triage.md so the next reviewer knows
+# why the leak is acceptable.
+
+# --- Qt static globals (intentionally never freed at app exit) ---
+# Qt allocates several static singletons (QApplication's d_ptr,
+# QFontDatabase, QGuiApplicationPrivate, QFactoryLoader registries)
+# that legitimately live for the whole process and never get
+# deallocated. LSan flags them as "leaked at exit"; they are not.
+leak:libQt6Core.dll
+leak:libQt6Gui.dll
+leak:libQt6Widgets.dll
+leak:Qt6Core.dll
+leak:Qt6Gui.dll
+leak:Qt6Widgets.dll
+leak:QFactoryLoader
+leak:QFontDatabase
+leak:QGuiApplicationPrivate
+leak:QApplicationPrivate
+
+# --- MuPDF font cache ---
+# MuPDF's fz_set_use_document_css / fz_load_system_font path caches
+# decoded font streams in a process-global table. They're freed by
+# fz_drop_context but if a test exits without invoking the dtor
+# (e.g. abort path), LSan sees a leak. Suppressing in test context
+# only.
+leak:fz_load_system_font
+leak:fz_keep_font
+
+# --- vcpkg-managed runtime libs ---
+# OpenSSL 3.x has known false-positive leaks in its OPENSSL_init_*
+# initialization that are documented upstream. Suppress those frames
+# from PDFE's signature/encryption tests.
+leak:OPENSSL_init_crypto
+leak:OPENSSL_init_ssl
+leak:CRYPTO_zalloc

@@ -1,0 +1,3 @@
+Left column paragraph. Contains several sentences of ordinary English. Wraps within the narrow column width.
+
+Right column paragraph. Independent content next to the left. Layout tests column-detection.

@@ -1,0 +1,61 @@
+Phase 7 (redaction half) — baseline failure log
+================================================
+
+Tests added: 6 P0 cases in tests/test_image_redaction_phase7.cpp
+under the Phase7RedactionTest fixture.
+
+Test command:
+  build/vs2022/bin/Debug/pdfe_tests.exe \
+    --gtest_filter="Phase7RedactionTest.*"
+
+─────────────────────────────────────────────────────────────────────
+RED BASELINE
+─────────────────────────────────────────────────────────────────────
+
+No RED baseline: all six redaction P0 contracts hold against current
+production code. The new tests are regression locks, not bug fixes.
+
+─────────────────────────────────────────────────────────────────────
+GREEN STATE
+─────────────────────────────────────────────────────────────────────
+
+Phase7RedactionTest:
+  CreateRedactionMarkAddsAnnotation           (UI-RED-01)  PASS
+  ApplyAllRemovesAllPendingMarks              (UI-RED-02)  PASS
+  AppliedRedactionPersistsThroughSaveReopen   (UI-RED-03)  PASS
+  MultipleMarksAtSearchHitsCreate             (UI-RED-04)  PASS
+  PendingMarkCountReflectsMarks               (UI-RED-05)  PASS
+  ApplyConfirmationDataAvailable              (UI-RED-11)  PASS
+
+6 active tests, 0 failures.
+
+Production source changed in Phase 7 (redaction): NONE.
+
+─────────────────────────────────────────────────────────────────────
+Coverage limitations / explicit deferrals
+─────────────────────────────────────────────────────────────────────
+
+UI-RED-04 multi-page coverage: the present test creates three marks
+on a single page (all rect-based, no actual search). True multi-page
+search-and-redact requires:
+  - SearchEngine integration to locate query matches across pages.
+  - markRange iteration over each match's per-page bbox.
+  - RedactionManager.applyAll across all pages.
+The component-level invariants (createMark, applyAll, count tracking)
+are fully covered. The cross-component search-->markRange wiring is
+deferred to Phase D1 final integration, where SearchEngine + UI
+event-loop are co-located.
+
+UI-IMG-03 / UI-IMG-11 (EXIF strip on insert / batch strip): EXIF
+stripping is unit-tested in test_exif_stripper.cpp (existing). The
+UI-integration path (insert with strip-on flag, batch strip across
+all images) is deferred to Phase D1.
+
+==================================================================
+Phase 10 closeout annotation (2026-04-29)
+==================================================================
+Status: ALL FAILURES RESOLVED (no production change required).
+Phase that fixed: phase-7 (commit 1016f69).
+Locked-by tests: tests/test_image_redaction_phase7.cpp
+(Phase7RedactionTest fixture).
+Deferrals to D1: P1 rows enumerated above.

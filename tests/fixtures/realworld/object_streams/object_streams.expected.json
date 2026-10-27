@@ -1,0 +1,6 @@
+{
+  "page_count": 2,
+  "has_xref_repair": false,
+  "description": "PDF 1.5 cross-reference stream + compressed object streams (use_objstms=1)",
+  "fixture_type": "object_streams"
+}

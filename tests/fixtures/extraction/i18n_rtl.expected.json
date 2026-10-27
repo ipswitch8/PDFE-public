@@ -1,0 +1,74 @@
+{
+  "schema": "pdfe.extraction-fidelity/1",
+  "fixture": "i18n_rtl.pdf",
+  "page": 0,
+  "gap_ids": [
+    "PDF-70",
+    "PDF-79"
+  ],
+  "description": "RTL logical-order extraction (PDF-70). Hebrew is extracted as nominal letters; Arabic is extracted as Presentation Forms-B, which fold back to the authored nominal letters in the SAME order. A reversed or mis-segmented RTL run fails the order comparison.",
+  "validation": "expected_codepoints is what extraction returns; folding it through presentation_form_folding reproduces authored_codepoints exactly and in order. Both directions are re-checked by gen_extraction_sidecars.py --check.",
+  "authored_source": "tests/fixtures/gen_i18n_render_corpus.py",
+  "forbidden_codepoints": [
+    "U+FFFD"
+  ],
+  "lines": [
+    {
+      "authored": "שלום",
+      "authored_codepoints": [
+        "U+05E9",
+        "U+05DC",
+        "U+05D5",
+        "U+05DD"
+      ],
+      "expected_extracted": "שלום",
+      "expected_codepoints": [
+        "U+05E9",
+        "U+05DC",
+        "U+05D5",
+        "U+05DD"
+      ],
+      "presentation_form_folding": {}
+    },
+    {
+      "authored": "مرحبا",
+      "authored_codepoints": [
+        "U+0645",
+        "U+0631",
+        "U+062D",
+        "U+0628",
+        "U+0627"
+      ],
+      "expected_extracted": "ﻣﺭﺣﺑﺎ",
+      "expected_codepoints": [
+        "U+FEE3",
+        "U+FEAD",
+        "U+FEA3",
+        "U+FE91",
+        "U+FE8E"
+      ],
+      "presentation_form_folding": {
+        "U+FEE3": "U+0645",
+        "U+FEAD": "U+0631",
+        "U+FEA3": "U+062D",
+        "U+FE91": "U+0628",
+        "U+FE8E": "U+0627"
+      }
+    },
+    {
+      "authored": "LTR",
+      "authored_codepoints": [
+        "U+004C",
+        "U+0054",
+        "U+0052"
+      ],
+      "expected_extracted": "LTR",
+      "expected_codepoints": [
+        "U+004C",
+        "U+0054",
+        "U+0052"
+      ],
+      "presentation_form_folding": {}
+    }
+  ]
+}

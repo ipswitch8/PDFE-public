@@ -1,0 +1,23 @@
+{
+  "pageCount": 1,
+  "isEncrypted": false,
+  "hasForm": false,
+  "hasForms": false,
+  "hasAnnotations": false,
+  "hasImages": false,
+  "pdfVersion": "2.0",
+  "fileSize": 1018,
+  "origin": "phase3-generator",
+  "category_tags": [
+    "pdf-2.0",
+    "vector-text",
+    "ascii-only",
+    "no-encryption"
+  ],
+  "description": "Header claims PDF 2.0; body is PDF 1.7-compliant. Approximation: true — exercises version-string parsing only.",
+  "scripts": [
+    "ascii"
+  ],
+  "approximation": true,
+  "contentKind": "vector-text"
+}

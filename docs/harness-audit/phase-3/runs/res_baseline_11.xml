@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="2" failures="0" disabled="0" errors="0" time="0.019" timestamp="2026-07-28T02:01:47.789" name="AllTests">
+  <testsuite name="RedactionPartialOverlap" tests="2" failures="0" disabled="0" skipped="0" errors="0" time="0.017" timestamp="2026-07-28T02:01:47.791">
+    <testcase name="PartiallyOverlappingLeftoverTextIsDetected" file="tests/test_redaction_partial_overlap.cpp" line="67" status="run" result="completed" time="0.01" timestamp="2026-07-28T02:01:47.791" classname="RedactionPartialOverlap" />
+    <testcase name="FullyContainedTextStillDetected" file="tests/test_redaction_partial_overlap.cpp" line="93" status="run" result="completed" time="0.007" timestamp="2026-07-28T02:01:47.802" classname="RedactionPartialOverlap" />
+  </testsuite>
+</testsuites>

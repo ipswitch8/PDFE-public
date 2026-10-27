@@ -1,0 +1,116 @@
+{
+  "_what": "Pinned subset of Mozilla pdf.js's test corpus, imported as fuzz seeds (SEC-04 / GitHub #36).",
+  "_why_small": "Seeds are mutated, so small and structurally diverse beats large: a 184-byte minimal document is a better seed than a 6 MB drawing.",
+  "_correction_2026_09_18": "GitHub #193. Two entries described files they are not. bug1020226.pdf was called 'the smallest well-formed shape' and issue15590.pdf's wording implied a parseable document; NEITHER contains a startxref, so MuPDF reconstructs the cross-reference table and BOTH report 0 pages. As fuzz seeds they are unaffected -- a malformed input is a perfectly good seed, and no test was wrong because of this -- but the manifest is the reviewable description of the corpus, and 'smallest well-formed shape' made bug1020226.pdf an attractive pick for anyone needing a minimal VALID document, which it silently is not. Every entry below now carries a `measured` block so the description cannot drift from the file again without the numbers disagreeing.",
+  "_measured_how": "Per file: `startxref` and `%%EOF` occurrence counts and `/Type /Page` object count over RAW BYTES (no PDF library, so the parser's recovery behaviour cannot beg the question), plus page_count and is_repaired from an independent MuPDF open (PyMuPDF 1.27.2.3 / MuPDF 1.27.2). Measured 2026-09-18; sha256 of all eight files re-verified against this manifest at the same time.",
+  "upstream": "mozilla/pdf.js",
+  "upstream_ref": "1c8020a7d4e43668ac287a3ecf9a8dbea17e4c56",
+  "license": "Apache-2.0",
+  "attribution": "THIRD-PARTY-NOTICES.md",
+  "files": [
+    {
+      "name": "bug1020226.pdf",
+      "sha256": "50e91d373aa313537972519c65b050f8d4d5bd996859fa20756432c2029c3ff6",
+      "size": 184,
+      "why": "CORRECTED 2026-09-18 (GitHub #193) -- NOT a well-formed document. Truncated mid-inline-image: no startxref, no %%EOF, no /Type /Page object, and a trailer whose /Root 1 0 R points at a dict with no /Type /Catalog. MuPDF reconstructs the xref and reports 0 pages. Its seed value is the truncated-inline-image shape (BI ... /F /CCF, /DP dict cut off mid-key), not minimality-plus-validity. Do NOT pick this as a minimal valid fixture -- that is exactly the mistake the old wording invited.",
+      "measured": {
+        "startxref_count": 0,
+        "eof_marker_count": 0,
+        "type_page_objects": 0,
+        "mupdf_page_count": 0,
+        "mupdf_repaired_xref": true
+      }
+    },
+    {
+      "name": "issue15590.pdf",
+      "sha256": "c711bb3357eccec499968ac7b4e286ebd3f49910b458b0596d81731c890eedb6",
+      "size": 191,
+      "why": "CORRECTED 2026-09-18 (GitHub #193) -- NOT a parseable document. The trailer appears BEFORE the objects and there is no startxref, so MuPDF reconstructs the xref; /Root 1 0 R is a /Type /Catalog whose /Pages 2 0 R resolves to a /S /JavaScript action rather than a page tree, so there is no page tree and 0 pages. Its seed value is the trailer-before-objects arrangement plus an /OpenAction pointing at JavaScript (app.alert) -- an auto-execute shape -- not a valid trailer variant.",
+      "measured": {
+        "startxref_count": 0,
+        "eof_marker_count": 1,
+        "type_page_objects": 0,
+        "mupdf_page_count": 0,
+        "mupdf_repaired_xref": true
+      }
+    },
+    {
+      "name": "extractPages_null_in_array.pdf",
+      "sha256": "37c087807b2a6a0a4545a077ee45ebb23c3d297e0307feebd1897391d23fa843",
+      "size": 360,
+      "why": "a null inside an array -- object-parser edge",
+      "measured": {
+        "startxref_count": 1,
+        "eof_marker_count": 1,
+        "type_page_objects": 1,
+        "mupdf_page_count": 1,
+        "mupdf_repaired_xref": false
+      }
+    },
+    {
+      "name": "clippath.pdf",
+      "sha256": "cbcbf53e8109ed56f9a3fbc696081455c8a5d32cc5cff4e741e85250788dcbff",
+      "size": 459,
+      "why": "clipping-path operators in the content stream",
+      "measured": {
+        "startxref_count": 1,
+        "eof_marker_count": 1,
+        "type_page_objects": 1,
+        "mupdf_page_count": 1,
+        "mupdf_repaired_xref": false
+      }
+    },
+    {
+      "name": "issue4461.pdf",
+      "sha256": "86f561b0b17a9487326fba41f717b7e085ff838bc101c07ebad929c29466f52e",
+      "size": 476,
+      "why": "page-tree shape that regressed a real reader",
+      "measured": {
+        "startxref_count": 1,
+        "eof_marker_count": 1,
+        "type_page_objects": 1,
+        "mupdf_page_count": 1,
+        "mupdf_repaired_xref": false
+      }
+    },
+    {
+      "name": "GHOSTSCRIPT-698804-1-fuzzed.pdf",
+      "sha256": "62e518ca7894e8b8b8ed9927da3007cdc5e9ccc5b111bbb22d6101d4a8d7490e",
+      "size": 627,
+      "why": "already fuzzer-derived: a shape no hand-written seed produces. Note it too opens only via xref reconstruction (mupdf_repaired_xref true) -- unlike the two entries corrected above, that is consistent with the description it already carried, so it was not a mis-description.",
+      "measured": {
+        "startxref_count": 1,
+        "eof_marker_count": 1,
+        "type_page_objects": 1,
+        "mupdf_page_count": 1,
+        "mupdf_repaired_xref": true
+      }
+    },
+    {
+      "name": "asciihexdecode.pdf",
+      "sha256": "17cc92aa58ec48f75b01c6b6e7f8c8bade0a36f7295d0f833a16bafae854dc79",
+      "size": 743,
+      "why": "ASCIIHexDecode filter chain",
+      "measured": {
+        "startxref_count": 1,
+        "eof_marker_count": 1,
+        "type_page_objects": 1,
+        "mupdf_page_count": 1,
+        "mupdf_repaired_xref": false
+      }
+    },
+    {
+      "name": "checkbox_no_appearance.pdf",
+      "sha256": "31e82e933f4d4664c6ae1c4418cc44efce0c614c10c85c34b515b38e04e08bcd",
+      "size": 694,
+      "why": "form field with no appearance stream -- synthesis path",
+      "measured": {
+        "startxref_count": 1,
+        "eof_marker_count": 1,
+        "type_page_objects": 1,
+        "mupdf_page_count": 1,
+        "mupdf_repaired_xref": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+== BASELINE: 13 distinct filters ==
+  [GREEN] tests=5 fail=0  AlignmentInjectorTest.*
+  [GREEN] tests=5 fail=0  AutosaveRecoveryTest.*
+  [GREEN] tests=5 fail=0  CommandPageRebindTest.*:*OrdinarySaveDrains*
+  [GREEN] tests=2 fail=0  ContentStreamOutOfClass.*
+  [GREEN] tests=7 fail=0  ContentStreamSubstitutionTest.*
+  [GREEN] tests=12 fail=0  ContentStreamSubstitutionTest.*:PerRunEmissionTest.*
+  [GREEN] tests=3 fail=0  CtmReset.*
+  [GREEN] tests=15 fail=0  GlyphScaleAdjusterTest.*
+  [GREEN] tests=2 fail=0  NegTzGreyTextEdit.*
+  [GREEN] tests=26 fail=0  Phase5FormsTest.*:FormManagerTest.*
+  [GREEN] tests=1 fail=0  Phase5FormsTest.ResetFormRestoresDefaultValues
+  [GREEN] tests=2 fail=0  RedactionPartialOverlap.*
+  [GREEN] tests=15 fail=0  RedactionVerifierTest.*:RedactionVerifierFailPathTest.*
+== MUTANTS: 16 ==
+[1/16] M01-statecont-ctm-guard-drop-Q (predict killed)
+   KILLED  tests=3 fail=3 (build 70.5s)
+[2/16] M02-statecont-preamble-tz-mirror (predict killed)
+   KILLED  tests=3 fail=3 (build 61.0s)
+[3/16] M03-statecont-editor-tz-mirror (predict killed)
+   KILLED  tests=2 fail=1 (build 44.8s)
+[4/16] M04-statecont-subst-tz-mirror (predict survived)
+   SURVIVED  tests=7 fail=0 (build 27.3s)
+[5/16] M05-statecont-alignment-offset-noop (predict survived)
+   SURVIVED  tests=5 fail=0 (build 30.0s)
+[6/16] M06-statecont-subst-drop-fill-color (predict survived)
+   SURVIVED  tests=7 fail=0 (build 29.8s)
+[7/16] M07-statecont-subst-fontsize-halved (predict survived)
+   SURVIVED  tests=12 fail=0 (build 26.7s)
+[8/16] M08-save-recovery-force-image-recompress (predict survived)
+   SURVIVED  tests=5 fail=0 (build 33.1s)
+[9/16] M09-save-fullgc-downgrade (predict survived)
+   SURVIVED  tests=5 fail=0 (build 27.7s)
+[10/16] M10-redaction-intersection-flip (predict killed)
+   KILLED  tests=2 fail=2 (build 32.5s)
+[11/16] M11-redaction-singlerev-always-clean (predict survived)
+   SURVIVED  tests=15 fail=0 (build 26.2s)
+[12/16] M12-forms-reset-dv-break (predict killed)
+   KILLED  tests=1 fail=1 (build 31.8s)
+[13/16] M13-forms-button-reset-to-off (predict survived)
+   SURVIVED  tests=26 fail=0 (build 27.2s)
+[14/16] M14-fonts-glyph-emit-codepoint (predict killed)
+   KILLED  tests=2 fail=2 (build 33.3s)
+[15/16] M15-fonts-glyph-scale-invert (predict survived)
+   SURVIVED  tests=15 fail=0 (build 29.0s)
+[16/16] M16-save-recovery-force-compress (predict survived)
+   SURVIVED  tests=5 fail=0 (build 28.8s)
+== DONE: killed=6 survived=10 other=0 kill_rate=37.5% ==

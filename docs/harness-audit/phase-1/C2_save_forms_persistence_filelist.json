@@ -1,0 +1,530 @@
+[
+ {
+  "file": "tests/test_autosave_capture_audit.cpp",
+  "subsystem": "save/document",
+  "tests": 15,
+  "assertions": 0,
+  "assert_density": 0.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_save_path_security.cpp",
+  "subsystem": "save/document",
+  "tests": 6,
+  "assertions": 4,
+  "assert_density": 0.67,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_xfa_save_benchmark.cpp",
+  "subsystem": "forms",
+  "tests": 1,
+  "assertions": 1,
+  "assert_density": 1.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_qpdf_wrapper.cpp",
+  "subsystem": "save/document",
+  "tests": 9,
+  "assertions": 15,
+  "assert_density": 1.67,
+  "gtest_skip_sites": 4
+ },
+ {
+  "file": "tests/test_page_integer_overflow.cpp",
+  "subsystem": "pages",
+  "tests": 6,
+  "assertions": 10,
+  "assert_density": 1.67,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_portfolio.cpp",
+  "subsystem": "save/document",
+  "tests": 6,
+  "assertions": 10,
+  "assert_density": 1.67,
+  "gtest_skip_sites": 5
+ },
+ {
+  "file": "tests/test_replace_page.cpp",
+  "subsystem": "pages",
+  "tests": 4,
+  "assertions": 7,
+  "assert_density": 1.75,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_document.cpp",
+  "subsystem": "save/document",
+  "tests": 18,
+  "assertions": 32,
+  "assert_density": 1.78,
+  "gtest_skip_sites": 8
+ },
+ {
+  "file": "tests/test_diff.cpp",
+  "subsystem": "save/document",
+  "tests": 28,
+  "assertions": 53,
+  "assert_density": 1.89,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_page_operations.cpp",
+  "subsystem": "pages",
+  "tests": 10,
+  "assertions": 20,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 9
+ },
+ {
+  "file": "tests/test_form_javascript_xss.cpp",
+  "subsystem": "forms",
+  "tests": 7,
+  "assertions": 14,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 7
+ },
+ {
+  "file": "tests/test_document_search_index.cpp",
+  "subsystem": "save/document",
+  "tests": 5,
+  "assertions": 10,
+  "assert_density": 2.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_form_data_io.cpp",
+  "subsystem": "forms",
+  "tests": 18,
+  "assertions": 37,
+  "assert_density": 2.06,
+  "gtest_skip_sites": 16
+ },
+ {
+  "file": "tests/test_form_submit.cpp",
+  "subsystem": "forms",
+  "tests": 19,
+  "assertions": 42,
+  "assert_density": 2.21,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_bookmarks.cpp",
+  "subsystem": "bookmarks",
+  "tests": 8,
+  "assertions": 19,
+  "assert_density": 2.38,
+  "gtest_skip_sites": 7
+ },
+ {
+  "file": "tests/test_form_submitter.cpp",
+  "subsystem": "forms",
+  "tests": 8,
+  "assertions": 19,
+  "assert_density": 2.38,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_metadata_commands.cpp",
+  "subsystem": "metadata",
+  "tests": 8,
+  "assertions": 19,
+  "assert_density": 2.38,
+  "gtest_skip_sites": 8
+ },
+ {
+  "file": "tests/test_batch.cpp",
+  "subsystem": "save/document",
+  "tests": 33,
+  "assertions": 80,
+  "assert_density": 2.42,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_save_error_paths.cpp",
+  "subsystem": "save/document",
+  "tests": 4,
+  "assertions": 11,
+  "assert_density": 2.75,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_bookmark_panel_context_menu.cpp",
+  "subsystem": "bookmarks",
+  "tests": 14,
+  "assertions": 39,
+  "assert_density": 2.79,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_form_manager.cpp",
+  "subsystem": "forms",
+  "tests": 17,
+  "assertions": 49,
+  "assert_density": 2.88,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_optimize.cpp",
+  "subsystem": "save/document",
+  "tests": 8,
+  "assertions": 23,
+  "assert_density": 2.88,
+  "gtest_skip_sites": 6
+ },
+ {
+  "file": "tests/test_xmp_metadata_writer.cpp",
+  "subsystem": "metadata",
+  "tests": 12,
+  "assertions": 35,
+  "assert_density": 2.92,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_bookmark_manager.cpp",
+  "subsystem": "bookmarks",
+  "tests": 16,
+  "assertions": 47,
+  "assert_density": 2.94,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_form_field_properties_panel.cpp",
+  "subsystem": "forms",
+  "tests": 17,
+  "assertions": 51,
+  "assert_density": 3.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_linearization.cpp",
+  "subsystem": "save/document",
+  "tests": 2,
+  "assertions": 6,
+  "assert_density": 3.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_page_commands.cpp",
+  "subsystem": "undo/commands",
+  "tests": 27,
+  "assertions": 82,
+  "assert_density": 3.04,
+  "gtest_skip_sites": 27
+ },
+ {
+  "file": "tests/test_metadata_manager.cpp",
+  "subsystem": "metadata",
+  "tests": 15,
+  "assertions": 48,
+  "assert_density": 3.2,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_incremental_save.cpp",
+  "subsystem": "save/document",
+  "tests": 5,
+  "assertions": 16,
+  "assert_density": 3.2,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_formatting_run.cpp",
+  "subsystem": "forms",
+  "tests": 47,
+  "assertions": 160,
+  "assert_density": 3.4,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_fidelity_r3_09_form_calc.cpp",
+  "subsystem": "forms",
+  "tests": 2,
+  "assertions": 7,
+  "assert_density": 3.5,
+  "gtest_skip_sites": 3
+ },
+ {
+  "file": "tests/test_save.cpp",
+  "subsystem": "save/document",
+  "tests": 14,
+  "assertions": 51,
+  "assert_density": 3.64,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_incremental_save_routing.cpp",
+  "subsystem": "save/document",
+  "tests": 7,
+  "assertions": 26,
+  "assert_density": 3.71,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_real_form_fill.cpp",
+  "subsystem": "forms",
+  "tests": 4,
+  "assertions": 15,
+  "assert_density": 3.75,
+  "gtest_skip_sites": 6
+ },
+ {
+  "file": "tests/test_page_ops_phase6.cpp",
+  "subsystem": "pages",
+  "tests": 9,
+  "assertions": 34,
+  "assert_density": 3.78,
+  "gtest_skip_sites": 7
+ },
+ {
+  "file": "tests/test_form_tool.cpp",
+  "subsystem": "forms",
+  "tests": 11,
+  "assertions": 43,
+  "assert_density": 3.91,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_compare_documents_view.cpp",
+  "subsystem": "save/document",
+  "tests": 6,
+  "assertions": 24,
+  "assert_density": 4.0,
+  "gtest_skip_sites": 5
+ },
+ {
+  "file": "tests/test_xfdf_encode_decode.cpp",
+  "subsystem": "forms",
+  "tests": 5,
+  "assertions": 20,
+  "assert_density": 4.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_document_save_file_lock.cpp",
+  "subsystem": "save/document",
+  "tests": 4,
+  "assertions": 16,
+  "assert_density": 4.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_form_commands.cpp",
+  "subsystem": "forms",
+  "tests": 10,
+  "assertions": 41,
+  "assert_density": 4.1,
+  "gtest_skip_sites": 23
+ },
+ {
+  "file": "tests/test_undo_manager.cpp",
+  "subsystem": "undo/commands",
+  "tests": 22,
+  "assertions": 92,
+  "assert_density": 4.18,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_save_operations.cpp",
+  "subsystem": "save/document",
+  "tests": 9,
+  "assertions": 39,
+  "assert_density": 4.33,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_conditional_gc.cpp",
+  "subsystem": "save/document",
+  "tests": 6,
+  "assertions": 26,
+  "assert_density": 4.33,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_form_creation.cpp",
+  "subsystem": "forms",
+  "tests": 12,
+  "assertions": 56,
+  "assert_density": 4.67,
+  "gtest_skip_sites": 12
+ },
+ {
+  "file": "tests/test_forms_phase5.cpp",
+  "subsystem": "forms",
+  "tests": 9,
+  "assertions": 42,
+  "assert_density": 4.67,
+  "gtest_skip_sites": 9
+ },
+ {
+  "file": "tests/test_page_labels_editor.cpp",
+  "subsystem": "pages",
+  "tests": 10,
+  "assertions": 47,
+  "assert_density": 4.7,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_combine_files_wizard.cpp",
+  "subsystem": "save/document",
+  "tests": 7,
+  "assertions": 33,
+  "assert_density": 4.71,
+  "gtest_skip_sites": 6
+ },
+ {
+  "file": "tests/test_form_roundtrip.cpp",
+  "subsystem": "forms",
+  "tests": 9,
+  "assertions": 43,
+  "assert_density": 4.78,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_metadata_roundtrip.cpp",
+  "subsystem": "metadata",
+  "tests": 7,
+  "assertions": 34,
+  "assert_density": 4.86,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_document_js_events.cpp",
+  "subsystem": "save/document",
+  "tests": 6,
+  "assertions": 32,
+  "assert_density": 5.33,
+  "gtest_skip_sites": 6
+ },
+ {
+  "file": "tests/test_form_field_data.cpp",
+  "subsystem": "forms",
+  "tests": 3,
+  "assertions": 17,
+  "assert_density": 5.67,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_save_structural_verify.cpp",
+  "subsystem": "save/document",
+  "tests": 2,
+  "assertions": 13,
+  "assert_density": 6.5,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_undo_after_save_crash.cpp",
+  "subsystem": "save/document",
+  "tests": 4,
+  "assertions": 27,
+  "assert_density": 6.75,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_page_edit_destination_integrity.cpp",
+  "subsystem": "pages",
+  "tests": 5,
+  "assertions": 34,
+  "assert_density": 6.8,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_autosave_capture_fixes.cpp",
+  "subsystem": "save/document",
+  "tests": 5,
+  "assertions": 35,
+  "assert_density": 7.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_fidelity_r3_24_edit_save_scale.cpp",
+  "subsystem": "save/document",
+  "tests": 2,
+  "assertions": 14,
+  "assert_density": 7.0,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_save_recompression.cpp",
+  "subsystem": "save/document",
+  "tests": 3,
+  "assertions": 22,
+  "assert_density": 7.33,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_document_save_atomic.cpp",
+  "subsystem": "save/document",
+  "tests": 4,
+  "assertions": 30,
+  "assert_density": 7.5,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_autosave_matrix.cpp",
+  "subsystem": "save/document",
+  "tests": 9,
+  "assertions": 69,
+  "assert_density": 7.67,
+  "gtest_skip_sites": 9
+ },
+ {
+  "file": "tests/test_fidelity_r3_22_xmp_info_sync.cpp",
+  "subsystem": "metadata",
+  "tests": 1,
+  "assertions": 8,
+  "assert_density": 8.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_autosave_recovery.cpp",
+  "subsystem": "save/document",
+  "tests": 5,
+  "assertions": 41,
+  "assert_density": 8.2,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_metadata_dialog.cpp",
+  "subsystem": "metadata",
+  "tests": 7,
+  "assertions": 61,
+  "assert_density": 8.71,
+  "gtest_skip_sites": 0
+ },
+ {
+  "file": "tests/test_command_page_rebind.cpp",
+  "subsystem": "undo/commands",
+  "tests": 5,
+  "assertions": 50,
+  "assert_density": 10.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_autosave_sidecar_integrity.cpp",
+  "subsystem": "save/document",
+  "tests": 10,
+  "assertions": 110,
+  "assert_density": 11.0,
+  "gtest_skip_sites": 1
+ },
+ {
+  "file": "tests/test_save_throw_undo_safety.cpp",
+  "subsystem": "save/document",
+  "tests": 1,
+  "assertions": 11,
+  "assert_density": 11.0,
+  "gtest_skip_sites": 2
+ },
+ {
+  "file": "tests/test_command_family_undo_after_save_probe.cpp",
+  "subsystem": "save/document",
+  "tests": 1,
+  "assertions": 46,
+  "assert_density": 46.0,
+  "gtest_skip_sites": 1
+ }
+]

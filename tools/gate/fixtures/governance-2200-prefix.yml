@@ -1,0 +1,164 @@
+# ===========================================================================
+# FIXTURE — DO NOT EDIT TO 'FIX' IT. NOT A LIVE WORKFLOW.
+#
+# Byte-faithful snapshot of .github/workflows/governance.yml as it stood
+# BEFORE meta-audit follow-up F38, i.e. with the daily slot at '0 22 * * *'.
+#
+# Its whole purpose is to FAIL tools/gate/check_runner_queue_overlap.py: at
+# 22:00 the governance lane sits 120 minutes inside the worst-case tails of
+# BOTH windows-sanitizer (18:00 + 360 = 00:00, Sun/Tue/Thu) and mutation-kill
+# (Sat 20:00 + 240 = 00:00), against an accepted exposure of 60 minutes.
+# F38 moved the live lane to '0 2 * * *', where both tails have ended and the
+# derived exposure is 0.
+#
+# If this fixture ever PASSES the check, the check has stopped discriminating
+# and the bound has been loosened past the point of usefulness.
+# ===========================================================================
+# ---------------------------------------------------------------------------
+# Governance gate (standing controls)
+#
+# Pipeline e5b9c231 Phase 5. Enforces the standing controls this phase installed
+# so they are gates, not documentation:
+#
+#   * DCA loop (criterion 4)      — every escaped-defect record under
+#     docs/audit/dca/ conforms to the template AND names tests that exist.
+#   * Matrix pass-semantics (1)   — the runtime "ran-and-asserted-this-run"
+#     transform behaves (unit tests).
+#   * Matrix health H4 (2)        — green->skip / green->no-run degradations are
+#     flagged (unit tests). Optionally runs the live matrix-health gate over a
+#     provided runtime sweep CSV with --require-ran (full-sweep mode).
+#   * Mutation floor (3)          — the kill-rate floor is a gate (unit tests) +
+#     a manifest dry-run. The full build-based kill run is the separate
+#     mutation-kill.yml workflow.
+#
+# TRIGGER — AUTOMATIC as of meta-audit follow-up F5 (gaps SEC-28 + SEC-31).
+# This was `workflow_dispatch`-only "consistent with all PDFE CI as of
+# 2026-07-20". That blanket rationale did not survive scrutiny for THIS
+# workflow: the 2026-07-20 removal was about not monopolising the single
+# self-hosted runner with multi-hour C++ builds, and governance has no C++
+# toolchain, no build, and a 5-minute pure-Python runtime. So the standing
+# controls it enforces — the DCA loop, the mutation manifest, the matrix
+# ran-and-asserted semantics (`--require-ran`; as of meta-audit follow-up F17 /
+# gap A1-81 the full-sweep lane in windows-validation.yml passes it too) — were
+# gates that fired only when a human remembered them. See
+# docs/audit/meta-audit-2026-07/followup/phase-5-dispositions.md.
+#
+# DOUBLE DUTY — RUNNER LIVENESS (SEC-31). This job deliberately stays on the
+# self-hosted `pdfe-windows` host even though its steps would run anywhere.
+# A daily scheduled job that is cheap and MUST start is exactly the
+# "scheduled liveness/queue check" SEC-31 asks for: if the runner is offline
+# or saturated, this run never picks up and times out RED, which is the
+# alert. `timeout-minutes` was raised 20 -> 90 for that reason — 90 min
+# absorbs a NORMAL queue behind another job, so a red here genuinely means
+# "the runner did not take a 5-minute job in an hour and a half", which is
+# actionable either way (offline OR saturated). Note the scope of that word:
+# 90 min does NOT cover the WORST-CASE queue behind windows-sanitizer or
+# mutation-kill, which is 120 min — see the ON THE QUEUE note in the SLOT
+# section below. A red on one of those nights may be queue, not saturation.
+#
+# SLOT: daily 22:00 UTC. Outside the 03:30-16:20 heavy band on the same host:
+#   windows-fuzz.yml       '30 3 * * *'  timeout 600 -> 03:30-13:30
+#   windows-validation.yml '20 4 * * *'  timeout 720 -> 04:20-16:20
+# Minute :00 on the hour, distinct from :30/:20 elsewhere.
+#
+# CORRECTED 2026-08-06 by meta-audit follow-up F30, two independent staleness
+# defects in the paragraph this replaces:
+#
+#   1. The band was given as 03:30-13:30, derived from windows-fuzz's 600-min
+#      timeout alone. windows-validation.yml:100 is timeout 720, which extends
+#      it to 16:20. The 22:00 slot is clear either way, but the figure was
+#      wrong and had been copied into windows-sanitizer.yml as well.
+#   2. It said "windows-sanitizer's SUNDAY 18:00 + 360 min window". F30 moved
+#      that lane to '0 18 * * 0,2,4' (Sun/Tue/Thu), so the tail this job can
+#      queue behind now occurs THREE nights a week, not one.
+#
+# ON THE QUEUE, stated honestly rather than asserted: windows-sanitizer's
+# worst case is 18:00 + 360 min = 00:00 UTC. A 22:00 start queued behind that
+# tail waits up to 120 min, which EXCEEDS this job's 90-min timeout-minutes.
+# The old comment's claim that "the 90-min timeout covers it" does not hold at
+# the sanitizer's worst case, and did not hold before F30 either — this is a
+# pre-existing gap in the reasoning, not one F30 introduced. What F30 does
+# change is the exposure: one night a week becomes three. The same 120-min
+# arithmetic applies on Saturdays to mutation-kill.yml (20:00 + 240 = 00:00),
+# which this paragraph also never mentioned.
+#
+# Two things keep this from being alarming, neither of which is a guarantee:
+# 360/240 min are TIMEOUTS, not expected durations, so the real tail is
+# normally far shorter; and GitHub's `timeout-minutes` clock starts when a job
+# begins EXECUTING, not when it is queued (a job waiting for a self-hosted
+# runner is subject to the separate 24-hour queue limit). If this job ever
+# does go red on a Sun/Tue/Thu/Sat night, the queue is the first thing to
+# check, and the liveness signal should be re-tuned rather than assumed sound.
+# ---------------------------------------------------------------------------
+
+name: Governance
+
+on:
+  # Daily 22:00 UTC — see the TRIGGER + RUNNER LIVENESS notes above (F5,
+  # SEC-28 + SEC-31). Dispatch is retained for on-demand and for the two
+  # optional inputs, which a scheduled run leaves empty (both steps that
+  # consume them are `if:`-guarded on non-empty, so the nightly runs the
+  # unconditional standing controls only).
+  schedule:
+    - cron: '0 22 * * *'
+  workflow_dispatch:
+    inputs:
+      runtime_csv:
+        description: "Optional path to a UI-sweep runtime CSV to gate with --require-ran (full-sweep matrix health)."
+        required: false
+        default: ""
+      dca_base:
+        description: "Base ref for the DCA-presence check (a defect-fix range without a DCA record fails). Empty = skip."
+        required: false
+        default: ""
+
+concurrency:
+  group: governance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  governance:
+    name: governance
+    runs-on: [self-hosted, Windows, X64, pdfe-windows]
+    # 90, not 20 (F5 / SEC-31): this job doubles as the runner liveness/queue
+    # probe, so the timeout must be long enough that a normal queue is not an
+    # alert but an offline/saturated runner is. See the header.
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: DCA loop — every record conforms and names real tests (criterion 4)
+        shell: pwsh
+        run: python tools/gate/check_dca.py --repo-root .
+
+      - name: DCA presence — a defect-fix range must add a DCA record (criterion 4)
+        if: ${{ inputs.dca_base != '' }}
+        shell: pwsh
+        run: python tools/gate/check_dca_presence.py --base "${{ inputs.dca_base }}" --head HEAD
+
+      - name: Mutation manifest dry-run — find-strings still present (criterion 3)
+        shell: pwsh
+        run: python tools/gate/mutation_kill.py --manifest tools/gate/mutants.json --dry-run
+
+      - name: Standing-control unit tests (criteria 1, 2, 3, 4)
+        shell: pwsh
+        run: >
+          python -m pytest
+          tests/ui_automation/matrix/test_runtime_pass_semantics.py
+          tests/ui_automation/test_aggregation_precedence.py
+          tests/scripts/test_check_matrix_health.py
+          tools/gate/test_mutation_kill_floor.py
+          tools/gate/test_mutation_manifest_sweep.py
+          tools/gate/test_check_dca.py
+          tools/gate/test_check_dca_presence.py
+          -q
+
+      - name: Live matrix-health gate (full sweep, --require-ran) — optional
+        if: ${{ inputs.runtime_csv != '' }}
+        shell: pwsh
+        run: >
+          python tests/scripts/check_matrix_health.py --repo-root .
+          --runtime-csv "${{ inputs.runtime_csv }}" --require-ran

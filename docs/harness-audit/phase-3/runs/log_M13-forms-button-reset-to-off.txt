@@ -1,0 +1,82 @@
+Note: Google Test filter = Phase5FormsTest.*:FormManagerTest.*
+[==========] Running 26 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 17 tests from FormManagerTest
+[ RUN      ] FormManagerTest.GetFormFieldsOnPageWithForms
+[       OK ] FormManagerTest.GetFormFieldsOnPageWithForms (8 ms)
+[ RUN      ] FormManagerTest.GetFormFieldsOnPageWithoutForms
+[       OK ] FormManagerTest.GetFormFieldsOnPageWithoutForms (2 ms)
+[ RUN      ] FormManagerTest.GetFormFieldByIndex
+[       OK ] FormManagerTest.GetFormFieldByIndex (3 ms)
+[ RUN      ] FormManagerTest.GetFormFieldByIndex_Invalid
+[       OK ] FormManagerTest.GetFormFieldByIndex_Invalid (3 ms)
+[ RUN      ] FormManagerTest.HitTestFormField
+[       OK ] FormManagerTest.HitTestFormField (3 ms)
+[ RUN      ] FormManagerTest.HitTestMiss
+[       OK ] FormManagerTest.HitTestMiss (3 ms)
+[ RUN      ] FormManagerTest.SetTextFieldValue
+[       OK ] FormManagerTest.SetTextFieldValue (3 ms)
+[ RUN      ] FormManagerTest.ToggleCheckbox
+[       OK ] FormManagerTest.ToggleCheckbox (3 ms)
+[ RUN      ] FormManagerTest.HasFormFields_True
+[       OK ] FormManagerTest.HasFormFields_True (3 ms)
+[ RUN      ] FormManagerTest.HasFormFields_False
+[       OK ] FormManagerTest.HasFormFields_False (2 ms)
+[ RUN      ] FormManagerTest.NullPageThrows
+[       OK ] FormManagerTest.NullPageThrows (2 ms)
+[ RUN      ] FormManagerTest.GetTabOrder
+[       OK ] FormManagerTest.GetTabOrder (3 ms)
+[ RUN      ] FormManagerTest.FormFieldDataHasType
+[       OK ] FormManagerTest.FormFieldDataHasType (3 ms)
+[ RUN      ] FormManagerTest.ResetForm_NoWidgets_NocrashNullGuard
+[       OK ] FormManagerTest.ResetForm_NoWidgets_NocrashNullGuard (2 ms)
+[ RUN      ] FormManagerTest.ResetForm_WithWidgets_NocrashNullGuard
+[       OK ] FormManagerTest.ResetForm_WithWidgets_NocrashNullGuard (3 ms)
+[ RUN      ] FormManagerTest.ResetTxWidgetFromObj_NullFieldObj_GuardReturnsFalse
+[       OK ] FormManagerTest.ResetTxWidgetFromObj_NullFieldObj_GuardReturnsFalse (2 ms)
+[ RUN      ] FormManagerTest.ResetTxWidgetFromObj_NonNullFieldObj_ReturnsTrueEntersBody
+[       OK ] FormManagerTest.ResetTxWidgetFromObj_NonNullFieldObj_ReturnsTrueEntersBody (3 ms)
+[----------] 17 tests from FormManagerTest (62 ms total)
+
+[----------] 9 tests from Phase5FormsTest
+[ RUN      ] Phase5FormsTest.TextFieldValueCommitsAndPersists
+[       OK ] Phase5FormsTest.TextFieldValueCommitsAndPersists (2 ms)
+[ RUN      ] Phase5FormsTest.RadioGroupExclusivity
+[       OK ] Phase5FormsTest.RadioGroupExclusivity (2 ms)
+[ RUN      ] Phase5FormsTest.PushButtonToggleNoCrash
+[       OK ] Phase5FormsTest.PushButtonToggleNoCrash (6 ms)
+[ RUN      ] Phase5FormsTest.JavaScriptValidateEventReturnsBoolean
+[       OK ] Phase5FormsTest.JavaScriptValidateEventReturnsBoolean (14 ms)
+[ RUN      ] Phase5FormsTest.XfdfRoundTripPreservesFieldValues
+[       OK ] Phase5FormsTest.XfdfRoundTripPreservesFieldValues (5 ms)
+[ RUN      ] Phase5FormsTest.ResetFormRestoresDefaultValues
+[       OK ] Phase5FormsTest.ResetFormRestoresDefaultValues (40 ms)
+[ RUN      ] Phase5FormsTest.FlattenFormRemovesInteractiveWidgets
+[       OK ] Phase5FormsTest.FlattenFormRemovesInteractiveWidgets (13 ms)
+[ RUN      ] Phase5FormsTest.HostAllowlistBlocksDisallowedHosts
+[       OK ] Phase5FormsTest.HostAllowlistBlocksDisallowedHosts (2 ms)
+[ RUN      ] Phase5FormsTest.SignatureWidgetTypeIsDistinctFromOthers
+[       OK ] Phase5FormsTest.SignatureWidgetTypeIsDistinctFromOthers (2 ms)
+[----------] 9 tests from Phase5FormsTest (91 ms total)
+
+[----------] Global test environment tear-down
+
+============ ADVERSARIAL-AMBIENT GAP REGISTER (content-stream-continuity phase-1 discovery) ============
+injector               hostile_op   injected  neighbor  probed   notes
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+CONFIRMED corrupting cells (probed AND injected_ok==false OR neighbor_ok==false):
+cells=0 probed=0 confirmed_corrupt=0
+====================================================================================================
+
+[AdversarialAmbient] no cells this run (filtered subset) — leaving gap-register.json intact
+
+================ AUTOSAVE CAPTURE GAP REGISTER (phase-1 discovery) ================
+family                 undoAP dirty    autosave  capture  restore  probed 
+------------------------------------------------------------------------------------
+====================================================================================
+GAP = probed family whose edit is NOT captured by autosave (capture_present == NO).
+
+[AutosaveCaptureAudit] no audit rows this run (filtered subset) — leaving gap-register.json intact
+[==========] 26 tests from 2 test suites ran. (156 ms total)
+[  PASSED  ] 26 tests.

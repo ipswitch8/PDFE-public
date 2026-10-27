@@ -1,0 +1,78 @@
+{
+  "title": "PDFE Test-Coverage Expansion Register",
+  "generated": "2026-07-28",
+  "provenance": "The classes of testing that the harness-adversarial-audit (docs/harness-audit/) and its remediation (docs/harness-audit/remediation/) did NOT scope. The audit covered oracle strength / RTM coverage / input-domain / mutation / process. These are orthogonal test CLASSES, several present-but-thin/ungated, some absent. Ranked by (risk if untested) x (ROI verifiable in the Windows headless dev environment). 'verifiable_here' = can be built + proven now (headless gtest / Python); 'runner_only' = needs a specific CI runner (macOS/Linux/TSan/self-hosted-UI) and is WIRED + honestly disclosed, not faked.",
+  "entries": [
+    {
+      "id": "C-01", "class": "concurrency / thread-safety", "severity": "High",
+      "current_state": "test_comment_threading.cpp / test_comment_panel_threading.cpp exist, but the TileRenderer worker pipeline (TileCache/TilePrefetcher/ThumbnailRenderer) — the real multi-thread hazard — has no race stress test and no TSan gate.",
+      "risk_if_untested": "A data race in tile rendering/caching corrupts a tile or UAFs a display list under real scroll/zoom load — a crash class invisible to single-threaded tests.",
+      "approach": "Add a deterministic concurrency stress test: N worker threads hammering TileCache get/put/evict + prefetch cancellation while the doc is mutated, asserting no crash + cache invariants (no dangling Tile, refcount balance). Wire/confirm a ThreadSanitizer build in a CI lane (Clang/Linux) that runs it.",
+      "verifiable_here": "partial (stress+invariants headless; TSan race detection is Clang/Linux CI)", "phase": "phase-1"
+    },
+    {
+      "id": "C-02", "class": "endurance / soak as a gated leak oracle", "severity": "High",
+      "current_state": "test_ui_journey_soak.py + test_journey_op99_crash.cpp exist and have found real crashes, but there is no GATED memory/handle-leak oracle (RSS/GDI-handle delta over a long op sequence with a threshold).",
+      "risk_if_untested": "A per-operation leak (memory or GDI/file handle) accumulates over a real editing session and crashes the app after hours — the exact class the journey soak surfaced ad hoc.",
+      "approach": "Add a headless endurance test: run a fixed long op sequence (open/edit/annotate/undo/redo/save/reopen x K) measuring RSS + handle count; assert steady-state delta below a floor after warmup. Make it a gated oracle, not a manual soak.",
+      "verifiable_here": "yes (RSS/handle delta headless)", "phase": "phase-1"
+    },
+    {
+      "id": "C-03", "class": "i18n rendering (RTL / CJK / combining)", "severity": "High",
+      "current_state": "The audit found RTL has an asserting consumer but CJK/combining-cluster are zero-coverage at the RENDER level; extraction round-trips are blind to shaping/mirroring.",
+      "risk_if_untested": "Arabic/Hebrew renders unshaped or LTR, CJK renders tofu/mis-positioned, combining marks detach — all user-visible, all invisible to extraction oracles.",
+      "approach": "Generate deterministic RTL (Arabic/Hebrew), CJK, and combining/ZWJ fixtures; add glyph-quad/pixel render oracles asserting correct shaping/direction/positioning (reuse the ctm_reset quad-oracle harness).",
+      "verifiable_here": "yes (headless render + quad oracle)", "phase": "phase-2"
+    },
+    {
+      "id": "C-04", "class": "format-compat / migration", "severity": "Med",
+      "current_state": "No test opens files written by OLDER PDFE versions / exotic-but-valid producers and asserts they load + edit correctly.",
+      "risk_if_untested": "A save-format change silently breaks opening documents produced by a prior release — a real regression for existing users.",
+      "approach": "Commit a small corpus of files representing prior on-disk shapes (older linearization, object-stream layouts, incremental-update chains from other producers) + assert open+edit+save-roundtrip integrity.",
+      "verifiable_here": "yes (fixtures + roundtrip)", "phase": "phase-2"
+    },
+    {
+      "id": "C-05", "class": "property-based / generative", "severity": "Med",
+      "current_state": "Coverage is fixed-fixture + mutation; no generative test that produces random-but-valid op sequences / documents and checks invariants.",
+      "risk_if_untested": "Edge cases the fixed corpus never represents (op-order interactions, unusual-but-valid structures) go unexercised.",
+      "approach": "Add a seeded generative harness: random valid edit-op sequences against a document asserting metamorphic invariants (save->reopen preserves content; do/undo restores exact state; page-count conservation); shrink on failure. Deterministic seed for CI reproducibility.",
+      "verifiable_here": "yes (seeded generative gtest)", "phase": "phase-2"
+    },
+    {
+      "id": "C-06", "class": "accessibility / AT tree", "severity": "Med",
+      "current_state": "test_accessibility.cpp / test_accessible_names.cpp / test_ui_pdfcanvas_accessible_text.cpp exist but are thin (names/existence); no assertion the QAccessible tree exposes correct ROLES / hierarchy / values for a screen reader.",
+      "risk_if_untested": "The app is unusable with a screen reader / fails PDF-UA-shaped a11y expectations; regressions invisible.",
+      "approach": "Strengthen the QAccessibleInterface tests to assert roles, parent/child hierarchy, and value/state for the canvas + key dialogs; add a tagged-PDF -> reading-order a11y oracle.",
+      "verifiable_here": "yes (QAccessible headless); real AT-driver = manual/runner", "phase": "phase-3"
+    },
+    {
+      "id": "C-07", "class": "performance-regression as a gated floor", "severity": "Med",
+      "current_state": "test_performance_stress.cpp / test_search_performance.cpp / test_xfa_save_benchmark.cpp measure but do NOT enforce a floor; PerfStress is excluded from the suite (217s crasher). No perf gate blocks a regression.",
+      "risk_if_untested": "A hot-path regression (the XFA-save 317s class) ships unnoticed — measured but never asserted.",
+      "approach": "Add a perf-benchmark floor gate (like the mutation-kill floor): record baselines for key hot paths (open, save-routing, search, tile render), fail if a run regresses beyond a tolerance. Wire perf-benchmarks gate agent + a CI lane.",
+      "verifiable_here": "yes (baseline + threshold; wall-clock noise handled with generous floors)", "phase": "phase-4"
+    },
+    {
+      "id": "C-08", "class": "visual-regression suite (breadth)", "severity": "Med",
+      "current_state": "The remediation fixed the self-seeding golden mechanism but committed exactly ONE correctness golden (save_icon.png). No breadth across UI states / rendered pages.",
+      "risk_if_untested": "A CSS/paint/icon/theme regression across the wider UI surface is invisible — only the one icon is guarded.",
+      "approach": "Expand the correctness-golden set: committed trusted-reference goldens for key toolbar/dialog/canvas render states, each proven to reject a deliberate defect. Headless where possible; live-window states are runner-only.",
+      "verifiable_here": "partial (headless render goldens; full live-UI = self-hosted runner)", "phase": "phase-3"
+    },
+    {
+      "id": "C-09", "class": "fuzzing depth", "severity": "Med",
+      "current_state": "test_font_fuzz.cpp (assertion-free — audit-flagged), test_pkcs7_fuzz.cpp, fuzz.yml/windows-fuzz.yml exist but run time-bounded/shallow; no coverage-guided saturation and the smoke harness asserts little.",
+      "risk_if_untested": "A malformed-input crash/UAF on a write surface not represented by the shallow corpus ships.",
+      "approach": "Give the fuzz harnesses a real oracle (no-crash + bounded-time + output-invariant, not swallow-all); extend seed corpora; wire a longer nightly coverage-guided campaign (libFuzzer=Clang lane) with corpus persistence.",
+      "verifiable_here": "partial (harness oracle + seed extension; coverage-guided depth = Clang CI lane)", "phase": "phase-4"
+    },
+    {
+      "id": "C-10", "class": "cross-platform parity", "severity": "Med",
+      "current_state": "macOS runs only a weekly PreflightOpen subset (R-36); Linux validation exists but parity of core behavior across platforms is not asserted.",
+      "risk_if_untested": "A platform-specific behavior divergence (path handling, font discovery, rendering) ships on macOS/Linux undetected.",
+      "approach": "Define a core parity suite that MUST pass identically on all three platforms; wire it into linux-validation.yml + expand the macOS lane. This is largely runner-only from a Windows dev box — WIRE + document, do not fake macOS/Linux results.",
+      "verifiable_here": "no (runner-only) — wire + honest disclosure", "phase": "phase-5"
+    }
+  ],
+  "totals": {"entries": 10, "by_severity": {"High": 3, "Med": 7}, "verifiable_here": {"yes": 4, "partial": 4, "no": 2}}
+}

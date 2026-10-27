@@ -1,0 +1,190 @@
+# ---------------------------------------------------------------------------
+# Fast Checks (per-commit / per-PR gate)   — remediation Phase 5
+#
+# The problem this closes (R-25): as of 2026-07-20 EVERY PDFE workflow is
+# schedule/dispatch-only, so NOTHING blocks a bad commit at merge time. The full
+# C++ validation is deliberately kept off per-commit to spare the single
+# self-hosted runner — so this lane is a FAST, pure-Python gate that runs on a
+# GitHub-hosted ubuntu runner (no self-hosted contention, no C++ toolchain) on
+# every push and PR to master. It fails the build when a standing gate is
+# violated:
+#
+#   * R-30 / GAP-A15  — a deliberately-RED JUnit sentinel MUST be rejected by
+#                       tools/gate/check_junit_xml.py (the false-green defense
+#                       is load-bearing, not decorative).
+#   * R-24            — the mutation manifest dry-run: all 16 real mutant
+#                       find-strings still present exactly once (a stale mutant
+#                       catalog fails).
+#   * R-26 / R-31     — DCA loop: every DCA record conforms AND a defect-fix
+#                       range that adds no DCA record fails (auto base ref — no
+#                       honor-system / manual dispatch).
+#   * R-37            — flaky-quarantine registry parses and holds no expired
+#                       entry (a quarantine cannot live forever).
+#   * R-28            — matrix runtime pass-semantics + health unit tests (a
+#                       committed-green cell cannot be rebuilt from a SKIP/no-run).
+#   * gate self-tests — tools/gate/test_*.py all green.
+#
+# The heavy build-based gates remain their own workflows (windows-validation,
+# mutation-kill, sanitizer, fuzz) on schedule/dispatch.
+# ---------------------------------------------------------------------------
+
+name: Fast Checks
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: fast-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast-checks:
+    name: fast-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # DCA-presence needs the full range base..head
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install check deps
+        run: python -m pip install --quiet pytest pyyaml
+
+      - name: Validate all workflow YAML parses
+        run: |
+          import glob, sys, yaml
+          bad = []
+          for f in sorted(glob.glob(".github/workflows/*.yml")):
+              try:
+                  yaml.safe_load(open(f, encoding="utf-8"))
+              except Exception as exc:
+                  bad.append(f"{f}: {exc}")
+          if bad:
+              print("YAML parse failures:\n" + "\n".join(bad)); sys.exit(1)
+          print("all workflow YAML parses")
+        shell: python
+
+      - name: GAP-A15 — RED JUnit sentinel MUST be rejected (R-30)
+        run: |
+          set +e
+          python tools/gate/check_junit_xml.py tools/gate/fixtures/sentinel_red.xml
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "::error::GAP-A15 REGRESSION: check_junit_xml.py PASSED a red sentinel report."
+            exit 1
+          fi
+          echo "OK: red sentinel correctly rejected (exit $rc)."
+          python tools/gate/check_junit_xml.py tools/gate/fixtures/sentinel_green.xml
+          echo "OK: green sentinel correctly accepted."
+
+      - name: Mutation manifest dry-run — 16 real mutants intact (R-24)
+        run: python tools/gate/mutation_kill.py --manifest tools/gate/mutants.json --dry-run
+
+      - name: DCA loop — every record conforms and names real tests (R-26)
+        run: python tools/gate/check_dca.py --repo-root .
+
+      - name: DCA presence — a defect-fix range must add a DCA record (R-26/R-31)
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.sha }}"
+          fi
+          # First push of a branch / forced update reports an all-zero or absent
+          # base; there is no reviewable range, so skip (nothing to enforce yet).
+          if [ -z "$BASE" ] || printf '%s' "$BASE" | grep -Eq '^0+$'; then
+            echo "no reviewable base ref ($BASE); skipping DCA-presence."
+            exit 0
+          fi
+          if ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "base $BASE not present in history; skipping DCA-presence."
+            exit 0
+          fi
+          echo "DCA-presence over $BASE..$HEAD"
+          python tools/gate/check_dca_presence.py --base "$BASE" --head "$HEAD"
+
+      - name: Flaky-quarantine registry valid + unexpired (R-37)
+        run: python tools/gate/check_flaky_quarantine.py --registry tools/gate/flaky_quarantine.json
+
+      - name: RTM cites every reachability-converted live-UI file (F29)
+        run: python tools/gate/check_rtm_live_ui_citations.py --recursive
+
+      - name: No new reachability-skip statement shapes (WIN-45 ratchet, F29)
+        run: >
+          python tools/gate/check_reachability_skip_shape.py
+          --paths tests
+          --baseline tools/gate/reachability_skip_baseline.json
+
+      - name: ASan lane's detection window stays bounded (F30)
+        # Expands windows-sanitizer.yml's cron into real firing datetimes and
+        # measures the largest consecutive gap, so the comment block above the
+        # cron cannot drift away from the cron itself. Also exits 2 on a YAML
+        # parse error, which makes it a second, targeted syntactic guard on
+        # that file beyond the whole-directory parse check above.
+        run: >
+          python tools/gate/check_asan_cadence.py
+          --workflow .github/workflows/windows-sanitizer.yml
+          --max-gap-days 3
+
+      - name: No unreviewed magnitude guard in tests (PERF-02 ratchet, F37)
+        # F27 found two tests whose only comparative assertion sat inside a
+        # timing threshold permanently false on this hardware -- green while
+        # measuring nothing. The sweep that found them was prose; this is that
+        # sweep, mechanised. Shape, not phrasing: the two instances had
+        # different comments, so a grep would have caught neither. Scans only
+        # `tests` on purpose -- tools/gate/fixtures holds planted control
+        # guards that would otherwise contaminate the count.
+        run: >
+          python tools/gate/check_magnitude_guard.py
+          --paths tests
+          --baseline tools/gate/magnitude_guard_baseline.json
+
+      - name: Shared-runner queue exposure stays within the accepted bound (F38)
+        # Re-derives the worst-case queue overlap on the single-capacity
+        # `pdfe-windows` host from the LIVE cron + timeout-minutes values in
+        # all five lane workflows, so the arithmetic written into
+        # governance.yml and mutation-kill.yml cannot drift away from the
+        # crons it describes. F38 verified that `timeout-minutes` does NOT run
+        # while a job is queued (run 30959077894 queued 23h59m under a 90-min
+        # timeout without firing it), so this gates queue LATENESS and the
+        # runner's daily subscription -- not the timeout the old comments
+        # wrongly believed was at risk.
+        run: >
+          python tools/gate/check_runner_queue_overlap.py
+          --target governance
+          --max-queue-minutes 60
+          --max-daily-subscription-minutes 1600
+
+      - name: Gate self-tests + matrix pass-semantics (R-24/R-26/R-28/R-32/R-37)
+        run: >
+          python -m pytest -q
+          tools/gate/test_mutation_kill_floor.py
+          tools/gate/test_mutation_manifest_sweep.py
+          tools/gate/test_check_dca.py
+          tools/gate/test_check_dca_presence.py
+          tools/gate/test_check_coverage_floor.py
+          tools/gate/test_check_flaky_quarantine.py
+          tools/gate/test_check_junit_xml.py
+          tools/gate/test_check_rtm_live_ui_citations.py
+          tools/gate/test_check_reachability_skip_shape.py
+          tools/gate/test_f35_tranche_controls.py
+          tools/gate/test_check_asan_cadence.py
+          tools/gate/test_check_magnitude_guard.py
+          tools/gate/test_check_runner_queue_overlap.py
+          tests/ui_automation/matrix/test_runtime_pass_semantics.py
+          tests/ui_automation/test_aggregation_precedence.py
+          tests/scripts/test_check_matrix_health.py

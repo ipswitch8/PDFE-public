@@ -1,0 +1,122 @@
+GitHub #206 -- make the gate-verdict writer keep history.
+
+WHY THIS IS A PATCH FILE AND NOT AN APPLIED CHANGE
+--------------------------------------------------
+`emit-gate-verdict.sh` lives in `~/.claude/hooks/`, outside this repository.
+It governs the gating of the very pipeline that produced this change, so it is
+not edited from inside a phase of that pipeline. p87-open-issues phase-6
+attempted the edit and the permission layer refused it -- which is the correct
+outcome: a phase editing the mechanism that judges it should be a deliberate,
+reviewed act by the operator, not a side effect of the work being judged.
+
+Apply with:
+
+    patch ~/.claude/hooks/emit-gate-verdict.sh \
+          < tools/gate/patches/emit-gate-verdict-history.patch
+
+Verify with:
+
+    cd "$(mktemp -d)"
+    ~/.claude/hooks/emit-gate-verdict.sh phase-demo demo-gate FAIL --pipeline demo
+    ~/.claude/hooks/emit-gate-verdict.sh phase-demo demo-gate PASS --pipeline demo
+    cat .claude/pipelines/demo/gate-artifacts/phase-demo/demo-gate.json  # PASS
+    cat .claude/pipelines/demo/gate-history.jsonl                        # FAIL, then PASS
+
+then `python tools/gate/audit_gate_artifacts.py`, which switches from
+"no pipeline has a gate-history.jsonl" to summarising the retained verdicts.
+
+This hunk was generated from the live hook and round-trip verified: applying
+it to a pristine copy reproduces the edited file byte for byte, and `bash -n`
+accepts the result. A patch that silently fails to apply is indistinguishable
+from a fix that was never needed -- see docs/audit/dca/ on the mutation that
+never applied.
+
+WHAT IT CHANGES
+---------------
+Nothing that any consumer reads. `<agent>.json` stays byte-identical, so
+`phase-gate.sh`'s verdict resolution is untouched. One line per emission is
+appended to `<base>/gate-history.jsonl`. The append is `|| true`, exactly like
+the `last-verdict` breadcrumb immediately above it: a history write that
+cannot happen must never be the reason a verdict fails to be recorded.
+
+THE ONE COLLISION RISK, CHECKED
+-------------------------------
+The new file lands in `<base>` -- the same directory the GATE LEDGER lives in,
+and the ledger is located BY EXCLUSION ("the JSON in that directory that is not
+pipeline.json"). A new JSON dropped there could therefore be mistaken for the
+ledger and disarm the gating of every pipeline. That was checked rather than
+assumed; both locators match on a `.json` suffix, which `.jsonl` does not
+satisfy:
+
+    inject-gate-rules.sh:99
+      ledger=$(find "$base" -maxdepth 1 -name '*.json' ! -name 'pipeline.json' ...)
+    pipeline-progress-lib.sh:59
+      for f in "$base"/*.json; do
+
+`gate-history.jsonl` matches neither. The `.jsonl` extension is load-bearing
+for that reason and must not be "tidied" to `.json`.
+
+WHAT IT FIXES, AND WHAT #206's PREMISE GOT WRONG
+------------------------------------------------
+#206 says gate artifacts "structurally cannot evidence a failure", reasoning
+from a census in which `FAIL` appears zero times across 744 (now 784)
+artifacts. The census is accurate; the inference is not.
+
+A FAIL verdict IS structurally representable and is written byte-correctly.
+The emitter validates its argument with `case "$VERDICT" in PASS|FAIL)` --
+rejecting anything else with exit 2 -- and then writes
+`{"verdict":"FAIL","target":""}`. A deliberately-failing dry run in a
+throwaway tree produces exactly that file.
+
+What the emitter does not do is keep history. Both branches of the write use
+`>`, at a path fixed per (phase, agent), so the ORDINARY gate cycle -- gate
+FAILs, the implementing agent fixes the finding, the SAME gate re-runs and
+PASSes -- overwrites the FAIL with the PASS. Every artifact tree is therefore
+GUARANTEED to end up all-PASS once its pipeline completes, whatever happened
+along the way.
+
+Measured in this repo: the `claim-check` gate emitted FAIL for
+p87-open-issues phase-1 and again for phase-5. Both findings were real and
+both became remediation work. Neither survives on disk -- both artifacts read
+`{"verdict": "PASS", "target": ""}` today.
+
+So the defect is DURABILITY, not representability, and "zero FAIL" is a
+statement about how the writer truncates rather than a claim that no gate has
+ever failed. Fixing representability would have produced a change that did
+nothing while reporting that a structural gap had been closed.
+
+--- a/emit-gate-verdict.sh
++++ b/emit-gate-verdict.sh
+@@ -149,6 +149,32 @@
+ # caller passed -- the same authoritative value used to place the artifact.
+ # phase-gate reads this instead of grepping the agent's prose for a phase tag.
+ printf '%s %s %s\n' "$PHASE" "$AGENT" "$(date +%s)" > "${BASE}/last-verdict" 2>/dev/null || true
++# --- APPEND-ONLY HISTORY (GitHub #206) --------------------------------------
++#
++# The artifact above is the CURRENT verdict for (phase, agent) and is written
++# with '>', so a gate that FAILs, sends work back, and then re-runs green
++# overwrites its own earlier FAIL. Nothing downstream reads history, so that
++# was invisible -- and it is why a census of 784 artifacts across every
++# pipeline in this project found 756 PASS, 26 verdict-less evidence sidecars,
++# two hand-written oddities, and ZERO FAIL.
++#
++# That zero was read as "gate artifacts structurally cannot evidence a
++# failure". They can; see the PASS|FAIL case above. The defect is DURABILITY,
++# not representability: an all-PASS tree is what a completed pipeline is
++# GUARANTEED to produce, whatever happened on the way. Two claim-check FAILs
++# in p87-open-issues (phase-1, phase-5) were real, produced real remediation
++# work, and neither survives on disk.
++#
++# So: keep <agent>.json exactly as it was -- nothing downstream changes -- and
++# additionally append one line per emission. Failure-tolerant by design
++# ('|| true', same as the breadcrumb above): a history write that cannot
++# happen must never be the reason a verdict is not recorded.
++#
++# Audited by tools/gate/audit_gate_artifacts.py in the PDFE repo.
++_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date +%s)"
++printf '{"ts":"%s","phase":"%s","agent":"%s","verdict":"%s","target":"%s"}\n' \
++  "$_TS" "$PHASE" "$AGENT" "$VERDICT" "$TARGET" \
++  >> "${BASE}/gate-history.jsonl" 2>/dev/null || true
+ 
+ echo "wrote ${DIR}/${AGENT}.json (verdict=${VERDICT}${PID:+, pipeline=${PID}}${XML:+, xml copied})"
+ exit 0

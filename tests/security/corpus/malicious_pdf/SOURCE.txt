@@ -1,0 +1,21 @@
+PDFE security harness -- malicious-pdf corpus provenance
+
+Upstream:    https://github.com/jonaslejon/malicious-pdf
+Pinned SHA:  c33050c637c75dfd9bea8afcabad0f41a928c070
+License:     MIT (upstream)
+Callback:    127.0.0.1:9999
+Generated:   2026-04-25 14:25:53 -07:00
+Generator:   scripts/security/gen_malicious_corpus.ps1
+
+The PDFs in this directory are SYNTHETIC TEST PAYLOADS, not actual
+malware. They contain phone-home patterns (URI/Launch/SubmitForm/JS)
+designed to make a vulnerable PDF reader connect to the callback
+host above. PDFE's correct behavior for every PDF here is: open
+without callback, refuse to follow Launch without prompting, and
+honor the SubmitForm host allowlist.
+
+DO NOT open these files with a non-sandboxed PDF reader (Acrobat,
+Edge, Chrome). Use only the phase-3 sandboxed runner.
+
+The corpus itself is gitignored; only this SOURCE.txt, manifest.json,
+README, and the generator script are checked in.

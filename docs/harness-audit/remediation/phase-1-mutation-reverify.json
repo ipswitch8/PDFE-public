@@ -1,0 +1,51 @@
+{
+ "phase": "remediation-phase-1",
+ "note": "Re-verification that phase-3 survivors M08/M09/M11/M16 now DIE and control M10 stays dead, after phase-1 oracle strengthening. Parsed from the per-mutant JUnit XMLs captured in reverify-runs/. No src/ changes (mutations applied+reverted by run_mutations.py during the runs).",
+ "mutants": [
+  {
+   "id": "M08",
+   "label": "save-recovery-force-image-recompress",
+   "tests": 6,
+   "failures": 1,
+   "result": "KILLED",
+   "evidence_xml": "docs/harness-audit/remediation/reverify-runs/res_M08-save-recovery-force-image-recompress.xml"
+  },
+  {
+   "id": "M09",
+   "label": "save-fullgc-downgrade",
+   "tests": 6,
+   "failures": 1,
+   "result": "KILLED",
+   "evidence_xml": "docs/harness-audit/remediation/reverify-runs/res_M09-save-fullgc-downgrade.xml"
+  },
+  {
+   "id": "M10",
+   "label": "redaction-intersection-flip(control)",
+   "tests": 2,
+   "failures": 2,
+   "result": "KILLED",
+   "evidence_xml": "docs/harness-audit/remediation/reverify-runs/res_M10-redaction-intersection-flip.xml"
+  },
+  {
+   "id": "M11",
+   "label": "redaction-singlerev-always-clean",
+   "tests": 17,
+   "failures": 1,
+   "result": "KILLED",
+   "evidence_xml": "docs/harness-audit/remediation/reverify-runs/res_M11-redaction-singlerev-always-clean.xml"
+  },
+  {
+   "id": "M16",
+   "label": "save-recovery-force-compress",
+   "tests": 6,
+   "failures": 1,
+   "result": "KILLED",
+   "evidence_xml": "docs/harness-audit/remediation/reverify-runs/res_M16-save-recovery-force-compress.xml"
+  }
+ ],
+ "summary": {
+  "killed": 5,
+  "total": 5,
+  "all_killed": true
+ }
+}

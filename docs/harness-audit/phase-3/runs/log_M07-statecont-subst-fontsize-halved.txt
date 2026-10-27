@@ -1,0 +1,54 @@
+Note: Google Test filter = ContentStreamSubstitutionTest.*:PerRunEmissionTest.*
+[==========] Running 12 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 7 tests from ContentStreamSubstitutionTest
+[ RUN      ] ContentStreamSubstitutionTest.EmptySubstitutionsDelegatesToApplyEdits
+[       OK ] ContentStreamSubstitutionTest.EmptySubstitutionsDelegatesToApplyEdits (18 ms)
+[ RUN      ] ContentStreamSubstitutionTest.NullPageIsNoOp
+[       OK ] ContentStreamSubstitutionTest.NullPageIsNoOp (5 ms)
+[ RUN      ] ContentStreamSubstitutionTest.NullDocIsNoOp
+[       OK ] ContentStreamSubstitutionTest.NullDocIsNoOp (4 ms)
+[ RUN      ] ContentStreamSubstitutionTest.EmptyModificationsIsNoOp
+[       OK ] ContentStreamSubstitutionTest.EmptyModificationsIsNoOp (10 ms)
+[ RUN      ] ContentStreamSubstitutionTest.AccentedSubstitutionTextIsPresent
+[       OK ] ContentStreamSubstitutionTest.AccentedSubstitutionTextIsPresent (11 ms)
+[ RUN      ] ContentStreamSubstitutionTest.BackwardCompatibleEditLands
+[       OK ] ContentStreamSubstitutionTest.BackwardCompatibleEditLands (11 ms)
+[ RUN      ] ContentStreamSubstitutionTest.ScaledSubstitutionEditLands
+[       OK ] ContentStreamSubstitutionTest.ScaledSubstitutionEditLands (11 ms)
+[----------] 7 tests from ContentStreamSubstitutionTest (75 ms total)
+
+[----------] 5 tests from PerRunEmissionTest
+[ RUN      ] PerRunEmissionTest.EmptyRunSegmentsFallsThroughToLegacyPath
+[       OK ] PerRunEmissionTest.EmptyRunSegmentsFallsThroughToLegacyPath (28 ms)
+[ RUN      ] PerRunEmissionTest.TwoSegmentsProduceMultipleTfOps
+[       OK ] PerRunEmissionTest.TwoSegmentsProduceMultipleTfOps (27 ms)
+[ RUN      ] PerRunEmissionTest.SingleSegmentEmitsSingleTf
+[       OK ] PerRunEmissionTest.SingleSegmentEmitsSingleTf (49 ms)
+[ RUN      ] PerRunEmissionTest.EmptySegmentSkipped
+[       OK ] PerRunEmissionTest.EmptySegmentSkipped (26 ms)
+[ RUN      ] PerRunEmissionTest.OutOfBoundsSegmentClamped
+[       OK ] PerRunEmissionTest.OutOfBoundsSegmentClamped (27 ms)
+[----------] 5 tests from PerRunEmissionTest (160 ms total)
+
+[----------] Global test environment tear-down
+
+============ ADVERSARIAL-AMBIENT GAP REGISTER (content-stream-continuity phase-1 discovery) ============
+injector               hostile_op   injected  neighbor  probed   notes
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+CONFIRMED corrupting cells (probed AND injected_ok==false OR neighbor_ok==false):
+cells=0 probed=0 confirmed_corrupt=0
+====================================================================================================
+
+[AdversarialAmbient] no cells this run (filtered subset) — leaving gap-register.json intact
+
+================ AUTOSAVE CAPTURE GAP REGISTER (phase-1 discovery) ================
+family                 undoAP dirty    autosave  capture  restore  probed 
+------------------------------------------------------------------------------------
+====================================================================================
+GAP = probed family whose edit is NOT captured by autosave (capture_present == NO).
+
+[AutosaveCaptureAudit] no audit rows this run (filtered subset) — leaving gap-register.json intact
+[==========] 12 tests from 2 test suites ran. (237 ms total)
+[  PASSED  ] 12 tests.

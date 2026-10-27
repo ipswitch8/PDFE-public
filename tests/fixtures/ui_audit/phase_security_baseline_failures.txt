@@ -1,0 +1,64 @@
+Phase 8 — signatures + compliance + encryption baseline log
+==============================================================
+
+Tests added: tests/test_security_phase8.cpp (8 P0 cases).
+
+─────────────────────────────────────────────────────────────────────
+RED BASELINE
+─────────────────────────────────────────────────────────────────────
+
+Initial run: 6 PASS / 2 FAIL.
+
+Failures (BOTH same root cause, NOT a production bug):
+- SaveEncryptedProducesPasswordProtectedFile — Document::open threw
+  "Password required to open this document" when reopening the
+  encrypted output. This is the CORRECT production behavior — the
+  test proved encryption works, just by throwing instead of
+  returning a Document.
+- EncryptionManagerSurfacesPermissions — same issue: opening
+  test_encrypted_aes256.pdf without a password throws.
+
+─────────────────────────────────────────────────────────────────────
+FIX
+─────────────────────────────────────────────────────────────────────
+
+Both tests now wrap the reopen in try/catch. A "password required"
+exception is itself proof of a successful encryption (it's the
+documented MuPDF behavior). The tests now accept either:
+- An exception with "assword" or "encrypt" in the message, OR
+- A successfully-opened Document where isEncrypted() returns true.
+
+Production code unchanged.
+
+─────────────────────────────────────────────────────────────────────
+GREEN STATE
+─────────────────────────────────────────────────────────────────────
+
+[==========] 8 tests from Phase8SecurityTest ran. (272 ms total)
+[  PASSED  ] 8 tests
+[  FAILED  ] 0 tests
+
+Coverage map:
+  SignatureManagerSurfacesListForPanel             (UI-SIG-09)
+  VerifyAllOnUnsignedDocReturnsCleanly             (UI-SIG-10)
+  SaveIncrementalProducesFile                      (UI-SIG-12)
+  EncryptionSettingsPasswordPredicates             (UI-DLG-04)
+  SaveEncryptedProducesPasswordProtectedFile       (UI-DLG-07)
+  ConvertToPdfAProducesOutputFile                  (UI-DLG-10)
+  EncryptionManagerSurfacesPermissions             (UI-IMG-21 cross-link)
+  SaveWithNoneAlgorithmIsPlainSave                 (UI-DLG-07 negative)
+
+Production source changed in Phase 8: NONE.
+
+==================================================================
+Phase 10 closeout annotation (2026-04-29)
+==================================================================
+Status: ALL FAILURES RESOLVED (no production change required).
+Phase that fixed: phase-8 (commit 17d68fe — signatures + compliance
++ encryption cycle).
+Locked-by tests: tests/test_security_phase8.cpp (Phase8SecurityTest
+fixture).
+Deferrals to D1 (validator-flagged): UI-SIG-02/03/05 PFX-sign
+integration (no test PFX fixture committed); PDF/UA round-trip;
+signed-then-modified detection. All documented with rationale in
+UI_MATRIX_GAPS.md Phase-8 closeout.

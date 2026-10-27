@@ -1,0 +1,189 @@
+# ---------------------------------------------------------------------------
+# PDFE Cross-Platform CORE PARITY SUITE  (register class C-10, phase-5)
+#
+# The named set of platform-INDEPENDENT, behavioral-core GoogleTest suites that
+# MUST pass IDENTICALLY on Windows, Linux, and macOS. This file is the SINGLE
+# SOURCE OF TRUTH for the selection: tools/gate/parity_filter.py reads it and
+# emits a ':'-joined gtest_filter string, and all three validation lanes
+# (windows-/linux-/macos-validation.yml) invoke that same script, so the
+# selection is byte-identical on every platform by construction.
+#
+# INCLUSION CRITERION: the document/model behavioral core that must not diverge
+# across OSes -- open/parse, save-routing, redaction confidentiality, text
+# extraction, page ops, content-stream editing, coordinate transforms,
+# encryption/permissions, forms/metadata round-trips, font parsing/substitution,
+# undo/redo, PDF/A + optimize, and the generative/format-compat invariants.
+#
+# DELIBERATELY EXCLUDED (platform-DIVERGENT or platform-SPECIFIC, so NOT parity):
+#   * Qt widget/UI suites (*Dialog*, *Panel*, MainWindow*, *ToolBar*, PdfCanvas*,
+#     Menu*, TabOrder*, Keyboard*, Theme*, *Icon*, A11y*, Accessibility*) -- UIA
+#     tree / pixel differences are legitimately per-platform (pywinauto layer).
+#   * Windows-only endurance / handle / process suites (DllDependencyTest,
+#     ProcessMitigationsTest, EnduranceLeakTest, OpenCloseLeakCycleTest,
+#     SingleInstanceGuard, InstallerResidue, CrashHandlerTest) -- GDI handles /
+#     Win32 mitigations do not exist on Linux/macOS.
+#   * Pixel-render fidelity / HiDPI (RenderFidelityTest, HiDPIRender, HiDPITest,
+#     *LcdSubpixel, *PerceptualAlpha) -- font rasterization differs per platform.
+#   * The PreflightOpen.* / PreflightXPlatform.* sandbox suites -- these are
+#     platform-DIVERGENT BY DESIGN (GetModuleFileNameW vs /proc/self/exe vs
+#     _NSGetExecutablePath, fork/waitpid vs CreateProcess). Each lane already
+#     runs them against its own OS branch; parity is the wrong axis for them.
+#   * Performance/benchmark suites (Perf*, XfaSaveBenchmark, *Performance) --
+#     wall-clock is machine-dependent; guarded by the C-07 perf floor instead.
+#   * Live-network suites (*Live, TsaRealEndpointTest) -- non-hermetic.
+#
+# FORMAT: one gtest_filter pattern per line (suite name, trailing '.*' optional
+# -- parity_filter.py normalizes). '#' comments and blank lines are ignored.
+# Keep this list APPEND-mostly; removing a suite weakens the parity contract.
+# ---------------------------------------------------------------------------
+
+# --- document open / parse / save-routing -------------------------------------
+DocumentTest
+DocumentSaveAtomicTest
+DocumentSaveFileLockTest
+DocumentJsEventsTest
+DocumentSearchIndexTest
+SaveTest
+SaveOperationsTest
+SaveErrorPaths
+SaveStructuralVerify
+SaveRecompressionTest
+SavePathSecurityTest
+SameFormatTest
+IncrementalSaveTest
+IncrementalSaveRoutingTest
+RoutingIntegrationTest
+ConditionalGcTest
+Linearization
+IsModifiedTest
+EditSaveCycleTest
+MiniZipStore
+
+# --- page operations ----------------------------------------------------------
+PageTest
+PageOperationsTest
+PageCommandTest
+Phase6PageOpsTest
+PageOverflowTest
+ReplacePageTest
+ReplaceUndoTest
+PageLabelDocTest
+PageLabelFormat
+PageLabelLabelFor
+PageLabelStyleConversion
+
+# --- redaction confidentiality (security core) --------------------------------
+RedactionApplyTest
+RedactionApplyOptionsTest
+RedactionApplyPendingEditTest
+RedactionCommandsTest
+RedactionCommandEdgeCaseTest
+RedactionCompletenessTest
+RedactionManagerTest
+RedactionManagerEdgeCaseTest
+RedactionRoundTripTest
+RedactionSecurityTest
+RedactionVerifierTest
+RedactionVerifierEdgeCaseTest
+RedactionVerifierFailPathTest
+RedactionPartialOverlap
+
+# --- text extraction ----------------------------------------------------------
+TextExtractionTest
+ExportPlainTextTest
+PlainTextExporterTest
+FidelityR3_07_TextExtraction
+TextSelectorTest
+TextDiffTest
+
+# --- content-stream editing ---------------------------------------------------
+ContentStreamEditorTest
+ContentStreamEditorColorTest
+ContentStreamSubstitutionTest
+ContentStreamStateLeak
+ContentStreamOutOfClass
+PdfContentWriterTest
+PdfContentWriterNullTest
+PdfLiteralEscape
+PerRunEmissionTest
+
+# --- coordinate transforms ----------------------------------------------------
+CoordMapperConstructorTest
+CoordMapperDocumentTest
+CoordMapperMathTest
+CoordMapperRotation
+CoordMapperRunTransformTest
+CoordinateTransformTest
+
+# --- encryption / permissions -------------------------------------------------
+EncryptedDocumentTest
+EncryptionManagerTest
+EncryptionInfoTest
+EncryptionRoundTripTest
+EncryptMetadataTest
+PermissionFlagsTest
+PermissionEnforcement_R2_09
+PermissionEnforcement_R2_10
+PermissionEnforcement_R2_11
+PermissionEnforcement_R2_12
+
+# --- MuPDF context core -------------------------------------------------------
+MuPdfContextTest
+MuPdfContextCloneLifecycle
+MuPdfFzAlwaysInvariant
+
+# --- forms model round-trips --------------------------------------------------
+FormDataIOTest
+FormRoundTripTest
+FormFieldDataTest
+FormFieldTypeTest
+FormCommandsTest
+FormManagerTest
+FormEncodeFdf
+FormEncodeXfdf
+FormEncodeMime
+FormEncodePercent
+FormEncodeUrl
+XfdfEncodeDecodeTest
+
+# --- metadata round-trips -----------------------------------------------------
+MetadataCommandsTest
+MetadataManagerTest
+MetadataRoundTripTest
+XmpMetadataWriterTest
+
+# --- font parsing / substitution (platform-agnostic; excl. system discovery) --
+FontMetricProfileTest
+FontSubstitutionEngineTest
+EmbeddedFontAnalyzerTest
+EmbeddedFontMultiscriptTest
+CidFontEncodingTest
+FontDescriptorStyleParse
+FontDescriptorStyleFallback
+PdfFontEmbedderTest
+VectorSubsetDetectorTest
+VectorSubsetDetector_HasSubsetPrefix
+
+# --- undo / redo model --------------------------------------------------------
+UndoManagerTest
+UndoRedoFlowTest
+UndoStackStressTest
+UndoAfterSaveCrashTest
+
+# --- optimize / PDF-A / PDF-UA ------------------------------------------------
+OptimizeEngineTest
+PdfAValidatorTest
+PdfARoundTripTest
+PdfAConverterTest
+PdfAConverterStandardFourteenTest
+PdfUAConverterTest
+
+# --- generative / format-compat / corpus invariants ---------------------------
+GenerativeInvariants
+FixtureCorpus
+FormatCompat
+FormatCompatShape
+ExternalFlawCorpusTest
+PathRoundTrips
+PathSecurity
+SanitizeFilterTr3

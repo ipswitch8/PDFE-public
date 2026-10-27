@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites tests="3" failures="3" disabled="0" errors="0" time="0.689" timestamp="2026-07-28T02:04:02.779" name="AllTests">
+  <testsuite name="CtmReset" tests="3" failures="3" disabled="0" skipped="0" errors="0" time="0.688" timestamp="2026-07-28T02:04:02.781">
+    <testcase name="AlignmentInjectorFullSizeUnderAmbientCm" file="tests/test_content_stream_ctm_reset.cpp" line="217" status="run" result="completed" time="0.147" timestamp="2026-07-28T02:04:02.781" classname="CtmReset">
+      <failure message="tests/test_content_stream_ctm_reset.cpp:187&#10;Expected: (inj.firstUrx) &gt; (inj.firstUlx), actual: 59.994 vs 72&#10;injected glyph is mirrored (ur.x &lt;= ul.x)&#10;" type="">tests/test_content_stream_ctm_reset.cpp:187
+Expected: (inj.firstUrx) &gt; (inj.firstUlx), actual: 59.994 vs 72
+injected glyph is mirrored (ur.x &lt;= ul.x)
+</failure>
+      <failure message="tests/test_content_stream_ctm_reset.cpp:206&#10;Expected: (inj.x0) &gt;= (-1.0f), actual: -34.0200081 vs -1&#10;" type="">tests/test_content_stream_ctm_reset.cpp:206
+Expected: (inj.x0) &gt;= (-1.0f), actual: -34.0200081 vs -1
+</failure>
+    </testcase>
+    <testcase name="HeaderFooterEngineFullSizeUnderAmbientCm" file="tests/test_content_stream_ctm_reset.cpp" line="234" status="run" result="completed" time="0.139" timestamp="2026-07-28T02:04:02.929" classname="CtmReset">
+      <failure message="tests/test_content_stream_ctm_reset.cpp:187&#10;Expected: (inj.firstUrx) &gt; (inj.firstUlx), actual: 266.004 vs 279&#10;injected glyph is mirrored (ur.x &lt;= ul.x)&#10;" type="">tests/test_content_stream_ctm_reset.cpp:187
+Expected: (inj.firstUrx) &gt; (inj.firstUlx), actual: 266.004 vs 279
+injected glyph is mirrored (ur.x &lt;= ul.x)
+</failure>
+    </testcase>
+    <testcase name="TreWriteTextBlockFullSizeUnderAmbientCm" file="tests/test_content_stream_ctm_reset.cpp" line="251" status="run" result="completed" time="0.401" timestamp="2026-07-28T02:04:03.068" classname="CtmReset">
+      <failure message="tests/test_content_stream_ctm_reset.cpp:187&#10;Expected: (inj.firstUrx) &gt; (inj.firstUlx), actual: 61.02 vs 72&#10;injected glyph is mirrored (ur.x &lt;= ul.x)&#10;" type="">tests/test_content_stream_ctm_reset.cpp:187
+Expected: (inj.firstUrx) &gt; (inj.firstUlx), actual: 61.02 vs 72
+injected glyph is mirrored (ur.x &lt;= ul.x)
+</failure>
+      <failure message="tests/test_content_stream_ctm_reset.cpp:206&#10;Expected: (inj.x0) &gt;= (-1.0f), actual: -15.9300032 vs -1&#10;" type="">tests/test_content_stream_ctm_reset.cpp:206
+Expected: (inj.x0) &gt;= (-1.0f), actual: -15.9300032 vs -1
+</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

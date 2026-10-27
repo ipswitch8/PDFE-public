@@ -1,0 +1,33 @@
+#include "resource.h"
+#include <winver.h>
+
+IDI_PDFE_ICON ICON "../../pdfe-red.ico"
+
+VS_VERSION_INFO VERSIONINFO
+    FILEVERSION    0,3,0,0
+    PRODUCTVERSION 0,3,0,0
+    FILEFLAGSMASK  VS_FFI_FILEFLAGSMASK
+    FILEFLAGS      0
+    FILEOS         VOS_NT_WINDOWS32
+    FILETYPE       VFT_APP
+    FILESUBTYPE    VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName",      "Itwerx Corp"
+            VALUE "FileDescription",  "PDFE - Professional PDF Editor"
+            VALUE "FileVersion",      "0.3.0"
+            VALUE "InternalName",     "pdfe"
+            VALUE "LegalCopyright",   "Copyright (C) 2025 Itwerx Corp. Licensed under AGPL-3.0."
+            VALUE "OriginalFilename", "pdfe.exe"
+            VALUE "ProductName",      "PDFE"
+            VALUE "ProductVersion",   "0.3.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END

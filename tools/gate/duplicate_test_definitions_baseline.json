@@ -1,0 +1,98 @@
+{
+  "_what": "Adjudication baseline for tools/gate/check_duplicate_test_definitions.py (GitHub #275). Each entry is a helper of >=25 lines DEFINED AT COLUMN 0 in more than one file under tests/. The guard fails on any duplicate not listed here, and ALSO fails on a listed entry that has stopped being a duplicate -- a two-way ratchet, so the file cannot drift into an amnesty.",
+  "_disposition": "BURN-DOWN, NOT EXEMPTION. Every entry is real duplication with the maintenance hazard #275 measured: a poll-race fix applied to one copy of DirectoryAttacker left the other broken, all 20 TOCTTOU cases passed, and a stability run under load then failed 9 of 12 in the untouched copy. These are recorded so the population stops GROWING while it is worked down, exactly as tools/gate/reachability_skip_baseline.json does for WIN-45. Listing a helper here does not resolve it.",
+  "_owner_issue": "https://github.com/ipswitch8/PDFE/issues/275",
+  "_established": "2026-10-07, at 19 findings. DirectoryAttacker -- the largest at 155 lines and the one #275 is named for -- was MOVED to tests/support/ in the same change and is therefore absent from this file rather than adjudicated in it. The remaining 18 were pre-existing and out of that phase's scope.",
+  "_how_the_threshold_was_chosen": "SIZE, not similarity, and the distinction was measured rather than assumed: DirectoryAttacker's two copies score 0.519 on difflib SequenceMatcher, so any usable similarity threshold would have EXCLUDED the defect the guard exists for. The copies drifted BECAUSE they were duplicated, so similarity scores the symptom backwards. At >=25 body lines the tree yields 19 findings, all substantial helpers; at >=10 it yields 83 and fills with small local fixtures that share only a name. See the guard's header for the full distribution.",
+
+  "GapRegisterEmitter": {
+    "files": ["tests/test_autosave_capture_audit.cpp", "tests/test_content_stream_adversarial_ambient.cpp"],
+    "smallest_lines": 90,
+    "reason": "Emits the end-of-run gap-register table that both audit suites print. 90 lines of formatting duplicated; the two copies are the second-largest hazard in this file after DirectoryAttacker and the strongest candidate for the next tranche."
+  },
+  "buildOcspResponseDer": {
+    "files": ["tests/test_ocsp_crl_parser.cpp", "tests/test_validation_request.cpp"],
+    "smallest_lines": 48,
+    "reason": "PKI fixture builder, hand-rolled DER. Belongs with the loadTestSigner / buildOcspDer / mintCa cluster below -- four PKI fixture builders duplicated across seven files is one shared tests/support/ PkiFixtures unit waiting to be written."
+  },
+  "ChildApp": {
+    "files": ["tests/test_log_path_from_settings.cpp", "tests/test_shell_and_instance_launch.cpp"],
+    "smallest_lines": 47,
+    "reason": "Launches the product as a child process and waits on it. Both copies drive a real pdfe.exe, so a divergence here produces exactly the #275 failure mode: one suite proving the behaviour and the other proving a slightly different behaviour, with nothing comparing them."
+  },
+  "savedPageContent": {
+    "files": ["tests/test_artifact_marking.cpp", "tests/test_pdfua_accessibility_rules.cpp"],
+    "smallest_lines": 44,
+    "reason": "Saves a document and reads back a page's content stream -- an ORACLE. A drifted oracle is worse than a drifted helper: the two suites would be asserting against different notions of what was saved."
+  },
+  "buildLargePdf": {
+    "files": ["tests/test_fidelity_r3_24_edit_save_scale.cpp", "tests/test_performance_stress.cpp"],
+    "smallest_lines": 36,
+    "reason": "Generates the large fixture both the scale-fidelity and performance-stress suites measure against. Verbatim identical today. A change to the generated document's size or shape in one copy would silently move a PERFORMANCE baseline measured against the other."
+  },
+  "readLine": {
+    "files": ["tests/test_content_stream_adversarial_ambient.cpp", "tests/test_content_stream_ctm_reset.cpp", "tests/test_content_stream_multi_injector.cpp", "tests/test_content_stream_state_leak.cpp"],
+    "smallest_lines": 33,
+    "reason": "FOUR copies, all in the content-stream family. The highest copy count of any type-or-function here apart from loadTestSigner, and all four suites assert on content-stream state, so they share a blast radius."
+  },
+  "assertInjectedFullSizeAndClean": {
+    "files": ["tests/test_content_stream_ctm_reset.cpp", "tests/test_content_stream_multi_injector.cpp"],
+    "smallest_lines": 33,
+    "reason": "A shared ASSERTION, duplicated. Two copies of an assertion are two definitions of correctness; whichever is weaker silently becomes the standard for its suite."
+  },
+  "wrapperPdf": {
+    "files": ["tests/test_pdf20_features.cpp", "tests/test_pdf20_ui_surfacing.cpp"],
+    "smallest_lines": 32,
+    "reason": "PDF 2.0 wrapper fixture builder, duplicated across the feature suite and the UI-surfacing suite."
+  },
+  "mintCa": {
+    "files": ["tests/test_f54_f60a_ocsp_crl_invariants.cpp", "tests/test_ltv_status_reporting_phase50.cpp"],
+    "smallest_lines": 31,
+    "reason": "Mints a CA for the LTV/OCSP fixtures. Part of the PKI fixture-builder cluster."
+  },
+  "nestedXObjectPdf": {
+    "files": ["tests/test_malicious_pdf_advanced.cpp", "tests/test_xobject_depth_margin.cpp"],
+    "smallest_lines": 31,
+    "reason": "Builds a nested-XObject document. One copy backs a SECURITY suite (malicious-PDF handling) and the other a depth-margin suite, so a divergence in nesting depth would change what 'malicious' means in one place only."
+  },
+  "loadTestSigner": {
+    "files": ["tests/test_encrypt_ocsp_phase3.cpp", "tests/test_ltv_validator.cpp", "tests/test_ocsp_crl_parser.cpp", "tests/test_ocsp_crl_validation.cpp", "tests/test_validation_request.cpp"],
+    "smallest_lines": 30,
+    "reason": "FIVE copies, verbatim identical. The widest duplication in the tree. Loads test_signer.pfx for every signature-validation suite; a change to how the signer is loaded has five places to be applied and no mechanism that notices four."
+  },
+  "readDir": {
+    "files": ["tests/test_tre_state_leak.cpp", "tests/test_watermark_state_leak.cpp"],
+    "smallest_lines": 30,
+    "reason": "State-leak family oracle reader. Verbatim identical."
+  },
+  "readColor": {
+    "files": ["tests/test_alignment_state_leak.cpp", "tests/test_header_footer_state_leak.cpp"],
+    "smallest_lines": 29,
+    "reason": "State-leak family oracle reader. Verbatim identical. The four state-leak suites between them duplicate readDir, readColor and readGlyph -- one tests/support/StateLeakOracles unit."
+  },
+  "makeLinesRegion": {
+    "files": ["tests/test_font_matcher_per_line.cpp", "tests/test_textedit_font_identity.cpp"],
+    "smallest_lines": 28,
+    "reason": "Builds the per-line region input both font-identity suites feed to the matcher."
+  },
+  "readGlyphs": {
+    "files": ["tests/support/VisualOracle.h", "tests/test_i18n_render.cpp"],
+    "smallest_lines": 27,
+    "reason": "ALREADY HALF-SHARED, and that is why it is worth keeping listed: one copy lives in tests/support/VisualOracle.h, the single legitimate home, and test_i18n_render.cpp kept its own. This is the state the #275 fix leaves behind if the old copy is not deleted -- a shared helper plus a private fork of it."
+  },
+  "analyse": {
+    "files": ["tests/test_panel_raise_and_canvas_theme.cpp", "tests/test_theme_dark_pixels.cpp"],
+    "smallest_lines": 27,
+    "reason": "Pixel analysis for the two theme suites. Relevant to GitHub #279, whose root cause was theme-dependent pixel oracles: two copies of the analysis mean two chances to be theme-coupled."
+  },
+  "readGlyph": {
+    "files": ["tests/test_image_ctm_leak.cpp", "tests/test_watermark_state_leak.cpp"],
+    "smallest_lines": 26,
+    "reason": "State-leak family oracle reader; distinct from readGlyphs above. Two helpers one character apart in name, duplicated across different file pairs, is itself a sign the family wants one shared unit."
+  },
+  "buildOcspDer": {
+    "files": ["tests/test_encrypt_ocsp_phase3.cpp", "tests/test_f54_f60a_ocsp_crl_invariants.cpp", "tests/test_ltv_responder_validation.cpp", "tests/test_ocsp_crl_validation.cpp"],
+    "smallest_lines": 25,
+    "reason": "FOUR copies, verbatim identical. Hand-rolled OCSP DER construction -- the kind of byte-level fixture code where a correctness fix in one copy is exactly the half-applied change #275 measured."
+  }
+}

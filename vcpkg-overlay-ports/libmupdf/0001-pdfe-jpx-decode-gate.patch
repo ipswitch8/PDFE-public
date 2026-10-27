@@ -1,0 +1,143 @@
+--- a/source/fitz/load-jpx.c
++++ b/source/fitz/load-jpx.c
+@@ -27,6 +27,78 @@
+ #include <assert.h>
+ #include <string.h>
+ 
++/*
++ * PDFE #50 security gate: JPEG2000 (JPX) decoding is DISABLED BY DEFAULT.
++ * Malformed JPX can heap-overflow the bundled OpenJPEG during decode
++ * (STATUS_HEAP_CORRUPTION 0xC0000374, potential RCE), and fz_try/fz_catch
++ * cannot trap heap corruption. PDFE opts in via a user preference that calls
++ * fz_pdfe_set_jpx_enabled(1). While disabled, fz_load_jpx / fz_load_jpx_info
++ * return a 1x1 placeholder WITHOUT ever entering openjpeg. Defined outside the
++ * FZ_ENABLE_JPX guard so the setter is always linkable from PDFE.
++ */
++static int fz_pdfe_jpx_enabled_flag = 0;
++
++void fz_pdfe_set_jpx_enabled(int enabled)
++{
++	fz_pdfe_jpx_enabled_flag = enabled ? 1 : 0;
++}
++
++int fz_pdfe_get_jpx_enabled(void)
++{
++	return fz_pdfe_jpx_enabled_flag;
++}
++
++/*
++ * PDFE F39-c (meta-audit follow-up phase-47): DECODE-TIME PIXEL-COUNT BOUND.
++ *
++ * A JPEG2000 codestream declares its own image size in the SIZ marker, and the
++ * PDF image dictionary cannot bound it: for JPXDecode, /Width and /Height are
++ * OPTIONAL (PDF 1.7 7.4.9) and the codestream wins. So a 182-byte JP2 that
++ * declares 65535x65535 over an 8x8 payload drives OpenJPEG to ~2142 MB RSS.
++ * That is resource exhaustion, not memory corruption (ASan and UBSan report
++ * nothing), and it is reachable ONLY when the #50 opt-in gate above is ON.
++ *
++ * THE BOUND IS 600,000,000 PIXELS (600 Mpx), and it is enforced on the
++ * dimensions parsed from the codestream header, BEFORE opj_decode() allocates
++ * any component buffer -- so the large allocation never happens at all.
++ *
++ * THRESHOLD RATIONALE. The bound is the largest LEGITIMATE scan that real
++ * equipment produces, rounded up, so no real document is refused:
++ *
++ *   ISO A0 @ 600 dpi   841 x 1189 mm = 33.110 x 46.811 in
++ *                      -> 19866 x 28087 =   557,976,342 px  93.0% of bound  OK
++ *   ANSI E @ 600 dpi   34 x 44 in
++ *                      -> 20400 x 26400 =   538,560,000 px  89.8% of bound  OK
++ *   ISO A1 @ 600 dpi   -> 14031 x 19866 =   278,739,846 px  46.5% of bound  OK
++ *   ISO A0 @ 400 dpi   -> 13244 x 18724 =   247,980,656 px  41.3% of bound  OK
++ *   35 mm film @ 4000 dpi -> 5669 x 3780 =   21,428,820 px   3.6% of bound  OK
++ *
++ *   the F39-c fixture     65535 x 65535 = 4,294,836,225 px  7.16x bound  REFUSED
++ *
++ * ISO A0 at 600 dpi is the BINDING case -- the largest sheet size in routine
++ * engineering-drawing and cartographic scanning, at the highest optical
++ * resolution large-format scanners offer -- and it fits with 7% to spare. That
++ * is why the bound is not lower: 536,870,912 (2^29) would refuse both A0 and
++ * ANSI E at 600 dpi, and 268,435,456 (2^28) would refuse A1 at 600 dpi too.
++ * Cases above the bound -- A0 @ 1200 dpi (2,231,865,636 px) or an 8x10 in
++ * drum scan @ 4000 dpi (1,280,000,000 px) -- are outside the class of images
++ * PDFE renders as a page and are refused deliberately.
++ *
++ * HONEST LIMIT OF THE CLAIM: at the bound itself a decode still costs real
++ * memory (600 MB for a 1-component 8-bit pixmap, ~2.4 GB for OpenJPEG's int32
++ * component buffer). This bound does NOT cap RSS at any particular figure.
++ * What it does is turn an unbounded, attacker-chosen declaration into a
++ * bounded worst case proportional to a physically plausible page, and it
++ * removes the observed 2142 MB transient entirely, because the refusal happens
++ * before the allocation rather than after it.
++ */
++#define FZ_PDFE_JPX_MAX_PIXELS ((int64_t)600000000)
++
++int64_t fz_pdfe_jpx_max_pixels(void)
++{
++	return FZ_PDFE_JPX_MAX_PIXELS;
++}
++
+ #if FZ_ENABLE_JPX
+ 
+ static void
+@@ -474,6 +546,28 @@ jpx_read_image(fz_context *ctx, fz_jpxd *state, const unsigned char *data, size_
+ 		fz_throw(ctx, FZ_ERROR_LIBRARY, "Failed to read JPX header");
+ 	}
+ 
++	/* PDFE F39-c: bound the size DECLARED by the codestream header before
++	 * opj_decode() allocates the component buffers -- see
++	 * FZ_PDFE_JPX_MAX_PIXELS above for the threshold and its arithmetic.
++	 * Each dimension is checked on its own first so the product cannot
++	 * overflow int64_t for a maximal 32-bit declaration. */
++	{
++		int64_t jw = (int64_t)jpx->x1 - (int64_t)jpx->x0;
++		int64_t jh = (int64_t)jpx->y1 - (int64_t)jpx->y0;
++
++		if (jw < 0 || jh < 0 ||
++			jw > FZ_PDFE_JPX_MAX_PIXELS || jh > FZ_PDFE_JPX_MAX_PIXELS ||
++			jw * jh > FZ_PDFE_JPX_MAX_PIXELS)
++		{
++			opj_stream_destroy(stream);
++			opj_destroy_codec(codec);
++			opj_image_destroy(jpx);
++			fz_throw(ctx, FZ_ERROR_LIMIT,
++				"JPX codestream declares %ld x %ld pixels, over the PDFE decode bound of %ld pixels",
++				jw, jh, (int64_t)FZ_PDFE_JPX_MAX_PIXELS);
++		}
++	}
++
+ 	if (!opj_decode(codec, stream, jpx))
+ 	{
+ 		opj_stream_destroy(stream);
+@@ -611,6 +705,16 @@ fz_load_jpx(fz_context *ctx, const unsigned char *data, size_t size, fz_colorspa
+ 	fz_jpxd state = { 0 };
+ 	fz_pixmap *pix = NULL;
+ 
++	if (!fz_pdfe_jpx_enabled_flag)
++	{
++		/* PDFE #50: JPX disabled — return a 1x1 gray placeholder without
++		 * entering openjpeg. The caller scales it to the image's placement
++		 * rect (a neutral fill); PDFE draws an explanatory overlay on top. */
++		fz_pixmap *ph = fz_new_pixmap(ctx, fz_device_gray(ctx), 1, 1, NULL, 0);
++		fz_clear_pixmap_with_value(ctx, ph, 224);
++		return ph;
++	}
++
+ 	fz_try(ctx)
+ 	{
+ 		opj_lock(ctx);
+@@ -629,6 +733,15 @@ fz_load_jpx_info(fz_context *ctx, const unsigned char *data, size_t size, int *w
+ {
+ 	fz_jpxd state = { 0 };
+ 
++	if (!fz_pdfe_jpx_enabled_flag)
++	{
++		/* PDFE #50: JPX disabled — report a 1x1 gray placeholder without
++		 * entering openjpeg (consistent with fz_load_jpx above). */
++		*wp = 1; *hp = 1; *xresp = 96; *yresp = 96;
++		*cspacep = fz_keep_colorspace(ctx, fz_device_gray(ctx));
++		return;
++	}
++
+ 	fz_try(ctx)
+ 	{
+ 		opj_lock(ctx);

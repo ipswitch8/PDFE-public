@@ -1,0 +1,7 @@
+{
+  "page_count": 1,
+  "has_xref_repair": false,
+  "description": "AcroForm with /CO calculation-order array (3 text widgets a + b -> sum)",
+  "fixture_type": "form_with_calculation_order",
+  "field_count": 3
+}

@@ -1,0 +1,465 @@
+{
+  "pages": 64,
+  "type_cycle": [
+    "body",
+    "actualtext",
+    "blank",
+    "image",
+    "origin"
+  ],
+  "body_sentence": "the greens simmer as the cook stirs the pot",
+  "the_per_body_line": 3,
+  "body_lines": 4,
+  "total_whole_word_the": 192,
+  "page_details": [
+    {
+      "index": 0,
+      "type": "body",
+      "marker": "PAGE_000_BODY",
+      "the_count": 12,
+      "media_box": "[0 7.9 594 745.9]"
+    },
+    {
+      "index": 1,
+      "type": "actualtext",
+      "marker": "PAGE_001_ACTUALTEXT",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 2,
+      "type": "blank",
+      "marker": "PAGE_002_BLANK",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 3,
+      "type": "image",
+      "marker": "PAGE_003_IMAGE",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 4,
+      "type": "origin",
+      "marker": "PAGE_004_ORIGIN",
+      "the_count": 3,
+      "media_box": "[50 50 662 842]"
+    },
+    {
+      "index": 5,
+      "type": "body",
+      "marker": "PAGE_005_BODY",
+      "the_count": 12,
+      "media_box": "[0 7.9 594 745.9]"
+    },
+    {
+      "index": 6,
+      "type": "actualtext",
+      "marker": "PAGE_006_ACTUALTEXT",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 7,
+      "type": "blank",
+      "marker": "PAGE_007_BLANK",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 8,
+      "type": "image",
+      "marker": "PAGE_008_IMAGE",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 9,
+      "type": "origin",
+      "marker": "PAGE_009_ORIGIN",
+      "the_count": 3,
+      "media_box": "[50 50 662 842]"
+    },
+    {
+      "index": 10,
+      "type": "body",
+      "marker": "PAGE_010_BODY",
+      "the_count": 12,
+      "media_box": "[0 7.9 594 745.9]"
+    },
+    {
+      "index": 11,
+      "type": "actualtext",
+      "marker": "PAGE_011_ACTUALTEXT",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 12,
+      "type": "blank",
+      "marker": "PAGE_012_BLANK",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 13,
+      "type": "image",
+      "marker": "PAGE_013_IMAGE",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 14,
+      "type": "origin",
+      "marker": "PAGE_014_ORIGIN",
+      "the_count": 3,
+      "media_box": "[50 50 662 842]"
+    },
+    {
+      "index": 15,
+      "type": "body",
+      "marker": "PAGE_015_BODY",
+      "the_count": 12,
+      "media_box": "[0 7.9 594 745.9]"
+    },
+    {
+      "index": 16,
+      "type": "actualtext",
+      "marker": "PAGE_016_ACTUALTEXT",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 17,
+      "type": "blank",
+      "marker": "PAGE_017_BLANK",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 18,
+      "type": "image",
+      "marker": "PAGE_018_IMAGE",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 19,
+      "type": "origin",
+      "marker": "PAGE_019_ORIGIN",
+      "the_count": 3,
+      "media_box": "[50 50 662 842]"
+    },
+    {
+      "index": 20,
+      "type": "body",
+      "marker": "PAGE_020_BODY",
+      "the_count": 12,
+      "media_box": "[0 7.9 594 745.9]"
+    },
+    {
+      "index": 21,
+      "type": "actualtext",
+      "marker": "PAGE_021_ACTUALTEXT",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 22,
+      "type": "blank",
+      "marker": "PAGE_022_BLANK",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 23,
+      "type": "image",
+      "marker": "PAGE_023_IMAGE",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 24,
+      "type": "origin",
+      "marker": "PAGE_024_ORIGIN",
+      "the_count": 3,
+      "media_box": "[50 50 662 842]"
+    },
+    {
+      "index": 25,
+      "type": "body",
+      "marker": "PAGE_025_BODY",
+      "the_count": 12,
+      "media_box": "[0 7.9 594 745.9]"
+    },
+    {
+      "index": 26,
+      "type": "actualtext",
+      "marker": "PAGE_026_ACTUALTEXT",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 27,
+      "type": "blank",
+      "marker": "PAGE_027_BLANK",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 28,
+      "type": "image",
+      "marker": "PAGE_028_IMAGE",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 29,
+      "type": "origin",
+      "marker": "PAGE_029_ORIGIN",
+      "the_count": 3,
+      "media_box": "[50 50 662 842]"
+    },
+    {
+      "index": 30,
+      "type": "body",
+      "marker": "PAGE_030_BODY",
+      "the_count": 12,
+      "media_box": "[0 7.9 594 745.9]"
+    },
+    {
+      "index": 31,
+      "type": "actualtext",
+      "marker": "PAGE_031_ACTUALTEXT",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 32,
+      "type": "blank",
+      "marker": "PAGE_032_BLANK",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 33,
+      "type": "image",
+      "marker": "PAGE_033_IMAGE",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 34,
+      "type": "origin",
+      "marker": "PAGE_034_ORIGIN",
+      "the_count": 3,
+      "media_box": "[50 50 662 842]"
+    },
+    {
+      "index": 35,
+      "type": "body",
+      "marker": "PAGE_035_BODY",
+      "the_count": 12,
+      "media_box": "[0 7.9 594 745.9]"
+    },
+    {
+      "index": 36,
+      "type": "actualtext",
+      "marker": "PAGE_036_ACTUALTEXT",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 37,
+      "type": "blank",
+      "marker": "PAGE_037_BLANK",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 38,
+      "type": "image",
+      "marker": "PAGE_038_IMAGE",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 39,
+      "type": "origin",
+      "marker": "PAGE_039_ORIGIN",
+      "the_count": 3,
+      "media_box": "[50 50 662 842]"
+    },
+    {
+      "index": 40,
+      "type": "body",
+      "marker": "PAGE_040_BODY",
+      "the_count": 12,
+      "media_box": "[0 7.9 594 745.9]"
+    },
+    {
+      "index": 41,
+      "type": "actualtext",
+      "marker": "PAGE_041_ACTUALTEXT",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 42,
+      "type": "blank",
+      "marker": "PAGE_042_BLANK",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 43,
+      "type": "image",
+      "marker": "PAGE_043_IMAGE",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 44,
+      "type": "origin",
+      "marker": "PAGE_044_ORIGIN",
+      "the_count": 3,
+      "media_box": "[50 50 662 842]"
+    },
+    {
+      "index": 45,
+      "type": "body",
+      "marker": "PAGE_045_BODY",
+      "the_count": 12,
+      "media_box": "[0 7.9 594 745.9]"
+    },
+    {
+      "index": 46,
+      "type": "actualtext",
+      "marker": "PAGE_046_ACTUALTEXT",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 47,
+      "type": "blank",
+      "marker": "PAGE_047_BLANK",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 48,
+      "type": "image",
+      "marker": "PAGE_048_IMAGE",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 49,
+      "type": "origin",
+      "marker": "PAGE_049_ORIGIN",
+      "the_count": 3,
+      "media_box": "[50 50 662 842]"
+    },
+    {
+      "index": 50,
+      "type": "body",
+      "marker": "PAGE_050_BODY",
+      "the_count": 12,
+      "media_box": "[0 7.9 594 745.9]"
+    },
+    {
+      "index": 51,
+      "type": "actualtext",
+      "marker": "PAGE_051_ACTUALTEXT",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 52,
+      "type": "blank",
+      "marker": "PAGE_052_BLANK",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 53,
+      "type": "image",
+      "marker": "PAGE_053_IMAGE",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 54,
+      "type": "origin",
+      "marker": "PAGE_054_ORIGIN",
+      "the_count": 3,
+      "media_box": "[50 50 662 842]"
+    },
+    {
+      "index": 55,
+      "type": "body",
+      "marker": "PAGE_055_BODY",
+      "the_count": 12,
+      "media_box": "[0 7.9 594 745.9]"
+    },
+    {
+      "index": 56,
+      "type": "actualtext",
+      "marker": "PAGE_056_ACTUALTEXT",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 57,
+      "type": "blank",
+      "marker": "PAGE_057_BLANK",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 58,
+      "type": "image",
+      "marker": "PAGE_058_IMAGE",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 59,
+      "type": "origin",
+      "marker": "PAGE_059_ORIGIN",
+      "the_count": 3,
+      "media_box": "[50 50 662 842]"
+    },
+    {
+      "index": 60,
+      "type": "body",
+      "marker": "PAGE_060_BODY",
+      "the_count": 12,
+      "media_box": "[0 7.9 594 745.9]"
+    },
+    {
+      "index": 61,
+      "type": "actualtext",
+      "marker": "PAGE_061_ACTUALTEXT",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 62,
+      "type": "blank",
+      "marker": "PAGE_062_BLANK",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    },
+    {
+      "index": 63,
+      "type": "image",
+      "marker": "PAGE_063_IMAGE",
+      "the_count": 0,
+      "media_box": "[0 0 612 792]"
+    }
+  ],
+  "note": "Regenerate via tests/fixtures/make_journey_corpus.py. total_whole_word_the is the case-insensitive whole-word count of 'the' across all pages (Replace-All ground truth)."
+}

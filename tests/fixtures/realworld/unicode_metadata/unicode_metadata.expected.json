@@ -1,0 +1,11 @@
+{
+  "page_count": 1,
+  "has_xref_repair": false,
+  "description": "Info dict carries Arabic, CJK (Chinese + Japanese), and emoji codepoints",
+  "fixture_type": "unicode_metadata",
+  "scripts": [
+    "arabic",
+    "cjk",
+    "emoji"
+  ]
+}

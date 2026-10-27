@@ -1,0 +1,7 @@
+{
+  "page_count": 1,
+  "has_xref_repair": false,
+  "description": "Approximation: two distinct font dicts on one page (true Identity-H + single-byte CID mixing requires manual stream construction)",
+  "fixture_type": "cid_mixed_encoding",
+  "approximation": true
+}

@@ -1,0 +1,54 @@
+Note: Google Test filter = Phase5FormsTest.ResetFormRestoresDefaultValues
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from Phase5FormsTest
+[ RUN      ] Phase5FormsTest.ResetFormRestoresDefaultValues
+C:\Users\dev\source\PDFE\tests\test_forms_phase5.cpp(334): error: Expected equality of these values:
+  mgr.getFormField(dvPage.get(), firstNameIdx).value
+    Which is: ""
+  kFirstNameDv
+    Which is: "Default Name"
+resetForm must restore FirstName /V to its /DV in memory.
+
+C:\Users\dev\source\PDFE\tests\test_forms_phase5.cpp(358): error: Expected equality of these values:
+  rMgr.getFormField(rPage.get(), rIdx).value
+    Which is: ""
+  kFirstNameDv
+    Which is: "Default Name"
+The reset-to-/DV value must persist across save+reopen.
+
+C:\Users\dev\source\PDFE\tests\test_forms_phase5.cpp(407): error: Expected equality of these values:
+  ipMgr.getFormField(ipPage.get(), ipIdx).value
+    Which is: ""
+  kFirstNameDv
+    Which is: "Default Name"
+The reset-to-/DV value must persist across in-place save().
+
+[  FAILED  ] Phase5FormsTest.ResetFormRestoresDefaultValues (47 ms)
+[----------] 1 test from Phase5FormsTest (47 ms total)
+
+[----------] Global test environment tear-down
+
+============ ADVERSARIAL-AMBIENT GAP REGISTER (content-stream-continuity phase-1 discovery) ============
+injector               hostile_op   injected  neighbor  probed   notes
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+CONFIRMED corrupting cells (probed AND injected_ok==false OR neighbor_ok==false):
+cells=0 probed=0 confirmed_corrupt=0
+====================================================================================================
+
+[AdversarialAmbient] no cells this run (filtered subset) — leaving gap-register.json intact
+
+================ AUTOSAVE CAPTURE GAP REGISTER (phase-1 discovery) ================
+family                 undoAP dirty    autosave  capture  restore  probed 
+------------------------------------------------------------------------------------
+====================================================================================
+GAP = probed family whose edit is NOT captured by autosave (capture_present == NO).
+
+[AutosaveCaptureAudit] no audit rows this run (filtered subset) — leaving gap-register.json intact
+[==========] 1 test from 1 test suite ran. (49 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] Phase5FormsTest.ResetFormRestoresDefaultValues
+
+ 1 FAILED TEST

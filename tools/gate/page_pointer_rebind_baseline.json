@@ -1,0 +1,29 @@
+{
+  "_what": "Classes that cache a raw pdfe::core::Page* and do NOT override Command::rebindPage(). Read by tools/gate/check_page_pointer_rebind.py, the standing control for test-gap class C-ENUM (docs/audit/test-gap-classes.md section 1).",
+  "_contract": "Command::rebindPage is virtual with an EMPTY default body (src/core/Command.h) and SaveWithRebind.h calls it on every command after a full-rewrite save. A command that caches a Page* and does not override it keeps a pointer to a Page the save has replaced -- the GitHub #234/#235/#236 shape. Eighteen classes honour this today; before this guard, nothing enforced it.",
+  "_rules": [
+    "This is a RATCHET, not an amnesty. A NEW class caching a Page* without an override fails the build.",
+    "A baselined class that starts overriding rebindPage (or stops caching a Page*) must be REMOVED from here, or the guard fails.",
+    "Every entry states WHY the rebind protocol does not apply to it. 'It is not a Command' is a reason; 'it seems fine' is not."
+  ],
+  "_established": "2026-09-23, pipeline p91-test-gap-classes phase-4, from a sweep of the 5-control C-ENUM population defined in docs/audit/test-gap-class-sweep-decisions.md.",
+  "_how_verified": "21 classes in src/ declare a raw Page*-ish member. 18 override rebindPage (6 forms, 3 annotations, 3 redaction, 5 image, 1 signatures). The 3 below do not, and each was checked individually rather than excused as a group.",
+
+  "AnnotationTool": {
+    "kind": "different-mechanism",
+    "declared_in": "src/annotations/AnnotationTool.h",
+    "reason": "The base class the GitHub #236 fix moved page_ INTO. It does not rebind; it RELEASES, through the non-virtual onDocumentClosing() at AnnotationTool.h:58, which exists precisely so that releasing cannot be skipped by a subclass. A rebind override would be the wrong mechanism here, not a missing one. Its own standing control is tools/gate/check_tool_cached_page.py."
+  },
+
+  "AltTextDialog": {
+    "kind": "not-a-command",
+    "declared_in": "src/ui/AltTextDialog.h",
+    "reason": "A QDialog (AltTextDialog.h:30), not a Command. SaveWithRebind walks the UNDO STACK and calls rebindPage on the commands in it; a dialog is never in that stack, so the protocol does not reach it by construction. NOTE this is a statement about the rebind protocol only -- whether a dialog may outlive the page it points at is a separate lifetime question this guard does not answer."
+  },
+
+  "TabOrderDialog": {
+    "kind": "not-a-command",
+    "declared_in": "src/ui/TabOrderDialog.h",
+    "reason": "A QDialog (TabOrderDialog.h:20), not a Command. Same reasoning as AltTextDialog, and the same explicit limit: out of scope for the rebind protocol, not certified safe against every lifetime hazard."
+  }
+}

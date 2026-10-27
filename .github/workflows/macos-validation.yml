@@ -1,0 +1,238 @@
+# ---------------------------------------------------------------------------
+# macOS Build Validation  (pipeline 243a1203 Phase 8 — findings R2-23 + R2-25)
+#
+# Exercises the macOS port on an Apple-Silicon (arm64) GitHub-hosted runner
+# with the arm64-osx vcpkg triplet, and specifically runs the out-of-process
+# open-sandbox boundary tests so the macOS-only code paths are actually
+# executed on their target OS:
+#
+#   * PreflightOpen::executableDir() macOS branch (_NSGetExecutablePath +
+#     realpath, added by R2-23). It cannot run on the Windows dev host; this
+#     leg is where it is proven to resolve to a real directory instead of the
+#     pre-fix empty string that made isDocumentOpenSafe() fail OPEN on macOS.
+#   * The non-Windows fork()/waitpid() crash-isolation path in
+#     isDocumentOpenSafe() (the #else branch), asserting a crashing/garbage
+#     child is CONTAINED (open reported unsafe, this process survives).
+#   * The fail-CLOSED contract (PreflightXPlatform.*): an unresolvable helper
+#     location refuses the document rather than treating it as safe.
+#
+# Counterpart to linux-validation.yml (which already runs the same GoogleTest
+# suite — including test_preflight_open.cpp and test_preflight_xplatform.cpp —
+# through ctest on Linux, exercising the /proc/self/exe branch) and
+# windows-validation.yml (GetModuleFileNameW branch).
+#
+# TRIGGER (remediation Phase 5, R-36): PDFE claims macOS support, so the macOS
+# core subset must be exercised on a real recurring trigger — not dispatch-only,
+# which let the claim go unverified for weeks. A weekly schedule runs this thin
+# but REAL core subset (PreflightOpen.* + PreflightXPlatform.*, the macOS-only
+# code paths) on a GitHub-hosted arm64 runner (its own minutes pool — no
+# self-hosted contention). This keeps the support claim honest: if the macOS
+# port breaks, it surfaces within a week. Full macOS gtest remains dispatch.
+#
+# STATUS NOTE 2026-08-10 — READ THIS BEFORE FILING A BUG ABOUT A RED RUN.
+# macOS and Linux builds are NOT actually being done yet. PDFE is developed and
+# shipped on Windows; those two platforms are a FUTURE target. This lane and
+# linux-validation.yml are therefore ASPIRATIONAL: they attempt a genuine build
+# and a genuine test subset, and they FAIL, and that failure is EXPECTED until
+# the port is actually undertaken.
+#
+# Consequences, stated plainly so nobody re-derives them wrongly:
+#   * A red run here is NOT a regression and NOT an "unnoticed red CI lane"
+#     finding. During phase-52 this lane's red was reported as the latter and
+#     that was wrong. CI health is judged on the WINDOWS lanes -- fast-checks,
+#     windows-validation, ci-liveness.
+#   * The "PDFE claims macOS support" premise in the TRIGGER paragraph above is
+#     the claim this lane was built to police. That claim is aspirational today.
+#     The lane is retained deliberately rather than deleted: it is the scaffold
+#     the eventual port will be built against, and deleting it would lose the
+#     macOS-only reasoning recorded above.
+#   * Because it is permanently red, this lane can MASK a genuine macOS
+#     breakage -- the same masking species as F44/F46. Tracked as a backlog row;
+#     when the port is undertaken, the first task is to establish a green
+#     baseline here so red means something again.
+# ---------------------------------------------------------------------------
+
+name: macOS Build Validation
+
+on:
+  # Weekly — Mondays 06:00 UTC. GitHub-hosted arm64 runner, separate minute pool
+  # from the self-hosted Windows box, so no runner contention (R-36).
+  # NO SCHEDULED TRIGGER — REMOVED 2026-08-13, DELIBERATELY, DO NOT RESTORE.
+  #
+  # Every workflow in this repository is now MANUAL (`workflow_dispatch`) only.
+  # Three separate reasons, each independently sufficient:
+  #
+  #   1. THE RUNNER IS NOT A SERVICE. The self-hosted Windows runner is started
+  #      by hand (`run.cmd`) and dies silently. An unserviced scheduled run
+  #      QUEUES and is then reported `cancelled` — a status that alerts nobody
+  #      and is indistinguishable from a deliberate cancellation. The
+  #      audit-of-audits records this lane as having no green in eight runs for
+  #      exactly that reason.
+  #   2. A SCHEDULED RUN WEDGES CONCURRENT LOCAL WORK. PDFE's single-instance
+  #      mutex is MACHINE-GLOBAL, so a scheduled job's UI E2E / render steps
+  #      hold it for hours and red `ShellAndInstanceLaunchTest` in every
+  #      concurrent local suite run on the same host — a false red that has been
+  #      misread as a product regression in three separate phases.
+  #   3. IT IS THE OWNER'S STANDING INSTRUCTION: there are to be no recurring
+  #      scheduled items on this project.
+  #
+  # Run it deliberately instead: `gh workflow run <this file>`, after checking
+  # the runner is actually online. A manual run that a human is watching is
+  # worth more than a nightly one nobody reads.
+  workflow_dispatch:
+
+concurrency:
+  group: macos-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VCPKG_FEATURE_FLAGS: manifests,binarycaching
+  # Apple Silicon runners are arm64 -> match the native triplet so vcpkg does
+  # not cross-compile through Rosetta. R2-25: an arm64-osx triplet leg.
+  VCPKG_DEFAULT_TRIPLET: arm64-osx
+  VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
+  # Hermetic mujs override: upstream vcpkg pins mujs 1.3.8 by a codeberg
+  # tarball SHA512 that has since drifted (codeberg rewrapped the archive),
+  # so a cold-binary-cache rebuild fails "unexpected hash". This overlay
+  # repins to the current bytes (verified byte-identical source tree).
+  # tools/vcpkg-overlays/mujs/portfile.cmake. Windows lane is unaffected
+  # (it never sets this and builds mujs from its binary cache).
+  VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/tools/vcpkg-overlays
+
+jobs:
+  macos-validation:
+    name: macos-validation
+    # macos-14 = Apple Silicon (arm64) image.
+    runs-on: macos-14
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Export GitHub Actions cache env (for vcpkg x-gha)
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7.1.0
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Install build tools (Ninja, autoconf/automake for vcpkg ports)
+        run: |
+          brew install ninja autoconf automake autoconf-archive libtool pkg-config nasm
+          cmake --version
+          ninja --version
+
+      - name: Set up vcpkg (manifest mode)
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2  # v11.6
+        with:
+          vcpkgGitCommitId: 15e5f3820f0370f1ba7150853762cec0688cd396
+
+      - name: Configure (Ninja Multi-Config, arm64-osx triplet)
+        # Raw cmake (not a preset) so this leg is self-contained and does not
+        # depend on a macOS-arm64 preset being present. If CMakePresets.json
+        # later gains a `macos-clang-arm64` configure preset (VCPKG_TARGET_
+        # TRIPLET=arm64-osx), swap this for `cmake --preset macos-clang-arm64`.
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake -B build -S . \
+            -G "Ninja Multi-Config" \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=arm64-osx \
+            -DVCPKG_HOST_TRIPLET=arm64-osx
+
+      - name: Build test suite + preflight helper (Debug)
+        # pdfe_preflight MUST be built too: isDocumentOpenSafe() locates it
+        # beside the running executable (both land in build/bin/Debug via
+        # CMAKE_RUNTIME_OUTPUT_DIRECTORY). Without it the sandbox tests would
+        # fail-open (helper absent) instead of exercising the isolation path.
+        run: |
+          cmake --build build --config Debug --target pdfe_tests pdfe_preflight -j$(sysctl -n hw.ncpu)
+
+      - name: Run preflight-boundary GoogleTests (crash containment + fail-closed)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          BIN="build/bin/Debug"
+          if [ ! -x "$BIN/pdfe_tests" ]; then
+            echo "pdfe_tests not found at $BIN/pdfe_tests" >&2
+            exit 1
+          fi
+          if [ ! -x "$BIN/pdfe_preflight" ]; then
+            echo "pdfe_preflight helper not found at $BIN/pdfe_preflight -- sandbox tests would fail-open" >&2
+            exit 1
+          fi
+          # PreflightOpen.*        -> isolation boundary: a crashing/garbage
+          #                           child is CONTAINED (unsafe verdict, caller
+          #                           survives). Exercises the macOS fork()/
+          #                           waitpid() #else branch.
+          # PreflightXPlatform.*   -> executableDir() macOS branch resolves
+          #                           (sandbox armed) + fail-CLOSED when the
+          #                           helper location is unresolvable.
+          "$BIN/pdfe_tests" \
+            --gtest_filter='PreflightOpen.*:PreflightXPlatform.*' \
+            --gtest_output=xml:"$GITHUB_WORKSPACE/macos-preflight-results.xml"
+
+      - name: Verify preflight JUnit XML (single-source checker)
+        if: always()
+        run: |
+          xml="$GITHUB_WORKSPACE/macos-preflight-results.xml"
+          if [ ! -f "$xml" ]; then
+            echo "::error::preflight gtest XML not produced -- cannot verify results" >&2
+            exit 1
+          fi
+          python3 "$GITHUB_WORKSPACE/tools/gate/check_junit_xml.py" "$xml"
+
+      - name: Run CROSS-PLATFORM CORE PARITY suite (C-10)
+        # C-10: the platform-INDEPENDENT behavioral core (open/parse, save-routing,
+        # redaction confidentiality, text extraction, page ops, content-stream
+        # editing, coordinate transforms, encryption/permissions, forms/metadata
+        # round-trips, font parsing/substitution, undo/redo, PDF/A + optimize,
+        # generative/format-compat invariants) must pass IDENTICALLY on Windows,
+        # Linux, and macOS. The selection is generated by tools/gate/parity_filter.py
+        # from tools/gate/parity_suite.txt -- the SAME script + SAME source list the
+        # Windows and Linux lanes use, so the gtest_filter is byte-identical on every
+        # platform by construction (no per-lane copy to drift). This expands the macOS
+        # lane beyond the thin PreflightOpen-only subset (R-36) to assert real
+        # cross-platform behavioral parity on Apple Silicon.
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          BIN="build/bin/Debug"
+          FILTER="$(python3 "$GITHUB_WORKSPACE/tools/gate/parity_filter.py")"
+          echo "parity gtest_filter length: ${#FILTER}"
+          "$BIN/pdfe_tests" \
+            --gtest_filter="$FILTER" \
+            --gtest_output=xml:"$GITHUB_WORKSPACE/macos-parity-results.xml" \
+            --gtest_brief=1
+
+      - name: Verify parity JUnit XML (single-source checker, C-10)
+        if: always()
+        run: |
+          # GAP-A15: never trust the process exit code -- parse the XML. --min-tests
+          # 200 guards against a silently-shrunk selection (a token handful passing
+          # green); the local Windows run selects ~950 core tests.
+          xml="$GITHUB_WORKSPACE/macos-parity-results.xml"
+          if [ ! -f "$xml" ]; then
+            echo "::error::parity gtest XML not produced -- cannot verify results" >&2
+            exit 1
+          fi
+          python3 "$GITHUB_WORKSPACE/tools/gate/check_junit_xml.py" "$xml" --min-tests 200
+
+      - name: Upload build + test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: macos-validation-logs
+          path: |
+            macos-preflight-results.xml
+            macos-parity-results.xml
+            build/CMakeFiles/CMakeError.log
+            build/CMakeFiles/CMakeConfigureLog.yaml
+            build/vcpkg-manifest-install.log
+          if-no-files-found: ignore
+          retention-days: 14

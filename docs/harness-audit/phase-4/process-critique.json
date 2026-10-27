@@ -1,0 +1,83 @@
+{
+  "_meta": {
+    "phase": "phase-4 (PROCESS / GOVERNANCE)",
+    "stance": "FIND-AND-DOCUMENT only; no code changed",
+    "generated": "2026-07-28",
+    "base_dir": "C:/Users/dev/source/PDFE",
+    "method": "read the registered gate hooks (~/.claude/hooks/), repo tools/gate/*, all .github/workflows/*.yml, both .claude/settings*.json, docs/audit/ escaped-defect history, and the phase-3 mutation run; distinguished EXISTS from ENFORCED throughout."
+  },
+  "gate_integrity": {
+    "verdict_source": "artifact",
+    "forgery_allowlist_present": false,
+    "residual_attestation_paths": [
+      "phase-gate.sh SubagentStop still greps last_assistant_message for a '**PHASE: phase-N**' tag (lines 384-389) — but this is ROUTING ONLY (which phase the artifact is filed under); PASS/FAIL is never taken from prose. Low risk: a mis-tag can only misroute a verdict to a valid sibling phase, not manufacture a PASS.",
+      "The verdict artifact is written by emit-gate-verdict.sh, which a gate agent runs on the honor system. The hook re-validates the JUnit XML the agent supplies (failures=0/errors=0/tests>0/>=1 run case, and required-target present), so a lying PASS on an evidence gate is caught by the XML re-parse; a JUDGMENT gate (karen/validator) with no XML of its own can still emit PASS truthfully-or-not, but is blocked from signing off a phase whose test-runner XML is red (phase_has_evidence_gate check, lines 235-240)."
+    ],
+    "assessment": "The artifact-truth reliability fix is REAL and, for the registered hook, COMPLETE. The prior audit's two defects are closed: (1) the registered ~/.claude/hooks/phase-gate.sh derives every verdict ONLY from gate-artifacts/<phase>/<agent>.json + the JUnit XML it parses itself (derive_verdict/validate_junit_xml, lines 179-241) and NEVER from chat prose — the old 'VERDICT: PASS' grep + word-count fallback is gone; on the end-of-turn Stop event it AUTHORITATIVELY re-derives the whole current phase from artifacts and overwrites the ledger (rederive_phase, lines 442-443), so even if a legacy prose hook fired it is corrected. (2) NO forgery allow-list remains in .claude/settings.local.json — the 195 allow entries are all build/git/test/dumpbin commands; there is no emit-verdict / ledger-write / 'echo VERDICT' entry. pre-tool-use.sh hard-blocks any Write/Edit/Bash/PowerShell that references the gate ledger file or the shell-unlock nonce (lines 48-215). Residuals are honor-system judgment-gate verdicts (bounded by the red-XML veto) and prose-based phase ROUTING (not pass/fail)."
+  },
+  "gap_a15_ci": {
+    "junit_parsed_in_ci": true,
+    "tell_tale_wired": true,
+    "evidence": ".github/workflows/windows-validation.yml:328-344 (check_junit_xml.py gate, continue-on-error REMOVED at :249); windows-validation.yml:305-326 (run_gtest.py parses XML not exit code, --reruns 2); linux-validation.yml:88-124 (inline python: tests>0 AND failures=0 AND errors=0, explicit VACUOUS-run refusal); macos-validation.yml:122-130 (check_junit_xml.py); tools/gate/check_junit_xml.py:43-85 (sum failures/errors, tests>0, >=1 status=run case, --min-tests shrinkage guard)",
+    "assessment": "GAP-A15 is genuinely DEFENDED where CI runs. All three OSes trust the XML, not the exit code, and the Windows job removed the continue-on-error flag that once let 2 real BatchDialogTest failures ride green for 3 phases (:249-261). The single-source authority tools/gate/check_junit_xml.py is shared by CI and the local test-runner gate. NUANCE on 'tell-tale': the census phrasing 'tests != passed+skipped' is not computed literally; the wired check is the STRONGER direct form (sum of <testsuite> failures/errors must be 0 and tests>0 and >=1 case ran), which subsumes the tell-tale. TWO governance caveats, both operational not logical: (a) windows/linux full-suite validation runs NIGHTLY + workflow_dispatch ONLY — push/PR auto-triggers were removed 2026-07-20 (windows-validation.yml:23-34), so a masked failure is caught the next night, not at merge; (b) macOS runs ONLY the PreflightOpen.* subset (macos-validation.yml:118-120), not the full suite."
+  },
+  "mutation_coverage_floors": {
+    "mutation_gate": "real",
+    "mutant_count": 3,
+    "kill_floor_enforced": true,
+    "coverage_floor_enforced": false,
+    "evidence": "tools/gate/mutation_kill.py:99-127 (genuine apply->build->run->always-revert; SURVIVOR detection); tools/gate/mutants.json (3 seed mutants: M2-coordmapper-origin-sign, M-a-coordmapper-rot90-axis, M4-exif-strip-noop — all three curated to be KILLED); .github/workflows/mutation-kill.yml:26-33,61-75 (floor default 1.0, exit 1 on below-floor -> job fails) BUT :23-24 workflow_dispatch ONLY; governance.yml:60-62 runs only --dry-run (manifest validation, no build); windows-validation.yml:346-352 coverage step is continue-on-error:true + skips when OpenCppCoverage absent + NO floor",
+    "vs_phase3": "The standing CI mutation gate is DRAMATICALLY WEAKER than the one-off phase-3 run and is effectively green-by-construction. Phase-3 (docs/harness-audit/phase-3/mutation-report.md) built a REAL 16-mutant harness across 5 subsystems and found 10 SURVIVING mutants (kill-rate 37.5%) — 10 concrete behavior-changing defects that ship green (mirror/color-loss in font-substitution, alignment offset no-op, halved font size, forced recompress perf regressions x2, redaction single-revision always-clean confidentiality regression, button-reset-to-Off, glyph-scale inversion, GC downgrade). The CI mutants.json carries only 3 mutants, ALL of which are already-fixed cases hand-picked to be killed, so mutation-kill.yml will always report 100% — it exercises none of phase-3's 10 real survivors. The kill-floor IS mechanically enforced (exit 1 fails the job) and would catch a NEW regression on those 3 lines, but the gate is (a) on-demand only, never auto-run, and (b) scoped to 3 green-by-design lines. Coverage is WIRED but NOT GATED: best-effort Cobertura export, no floor, silently skipped if the tool is missing — decorative."
+  },
+  "flaky_dod_dca": {
+    "flaky_policy": "present",
+    "dod": "absent",
+    "dca_loop": "decorative",
+    "evidence": "FLAKY: rerun-on-failure (NOT skip/quarantine) — run_gtest.py --reruns 2 re-runs only failed tests in a FRESH process; a transient flake heals, a genuine failure fails every rerun (windows-validation.yml:291-326); UI suite uses run_ui_suite.py --reruns (windows-validation.yml:470-568). Known non-deterministic crash PerfStressTest.TenThousandAnnotationsOnePage and MainWindowIntegrationTest.ZoomComboExists are documented inline, but there is NO formal quarantine list / xfail registry — KNOWN_WEAK_TESTS.txt is a resolved-defect ledger, not a live quarantine (census.json:78-79). DOD: no documented Definition-of-Done for a test/feature exists; check_junit_xml --min-tests (suite-shrinkage guard) and the governance standing controls approximate one but there is no crisp per-feature DoD artifact. DCA: tools/gate/check_dca.py (validates existing records: mandatory sections + named tests must exist on disk) and tools/gate/check_dca_presence.py (fails a defect-fix git range that adds no DCA record, with a [skip-dca] escape hatch) are BOTH REAL and wired into governance.yml:51-58 — but governance.yml is workflow_dispatch ONLY, and check_dca_presence runs only when inputs.dca_base is non-empty (governance.yml:55). So the escaped-defect->DCA->class-test loop is NEVER enforced automatically on a commit/PR; it only fires when a human manually dispatches governance with an explicit base ref. Only ONE real DCA record exists (docs/audit/dca/0001-content-stream-state-leak.md) against a history of 70 escaped defects.",
+    "assessment": "The DCA machinery is well-built and would enforce the loop IF run, but operationally it is decorative: opt-in, human-triggered, and unused (1 record). The flaky policy is a sound rerun-on-failure model but lacks a formal quarantine ledger. No first-class Definition-of-Done."
+  },
+  "findings": [
+    {
+      "area": "CI trigger posture (meta-finding)",
+      "severity": "High",
+      "finding": "EVERY quality gate is decoupled from the commit that would introduce a regression. As of 2026-07-20 all PDFE CI is nightly/workflow_dispatch ONLY — push/PR auto-triggers were removed to protect the single self-hosted runner. Windows+Linux full validation run nightly; mutation-kill, governance (DCA, mutation dry-run, matrix-health), and windows-fuzz run on-demand or nightly and never block a merge. The gates are mechanically real but nothing fails a bad commit at PR/merge time; a regression surfaces at best the next nightly, at worst only when a human dispatches.",
+      "evidence": "windows-validation.yml:23-34; mutation-kill.yml:23-24; governance.yml:24-25; docs/harness-audit/census.json:452"
+    },
+    {
+      "area": "Mutation gate is green-by-construction",
+      "severity": "High",
+      "finding": "The standing CI mutation manifest (mutants.json) has 3 mutants, all already-fixed lines curated to be killed, so mutation-kill.yml can only report 100%. Phase-3's real 16-mutant run found 10 surviving mutants (37.5% kill-rate) — including a redaction single-revision confidentiality regression and multiple invisible-render text-edit defects — NONE of which are represented in the standing manifest. The gate that is supposed to be the standing defense against false-green oracles does not exercise any known false-green oracle.",
+      "evidence": "tools/gate/mutants.json (3 mutants); docs/harness-audit/phase-3/mutation-report.md:5-96 (10 survivors)"
+    },
+    {
+      "area": "Escaped-defect / DCA loop not enforced",
+      "severity": "High",
+      "finding": "The harness has been reactive since inception: of 72 mined bug-fixes, 70 escaped to a human before any test existed (oracle 41 / coverage 15 / input-domain 8 / process 6). The designed remedy — the escaped-defect->DCA->class-test loop — is fully implemented (check_dca.py + check_dca_presence.py) but only runs inside governance.yml, which is workflow_dispatch-only and runs check_dca_presence only when a base ref is manually supplied. Result: a defect fix can (and by the 1-record history, does) ship with no DCA and no class-level test, exactly the reactive posture the loop was meant to end.",
+      "evidence": "docs/audit/README.md:34-35,51; governance.yml:51-58; docs/audit/dca/ (only 0001-*.md)"
+    },
+    {
+      "area": "Coverage floor unenforced",
+      "severity": "Medium",
+      "finding": "OpenCppCoverage->Cobertura is best-effort: continue-on-error:true, silently skipped when the tool is absent on the runner, and gated by NO floor. It produces an artifact but can never fail the build, so coverage regressions are invisible to CI.",
+      "evidence": "windows-validation.yml:346-374"
+    },
+    {
+      "area": "macOS validation is a thin subset",
+      "severity": "Medium",
+      "finding": "macos-validation.yml runs only PreflightOpen.*/PreflightXPlatform.* (~a handful of isolation-boundary tests), not the full suite, so the macOS lane provides almost no regression coverage despite being one of three advertised platforms.",
+      "evidence": "macos-validation.yml:118-120"
+    },
+    {
+      "area": "No formal flaky quarantine ledger",
+      "severity": "Low",
+      "finding": "Rerun-on-failure is a sound policy, but known-flaky tests (PerfStressTest.TenThousandAnnotationsOnePage, MainWindowIntegrationTest.ZoomComboExists) are tracked only in inline comments. There is no machine-readable quarantine/xfail registry, so a test degrading from reliable to flaky is not tracked as a first-class signal and reruns can mask a slowly-worsening test.",
+      "evidence": "census.json:451; windows-validation.yml:291-304"
+    },
+    {
+      "area": "Judgment-gate verdict is honor-system (bounded)",
+      "severity": "Low",
+      "finding": "karen/validator/security-audit emit their PASS artifact via emit-gate-verdict.sh with no independent evidence of their own; the hook only re-checks the test-runner XML. The red-XML veto prevents signing off a phase with failing tests, so the exposure is limited to a judgment gate falsely blessing a phase whose tests are green but whose acceptance criteria were not truly met.",
+      "evidence": "~/.claude/hooks/phase-gate.sh:218-241 (derive_verdict, judgment-gate branch)"
+    }
+  ]
+}

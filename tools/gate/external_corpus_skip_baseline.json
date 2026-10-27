@@ -1,0 +1,34 @@
+{
+  "_comment": [
+    "GitHub #189. The FROZEN set of GTEST_SKIP sites gated on the gitignored",
+    "external corpus under test_PDFs/. These oracles do not execute on a clean",
+    "checkout -- including every CI run, since actions/checkout runs",
+    "`git clean -ffdx` -- and a skip counts as green in the summary line, in the",
+    "JUnit XML, and to every gate that reads either.",
+    "",
+    "This file is a RATCHET, not a permission slip. tools/gate/",
+    "check_external_corpus_skips.py fails when a site appears that is not listed",
+    "here, and equally when an entry here names a file with no such site left, so",
+    "the list can neither grow quietly nor outlive what it excuses.",
+    "",
+    "DO NOT add an entry to make a red check green. The committed alternative is",
+    "tests/fixtures/realworld/arxiv_bert.pdf, pinned in the CMake fixture floor,",
+    "whose absence is a CONFIGURE-time failure rather than a silent skip. Adding",
+    "a new oracle to this list is a decision to let it read green without running;",
+    "say why that is the better trade, or use a committed fixture instead."
+  ],
+  "accepted": [
+    {
+      "file": "test_fidelity_r3_07_text_extraction.cpp",
+      "fixture": "test_PDFs/multicolumn.pdf",
+      "test": "FidelityR3_07_TextExtraction.MultiColumnReadingOrderIsColumnMajor",
+      "why": "Pins two words of column-major reading order against a real 2-column document. The PROPERTY is not left unasserted on a clean checkout: LayoutExtraction/ExtractionLayoutRealworld's arxiv_bert.pdf oracle (GitHub #27) asserts multi-column reading order unconditionally from a committed fixture. This site adds a second, real-world-document witness where the corpus is available. Not converted because there is no licence-clean 2-column real capture to replace multicolumn.pdf with, and generating one would test the generator's idea of two columns rather than a document in the wild."
+    },
+    {
+      "file": "test_layout_extraction_corpus.cpp",
+      "fixture": "test_PDFs/multicolumn.pdf",
+      "test": "LayoutExtractionCorpus.NativeMultiColumnExtractionIsACompleteColumnPartition",
+      "why": "The stronger form of the same property -- a COMPLETE partition of every extracted line by column, rather than two pinned words. Same fixture, same reasoning, same unconditional arxiv_bert.pdf backstop for the base property."
+    }
+  ]
+}

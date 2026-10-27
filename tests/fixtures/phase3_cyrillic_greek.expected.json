@@ -1,0 +1,25 @@
+{
+  "pageCount": 1,
+  "isEncrypted": false,
+  "hasForm": false,
+  "hasForms": false,
+  "hasAnnotations": false,
+  "hasImages": false,
+  "pdfVersion": "1.7",
+  "fileSize": 257307,
+  "origin": "phase3-generator",
+  "category_tags": [
+    "cyrillic",
+    "greek",
+    "latin-extended",
+    "vector-text"
+  ],
+  "description": "Body text in Cyrillic (Russian), Greek, and Latin Extended (with diacritics).",
+  "scripts": [
+    "cyrillic",
+    "greek",
+    "latin-extended",
+    "ascii"
+  ],
+  "contentKind": "vector-text"
+}

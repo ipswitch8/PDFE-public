@@ -1,0 +1,79 @@
+{
+  "phase": "phase-5-capstone-dca",
+  "generated_note": "Defect Causal Analysis over the 8 escaped-defect seeds (audit plan section 5). Each seed is mapped to >=1 Register entry (hard acceptance criterion) plus the phase that caught its class and the standing control that prevents recurrence. FIND-AND-DOCUMENT.",
+  "acceptance": { "all_8_seeds_have_register_entry": true },
+  "seeds": [
+    {
+      "seed": 1,
+      "name": "State-continuity / mirror (-100 Tz, ambient CTM/color/half-size leak)",
+      "escape_class": "oracle-weakness (extraction-blind oracle + benign-only fixtures)",
+      "root_cause": "The content-stream edit path is visual, but every oracle used extractPlainText().find(marker); fz_stext reports identical codepoints whether the run renders upright or mirrored/invisible/white/half-size. Fixtures carried only benign ambient state, so a leaked/dropped ambient operator (Tz/color/CTM) was never provoked and never observed.",
+      "register_entries_that_now_cover_it": ["R-03", "R-04"],
+      "phase_that_caught_it": "P1 (oracle audit named the class) + P3 (mutants M02/M03 KILLED by the state-continuity fix's own tests; M04/M06/M07 SURVIVED, empirically confirming the extraction-only gap in the substitution path)",
+      "standing_control_that_prevents_recurrence": "SC-a (adversarial-ambient fixture corpus x injectors with pixel/quad oracles) + SC-b (oracle standard bans extraction-only-for-visual)"
+    },
+    {
+      "seed": 2,
+      "name": "Crash-on-close mid-edit (destruction under active state, ~MainWindow UAF)",
+      "escape_class": "coverage-gap (no destruction-under-active-state test)",
+      "root_cause": "No test destroys the app/document while an edit or tool is active; the nearest coverage (save-that-throws undo rebind) is EXPECT_NO_THROW-only and only a hard ASan crash fails it. The window-close-mid-edit UAF path was never driven.",
+      "register_entries_that_now_cover_it": ["R-35"],
+      "phase_that_caught_it": "P1 (identified test_save_throw_undo_safety as ASan-crash-only) + P2 (RTM/lifecycle gap). PARTIAL: only the save-throw sub-case exists today; a full close-mid-edit matrix is not yet present.",
+      "standing_control_that_prevents_recurrence": "SC-g (de-skip-walled UI + real-window lifecycle tests) with an ASan destruction-under-active-state matrix; tracked as remediation phase-6 acceptance"
+    },
+    {
+      "seed": 3,
+      "name": "Small-text-edit no-op (edit silently produced no glyph)",
+      "escape_class": "oracle-weakness (asserted structure/self-reimplemented math, not the produced glyph)",
+      "root_cause": "The width/edit oracle recomputed charRatio in the test body and asserted it against itself (never calling EditTextCommand), and the integration oracle asserted only 'page still has text blocks'. A no-op edit that produced no glyph left the structure intact and passed.",
+      "register_entries_that_now_cover_it": ["R-04", "R-14", "R-03"],
+      "phase_that_caught_it": "P1 (named test_text_edit_width_scaling.cpp:164 tautological + the self-reimplementation class)",
+      "standing_control_that_prevents_recurrence": "SC-b (oracle standard: regression tests must call the production symbol; ban self-reimplementation and structure-only oracles) + SC-a (rendered glyph-ink oracle proves the edit produced a visible glyph)"
+    },
+    {
+      "seed": 4,
+      "name": "Wrong icons / missing form separators (no visual oracle)",
+      "escape_class": "oracle-weakness (widget-exists-only / self-seeding goldens; no pixel oracle)",
+      "root_cause": "UI tests asserted objectName/widget existence, not rendered pixels; the annotation toolbar has no icons at all (UI-AN-22) and no test observes the painted icon. The visual mechanisms that could see it self-seed goldens and sit behind the gap_a14 skip wall.",
+      "register_entries_that_now_cover_it": ["R-20", "R-29", "R-27"],
+      "phase_that_caught_it": "P1 (widget-exists-only class, 77 files) + P4 (invisible_regression_classes: wrong icon undetectable; self-seeding goldens; permaskip wall)",
+      "standing_control_that_prevents_recurrence": "SC-g (de-skip-wall UI visual oracles + commit correctness goldens for toolbar/icon rendering, not regen-from-current)"
+    },
+    {
+      "seed": 5,
+      "name": "GAP-A15 exit-code masking (pdfe_tests.exe exits 0 with failures in XML)",
+      "escape_class": "process (CI integrity: trusted exit code instead of parsing results)",
+      "root_cause": "CI trusted the process exit code; pdfe_tests.exe can exit 0 while the JUnit XML records failures (tests != passed+skipped), so a failing suite reported success.",
+      "register_entries_that_now_cover_it": ["R-30"],
+      "phase_that_caught_it": "P6/P4 (process critique: gap_a15_junit_parsed_in_ci=true -- now DEFENDED; phase-3 also parsed every mutant XML per this lesson)",
+      "standing_control_that_prevents_recurrence": "SC-h (per-commit CI with a required, non-removable JUnit sum-of-failures check + a deliberately-failing sentinel self-test)"
+    },
+    {
+      "seed": 6,
+      "name": "Gate fabrication (verdicts written without running the agent)",
+      "escape_class": "process (governance: prose/manual verdicts trusted)",
+      "root_cause": "Gate verdicts could be asserted in prose / written manually into the ledger without the agent running, allowing false-green sign-off.",
+      "register_entries_that_now_cover_it": ["R-31", "R-24"],
+      "phase_that_caught_it": "P6/P4 (gate_verdict_source=artifact, forgery_allowlist_present=false -- structurally fixed for test-backed verdicts; residual honor-system judgment gates registered as R-31; the mutation gate that should back it is hollow -> R-24)",
+      "standing_control_that_prevents_recurrence": "SC-e (mandatory escaped-defect->DCA->class-test loop making governance real) + SC-c (real mutation gate) + the existing artifact-only verdict + red-XML veto"
+    },
+    {
+      "seed": 7,
+      "name": "UI-matrix over-claim (green matrix rebuilt from a one-off run / source presence)",
+      "escape_class": "process (matrix integrity: 'pass' not tied to ran-AND-asserted)",
+      "root_cause": "The UI matrix 'green' is a runtime CSV whose rows start as source-derived 'planned' and are flipped by a last-write-wins runtime hook; the committed green reflects a one-off developer-workstation run, and 236 dialog rows are green on objectName-in-.cpp alone. On the CI runner the backing tests skip (gap_a14).",
+      "register_entries_that_now_cover_it": ["R-28", "R-24"],
+      "phase_that_caught_it": "P5/P6 (matrix_pass_is analysis: over-claimed row classes=6; last-write-wins clobber risk)",
+      "standing_control_that_prevents_recurrence": "SC-f (live RTM enforcement: a cell is 'pass' only if the owning test RAN and ASSERTED in the same CI run; forbid rebuilding from committed green; owner-only writes)"
+    },
+    {
+      "seed": 8,
+      "name": "RedactionVerifier full-containment (security oracle too weak)",
+      "escape_class": "oracle-weakness (confidentiality oracle skip-gated + tautological)",
+      "root_cause": "The only oracles proving the secret is gone from the saved decompressed stream GTEST_SKIP under fixture fallback; the verifier's own unit file uses tautologies and only asserts checkTextRemoved TRUE, never FALSE on a real leak. Confirmed live: phase-3 mutant M11 (checkSingleRevision -> always return true) SURVIVED 15 tests.",
+      "register_entries_that_now_cover_it": ["R-02", "R-15"],
+      "phase_that_caught_it": "P1 (named the skip-gated + tautological verifier) + P3 (M11 SURVIVED, empirical confirmation) + P4 (absent from the standing 3-mutant gate)",
+      "standing_control_that_prevents_recurrence": "SC-a (unconditional decompressed-byte-absence redaction oracle) + SC-b (positive-detection required for security verifiers: assert checkTextRemoved returns FALSE on a genuine leak) + SC-c (seed M11 into the standing mutation gate)"
+    }
+  ]
+}

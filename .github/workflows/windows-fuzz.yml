@@ -1,0 +1,989 @@
+name: Windows Fuzz Campaigns (clang-cl libFuzzer)
+
+# Native Windows libFuzzer campaigns using clang-cl from VS2022.
+# Replaces the Linux fuzz workflow which can't compile PDFE (see
+# CI-LIMITATION-PDFE-IS-WINDOWS-ONLY in tests/docs/known_issues.md).
+#
+# Trigger policy: MANUAL DISPATCH ONLY.
+#   CORRECTED 2026-08-25. This header used to read "NIGHTLY SCHEDULE + manual
+#   dispatch" and asserted, in the present tense, that "a real nightly
+#   `schedule:` now drives the campaign". That has been false since 2026-08-13,
+#   when every `schedule:` trigger in this repository was removed — as the `on:`
+#   block twenty lines below said in capitals the whole time. A file that
+#   contradicts itself is worse than one that is merely out of date: a reader
+#   who stops at the header concludes coverage is compounding nightly when
+#   nothing has run unless a human dispatched it. (Swept 2026-08-25: this was
+#   the only present-tense cadence assertion left in any workflow.)
+#
+#   The original R2-13 reasoning, kept because it is still the argument for why
+#   push/PR triggers are NOT added: the single self-hosted runner is shared with
+#   validation + sanitizer and must not be tied up on every commit. What has
+#   changed is that the bounded cadence is now supplied by a human running
+#   `gh workflow run`, not by a timer — see the `on:` block for the three
+#   independent reasons, and docs/audit/ci-manual-only-posture.md for the
+#   decision. Corpus coverage still compounds run-over-run via the corpus-cache
+#   + -merge steps below; it just compounds per DISPATCH rather than per night.
+#
+#   The campaign was historically chronically red on the SentinelOne-
+#   protected self-hosted runner: a caught, by-design MuPdfException C++
+#   throw from Document::open is intercepted in the exception-dispatch
+#   layer and mis-reported as a "deadly signal" before the harness's
+#   catch(...) runs, so almost any malformed-PDF input failed the job.
+#   See CI-LIMITATION-WINDOWS-FUZZ-CXX-EXCEPTION-DEADLY-SIGNAL in
+#   tests/docs/known_issues.md. Three things keep the nightly honest AND
+#   tolerant of that one benign signature:
+#     1. The campaign-step triage below distinguishes that benign
+#        signature from real ASan/UBSan/SEGV/stack-overflow/timeout
+#        findings, and only a REAL finding sets a failing exit.
+#     2. The CAMPAIGN job stays `continue-on-error: true` (see the job
+#        block) so a residual mis-triaged benign deadly-signal cannot red
+#        the nightly and discard the accumulated corpus cache.
+#     3. FALSE-GREEN FIX (meta-audit follow-up F5, gap SEC-01). Because
+#        `continue-on-error` is a JOB-level flag, it also swallowed a
+#        genuine finding: the campaign step's `exit 1` on
+#        any_real_crash=true failed the STEP and the JOB, but the
+#        workflow run still concluded SUCCESS. A real crash therefore
+#        could not fail this workflow at all. A SEPARATE, BLOCKING job
+#        `real-crash-gate` (needs: fuzz, NO continue-on-error) now reads
+#        the campaign's `any_real_crash` output and FAILS THE RUN when it
+#        is true — and also fails when the campaign produced no verdict
+#        at all (build/infra failure), so "the campaign never ran" can no
+#        longer read as green either. Benign triage still cannot red the
+#        run; only a REAL finding or a non-run can.
+#        DECISION RECORD: docs/audit/meta-audit-2026-07/followup/phase-5-dispositions.md
+#   Manual dispatch remains for on-demand deep runs:
+#     gh workflow run windows-fuzz.yml [-f duration_seconds=<n>]
+#
+# Runner: self-hosted pdfe-windows (same host as windows-sanitizer.yml
+# and windows-validation.yml). The previous `runs-on: windows-2022`
+# GitHub-hosted runner could not complete the vcpkg cold-cache build
+# (CI-LIMITATION-GITHUB-FREE-TIER).
+#
+# DESIGN (pipeline f3c91a2e Phase 5): single job, NOT an N-way matrix.
+# The earlier matrix design rebuilt all of PDFE + vcpkg deps from
+# scratch for EACH harness (~16h+ total on the single-threaded
+# self-hosted runner, and fragile — the nightly schedule cancelled an
+# in-progress push run via concurrency). This job configures + builds
+# ALL 17 harnesses ONCE, then fuzzes each sequentially: ~1 configure +
+# 1 build + 17 short campaigns. Each harness still gets its own
+# corpus, seed dir, artifact dir, and per-harness pass/fail recorded.
+# The 4 R2-15/16 write-surface harnesses (content-stream edit, save
+# round-trip, MuJS exec, redaction) run here alongside the original 7,
+# as do the three phase-73 signature harnesses (OCSP, CRL, PKCS#7) which
+# are the first here to take DER rather than PDF bytes (four, counting the
+# RFC 3161 timestamp-token harness),
+# plus the meta-audit F4 image-codec harness (fuzz_image_decode, SEC-06).
+#
+# Every campaign is now seeded with -dict=tests/security/fuzz/pdf.dict
+# (SEC-03) and stages REAL-verdict artifacts into the committed
+# crash-regression corpus tests/security/fuzz/known_issues/<harness>/
+# (SEC-12 / SEC-33).
+
+on:
+  # NIGHTLY campaign (R2-13). 03:30 UTC — off-peak for the shared
+  # self-hosted runner, staggered before windows-validation's 04:xx slot
+  # so the two do not collide on the single host. See the trigger-policy
+  # note above for why push/PR are intentionally excluded.
+  # NO SCHEDULED TRIGGER — REMOVED 2026-08-13, DELIBERATELY, DO NOT RESTORE.
+  #
+  # Every workflow in this repository is now MANUAL (`workflow_dispatch`) only.
+  # Three separate reasons, each independently sufficient:
+  #
+  #   1. THE RUNNER IS NOT A SERVICE. The self-hosted Windows runner is started
+  #      by hand (`run.cmd`) and dies silently. An unserviced scheduled run
+  #      QUEUES and is then reported `cancelled` — a status that alerts nobody
+  #      and is indistinguishable from a deliberate cancellation. The
+  #      audit-of-audits records this lane as having no green in eight runs for
+  #      exactly that reason.
+  #   2. A SCHEDULED RUN WEDGES CONCURRENT LOCAL WORK. PDFE's single-instance
+  #      mutex is MACHINE-GLOBAL, so a scheduled job's UI E2E / render steps
+  #      hold it for hours and red `ShellAndInstanceLaunchTest` in every
+  #      concurrent local suite run on the same host — a false red that has been
+  #      misread as a product regression in three separate phases.
+  #   3. IT IS THE OWNER'S STANDING INSTRUCTION: there are to be no recurring
+  #      scheduled items on this project.
+  #
+  # Run it deliberately instead: `gh workflow run <this file>`, after checking
+  # the runner is actually online. A manual run that a human is watching is
+  # worth more than a nightly one nobody reads.
+  workflow_dispatch:
+    inputs:
+      duration_seconds:
+        description: 'Per-harness fuzz duration (seconds)'
+        required: false
+        default: '300'
+      detect_leaks:
+        # Meta-audit F4 / SEC-11. LeakSanitizer has always been hard-wired OFF
+        # here, so nobody has ever seen whether the harnesses leak. Flipping it
+        # required editing the workflow, which is why it was never flipped.
+        # This makes it a one-flag dispatch:
+        #   gh workflow run windows-fuzz.yml -f detect_leaks=1
+        # Default stays 0: LSan on a Qt/MuPDF process is noisy, and a nightly
+        # that goes red on benign one-time allocations evicts the corpus cache.
+        description: 'LeakSanitizer during campaigns (0=off, 1=on)'
+        required: false
+        default: '0'
+
+concurrency:
+  # Cancel a superseded fuzz run when a newer master push lands.
+  group: windows-fuzz-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz:
+    name: libFuzzer (all harnesses)
+    runs-on: [self-hosted, Windows, X64, pdfe-windows]
+    outputs:
+      # Consumed by the blocking `real-crash-gate` job below (F5 / SEC-01).
+      any_real_crash: ${{ steps.campaign.outputs.any_real_crash }}
+    # TIMEOUT vs CAMPAIGN (meta-audit follow-up F5, gaps SEC-02 + SEC-109).
+    #
+    # THE INVERSION THAT WAS FIXED HERE: this job scheduled 12 harnesses at
+    # DURATION=3600 s each on a scheduled run, i.e. 12 x 3600 s = 43200 s =
+    # 720 min of campaign inside a 600 min timeout. The job could not finish;
+    # GitHub cancelled it at 600 min, so the LAST harnesses in the array
+    # were silently truncated every night — and those are exactly the four
+    # R2-15/16 write-surface harnesses (content-stream edit, save round-trip,
+    # MuJS exec, redaction) plus the new F4 image-codec harness. The campaign
+    # looked like it covered 12 surfaces and actually covered ~10.
+    #
+    # THE COMPUTATION (campaign is shortened; the timeout is NOT inflated,
+    # because 600 min is already what a single-capacity nightly runner can
+    # absorb before it collides with windows-validation's 04:20 slot):
+    #
+    # RE-DERIVED IN PHASE-73, which added three signature harnesses (OCSP,
+    # CRL, PKCS#7). The instruction below was followed literally -- DURATION
+    # was LOWERED, the timeout was not raised -- so the campaign total and
+    # the build headroom are unchanged.
+    #
+    # AND THE OLD FIGURE WAS ALREADY WRONG. This block said 12 harnesses; the
+    # array held 13. fuzz_font_program was appended for meta-audit F13 and
+    # this arithmetic was never re-run, so the campaign it actually scheduled
+    # was 13 x 1800 s = 390 min, not the 360 min stated -- eating 30 min of
+    # the build headroom silently. The count below was produced by PARSING
+    # the array, not by reading the comment, and the guard test
+    # tests/test_signature_fuzz_wiring_phase73.cpp now re-derives it on every
+    # suite run so the next append cannot drift the same way.
+    #
+    #   harnesses in the array (counted)           = 17
+    #   per-harness duration (DURATION)            = 1270 s  = 21.2 min
+    #   campaign                   17 x 21.2 min   = 360 min
+    #   corpus -merge=1 minimisation budget        =  30 min
+    #   campaign + minimisation                    = 390 min
+    #   timeout-minutes                            = 600 min
+    #   headroom for configure + two-stage build   = 210 min
+    #
+    # 600 > 390, so the timeout is strictly greater than the campaign it
+    # schedules, with real headroom for the build. If a harness is ADDED,
+    # re-run this arithmetic: 600 min caps the array at 17 x 21.2 min plus
+    # the build; going beyond it means lowering DURATION, not raising the
+    # timeout. The guard test will fail the suite if you forget.
+    #
+    # THE COST IS REAL AND IS NOT HIDDEN: each of the twelve pre-existing
+    # harnesses now gets 6 fewer minutes per campaign. That is the honest
+    # price of covering three surfaces that had NO coverage-guided target at
+    # all, and it is preferable to the alternative this block was written to
+    # stop -- scheduling more campaign than the timeout allows, so the tail of
+    # the array is cancelled unrun while the job still looks like it covered
+    # everything.
+    timeout-minutes: 600
+    # STABILISATION (R2-13): the CAMPAIGN job is non-blocking so a residual
+    # mis-triaged benign C++ MuPdfException deadly-signal (CI-LIMITATION-
+    # WINDOWS-FUZZ-CXX-EXCEPTION-DEADLY-SIGNAL) cannot red the nightly and
+    # evict the cached corpus.
+    #
+    # THIS IS NO LONGER A FALSE GREEN (F5 / SEC-01). continue-on-error is a
+    # JOB-level flag, so before F5 it also swallowed a REAL finding — the run
+    # concluded success even with any_real_crash=true. The separate blocking
+    # `real-crash-gate` job below now fails the RUN on a real finding. Keeping
+    # continue-on-error here is deliberate and narrow: it buys tolerance for
+    # the documented benign false positive WITHOUT buying tolerance for a real
+    # crash. Removing it outright was rejected because it would red the
+    # nightly on every benign deadly-signal and evict the corpus cache.
+    continue-on-error: true
+    env:
+      # PERSISTENT local binary cache (C:\vcpkg-bincache, outside the
+      # git-cleaned workspace) IN ADDITION to x-gha. The x-gha backend
+      # has a 10 GB per-repo limit that cannot hold PDFE's 46-package
+      # source closure (Qt6 alone exceeds it), so every build was a
+      # cache MISS and source-rebuilt all 46 deps (~90 min) — which
+      # also meant depending on 46 flaky upstream source downloads
+      # (gumbo failed in run 27430972625; qtbase in 27397287924). A
+      # files-backed local cache has no size limit and persists across
+      # runs on the self-hosted runner: once ONE run successfully
+      # builds the closure (e.g. a nightly that catches a clean
+      # download window), every subsequent run restores from
+      # C:\vcpkg-bincache instantly — no rebuild, no upstream download.
+      VCPKG_BINARY_SOURCES: 'clear;files,C:\vcpkg-bincache,readwrite;x-gha,readwrite'
+      # Local vcpkg ASSET (source-distfile) cache — serves a port's source archive
+      # from C:\vcpkg-assets by SHA512 before hitting the authoritative URL, so an
+      # upstream tarball that drifted from vcpkg's pinned hash (e.g. codeberg mujs
+      # 1.3.8) no longer breaks the build. Misses still download normally. See
+      # windows-validation.yml.
+      X_VCPKG_ASSET_SOURCES: 'clear;x-azurl,file:///C:/vcpkg-assets,,readwrite'
+      # Per-harness duration. A dispatched run honours its explicit input;
+      # a scheduled (nightly) run gets 1800 s; the fallback for a bare dispatch
+      # with no input is the quick 300s smoke duration.
+      #
+      # 1350 s IS THE CEILING THE TIMEOUT ALLOWS (F5 / SEC-02, re-derived in
+      # phase-73) — see the timeout-vs-campaign computation on
+      # `timeout-minutes` above: 17 harnesses x 1270 s = 360 min campaign
+      # inside a 600 min job. It was 1800 s while the array was believed to
+      # hold 12 and actually held 13.
+      # C-09 had raised this to 3600 s, which made the scheduled campaign
+      # 720 min — longer than the job's own timeout — so the tail of the
+      # harness array (including all four write-surface harnesses) was
+      # cancelled unrun every night. Do NOT raise it back without either
+      # shrinking the array or re-deriving the timeout.
+      #
+      # COVERAGE-GUIDED DISCLOSURE (C-09, honest): true coverage-guided libFuzzer
+      # saturation runs ONLY in THIS clang-cl lane on the self-hosted runner --
+      # it is the only place PDFE builds with -fsanitize=fuzzer. The deterministic
+      # SEED-REPLAY oracle (tests/test_font_fuzz.cpp, test_pkcs7_fuzz.cpp,
+      # test_fuzz_harness_smoke.cpp) runs EVERYWHERE in the ordinary MSVC gtest
+      # suite -- it drives every committed seed + crafted input through the same
+      # harness cores with the no-crash / bounded-time / triage oracle, but it does
+      # NOT mutate or pursue new coverage. Neither is faked as the other.
+      # DEAD BRANCH REMOVED 2026-08-13 with the schedule trigger. This read
+      # `github.event_name == 'schedule' && '1800' || '300'`, and with no
+      # schedule left it could only ever pick 300 — a 5-minute campaign
+      # silently replacing the 30-minute one, which is the sort of quiet
+      # de-scoping this project treats as a defect. A manual run now
+      # defaults to the FULL per-harness duration and the dispatch input
+      # still overrides. 1270 s since phase-73 (was 1800 s at 13 harnesses).
+      DURATION: ${{ github.event.inputs.duration_seconds || '1270' }}
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Setup MSVC dev environment
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756  # v1.13.0
+        with:
+          arch: x64
+
+      - name: Export GitHub Actions cache env (for vcpkg x-gha)
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7.1.0
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2  # v11.6
+        with:
+          vcpkgGitCommitId: '15e5f3820f0370f1ba7150853762cec0688cd396'
+
+      - name: Locate clang-cl + clang_rt libs
+        id: clang
+        shell: pwsh
+        run: |
+          $vsInstall = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          if (-not $vsInstall) { throw "vswhere returned no VS installation path" }
+          $clangCl = Join-Path $vsInstall "VC\Tools\Llvm\x64\bin\clang-cl.exe"
+          if (-not (Test-Path $clangCl)) { throw "clang-cl.exe not found at $clangCl" }
+          # Resolve the clang_rt lib dir by GLOB, not by version number.
+          # clang-cl does NOT accept the GCC-style -dumpversion flag
+          # (it's the MSVC-compatible driver) — calling it returns null
+          # and a `.Trim()` on it throws. The runtime lib path is
+          # VC\Tools\Llvm\x64\lib\clang\<major>\lib\windows; globbing the
+          # <major> dir is robust across clang versions.
+          $clangRoot = Join-Path $vsInstall "VC\Tools\Llvm\x64\lib\clang"
+          $rtLib = Get-ChildItem $clangRoot -Directory -ErrorAction SilentlyContinue |
+                   Sort-Object { [int]($_.Name -replace '\D','0') } -Descending |
+                   ForEach-Object { Join-Path $_.FullName "lib\windows" } |
+                   Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $rtLib) { throw "clang_rt lib dir not found under $clangRoot" }
+          $needLibs = @("clang_rt.fuzzer-x86_64.lib", "clang_rt.asan_dynamic-x86_64.lib")
+          foreach ($nl in $needLibs) {
+            if (-not (Test-Path (Join-Path $rtLib $nl))) {
+              throw "Required clang_rt lib missing: $nl in $rtLib"
+            }
+          }
+          Write-Host "clang-cl: $clangCl"
+          Write-Host "clang_rt: $rtLib"
+          "clang_cl=$clangCl" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "rt_lib=$rtLib" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Free disk before configure
+        # BUILDHOST is disk-constrained (~250 GB, shared with the
+        # validation + sanitizer build dirs). Clear transient vcpkg
+        # build dirs from any prior run and report free space; fail
+        # fast with a clear message if we're below the headroom a
+        # debug fuzz build needs (~10 GB).
+        shell: pwsh
+        run: |
+          foreach ($t in @("buildtrees","downloads","packages")) {
+            $p = Join-Path $env:VCPKG_ROOT $t
+            if (Test-Path $p) { Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue }
+          }
+          $free = (Get-PSDrive C).Free / 1GB
+          Write-Host ("Free disk: {0:N2} GB" -f $free)
+          if ($free -lt 10) {
+            Write-Error ("Insufficient disk for fuzz build: {0:N2} GB free (<10 GB). Clean the host." -f $free)
+            exit 1
+          }
+
+      - name: Install vcpkg deps with MSVC (static CRT)
+        # STAGE 1 of the two-stage build. Install with the STATIC-CRT
+        # triplet x64-windows-static (MSVC cl.exe). This is a *source*
+        # build (no populated binary cache for the static triplet), so
+        # it is slow — qtbase static is the long pole. It is required:
+        # libFuzzer's clang_rt.fuzzer-x86_64.lib on Windows is built
+        # MT_StaticRelease (static CRT), and #pragma detect_mismatch on
+        # 'RuntimeLibrary' is not suppressible, so EVERY statically
+        # linked object (pdfe_core, the static vcpkg libs, the clang_rt
+        # runtimes) must agree on the static CRT or lld-link rejects the
+        # link ("mismatch detected for 'RuntimeLibrary'"). The previous
+        # dynamic-CRT (x64-windows / MultiThreadedDLL) attempt could
+        # never link the fuzzer runtime — see GAP for the decision record.
+        #
+        # --clean-after-build keeps peak disk down by freeing each
+        # port's buildtree as soon as it finishes (qtbase static needs
+        # ~10 GB transient); the disk preflight above guarantees >=10 GB.
+        # clang-cl (stage 2) is MSVC-ABI-compatible, so the harnesses
+        # link cleanly against these MSVC-built static deps.
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_ROOT\vcpkg.exe" install `
+            --triplet=x64-windows-static `
+            --x-manifest-root=. `
+            --x-install-root=build-fuzz-deps `
+            --clean-after-build
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg static-CRT install failed" }
+          # Reclaim transient build dirs so stage 2 has disk headroom.
+          foreach ($t in @("buildtrees","downloads","packages")) {
+            $p = Join-Path $env:VCPKG_ROOT $t
+            if (Test-Path $p) { Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue }
+          }
+          Write-Host ("Free disk after stage 1: {0:N2} GB" -f ((Get-PSDrive C).Free / 1GB))
+
+      - name: Configure with libFuzzer
+        # STAGE 2: build PDFE + harnesses with clang-cl + libFuzzer,
+        # REUSING the MSVC-built deps from stage 1. VCPKG_MANIFEST_MODE
+        # OFF + VCPKG_INSTALLED_DIR pointing at build-fuzz-deps means
+        # vcpkg does NO install/build here — it just resolves the
+        # already-installed packages, so the clang-cl compiler hash
+        # never triggers a dep rebuild.
+        shell: pwsh
+        env:
+          CLANG_CL: ${{ steps.clang.outputs.clang_cl }}
+          RT_LIB: ${{ steps.clang.outputs.rt_lib }}
+        run: |
+          $env:LIB = "$env:RT_LIB;$env:LIB"
+          # vcpkg --x-install-root=build-fuzz-deps creates
+          # build-fuzz-deps/<triplet>/... ; VCPKG_INSTALLED_DIR must be
+          # the ROOT that contains the <triplet> subdir.
+          $installed = (Resolve-Path "build-fuzz-deps").Path
+          if (-not (Test-Path "$installed\x64-windows-static")) {
+            throw "Stage-1 vcpkg install dir missing x64-windows-static under $installed"
+          }
+          # RelWithDebInfo + MultiThreaded (= /MT, release static CRT):
+          # clang_rt.fuzzer/asan are MT_StaticRelease, so the project and
+          # the vcpkg deps must use the RELEASE static CRT. RelWithDebInfo
+          # makes CMake link the *release* x64-windows-static libs (the
+          # debug libs are MTd_StaticDebug and would mismatch) while
+          # keeping -g debug info from the tree-wide fuzz flags.
+          #
+          # GTest_DIR: gtest is declared "host": true in vcpkg.json, so vcpkg
+          # installs it under the HOST triplet (x64-windows), not the target
+          # (x64-windows-static). PDFE_ENABLE_FUZZING forces PDFE_BUILD_TESTS
+          # =ON, which calls find_package(GTest); point it at the host copy.
+          # The fuzz harnesses never link gtest, so the CRT difference is
+          # irrelevant (only the harness targets are built below).
+          cmake -B build-fuzz -S . `
+            -G Ninja `
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DVCPKG_MANIFEST_MODE=OFF `
+            -DVCPKG_INSTALLED_DIR="$installed" `
+            -DCMAKE_C_COMPILER="$env:CLANG_CL" `
+            -DCMAKE_CXX_COMPILER="$env:CLANG_CL" `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
+            -DGTest_DIR="$installed/x64-windows/share/gtest" `
+            -DPDFE_ENABLE_FUZZING=ON `
+            -DPDFE_FUZZ_BACKEND=libfuzzer
+
+      - name: Build all fuzz harnesses
+        shell: pwsh
+        env:
+          RT_LIB: ${{ steps.clang.outputs.rt_lib }}
+        run: |
+          $env:LIB = "$env:RT_LIB;$env:LIB"
+          $harnesses = @(
+            "fuzz_document_open", "fuzz_page_render", "fuzz_text_extract",
+            "fuzz_annotation_walk", "fuzz_form_parse", "fuzz_embedded_files",
+            "fuzz_encryption_dict",
+            "fuzz_content_stream_edit", "fuzz_save_roundtrip", "fuzz_mujs_exec",
+            "fuzz_redaction_apply",
+            # Meta-audit F4 / SEC-06: image-codec decode surface (JPX + DCT +
+            # Flate image XObjects). The #50 / DCA-0011 OpenJPEG heap overflow
+            # lived here and was found by a hand-built fixture, not a fuzzer.
+            "fuzz_image_decode",
+            # Meta-audit F13 / SEC-09+SEC-54+SEC-58: font-PROGRAM parse surface
+            # (attacker-controlled sfnt/CFF reaching FreeType via
+            # EmbeddedFontAnalyzer). Distinct from the font-DICTIONARY gtest
+            # tests/test_font_fuzz.cpp, which never fuzzes a font program.
+            "fuzz_font_program",
+            # Phase-73: the SIGNATURE-VALIDATION input class (DER, not PDF).
+            # Every harness above takes PDF bytes; these take ASN.1 from an OCSP
+            # responder, a CRL distribution point, or a /DSS stream. They are
+            # also the first targets in this array to link pdfe_signatures.
+            # fuzz_pkcs7_verify is a PROMOTION of the LLVMFuzzerTestOneInput
+            # that sat unlinked in tests/test_pkcs7_fuzz.cpp (DCA 0037).
+            "fuzz_ocsp_response", "fuzz_crl_parse", "fuzz_pkcs7_verify",
+            "fuzz_tsa_response"
+          )
+          foreach ($h in $harnesses) {
+            Write-Host "::group::Build $h"
+            # Single-config Ninja — no --config flag.
+            cmake --build build-fuzz --target $h
+            if ($LASTEXITCODE -ne 0) { throw "Build failed for harness $h" }
+            Write-Host "::endgroup::"
+          }
+          # Reclaim disk: vcpkg buildtrees/downloads/packages are
+          # transient (the x-gha binary cache is the source of truth).
+          # Deleting them here keeps the runner from filling up across
+          # repeated fuzz runs on this disk-constrained host.
+          foreach ($t in @("buildtrees","downloads","packages")) {
+            $p = Join-Path $env:VCPKG_ROOT $t
+            if (Test-Path $p) { Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue }
+          }
+
+      - name: Restore accumulated fuzz corpus
+        # CORPUS PERSISTENCE (R2-13): the corpus/ tree is cached across runs
+        # so coverage COMPOUNDS instead of restarting from seeds every time.
+        # Cache keys are immutable, so we use a per-run key (always a fresh
+        # save) plus a restore-keys prefix that restores the most recent
+        # prior corpus. Each run therefore: restores the previous corpus
+        # -> fuzzes further -> minimises (-merge=1 step below) -> saves the
+        # superset under a new key. Over time the cached corpus converges on
+        # a coverage-dense set. Paired with actions/cache's automatic
+        # post-job save (the whole corpus/ dir, all 7 harness subdirs).
+        #
+        # SEC-34 (phase-8): the key is now scoped by ref. It used to be a bare
+        # `fuzz-corpus-<run_id>` with a bare `fuzz-corpus-` restore prefix, so
+        # every branch's corpus went into one undifferentiated pool. Two
+        # consequences, and neither is what the compounding design intended:
+        #
+        #   * A feature branch that changes a parser inherits — and then
+        #     OVERWRITES with its own superset — the corpus master built. The
+        #     inputs that reach master's code paths are silently diluted by
+        #     inputs shaped for code that may never merge.
+        #   * A corpus is only meaningful for the binary that produced it. A
+        #     merged pool makes "the corpus is coverage-dense" a claim about
+        #     no particular build.
+        #
+        # Scoping by `github.ref_name` gives each branch its own accumulating
+        # pool. The second restore-key deliberately falls back to the default
+        # branch's corpus, so a NEW branch starts from master's coverage
+        # instead of from bare seeds — inheritance was the good half of the
+        # old behaviour and is kept explicitly rather than as a side effect.
+        #
+        # A note on what this does NOT establish. SEC-34's proposed
+        # verification was to dispatch from a non-master ref and watch whether
+        # "the subsequent scheduled master run" restored that branch's corpus.
+        # There is no scheduled master run: every workflow here is
+        # workflow_dispatch-only (see the header). The experiment as written
+        # cannot be performed, and the fix is applied on the strength of the
+        # key text itself, which is unambiguous.
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.3.0
+        with:
+          path: corpus
+          key: fuzz-corpus-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            fuzz-corpus-${{ github.ref_name }}-
+            fuzz-corpus-master-
+
+      - name: Run fuzz campaigns (all harnesses sequentially)
+        id: campaign
+        shell: pwsh
+        env:
+          ASAN_OPTIONS: "detect_leaks=${{ github.event.inputs.detect_leaks || '0' }}:halt_on_error=1:abort_on_error=0"
+          UBSAN_OPTIONS: 'halt_on_error=1:print_stacktrace=1'
+          RT_LIB: ${{ steps.clang.outputs.rt_lib }}
+        run: |
+          # ASan runtime DLL must be on PATH for the fuzz binaries to start.
+          $env:PATH = "$env:RT_LIB;$env:PATH"
+          $harnesses = @(
+            "fuzz_document_open", "fuzz_page_render", "fuzz_text_extract",
+            "fuzz_annotation_walk", "fuzz_form_parse", "fuzz_embedded_files",
+            "fuzz_encryption_dict",
+            "fuzz_content_stream_edit", "fuzz_save_roundtrip", "fuzz_mujs_exec",
+            "fuzz_redaction_apply",
+            # Meta-audit F4 / SEC-06: image-codec decode surface (JPX + DCT +
+            # Flate image XObjects). The #50 / DCA-0011 OpenJPEG heap overflow
+            # lived here and was found by a hand-built fixture, not a fuzzer.
+            "fuzz_image_decode",
+            # Meta-audit F13 / SEC-09+SEC-54+SEC-58: font-PROGRAM parse surface
+            # (attacker-controlled sfnt/CFF reaching FreeType via
+            # EmbeddedFontAnalyzer). Distinct from the font-DICTIONARY gtest
+            # tests/test_font_fuzz.cpp, which never fuzzes a font program.
+            "fuzz_font_program",
+            # Phase-73: the SIGNATURE-VALIDATION input class (DER, not PDF).
+            # Every harness above takes PDF bytes; these take ASN.1 from an OCSP
+            # responder, a CRL distribution point, or a /DSS stream. They are
+            # also the first targets in this array to link pdfe_signatures.
+            # fuzz_pkcs7_verify is a PROMOTION of the LLVMFuzzerTestOneInput
+            # that sat unlinked in tests/test_pkcs7_fuzz.cpp (DCA 0037).
+            "fuzz_ocsp_response", "fuzz_crl_parse", "fuzz_pkcs7_verify",
+            "fuzz_tsa_response"
+          )
+          $duration = $env:DURATION
+          Write-Host "Per-harness duration: $duration sec"
+
+          # --- Crash triage -------------------------------------------------
+          # On Windows, libFuzzer raises "deadly signal" for a plain C++ throw
+          # too: Document::open throws a caught-by-design MuPdfException on a
+          # malformed PDF, and the exception-dispatch layer (libFuzzer's handler
+          # +/- SentinelOne's hook on the self-hosted runner) reports it as a
+          # crash before the harness's catch(...) runs. That is NOT a memory-
+          # safety finding. See CI-LIMITATION-WINDOWS-FUZZ-CXX-EXCEPTION-DEADLY-
+          # SIGNAL in tests/docs/known_issues.md. We therefore re-run each crash
+          # artifact and classify it: only a REAL finding fails the job; the
+          # benign caught-exception signature is recorded but does not. ANY
+          # unrecognised crash defaults to REAL so genuine findings (e.g. the
+          # PDFE-SEC-MUPDF-RECURSION-DOS stack overflow) are never masked.
+          $realMarkers = @(
+            'ERROR: AddressSanitizer', 'AddressSanitizer:',
+            'heap-buffer-overflow', 'stack-buffer-overflow', 'global-buffer-overflow',
+            'heap-use-after-free', 'use-after-poison', 'use-after-scope',
+            'attempting double-free', 'double-free',
+            'stack-overflow',
+            'SEGV on unknown address', 'access-violation', '0xc0000005',
+            'LeakSanitizer', 'detected memory leaks',
+            'runtime error:',                              # UBSan
+            'ERROR: libFuzzer: timeout', 'timeout after',
+            'ERROR: libFuzzer: out-of-memory', 'out-of-memory', 'rss_limit',
+            'fuzz target exited', 'fuzz target overwrites'
+          )
+          function Test-RealMarker([string]$log) {
+            foreach ($m in $realMarkers) {
+              if ($log -match [regex]::Escape($m)) { return $m }
+            }
+            return $null
+          }
+          function Test-BenignCxxThrow([string]$log) {
+            # Benign iff: a deadly signal whose stack is the C++ MuPdfException
+            # throw out of Document::open, with NO real memory-error marker.
+            if ($log -notmatch 'libFuzzer: deadly signal') { return $false }
+            if ($log -notmatch '_CxxThrowException') { return $false }
+            if (($log -notmatch 'MuPdfContext::executeReturn') -and
+                ($log -notmatch 'Document::open') -and
+                ($log -notmatch 'pdfe::core::Document')) { return $false }
+            return $true
+          }
+          function Get-ArtifactVerdict([string]$binPath, [string]$artifactPath) {
+            # Re-run the single crash input (no -artifact_prefix, so this does
+            # not write new artifacts) and classify from its output.
+            $log = (& $binPath $artifactPath "-timeout=60" "-rss_limit_mb=4096" 2>&1 | Out-String)
+            $rm = Test-RealMarker $log
+            if ($rm) { return [PSCustomObject]@{ verdict='real';   reason="real marker: $rm" } }
+            if (Test-BenignCxxThrow $log) {
+              return [PSCustomObject]@{ verdict='benign'; reason='caught C++ MuPdfException deadly-signal (CI-LIMITATION-WINDOWS-FUZZ-CXX-EXCEPTION-DEADLY-SIGNAL)' }
+            }
+            return [PSCustomObject]@{ verdict='real'; reason='unrecognised crash (conservative default)' }
+          }
+
+          $results = @()
+          $anyReal = $false
+          foreach ($h in $harnesses) {
+            Write-Host "::group::Fuzz $h ($duration s)"
+            New-Item -ItemType Directory -Path "corpus\$h" -Force | Out-Null
+            New-Item -ItemType Directory -Path "artifacts\$h" -Force | Out-Null
+            # DEFINED HERE, not further down where it used to be: the shared-seed
+            # copy below consults it, and PowerShell evaluates top-to-bottom, so
+            # a later definition would leave it $null -- and `$null -notcontains
+            # $h` is TRUE, which would have fed PDF bytes to the DER harnesses,
+            # the exact mistake the per-harness dictionary split exists to avoid.
+            $asn1Harnesses = @('fuzz_ocsp_response', 'fuzz_crl_parse',
+                               'fuzz_pkcs7_verify', 'fuzz_tsa_response')
+            # Seed dir. fuzz_pkcs7_verify seeds from the 5-file corpus that
+            # ALREADY exists at tests/corpus/pkcs7/ and is already driven by
+            # the test_pkcs7_fuzz.cpp seed-replay oracle -- one copy of those
+            # bytes, two consumers, so they cannot diverge (criterion 3).
+            $seedDir = if ($h -eq 'fuzz_pkcs7_verify') {
+              "tests\corpus\pkcs7"
+            } else {
+              "tests\security\fuzz\seeds\$h"
+            }
+            if (Test-Path $seedDir) {
+              Copy-Item "$seedDir\*" "corpus\$h\" -ErrorAction SilentlyContinue
+            }
+            # SEC-04 / GitHub #36 -- the imported pdf.js corpus, for the
+            # PDF-bytes harnesses only.
+            #
+            # Every seed under tests/security/fuzz/seeds/ was written by this
+            # project, so the mutator starts from this author's idea of what a
+            # PDF looks like. The imported subset is eight small files from
+            # Mozilla pdf.js's regression corpus (Apache-2.0, SHA-pinned in
+            # THIRD-PARTY-NOTICES.md) covering shapes nobody here would have
+            # written -- including one that is already fuzzer-derived.
+            #
+            # Deliberately NOT given to the ASN.1 harnesses: PDF bytes are the
+            # wrong format for a DER parser, and the per-harness dictionary
+            # split below exists for exactly that reason.
+            if ($asn1Harnesses -notcontains $h -and $h -ne 'fuzz_pkcs7_verify') {
+              $sharedSeeds = "tests\security\corpus\pdfjs"
+              if (Test-Path $sharedSeeds) {
+                Copy-Item "$sharedSeeds\*.pdf" "corpus\$h\" -ErrorAction SilentlyContinue
+              }
+            }
+            # SEC-05 / GitHub #37 -- the malicious-payload overlay, if the
+            # operator generated it. GITIGNORED and staged at campaign time on
+            # purpose: those payloads phone home and trip contributor antivirus
+            # on clone, so they are never committed. Absent overlay = no-op, so
+            # a machine without the corpus still runs a normal campaign.
+            #   python scripts/security/stage_malicious_seeds.py --stage
+            if ($asn1Harnesses -notcontains $h) {
+              $malOverlay = "tests\security\fuzz\seeds\_malicious_overlay"
+              if (Test-Path $malOverlay) {
+                $n = (Get-ChildItem $malOverlay -File -ErrorAction SilentlyContinue).Count
+                Copy-Item "$malOverlay\*" "corpus\$h\" -ErrorAction SilentlyContinue
+                Write-Host "  staged $n malicious-subset seed(s) for $h"
+              }
+            }
+            # A campaign that starts from an EMPTY corpus still reports
+            # healthy exec/s, so "the seeds were never staged" is invisible
+            # in the summary this job prints. Refuse instead. The check is on
+            # the CORPUS, not on seedDir, because a restored cache is a
+            # legitimate way to have inputs without a seed dir.
+            if (-not (Get-ChildItem "corpus\$h" -File -ErrorAction SilentlyContinue)) {
+              throw "No seeds and no cached corpus for $h (looked in $seedDir)"
+            }
+            $binary = Get-ChildItem "build-fuzz" -Recurse -Filter "$h.exe" |
+                      Select-Object -First 1
+            if (-not $binary) { throw "Fuzz binary not built: $h.exe" }
+            # -dict (meta-audit F4 / SEC-03): tests/security/fuzz/pdf.dict is a
+            # 228-line libFuzzer dictionary of PDF structural tokens that has
+            # existed in-tree since phase 4 but was NEVER passed on the
+            # invocation, so the mutator had to rediscover "endobj", "/Filter",
+            # "%%EOF" etc. by bitflip. Splicing dictionary tokens is the single
+            # cheapest coverage multiplier available for a format fuzzer.
+            #
+            # PER-HARNESS SINCE PHASE-73. This was pdf.dict for every harness
+            # unconditionally -- right for the eleven PDF-bytes targets and
+            # actively wrong for a DER parser: "endobj" / "%%EOF" spliced into
+            # a length-prefixed binary encoding produce inputs that d2i_*
+            # rejects at the first tag byte. A dictionary aimed at the wrong
+            # format is not neutral -- it spends the mutator budget on tokens
+            # that cannot appear in a valid input.
+            $dictPath = if ($asn1Harnesses -contains $h) {
+              "tests\security\fuzz\asn1.dict"
+            } else {
+              "tests\security\fuzz\pdf.dict"
+            }
+            if (-not (Test-Path $dictPath)) { throw "Fuzz dictionary missing: $dictPath" }
+            $dictArg = $dictPath.Replace("\", "/")
+            # -handle_winexcept=0 (GitHub #140). libFuzzer's Windows handler
+            # defaults to intercepting uncaught Visual C++ exceptions. Every
+            # harness here wraps its parse in try{...}catch(...), because a
+            # malformed input is EXPECTED to throw -- that is the designed error
+            # path, not a finding. When the SEH-level C++ EH exception
+            # (0xE06D7363) is intercepted before the harness's frame-based
+            # catch(...) runs, the campaign dies on the first malformed input and
+            # coverage-guided exploration never gets past the shallow reject,
+            # which is most of what a fuzzer is for.
+            #
+            # HONEST STATUS OF THIS FLAG. It is a MITIGATION WHOSE EFFECT IS
+            # UNVERIFIED HERE, and that is stated rather than implied:
+            #
+            #   * VERIFIED: the flag is accepted by the clang-cl libFuzzer build
+            #     in use (an unrecognised flag is rejected; this one is not).
+            #   * NOT VERIFIED: that it fixes the CI symptom. A minimal harness
+            #     that throws-and-catches on every input was built locally with
+            #     clang-cl and run 20,000 times at the DEFAULT setting -- it did
+            #     not abort. So libFuzzer's interception alone is NOT sufficient
+            #     cause, and the known_issues entry's other named factor (this
+            #     runner's SentinelOne InProcessClient64.dll hooking
+            #     RtlDispatchException, frames #5-7 of every recorded crash) is
+            #     the load-bearing half. That agent is not active on the machine
+            #     where the probe was run, so the failure does not reproduce off
+            #     the affected host.
+            #
+            # Evidence: docs/audit/backlog-p82/phase-9/fuzz-winexcept-probe/.
+            # #140 stays OPEN until a dispatched run on the affected runner
+            # shows a campaign processing inputs past the first throw.
+            & $binary.FullName `
+              "corpus\$h" `
+              "-dict=$dictArg" `
+              "-max_total_time=$duration" `
+              "-timeout=120" `
+              "-rss_limit_mb=4096" `
+              "-handle_winexcept=0" `
+              "-print_final_stats=1" `
+              "-artifact_prefix=artifacts\$h\" 2>&1 | Tee-Object -Variable campaignOut | Write-Host
+            $rc = $LASTEXITCODE
+            $crashFiles = Get-ChildItem "artifacts\$h" -File -ErrorAction SilentlyContinue
+            $rawCrashed = ($rc -ne 0) -or ($crashFiles.Count -gt 0)
+
+            # ---------------------------------------------------------------
+            # DID THE CAMPAIGN ACTUALLY FUZZ? (GitHub #140)
+            #
+            # #140 is not "the job went red" -- the triage classifier already
+            # keeps the job honest about that. #140 is that the campaign DIES ON
+            # THE FIRST malformed input, so coverage-guided exploration never
+            # happens, and NOTHING MEASURED THAT. A campaign that executed one
+            # unit and a campaign that executed ten million both produced the
+            # same "harness ran, triage clean" line. The productivity of the run
+            # was inferred, never observed.
+            #
+            # -print_final_stats=1 makes libFuzzer emit
+            # `stat::number_of_executed_units:` at the end. Recording it turns
+            # "did this fuzz?" into a number, per harness, in the report. It is
+            # deliberately NOT fatal here: a genuinely crashing harness should
+            # be judged by the triage classifier, not by a throughput floor that
+            # would mask a real finding behind a second failure mode. What it
+            # stops is the silent case -- 17 harnesses reporting success having
+            # executed one input each.
+            $executed = -1
+            foreach ($line in $campaignOut) {
+              if ("$line" -match 'stat::number_of_executed_units:\s*(\d+)') {
+                $executed = [int64]$Matches[1]
+              }
+            }
+            if ($executed -lt 0) {
+              Write-Host ("    [#140] {0}: libFuzzer emitted no final stats -- " +
+                          "throughput UNKNOWN for this harness." -f $h)
+            } elseif ($executed -le 1) {
+              Write-Host ("::warning::[#140] {0} executed {1} unit(s). The " +
+                          "campaign did not get past the first input -- this is " +
+                          "exactly the symptom #140 tracks. Coverage-guided " +
+                          "exploration did not happen, whatever the triage says." `
+                          -f $h, $executed)
+            } else {
+              Write-Host ("    [#140] {0}: executed {1} units -- the campaign " +
+                          "proceeded past the first input." -f $h, $executed)
+            }
+
+            # Triage every artifact this harness produced.
+            $realCount = 0; $benignCount = 0; $triage = @()
+            # CRASH-REGRESSION CORPUS (meta-audit F4 / SEC-12 + SEC-33).
+            # tests/security/fuzz/known_issues/<harness>/ is the committed
+            # crash-regression corpus. A REAL-verdict artifact is staged into it
+            # here so the reproducer survives the 30-day artifact retention and
+            # can be replayed from tests/test_fuzz_harness_smoke.cpp. The
+            # directory is committed EMPTY (see its README) because no campaign
+            # has yet produced a REAL artifact; nothing is fabricated into it.
+            $knownIssueDir = "tests\security\fuzz\known_issues\$h"
+            foreach ($cf in $crashFiles) {
+              $v = Get-ArtifactVerdict $binary.FullName $cf.FullName
+              if ($v.verdict -eq 'real') {
+                $realCount++
+                New-Item -ItemType Directory -Path $knownIssueDir -Force | Out-Null
+                # CRASH MINIMISATION (meta-audit F5 / SEC-14). libFuzzer
+                # -minimize_crash=1 shrinks the reproducer to the smallest input
+                # that still crashes, which is what makes a committed
+                # regression artifact readable and cheap to replay. It was
+                # available in scripts/security/run_fuzz.ps1 but never reached
+                # the CI campaign. Best-effort: if minimisation fails or
+                # produces nothing, the ORIGINAL artifact is staged unchanged —
+                # a reproducer is never lost to a failed minimisation.
+                $minDir = "artifacts\${h}_min"
+                New-Item -ItemType Directory -Path $minDir -Force | Out-Null
+                & $binary.FullName $cf.FullName `
+                  "-minimize_crash=1" "-runs=20000" `
+                  "-timeout=60" "-rss_limit_mb=4096" `
+                  "-exact_artifact_path=$minDir\min-$($cf.Name)" 2>&1 | Out-Null
+                $minPath = "$minDir\min-$($cf.Name)"
+                if (Test-Path $minPath) {
+                  Copy-Item $minPath (Join-Path $knownIssueDir "min-$($cf.Name)") -Force -ErrorAction SilentlyContinue
+                  Write-Host "    minimised REAL artifact -> $knownIssueDir\min-$($cf.Name)"
+                }
+                Copy-Item $cf.FullName (Join-Path $knownIssueDir $cf.Name) -Force -ErrorAction SilentlyContinue
+                Write-Host "    staged REAL artifact into $knownIssueDir\$($cf.Name)"
+              } else { $benignCount++ }
+              $triage += [PSCustomObject]@{ artifact=$cf.Name; verdict=$v.verdict; reason=$v.reason }
+              Write-Host ("    artifact {0}: {1} ({2})" -f $cf.Name, $v.verdict.ToUpper(), $v.reason)
+            }
+            # rc!=0 with NO artifact can't be triaged -> conservatively REAL.
+            if (($rc -ne 0) -and ($crashFiles.Count -eq 0)) {
+              $realCount++
+              Write-Host "    rc=$rc with no artifact -> REAL (conservative)"
+            }
+            $realCrash = ($realCount -gt 0)
+            if ($realCrash) { $anyReal = $true }
+            $results += [PSCustomObject]@{
+              harness=$h; rc=$rc; raw_crashed=$rawCrashed; artifacts=$crashFiles.Count;
+              real=$realCount; benign=$benignCount; real_crash=$realCrash; triage=$triage
+            }
+            Write-Host "  $h : rc=$rc artifacts=$($crashFiles.Count) real=$realCount benign=$benignCount real_crash=$realCrash"
+            Write-Host "::endgroup::"
+          }
+          # Write a JSON summary (full per-artifact triage retained).
+          $outDir = "tests\security\reports\fuzz"
+          New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+          $stamp = (Get-Date -AsUTC).ToString("yyyyMMddTHHmmssZ")
+          $benignTotal = ($results | Measure-Object -Property benign -Sum).Sum
+          $summary = [PSCustomObject]@{
+            run = "$stamp"
+            commit = "${env:GITHUB_SHA}"
+            duration_per_harness_s = [int]$duration
+            harnesses = $results
+            any_real_crash = $anyReal
+            benign_triaged = [int]$benignTotal
+          }
+          $summary | ConvertTo-Json -Depth 6 | Out-File "$outDir\run_${stamp}.json" -Encoding utf8
+
+          # SUMMARY PARSING -> BLOCKING GATE (meta-audit F5 / SEC-01).
+          # Publish the verdict as a STEP OUTPUT *before* any exit, so the
+          # separate, non-continue-on-error `real-crash-gate` job can fail the
+          # WORKFLOW RUN on a real finding. Writing it here (not in a later
+          # step) is deliberate: the `exit 1` below skips every subsequent step
+          # in this job, so a verdict emitted later would never be published on
+          # exactly the runs that matter.
+          $verdict = if ($anyReal) { 'true' } else { 'false' }
+          "any_real_crash=$verdict" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "any_real_crash=$verdict (published for real-crash-gate)"
+
+          Write-Host ""
+          Write-Host "=== Fuzz campaign summary ==="
+          $results | Select-Object harness, rc, artifacts, real, benign, real_crash |
+            Format-Table -AutoSize | Out-String | Write-Host
+          if ($anyReal) {
+            Write-Error "One or more fuzz harnesses produced a REAL crash/leak/timeout finding (see per-artifact triage above)."
+            exit 1
+          }
+          if ($benignTotal -gt 0) {
+            Write-Host "NOTE: $benignTotal artifact(s) triaged BENIGN (caught C++ MuPdfException deadly-signal; CI-LIMITATION-WINDOWS-FUZZ-CXX-EXCEPTION-DEADLY-SIGNAL) — not failing the job."
+          }
+          Write-Host "All $($harnesses.Count) harnesses fuzzed $duration s with no REAL findings."
+
+      - name: Minimise corpus (-merge=1) before caching
+        # CORPUS MINIMISATION (R2-13): collapse the just-fuzzed corpus to a
+        # coverage-equivalent minimal set so the cache stays dense and does
+        # not grow unboundedly across nightlies. libFuzzer `-merge=1` copies
+        # only inputs that add new coverage from the source dir(s) into a
+        # fresh destination; we then swap it back in place so the post-job
+        # cache save stores the minimised corpus. Best-effort: a merge
+        # failure for one harness must not fail the (continue-on-error) job
+        # or drop the other harnesses' corpora.
+        #
+        # F5 NOTE: this step being non-fatal is unrelated to crash reporting.
+        # A REAL crash is reported by the campaign step's `any_real_crash`
+        # output and enforced by the blocking `real-crash-gate` job below, so
+        # corpus housekeeping can stay best-effort without hiding a finding.
+        # This step is inside the 600-min timeout budget as the 30-min
+        # "minimisation" line of the campaign computation on `timeout-minutes`.
+        if: always()
+        shell: pwsh
+        env:
+          ASAN_OPTIONS: 'detect_leaks=0:halt_on_error=0:abort_on_error=0'
+          RT_LIB: ${{ steps.clang.outputs.rt_lib }}
+        run: |
+          $env:PATH = "$env:RT_LIB;$env:PATH"
+          $harnesses = @(
+            "fuzz_document_open", "fuzz_page_render", "fuzz_text_extract",
+            "fuzz_annotation_walk", "fuzz_form_parse", "fuzz_embedded_files",
+            "fuzz_encryption_dict",
+            "fuzz_content_stream_edit", "fuzz_save_roundtrip", "fuzz_mujs_exec",
+            "fuzz_redaction_apply",
+            # Meta-audit F4 / SEC-06: image-codec decode surface (JPX + DCT +
+            # Flate image XObjects). The #50 / DCA-0011 OpenJPEG heap overflow
+            # lived here and was found by a hand-built fixture, not a fuzzer.
+            "fuzz_image_decode",
+            # Meta-audit F13 / SEC-09+SEC-54+SEC-58: font-PROGRAM parse surface
+            # (attacker-controlled sfnt/CFF reaching FreeType via
+            # EmbeddedFontAnalyzer). Distinct from the font-DICTIONARY gtest
+            # tests/test_font_fuzz.cpp, which never fuzzes a font program.
+            "fuzz_font_program",
+            # Phase-73: the SIGNATURE-VALIDATION input class (DER, not PDF).
+            # Every harness above takes PDF bytes; these take ASN.1 from an OCSP
+            # responder, a CRL distribution point, or a /DSS stream. They are
+            # also the first targets in this array to link pdfe_signatures.
+            # fuzz_pkcs7_verify is a PROMOTION of the LLVMFuzzerTestOneInput
+            # that sat unlinked in tests/test_pkcs7_fuzz.cpp (DCA 0037).
+            "fuzz_ocsp_response", "fuzz_crl_parse", "fuzz_pkcs7_verify",
+            "fuzz_tsa_response"
+          )
+          foreach ($h in $harnesses) {
+            $src = "corpus\$h"
+            if (-not (Test-Path $src)) { continue }
+            $binary = Get-ChildItem "build-fuzz" -Recurse -Filter "$h.exe" |
+                      Select-Object -First 1
+            if (-not $binary) { Write-Host "  $h : binary missing, skip merge"; continue }
+            $min = "corpus_min\$h"
+            New-Item -ItemType Directory -Path $min -Force | Out-Null
+            Write-Host "::group::Minimise $h"
+            $before = (Get-ChildItem $src -File -ErrorAction SilentlyContinue).Count
+            # -merge=1 <dst> <src...> : keep only coverage-expanding inputs.
+            & $binary.FullName $min $src "-merge=1" "-timeout=120" "-rss_limit_mb=4096"
+            $after = (Get-ChildItem $min -File -ErrorAction SilentlyContinue).Count
+            if ($after -gt 0) {
+              Remove-Item $src -Recurse -Force -ErrorAction SilentlyContinue
+              Move-Item $min $src -Force
+              Write-Host "  $h : minimised $before -> $after inputs"
+            } else {
+              Write-Host "  $h : merge produced 0 inputs, keeping original corpus ($before)"
+              Remove-Item $min -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            Write-Host "::endgroup::"
+          }
+
+      - name: Upload findings + summary
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: windows-fuzz-findings
+          path: |
+            artifacts/**
+            tests/security/reports/fuzz/**
+            tests/security/fuzz/known_issues/**
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # -------------------------------------------------------------------------
+  # REAL-CRASH GATE (meta-audit follow-up F5, gap SEC-01)
+  #
+  # THE FALSE GREEN THIS CLOSES: `continue-on-error: true` on the `fuzz` job
+  # is a JOB-level flag. It made the whole run conclude SUCCESS regardless of
+  # the campaign's exit code — so the campaign step's `exit 1` on
+  # any_real_crash=true failed the step and the job, and the workflow was
+  # still green. A genuine ASan/UBSan/SEGV/timeout finding could not fail this
+  # workflow. That is precisely what SEC-01's verification procedure predicted
+  # ("observe workflow conclusion = success despite any_real_crash=true").
+  #
+  # THE FIX: this job is SEPARATE, has NO continue-on-error, and is therefore
+  # the run's blocking conclusion. It fails on either of two conditions:
+  #   1. any_real_crash == 'true'  — a REAL finding was triaged.
+  #   2. the verdict is EMPTY      — the campaign never published one, i.e. it
+  #                                  did not complete (build/disk/toolchain
+  #                                  failure, or the 600-min timeout). "The
+  #                                  campaign did not run" must not read as
+  #                                  "the campaign found nothing".
+  # A BENIGN-only run publishes 'false' and passes, which is the whole point:
+  # the documented CI-LIMITATION-WINDOWS-FUZZ-CXX-EXCEPTION-DEADLY-SIGNAL
+  # false positive still cannot red the nightly or evict the corpus cache.
+  #
+  # Runs on a GitHub-hosted runner: it is three lines of shell and must not
+  # queue behind the very campaign it is gating on the single-capacity
+  # self-hosted host.
+  #
+  # DECISION RECORD: docs/audit/meta-audit-2026-07/followup/phase-5-dispositions.md
+  # -------------------------------------------------------------------------
+  real-crash-gate:
+    name: Real-crash gate (blocking)
+    needs: fuzz
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fail the run on a REAL fuzz finding (or on a campaign that never reported)
+        shell: bash
+        env:
+          ANY_REAL_CRASH: ${{ needs.fuzz.outputs.any_real_crash }}
+          FUZZ_RESULT: ${{ needs.fuzz.result }}
+        run: |
+          echo "campaign job result : ${FUZZ_RESULT}"
+          echo "any_real_crash      : '${ANY_REAL_CRASH}'"
+          if [ "${ANY_REAL_CRASH}" = "true" ]; then
+            echo "::error::REAL fuzz finding (any_real_crash=true). See the windows-fuzz-findings artifact and the per-artifact triage in the campaign log."
+            exit 1
+          fi
+          if [ -z "${ANY_REAL_CRASH}" ]; then
+            echo "::error::The fuzz campaign published no any_real_crash verdict (campaign job result='${FUZZ_RESULT}'). The campaign did not complete — treat as FAILED, not as 'no findings'."
+            exit 1
+          fi
+          echo "No REAL findings (benign triage, if any, does not fail the run)."

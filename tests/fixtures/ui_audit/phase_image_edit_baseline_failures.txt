@@ -1,0 +1,58 @@
+Phase 7 (image-edit half) — baseline failure log
+====================================================
+
+Tests added: 7 P0 cases in tests/test_image_redaction_phase7.cpp
+under the Phase7ImageEditTest fixture.
+
+Test command:
+  build/vs2022/bin/Debug/pdfe_tests.exe \
+    --gtest_filter="Phase7ImageEditTest.*"
+
+─────────────────────────────────────────────────────────────────────
+RED BASELINE
+─────────────────────────────────────────────────────────────────────
+
+Initial draft hit a constructor-signature mismatch + a karen finding:
+- ResizeImageCommand / RotateImageCommand / CropImageCommand take an
+  ImageContentEditor* + xobjectName + transform-specific args (origin,
+  size, angle, center) -- not the (manager, doc, page, idx, rect)
+  signature my draft assumed.
+- RemoveImageCommand parameter ORDER is (manager, page, doc, idx) --
+  my draft passed (manager, doc, page, idx).
+- I initially consolidated Resize/Rotate/Crop into a single
+  EnumerateImagesReturnsCtmBoundingBox test on the (false) claim that
+  test_image_commands.cpp already covered transform commands. Karen
+  caught this: test_image_commands.cpp covers Insert and Remove only,
+  zero Resize/Rotate/Crop tests anywhere in the suite.
+
+Remediation (no production change):
+1. Resize/Rotate/Crop dedicated tests added with full save/reopen
+   round-trip via ImageContentEditor.
+2. RemoveImageCommand argument order corrected.
+
+─────────────────────────────────────────────────────────────────────
+GREEN STATE
+─────────────────────────────────────────────────────────────────────
+
+Phase7ImageEditTest:
+  InsertImagePlacesXObjectOnPage              (UI-IMG-01)  PASS
+  ResizeImageUpdatesCtmThroughSave            (UI-IMG-06)  PASS
+  RotateImageUpdatesCtmThroughSave            (UI-IMG-07)  PASS
+  CropImageProducesValidPdf                   (UI-IMG-08)  PASS
+  RemoveImageUndoRestoresXObject              (UI-IMG-09)  PASS
+  RemoveImageCommandReachesUndoStack          (UI-IMG-12)  PASS
+  InsertImageOnNonEncryptedDocumentSucceeds   (UI-IMG-21 baseline)  PASS
+
+7 active tests, 0 failures.
+
+Production source changed in Phase 7 (image-edit): NONE.
+
+==================================================================
+Phase 10 closeout annotation (2026-04-29)
+==================================================================
+Status: ALL FAILURES RESOLVED (no production change required).
+Phase that fixed: phase-7 (commit 1016f69 — image-edit + redaction
+cycle).
+Locked-by tests: tests/test_image_redaction_phase7.cpp
+(Phase7ImageEditTest fixture).
+Deferrals to D1: P1 rows enumerated above.

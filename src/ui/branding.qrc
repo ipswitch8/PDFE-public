@@ -1,0 +1,59 @@
+<!DOCTYPE RCC>
+<!--
+  Branding + legal assets embedded into the binary so the About
+  dialog can render them without needing a side-by-side asset
+  directory.
+
+  The aliases give stable Qt resource paths the dialog code
+  references:
+    :/branding/color_logo.png        — main color logo, sourced from
+                                       pdfe-color-1024.png at repo root
+                                       (779x1024 RGBA, ~770 KB).
+    :/branding/itwerx_logo_small.png — itwerx attribution logo
+                                       (clickable link to itwerx.net)
+    :/branding/about.md              — Markdown source for the About
+                                       dialog body. AboutDialog reads
+                                       this, substitutes {{VERSION}}
+                                       and {{QT_VERSION}} placeholders,
+                                       and renders via QTextBrowser
+                                       setMarkdown(). Marketing edits
+                                       this file and rebuilds — no
+                                       code change needed.
+    :/legal/LICENSE.txt              — full AGPL-3.0 text
+    :/legal/commercial_addendum.txt  — Commercial Licensing
+                                       Addendum (dual-license terms)
+
+  Source paths are relative to this .qrc file's directory
+  (src/ui/), so `../../foo.png` reaches the repo root. The alias
+  is kept as `color_logo.png` so AboutDialog.cpp's resource path
+  (":/branding/color_logo.png") does not need to change when the
+  underlying asset filename rotates.
+
+  about.md authoring rules (for marketing):
+    * Width budget: ~560 px. Size images to fit; keep tables narrow
+      (anything wider produces a horizontal scrollbar).
+    * Image paths use Qt resource syntax: ":/branding/<alias>".
+      Adding a new image means adding it to this .qrc too.
+    * {{VERSION}} and {{QT_VERSION}} are substituted at runtime —
+      do not hardcode version numbers.
+    * Qt's Markdown is GitHub-Flavored (GFM) + inline HTML
+      passthrough. For things Markdown can't express (centering,
+      image width/align) use embedded HTML, e.g.
+      <div align="center">…</div> or <img … width="180" />.
+    * DO NOT put HTML-style comments in about.md — Qt's Markdown
+      renderer prints their content as visible text.
+    * Branding strings ("Brought to you by...", "Suggested donation -
+      whatever one month..." etc.) are EXACT wording — do not
+      translate or paraphrase, they are asserted by tests.
+-->
+<RCC version="1.0">
+    <qresource prefix="/branding">
+        <file alias="color_logo.png">../../pdfe-color-1024.png</file>
+        <file alias="itwerx_logo_small.png">../../itwerx_logo_small.png</file>
+        <file alias="about.md">about.md</file>
+    </qresource>
+    <qresource prefix="/legal">
+        <file alias="LICENSE.txt">../../LICENSE</file>
+        <file alias="commercial_addendum.txt">commercial_addendum.txt</file>
+    </qresource>
+</RCC>

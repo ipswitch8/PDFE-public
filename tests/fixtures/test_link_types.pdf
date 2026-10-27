@@ -1,0 +1,54 @@
+%PDF-1.5
+%ÿÿÿÿ
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 10 0 R 11 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> /Annots [4 0 R 5 0 R 6 0 R 7 0 R] >>
+endobj
+4 0 obj
+<< /Type /Annot /Subtype /Link /P 3 0 R /F 4 /Rect [50 692 150 742] /A << /S /URI /URI (https://example.test/follow-link-uri) >> >>
+endobj
+5 0 obj
+<< /Type /Annot /Subtype /Link /P 3 0 R /F 4 /Rect [200 692 300 742] /A << /S /GoTo /D [11 0 R /Fit] >> >>
+endobj
+6 0 obj
+<< /Type /Annot /Subtype /Link /P 3 0 R /F 4 /Rect [50 592 150 642] /A << /S /Named /N /NextPage >> >>
+endobj
+7 0 obj
+<< /Type /Annot /Subtype /Link /P 3 0 R /F 4 /Rect [200 592 300 642] /A << /S /Launch /F << /Type /Filespec /F (notes.txt) /UF (notes.txt) >> >> >>
+endobj
+8 0 obj
+null
+endobj
+9 0 obj
+null
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> >>
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000135 00000 n 
+0000000257 00000 n 
+0000000404 00000 n 
+0000000526 00000 n 
+0000000644 00000 n 
+0000000807 00000 n 
+0000000827 00000 n 
+0000000847 00000 n 
+0000000936 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R >>
+startxref
+1025
+%%EOF

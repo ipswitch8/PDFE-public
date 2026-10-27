@@ -1,0 +1,330 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default Config",
+      "description": "Default build using vcpkg",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        "VCPKG_TARGET_TRIPLET": "x64-windows-repro",
+        "VCPKG_HOST_TRIPLET": "x64-windows-repro",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/tools/vcpkg-triplets"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "windows-vs2022",
+      "displayName": "Windows Visual Studio 2022",
+      "description": "Build with Visual Studio 2022 generator",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/vs2022",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        "VCPKG_TARGET_TRIPLET": "x64-windows-repro",
+        "VCPKG_HOST_TRIPLET": "x64-windows-repro",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/tools/vcpkg-triplets"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "windows-vs2022-asan",
+      "displayName": "Windows VS2022 + ASan/UBSan (clang-cl)",
+      "description": "Phase-7 sanitizer build: clang-cl with -fsanitize=address,undefined. OPT-IN: requires the VS 'C++ Clang tools for Windows' workload. Separate binary dir from windows-vs2022 so the regular build is undisturbed.",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/vs2022-asan",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        "VCPKG_TARGET_TRIPLET": "x64-windows-repro",
+        "VCPKG_HOST_TRIPLET": "x64-windows-repro",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/tools/vcpkg-triplets",
+        "CMAKE_C_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe",
+        "CMAKE_CXX_COMPILER": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe",
+        "CMAKE_C_FLAGS_INIT":   "-fsanitize=address -fsanitize=undefined /Zi /Od -D_DISABLE_VECTOR_ANNOTATION=1 -D_DISABLE_STRING_ANNOTATION=1",
+        "CMAKE_CXX_FLAGS_INIT": "-fsanitize=address -fsanitize=undefined /Zi /Od -D_DISABLE_VECTOR_ANNOTATION=1 -D_DISABLE_STRING_ANNOTATION=1",
+        "CMAKE_EXE_LINKER_FLAGS_INIT":    "/defaultlib:clang_rt.asan_dynamic-x86_64.lib /defaultlib:clang_rt.asan_dynamic_runtime_thunk-x86_64.lib /defaultlib:clang_rt.ubsan_standalone-x86_64.lib /defaultlib:clang_rt.ubsan_standalone_cxx-x86_64.lib",
+        "CMAKE_SHARED_LINKER_FLAGS_INIT": "/defaultlib:clang_rt.asan_dynamic-x86_64.lib /defaultlib:clang_rt.asan_dynamic_runtime_thunk-x86_64.lib /defaultlib:clang_rt.ubsan_standalone-x86_64.lib /defaultlib:clang_rt.ubsan_standalone_cxx-x86_64.lib",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL",
+        "PDFE_ENABLE_SECURITY_TESTS": "ON",
+        "PDFE_ENABLE_FUZZING": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_MAKE_PROGRAM": "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "windows-vs2022-package",
+      "displayName": "Windows VS2022 — PACKAGING (PDFE_TESTING=OFF)",
+      "description": "The ONLY configure tree a shipped installer may be packaged from. Identical to windows-vs2022 except PDFE_TESTING=OFF, so the test-only introspection seams (PDFE_TEST_PIPES / the dialog-inventory and tool-activation pipes, and the FormXObjectDepthGuard limit override) are statically dead in the binary users receive. A SEPARATE binaryDir is mandatory and not an aesthetic choice: PDFE_TESTING is configure-scoped because pdfe_ui is a static library linked into BOTH pdfe.exe and pdfe_tests.exe, so one tree cannot serve both postures. GitHub #182.",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/vs2022-package",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        "VCPKG_TARGET_TRIPLET": "x64-windows-repro",
+        "VCPKG_HOST_TRIPLET": "x64-windows-repro",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/tools/vcpkg-triplets",
+        "PDFE_TESTING": {
+          "type": "BOOL",
+          "value": "OFF"
+        }
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "windows-vs2022-msvc-asan",
+      "displayName": "Windows VS2022 + MSVC AddressSanitizer",
+      "description": "MSVC /fsanitize=address sanitizer build using the VS 2022 generator. OPT-IN single-pass alternative to the clang-cl asan preset; integrates cleanly with /MD vcpkg builds because the MSVC asan runtime supports dynamic CRT. Does NOT support UBSan or libFuzzer (clang-cl-only on Windows).",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/vs2022-msvc-asan",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        "VCPKG_TARGET_TRIPLET": "x64-windows-repro",
+        "VCPKG_HOST_TRIPLET": "x64-windows-repro",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/tools/vcpkg-triplets",
+        "CMAKE_C_FLAGS_INIT":   "/fsanitize=address /Zi /D_DISABLE_VECTOR_ANNOTATION /D_DISABLE_STRING_ANNOTATION",
+        "CMAKE_CXX_FLAGS_INIT": "/fsanitize=address /Zi /D_DISABLE_VECTOR_ANNOTATION /D_DISABLE_STRING_ANNOTATION",
+        "CMAKE_C_FLAGS_DEBUG_INIT":   "/Od /Ob0 /Zi /D_DEBUG /MDd",
+        "CMAKE_CXX_FLAGS_DEBUG_INIT": "/Od /Ob0 /Zi /D_DEBUG /MDd",
+        "PDFE_ENABLE_SECURITY_TESTS": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "linux-gcc",
+      "displayName": "Linux GCC",
+      "description": "Build with GCC on Linux",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        "VCPKG_TARGET_TRIPLET": "x64-linux",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "macos-clang",
+      "displayName": "macOS Clang",
+      "description": "Build with AppleClang on macOS",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        "VCPKG_TARGET_TRIPLET": "x64-osx",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug Build",
+      "configurePreset": "default",
+      "configuration": "Debug"
+    },
+    {
+      "name": "release",
+      "displayName": "Release Build",
+      "configurePreset": "default",
+      "configuration": "Release"
+    },
+    {
+      "name": "debug-vs2022",
+      "displayName": "Debug Build (VS2022)",
+      "configurePreset": "windows-vs2022",
+      "configuration": "Debug"
+    },
+    {
+      "name": "debug-vs2022-asan",
+      "displayName": "Debug Build with ASan/UBSan (VS2022 clang-cl)",
+      "configurePreset": "windows-vs2022-asan",
+      "configuration": "Debug"
+    },
+    {
+      "name": "release-vs2022",
+      "displayName": "Release Build (VS2022)",
+      "configurePreset": "windows-vs2022",
+      "configuration": "Release"
+    },
+    {
+      "name": "debug-vs2022-msvc-asan",
+      "displayName": "Debug Build with MSVC ASan (VS2022)",
+      "configurePreset": "windows-vs2022-msvc-asan",
+      "configuration": "Debug"
+    },
+    {
+      "name": "linux-debug",
+      "displayName": "Linux Debug Build",
+      "configurePreset": "linux-gcc",
+      "configuration": "Debug"
+    },
+    {
+      "name": "linux-release",
+      "displayName": "Linux Release Build",
+      "configurePreset": "linux-gcc",
+      "configuration": "Release"
+    },
+    {
+      "name": "macos-debug",
+      "displayName": "macOS Debug Build",
+      "configurePreset": "macos-clang",
+      "configuration": "Debug"
+    },
+    {
+      "name": "macos-release",
+      "displayName": "macOS Release Build",
+      "configurePreset": "macos-clang",
+      "configuration": "Release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "test",
+      "displayName": "Run Tests",
+      "configurePreset": "default",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "test-vs2022",
+      "displayName": "Run Tests (VS2022)",
+      "configurePreset": "windows-vs2022",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "exclude": {
+          "label": "security"
+        }
+      }
+    },
+    {
+      "name": "test-vs2022-security",
+      "displayName": "Run Security Tests Only (VS2022, opt-in)",
+      "configurePreset": "windows-vs2022",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "label": "security"
+        }
+      }
+    },
+    {
+      "name": "test-vs2022-asan",
+      "displayName": "Run Tests with ASan/UBSan (VS2022 clang-cl)",
+      "configurePreset": "windows-vs2022-asan",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      },
+      "filter": {
+        "exclude": {
+          "label": "security"
+        }
+      }
+    },
+    {
+      "name": "test-vs2022-msvc-asan",
+      "displayName": "Run Tests with MSVC ASan (VS2022)",
+      "configurePreset": "windows-vs2022-msvc-asan",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      },
+      "filter": {
+        "exclude": {
+          "label": "security"
+        }
+      }
+    },
+    {
+      "name": "linux-test",
+      "displayName": "Run Tests (Linux)",
+      "configurePreset": "linux-gcc",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "macos-test",
+      "displayName": "Run Tests (macOS)",
+      "configurePreset": "macos-clang",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

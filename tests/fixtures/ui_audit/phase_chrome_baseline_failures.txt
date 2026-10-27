@@ -1,0 +1,124 @@
+Phase 9 — chrome/panels/dialogs/menus baseline failures
+Captured: 2026-04-29
+Build: build/vs2022/bin/Debug/pdfe_tests.exe --gtest_filter="Phase9ChromeTest.*"
+
+Suite: Phase9ChromeTest
+Total Phase-9 cases:    13
+Passing pre-fix:        10
+Failing pre-fix (RED):   3
+
+==================================================================
+Failing test #1
+==================================================================
+Test: Phase9ChromeTest.AlignmentButtonGlyphsAreNotPlainArrows
+Audit rows: UI-VF-01, UI-VF-02, UI-VF-03, UI-VF-04
+Locations:
+  src/ui/TextEditToolBar.cpp:166 — alignLeftButton  text is U+2190 (←)
+  src/ui/TextEditToolBar.cpp:175 — alignCenterButton text is U+2194 (↔)
+  src/ui/TextEditToolBar.cpp:183 — alignRightButton text is U+2192 (→)
+  src/ui/TextEditToolBar.cpp:191 — alignJustifyButton text is U+2195 (↕)
+
+Failure output (excerpt):
+  alignJustifyButton text is U+2195 (↕ up-down arrow), which
+  semantically means 'vertical position adjustment'. Replace with
+  U+2261 (≡) or an icon. (UI-VF-01)
+  alignLeftButton text is a plain arrow glyph (U+2190). (UI-VF-02)
+  alignCenterButton text is a plain arrow glyph (U+2194). (UI-VF-03)
+  alignRightButton text is a plain arrow glyph (U+2192). (UI-VF-04)
+
+Resolution plan:
+  Swap the four arrow glyphs in TextEditToolBar.cpp for proper
+  alignment glyphs:
+    Left:    U+2B05 ⇤ (left-arrow with bar) or icon-set glyph
+    Center:  U+2261 ≡  (three horizontal bars)  — center-aligned visually
+    Right:   U+2B0E ⇥  (right-arrow with bar) or icon-set glyph
+    Justify: U+2630 ☰  (trigram for heaven, hamburger menu)
+              equivalent to four full-width bars — universally read
+              as "justify"
+  Accessible names ("Align Left/Center/Right/Justify") are not
+  changed.
+
+==================================================================
+Failing test #2
+==================================================================
+Test: Phase9ChromeTest.NoTwoActionsBindTheSameSaveAndSignShortcut
+Audit row: UI-KB-04
+Location: src/ui/MainWindow.cpp:769
+
+Failure output (excerpt):
+  signDocumentAction_ binds Ctrl+Shift+S at line 769 of
+  MainWindow.cpp — collides with QKeySequence::SaveAs (Ctrl+Shift+S
+  on Windows). Rebind to Ctrl+Alt+S (UI-KB-04).
+  Line: signDocumentAction_->setShortcut(QKeySequence(tr("Ctrl+Shift+S")));
+
+Resolution plan:
+  Rebind src/ui/MainWindow.cpp:769 from
+    QKeySequence(tr("Ctrl+Shift+S"))
+  to
+    QKeySequence(tr("Ctrl+Alt+S"))
+  saveAsAction_ keeps its QKeySequence::SaveAs binding.
+
+==================================================================
+Failing test #3
+==================================================================
+Test: Phase9ChromeTest.CanvasExposesContextMenuRequestSignal
+Audit row: UI-CTX-01
+Location: src/ui/PdfCanvas.h / .cpp — no contextMenuEvent override
+
+Failure output (excerpt):
+  PdfCanvas must expose canvasContextMenuRequested(QPoint) so
+  MainWindow can show a default canvas context menu (UI-CTX-01).
+  Pre-fix the canvas right-click is a no-op.
+
+Resolution plan:
+  Add to PdfCanvas:
+    signals: void canvasContextMenuRequested(QPoint screenPos);
+    protected:  void contextMenuEvent(QContextMenuEvent* ev) override;
+  contextMenuEvent emits canvasContextMenuRequested with the
+  global position of the right-click. MainWindow connects to this
+  signal and shows a tool-aware menu (Zoom In / Zoom Out / Fit
+  Page / Fit Width / Single Page / Continuous etc.).
+
+==================================================================
+Deferred-to-Phase-D1 (acknowledged)
+==================================================================
+UI-CTX-02 — Text-edit context menu currently shows only Atlas
+  Mode submenu (MainWindow.cpp:3608-3640). Acrobat shows
+  Cut/Copy/Paste/Select All. Implementing those touches
+  TextEditTool internals (Phase-3 territory) and is structurally
+  better grouped with the D1 final-integration cycle that already
+  consolidates cross-subsystem text-edit work.
+
+UI-CTX-03 — Annotation right-click context menu (Properties /
+  Delete / Reply on a selected annotation). Implementing requires
+  SelectTool integration (Phase-4 territory). Defer to D1.
+
+UI-CTX-11 — TextEditTool selection right-click full menu
+  (Cut/Copy/Paste/Bold/Italic/Find). Same TextEditTool internals
+  scope as CTX-02; defer to D1.
+
+UI-KB-07 — Ctrl+Q exit-prompt for dirty document. closeEvent
+  flow with a QMessageBox confirm — adequately exercised by the
+  pywinauto smoke layer at the harness level; the kernel
+  contract (UndoManager::isClean drives the prompt) is locked
+  by UndoManagerCleanStateDrivesDirtyMarker.
+
+==================================================================
+End of baseline.
+==================================================================
+
+==================================================================
+Phase 10 closeout annotation (2026-04-29)
+==================================================================
+Status: ALL FAILURES RESOLVED. The 3 RED-pre-fix tests went GREEN
+after the four src/ui/ production changes documented in the
+"Resolution plan" sections above:
+  - UI-VF-01..04: TextEditToolBar.cpp:166-194 (4 glyphs swapped)
+  - UI-KB-04:     MainWindow.cpp:769 (Ctrl+Shift+S → Ctrl+Alt+S)
+  - UI-CTX-01:    PdfCanvas.{h,cpp} + MainWindow.cpp (~285)
+  - UI-DD-01:     MainWindow.{h,cpp} (setAcceptDrops + drag-drop overrides)
+Phase that fixed: phase-9 (commit 4ef2bff).
+Locked-by tests: tests/test_chrome_phase9.cpp (17 cases).
+Deferrals to D1: UI-CTX-02, UI-CTX-03, UI-CTX-11 (cross-subsystem
+scope — Phase-3/4 territory), UI-KB-07 (closeEvent UI flow). All
+documented with rationale in UI_MATRIX_GAPS.md Phase-9 closeout.

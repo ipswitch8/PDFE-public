@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "stamp": "2026-05-02T02:24:35Z",
+  "run_id": "run_20260502T021015Z_msvc_verify2",
+  "tool": "msvc-asan",
+  "compiler": "MSVC 19.44 (clang-cl alternative not used)",
+  "instrumentation": "/fsanitize=address (UBSan + libFuzzer dropped \u2014 clang-cl-only on Windows)",
+  "test_summary": {
+    "total": 3107,
+    "passed": 3105,
+    "skipped": 2,
+    "failed": 0,
+    "disabled": 2
+  },
+  "findings": [],
+  "counts_by_severity": {
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "info": 0
+  },
+  "overall_verdict": "pass"
+}

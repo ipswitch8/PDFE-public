@@ -1,0 +1,82 @@
+{
+  "tests": 6,
+  "failures": 0,
+  "disabled": 0,
+  "errors": 0,
+  "timestamp": "2026-05-24T23:48:16Z",
+  "time": "0.043s",
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "QInvokableSeams",
+      "tests": 6,
+      "failures": 0,
+      "disabled": 0,
+      "errors": 0,
+      "timestamp": "2026-05-24T23:48:16Z",
+      "time": "0.041s",
+      "testsuite": [
+        {
+          "name": "SearchPanel_PerformReplace_IsInvokable",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_q_invokable_seams_phase1.cpp",
+          "line": 35,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-24T23:48:16Z",
+          "time": "0.022s",
+          "classname": "QInvokableSeams"
+        },
+        {
+          "name": "SearchPanel_PerformReplace_EmitsSignalOnNonEmptyFind",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_q_invokable_seams_phase1.cpp",
+          "line": 56,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-24T23:48:16Z",
+          "time": "0.008s",
+          "classname": "QInvokableSeams"
+        },
+        {
+          "name": "BookmarkPanel_InsertBookmark_IsInvokable",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_q_invokable_seams_phase1.cpp",
+          "line": 79,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-24T23:48:16Z",
+          "time": "0.005s",
+          "classname": "QInvokableSeams"
+        },
+        {
+          "name": "BookmarkPanel_InsertBookmark_EmptyTitleRejected",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_q_invokable_seams_phase1.cpp",
+          "line": 100,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-24T23:48:17Z",
+          "time": "0.003s",
+          "classname": "QInvokableSeams"
+        },
+        {
+          "name": "PdfCanvas_ViewRotation_IsInvokable",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_q_invokable_seams_phase1.cpp",
+          "line": 122,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-24T23:48:17Z",
+          "time": "0s",
+          "classname": "QInvokableSeams"
+        },
+        {
+          "name": "PdfCanvas_ViewRotation_ReflectsRotateViewCW",
+          "file": "C:\\Users\\dev\\source\\PDFE\\tests\\test_q_invokable_seams_phase1.cpp",
+          "line": 140,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2026-05-24T23:48:17Z",
+          "time": "0s",
+          "classname": "QInvokableSeams"
+        }
+      ]
+    }
+  ]
+}
