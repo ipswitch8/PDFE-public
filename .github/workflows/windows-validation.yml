@@ -1062,7 +1062,7 @@ jobs:
         # later refusal, never as a false green now.
         if: ${{ !cancelled() && inputs.publish_build_artifact != '' && steps.publish_debug.outcome == 'success' }}
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: pdfe-build-debug-${{ github.sha }}
           path: C:\pdfe-build-store\${{ github.sha }}-debug
@@ -2615,7 +2615,7 @@ jobs:
         # did not work. Mirrors the local publish step, which wraps itself in
         # try/catch and exits 0 for the same reason.
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: pdfe-build-${{ github.sha }}
           path: C:\pdfe-build-store\${{ github.sha }}
@@ -2631,7 +2631,7 @@ jobs:
         # DOWNSTREAM symptom of something already reported, not a new failure
         # to invent.
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: pdfe-release-sbom-${{ github.sha }}
           path: |
@@ -3471,7 +3471,7 @@ jobs:
         # Promoted from on-failure to always: Phase 2 wants the UI
         # failure list available even when the gtest step is green.
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: windows-validation-logs
           path: |
