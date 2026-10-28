@@ -448,12 +448,11 @@ are operationally live rather than historical.
 PDFE is **version 0.3.0** — ambitious in scope, extensively tested, but early
 in its release lifecycle:
 
-- **No installer is currently published here.** A signed Windows x64 installer
-  for 0.3.0 exists and is **code-signed as Itwerx Corp via Azure Trusted
-  Signing**, but it was not carried over when this repository was recreated in
-  October 2026 — see [Download](#download). SmartScreen reputation for a new
-  publisher builds with download volume, so a warning may still appear early on
-  once one is published.
+- **The signed 0.3.0 installer is published** on the
+  [latest release](../../releases/latest), **code-signed as Itwerx Corp via
+  Azure Trusted Signing** — see [Download](#download). SmartScreen reputation
+  for a new publisher builds with download volume, so a warning may still appear
+  early on.
 - The feature set above is real and test-covered, but some capabilities are
   engine-level (Word/Excel export) or intentionally narrow (Launch-link policy,
   LTV data embedding without any ETSI baseline profile — see
