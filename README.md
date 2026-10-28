@@ -6,7 +6,7 @@
 [![Language: C++20](https://img.shields.io/badge/C%2B%2B-20-00599C.svg)](https://en.cppreference.com/w/cpp/20)
 [![UI: Qt 6](https://img.shields.io/badge/Qt-6.10-41CD52.svg)](https://www.qt.io/)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-0078D6.svg)](#platform-support)
-[![Release](https://img.shields.io/badge/release-0.3.0-blue.svg)](https://github.com/ipswitch8/PDFE/releases/latest)
+[![Release](https://img.shields.io/badge/release-0.3.0-blue.svg)](../../releases/latest)
 
 PDFE is a desktop PDF editor built in modern C++20 on Qt 6, backed by
 [MuPDF](https://mupdf.com/) (rendering, annotations, forms, redaction, content
@@ -25,25 +25,11 @@ than the "recognize text then edit" flow in most commercial tools.
 
 ## Download
 
-> **No installer is published on this repository at present.** The
-> [latest release](https://github.com/ipswitch8/PDFE/releases/latest) carries
-> only the SBOM (`PDFE-0.3.0-sbom.spdx.json`).
->
-> The signed `PDFE-0.3.0-win64.exe` was built and code-signed, but it was
-> deliberately **not re-uploaded** when this repository was recreated in
-> October 2026 to drop pre-rewrite history: a signed binary is not something to
-> copy between repositories on the assumption it is still the right artifact.
-> It remains on the retired predecessor, which is **private and not publicly
-> reachable**, so that is a statement of where the file is rather than a usable
-> download link. A published installer has to come from a fresh signed release.
->
-> Exact asset locations, per tag, are tracked in
-> [`docs/ci/release-asset-pointer.md`](docs/ci/release-asset-pointer.md) — the
-> live pointer, kept current as releases change.
-
-The installer described below is what a release provides **once one is
-published**; the mechanics are unchanged and are documented here so the
-packaging contract stays reviewable in the meantime.
+Download the signed **Windows x64 installer** from the
+[latest release](../../releases/latest): **`PDFE-0.3.0-win64.exe`**, code-signed
+as Itwerx Corp (Azure Trusted Signing), with its SBOM
+(`PDFE-0.3.0-sbom.spdx.json`) attached alongside it. Each release names the
+corresponding source for that build in its notes.
 
 - **Windows x64 installer** (`.exe`, NSIS) — download, run, and PDFE installs with
   Start-menu and file-association entries. Bundles the Qt runtime, MuPDF, and the
@@ -59,8 +45,8 @@ packaging contract stays reviewable in the meantime.
 > **Version 0.3.0.** PDFE is feature-rich and heavily tested (6,610 automated
 > tests), but early in its release lifecycle. See
 > [Project status](#project-status) for an honest read on maturity and scope.
-> The 0.3.0 installer **was code-signed as Itwerx Corp** (Azure Trusted
-> Signing) — it is not published here; see [Download](#download) above.
+> The 0.3.0 installer is **code-signed as Itwerx Corp** (Azure Trusted
+> Signing); download it from the [latest release](../../releases/latest).
 > Because the publisher is brand new, SmartScreen reputation is still accruing,
 > so a warning may still appear until enough downloads establish it.
 

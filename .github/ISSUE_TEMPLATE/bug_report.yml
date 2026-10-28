@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a problem with PDFE
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve PDFE.
+
+        **Please do not include confidential or personal data** in this report —
+        redact file paths, document contents, or anything you would not want
+        public. For a **security vulnerability, do not file a public issue**; see
+        [SECURITY.md](../../blob/master/SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: PDFE version
+      description: "Help → About, or the installer filename (e.g. v0.3.0)."
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 23H2"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Click ...
+        3. ...
+    validations:
+      required: false
+  - type: textarea
+    id: extra
+    attributes:
+      label: Logs or screenshots (optional)
+      description: Attach anything that helps. Redact file paths or document content you do not want public.
+    validations:
+      required: false

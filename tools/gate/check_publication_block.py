@@ -198,12 +198,18 @@ GUARDED_REPO_IDS = (
                  "2026-10-25, DELETED by the owner 2026-10-26 (confirmed 404 "
                  "by id). Its content was rewritten-clean history only; the id "
                  "stays pinned because a GitHub restore would reuse it"),
-    (1433896232, "the route-B replacement (second instance), created "
-                 "2026-10-25 carrying the verified sixth-rewrite history "
-                 "(0 needle hits across all commit messages and blob "
-                 "versions); took the PDFE name and is the publication "
-                 "candidate. Retry order: tracker FIRST into the empty repo, "
-                 "git push second, so nothing can burn the issue numbers"),
+    (1433896232, "the route-B replacement (second instance), holds the PDFE "
+                 "name and the 324-issue tracker. As of 2026-10-27 this is the "
+                 "private DEV repo under the two-repo publish-snapshot model "
+                 "(docs/legal/publication-model-2026-10.md): it STAYS PRIVATE "
+                 "permanently -- it carries migration commits and 2 served "
+                 "account-name orphans from a remediation force-push, which "
+                 "never reach the public repo because the public repo gets "
+                 "clean SNAPSHOTS, not this history. It is NOT a publication "
+                 "candidate any more; the candidate is ipswitch8/PDFE-public "
+                 "(id 1435376025), deliberately NOT in this stay-private set "
+                 "because it is MEANT to go public, clean by construction via "
+                 "tools/ops/publish_snapshot.py's scan gate"),
     (1427598740, "burned first attempt; received a full history push. DELETED "
                  "by the owner 2026-10-24; retained because a restore would "
                  "reuse this id"),
@@ -218,8 +224,19 @@ GUARDED_REPO_IDS = (
                  "restore would reuse this id"),
 )
 
-# The repository that would actually BE published. Only this one's GitHub-side
-# text has to be clean.
+# The repository whose GitHub-side TEXT (issue bodies, comments, release notes)
+# must be clean. This stays the DEV repo, which holds the 324-issue tracker --
+# the tracker is what has GitHub-side text; the public snapshot repo
+# (ipswitch8/PDFE-public) is code-only and has none to scan.
+#
+# TWO-REPO MODEL NOTE (2026-10-27): the repository that actually goes PUBLIC is
+# ipswitch8/PDFE-public, and its safety does NOT come from this marker -- it
+# comes from tools/ops/publish_snapshot.py, which scans every file of the
+# snapshot against the full needle inventory and refuses to push on any hit,
+# and from the fact that it carries no dev history to leak. See
+# docs/legal/publication-model-2026-10.md. This check continues to police the
+# dev repo's tracker text (kept clean), which is cheap and catches a dirty
+# issue body before it could ever be snapshotted into a public release note.
 #
 # This is deliberately NOT all of GUARDED_SLUGS. The retired original is meant
 # to stay private AND dirty -- its issue text carries scrubbed identifiers (6
