@@ -175,6 +175,46 @@ TEST(ResourceFile, HasVersionInfo) {
         << "Resource file should contain VERSIONINFO block";
 }
 
+// release-0-3-1 claim-check follow-up: the Win32 version RESOURCE embedded in
+// pdfe.exe (src/app/pdfe.rc) and the in-app QApplication::setApplicationVersion
+// (src/main.cpp) must not drift from project(pdfe VERSION ...), i.e. from
+// PDFE_VERSION_STRING. HasVersionInfo above only checks the block exists; it
+// passed while the .rc still said 0.3.0 against a 0.3.1 build, which would ship
+// an installer whose filename, EXE file-properties, and --version disagree.
+// This pins the VALUES to the single build source of truth.
+TEST(ResourceFile, VersionMatchesBuildVersion) {
+    const std::string ver = PDFE_VERSION_STRING;            // e.g. "0.3.1"
+    ASSERT_FALSE(ver.empty());
+
+    // The .rc FILEVERSION/PRODUCTVERSION fields use a comma tuple: a.b.c -> a,b,c,0
+    std::string tuple = ver;
+    for (char& c : tuple) { if (c == '.') c = ','; }
+    tuple += ",0";
+
+    const std::filesystem::path rcPath =
+        getProjectRoot() / "src" / "app" / "pdfe.rc";
+    const std::string rc = readFileContents(rcPath);
+    ASSERT_FALSE(rc.empty()) << "cannot read " << rcPath.string();
+
+    EXPECT_NE(rc.find("\"" + ver + "\""), std::string::npos)
+        << "pdfe.rc FileVersion/ProductVersion string must equal "
+           "PDFE_VERSION_STRING (" << ver << ") -- it drifted from the build version";
+    EXPECT_NE(rc.find(tuple), std::string::npos)
+        << "pdfe.rc FILEVERSION/PRODUCTVERSION tuple must equal " << tuple;
+
+    // The in-app version must be DERIVED from the macro, not a hand-maintained
+    // literal (which is what drifted). Assert the derivation is present and no
+    // hard-coded setApplicationVersion("x.y.z") literal remains.
+    const std::filesystem::path mainPath =
+        getProjectRoot() / "src" / "main.cpp";
+    const std::string mn = readFileContents(mainPath);
+    ASSERT_FALSE(mn.empty()) << "cannot read " << mainPath.string();
+    EXPECT_NE(mn.find("setApplicationVersion(QString::fromLatin1(PDFE_VERSION_STRING))"),
+              std::string::npos)
+        << "main.cpp must set applicationVersion from PDFE_VERSION_STRING, "
+           "not a hard-coded literal";
+}
+
 //
 // License File Tests
 //

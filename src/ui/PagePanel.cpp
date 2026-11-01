@@ -14,8 +14,24 @@
 #include <QItemSelectionModel>
 #include <QDropEvent>
 #include <QMimeData>
+#include <QScrollBar>
+#include <QResizeEvent>
+#include <QShowEvent>
+#include <QRect>
 #include <algorithm>
 #include <functional>
+#include <utility>
+
+namespace {
+// Thumbnail-driven zoom-hang fix (phase 2): bound how many thumbnails the panel
+// rasterizes at once. Opening a large PDF used to request a full-page render for
+// EVERY page up front, flooding the renderer; now only pages near the visible
+// range (plus this margin) are requested, extended on scroll. kFallbackWindow
+// is used when the viewport has no usable geometry yet (e.g. the panel is not
+// shown, as in a headless test) so small documents still fully populate.
+constexpr int kPrefetchMargin = 6;
+constexpr int kFallbackWindow = 20;
+} // namespace
 
 namespace pdfe::ui {
 
@@ -105,6 +121,17 @@ PagePanel::PagePanel(QWidget* parent)
     // Connect item click
     connect(listWidget_, &QListWidget::itemClicked,
             this, &PagePanel::onItemClicked);
+
+    // Phase 2 (thumbnail-driven zoom-hang fix): re-evaluate which thumbnails to
+    // rasterize whenever the panel scrolls or its content/viewport geometry
+    // changes. valueChanged covers user scrolling; rangeChanged covers the
+    // viewport/content resizing (which shifts how many rows are visible). The
+    // scrollbar is a distinct QObject from listWidget_, so the QSignalBlocker in
+    // setCurrentPage() does not suppress these.
+    connect(listWidget_->verticalScrollBar(), &QScrollBar::valueChanged,
+            this, &PagePanel::updateVisibleThumbnails);
+    connect(listWidget_->verticalScrollBar(), &QScrollBar::rangeChanged,
+            this, [this](int, int) { updateVisibleThumbnails(); });
 
     // GAP-58 fix: create the context-menu actions as PERSISTENT child
     // QObjects of this panel (not locals inside onContextMenuRequested)
@@ -273,7 +300,6 @@ void PagePanel::generateThumbnails()
     }
 
     int pageCount = document_->pageCount();
-    QSize thumbnailSize(128, 128);
 
     for (int i = 0; i < pageCount; ++i) {
         auto pageInfo = document_->pageInfo(i);
@@ -296,10 +322,115 @@ void PagePanel::generateThumbnails()
         QListWidgetItem* item = new QListWidgetItem(QIcon(placeholder), itemText);
         item->setData(Qt::UserRole, i);
         listWidget_->addItem(item);
-
-        // Request real thumbnail rendering
-        thumbnailRenderer_->requestThumbnail(i, thumbnailSize, nullptr);
     }
+
+    // IMPORTANT: every ROW is still created synchronously above, so the
+    // panelItemCount() == Document::pageCount() readiness contract (GitHub #136)
+    // is unchanged. What is NO LONGER eager is the expensive IMAGE request: we
+    // used to call requestThumbnail() for all N pages here, which flooded the
+    // renderer and (pre-phase-1) the UI thread. Now we request only the pages
+    // near the visible range; the rest are requested lazily on scroll.
+    requestedLo_ = -1;
+    requestedHi_ = -1;
+    updateVisibleThumbnails();
+}
+
+std::pair<int, int> PagePanel::visibleRowRange() const
+{
+    const int n = listWidget_ ? listWidget_->count() : 0;
+    if (n == 0) {
+        return {-1, -1};
+    }
+
+    const QRect vp = listWidget_->viewport()->rect();
+    if (vp.width() <= 0 || vp.height() <= 0) {
+        return {-1, -1};  // no usable geometry yet (e.g. panel not shown)
+    }
+
+    // Uniform item sizes (set in the constructor) make visualItemRect() cheap
+    // arithmetic. Scan for the first and last rows whose cell intersects the
+    // viewport. IconMode flows items in a wrapping grid, so we take the min/max
+    // intersecting model row rather than assuming a single top-to-bottom column.
+    int first = -1;
+    int last = -1;
+    for (int i = 0; i < n; ++i) {
+        QListWidgetItem* item = listWidget_->item(i);
+        if (!item) continue;
+        const QRect r = listWidget_->visualItemRect(item);
+        if (r.isNull()) continue;
+        if (r.bottom() < vp.top() || r.top() > vp.bottom()) {
+            continue;  // entirely above or below the viewport
+        }
+        if (first < 0) first = i;
+        last = i;
+    }
+    return {first, last};
+}
+
+void PagePanel::updateVisibleThumbnails()
+{
+    if (!document_ || !thumbnailRenderer_ || !listWidget_) {
+        return;
+    }
+    const int n = listWidget_->count();
+    if (n == 0) {
+        return;
+    }
+
+    auto [first, last] = visibleRowRange();
+    if (first < 0) {
+        // Viewport geometry not available yet: request a bounded leading window
+        // so the panel is not blank and small documents fully populate.
+        first = 0;
+        last = std::min(n - 1, kFallbackWindow - 1);
+    }
+
+    const int lo = std::max(0, first - kPrefetchMargin);
+    const int hi = std::min(n - 1, last + kPrefetchMargin);
+
+    // Cancel still-pending renders for pages that have left the window. A page
+    // already rendered+delivered has no pending entry, so cancelPage() is a
+    // no-op for it (its thumbnail stays); only not-yet-run work is dropped.
+    if (requestedLo_ >= 0) {
+        for (int p = requestedLo_; p <= requestedHi_; ++p) {
+            if (p < lo || p > hi) {
+                thumbnailRenderer_->cancelPage(p);
+            }
+        }
+    }
+
+    // Request the current window. requestThumbnail() dedups in-flight requests
+    // and serves completed ones from the LRU cache, so re-covering a page that
+    // is already pending or cached does not re-rasterize.
+    const QSize thumbnailSize(128, 128);
+    for (int p = lo; p <= hi; ++p) {
+        thumbnailRenderer_->requestThumbnail(p, thumbnailSize, nullptr);
+    }
+
+    requestedLo_ = lo;
+    requestedHi_ = hi;
+}
+
+int PagePanel::prefetchMargin()
+{
+    return kPrefetchMargin;
+}
+
+int PagePanel::fallbackWindow()
+{
+    return kFallbackWindow;
+}
+
+void PagePanel::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    updateVisibleThumbnails();
+}
+
+void PagePanel::showEvent(QShowEvent* event)
+{
+    QWidget::showEvent(event);
+    updateVisibleThumbnails();
 }
 
 void PagePanel::refreshPages()

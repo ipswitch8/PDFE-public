@@ -269,6 +269,14 @@ void PdfCanvas::setZoom(float level)
 
     zoomLevel_ = level;
     updateDocumentLayout();
+    // Drop the prior zoom level's tiles before requesting the new zoom's. A
+    // zoom change produces an entirely new set of TileId keys (keyed on zoom),
+    // so without this the stale tiles linger in the 512MB LRU and churn it
+    // against the tiles we are about to request. effectiveRenderZoom() already
+    // reflects the new zoomLevel_ set above.
+    if (tileCache_) {
+        tileCache_->invalidateOtherZoom(effectiveRenderZoom());
+    }
     requestVisibleTiles();
     update();
 

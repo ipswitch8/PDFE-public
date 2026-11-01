@@ -19,6 +19,12 @@ public:
     void put(const TileId& id, const QImage& image);
     void invalidate(int pageIndex);
     void invalidateAll();
+    /// Drop every cached tile whose zoom differs from keepZoom (compared at the
+    /// same 1e-4 quantization the TileId hash uses). Called on a zoom change so
+    /// the prior zoom level's tiles do not linger in the 512MB LRU and churn it
+    /// against the newly-requested zoom's tiles. Same locking discipline as
+    /// invalidate(pageIndex).
+    void invalidateOtherZoom(float keepZoom);
     void clear();
 
     size_t memoryUsage() const;

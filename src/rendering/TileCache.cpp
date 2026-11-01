@@ -1,7 +1,19 @@
 #include "TileCache.h"
 #include <algorithm>
+#include <cmath>
 
 namespace pdfe::rendering {
+
+namespace {
+// Match the zoom quantization std::hash<TileId> uses EXACTLY: it keys on
+// static_cast<int>(zoom * 10000) (truncation toward zero), so use the same
+// truncation here. "Same zoom" then means the same bucket the renderer keyed
+// into. (Cache equality itself is exact-float via TileId::operator==; this
+// grouping only decides which tiles a zoom change evicts.)
+inline long quantizeZoom(float z) {
+    return static_cast<long>(static_cast<double>(z) * 10000.0);
+}
+} // namespace
 
 TileCache::TileCache(size_t maxMemoryBytes)
     : m_maxMemory(maxMemoryBytes)
@@ -96,6 +108,23 @@ void TileCache::invalidateAll()
     m_lruList.clear();
     m_cacheMap.clear();
     m_currentMemory = 0;
+}
+
+void TileCache::invalidateOtherZoom(float keepZoom)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    const long keep = quantizeZoom(keepZoom);
+    auto it = m_lruList.begin();
+    while (it != m_lruList.end()) {
+        if (quantizeZoom(it->id.zoom) != keep) {
+            updateMemoryUsage(-static_cast<ptrdiff_t>(it->memorySize));
+            m_cacheMap.erase(it->id);
+            it = m_lruList.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 void TileCache::clear()

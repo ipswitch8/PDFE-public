@@ -39,6 +39,15 @@ public:
     [[nodiscard]] static std::size_t renderCount() noexcept;
     static void resetRenderCount() noexcept;
 
+    /// Thread-affinity oracle: number of rasterizations that ran on the
+    /// GUI/main thread rather than a worker thread, since the last
+    /// resetRenderCount(). The worker pool exists precisely so this stays 0; a
+    /// regression that rendered inline on the event loop (reintroducing the zoom
+    /// hang) would make this equal renderCount(). The cache/cancel/count tests
+    /// are thread-agnostic and cannot catch that, so this is the mechanism that
+    /// pins the off-GUI-thread guarantee.
+    [[nodiscard]] static std::size_t guiThreadRenderCount() noexcept;
+
 signals:
     void thumbnailReady(int pageIndex, QImage thumbnail);
 

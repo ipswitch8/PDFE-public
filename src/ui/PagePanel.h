@@ -4,11 +4,15 @@
 #include <QImage>
 #include <QList>
 
+#include <utility>
+
 class QAction;
 class QListWidget;
 class QListWidgetItem;
 class QMenu;
 class QMimeData;
+class QResizeEvent;
+class QShowEvent;
 
 namespace pdfe::core {
     class Document;
@@ -88,6 +92,19 @@ public:
     /// by a partially-realised UIA tree.
     int panelItemCount() const;
 
+    /// Thumbnail-driven zoom-hang fix (phase 2): the panel only rasterizes
+    /// thumbnails for pages near the visible range plus a small prefetch margin,
+    /// rather than eagerly requesting all N pages at document open. These two
+    /// knobs are exposed so a headless GoogleTest can reason about the bound on
+    /// ThumbnailRenderer::renderCount() without a live interactive session.
+    static int prefetchMargin();      ///< extra rows requested on each side
+    static int fallbackWindow();      ///< rows requested when the viewport has
+                                      ///< no usable geometry yet (e.g. not shown)
+
+protected:
+    void resizeEvent(QResizeEvent* event) override;
+    void showEvent(QShowEvent* event) override;
+
 signals:
     void pageSelected(int pageIndex);
     void pageMoved(int fromIndex, int toIndex);
@@ -102,13 +119,27 @@ private slots:
     void onItemClicked(QListWidgetItem* item);
     void onThumbnailReady(int pageIndex, QImage thumbnail);
     void onContextMenuRequested(const QPoint& pos);
+    /// Request thumbnails for the currently-visible page range (+ margin) and
+    /// cancel still-pending renders for pages that have scrolled out of it.
+    /// Connected to the vertical scrollbar's valueChanged/rangeChanged and
+    /// invoked from resize/show and generateThumbnails().
+    void updateVisibleThumbnails();
 
 private:
     void generateThumbnails();
+    /// First and last model rows whose cell intersects the list viewport, or
+    /// {-1,-1} if the panel has no rows / no usable geometry yet.
+    std::pair<int, int> visibleRowRange() const;
 
     pdfe::core::Document* document_ = nullptr;
     QListWidget* listWidget_ = nullptr;
     pdfe::rendering::ThumbnailRenderer* thumbnailRenderer_ = nullptr;
+
+    // Current requested thumbnail window [requestedLo_, requestedHi_], or
+    // {-1,-1} when nothing is requested. Used to cancel pages that leave the
+    // window on scroll without disturbing pages that remain.
+    int requestedLo_ = -1;
+    int requestedHi_ = -1;
 
     // GAP-58 fix: context-menu actions promoted to member variables so
     // they are persistent QObjects in the panel's child tree and the

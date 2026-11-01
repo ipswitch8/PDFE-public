@@ -145,6 +145,40 @@ TEST_F(ThumbnailCacheCancelTest, CancelAllPreventsRenderWork) {
     EXPECT_EQ(deliveries, 0) << "cancelled thumbnails must not be delivered";
 }
 
+// Oracle 3 — off-GUI-thread rasterization. The reason ThumbnailRenderer was
+// moved to a worker pool is to stop hanging the UI thread; prove the raster
+// actually runs OFF the GUI/main thread. g_guiThreadRenderCount counts any
+// rasterization that ran on the main thread -- it must be 0 while renderCount()
+// is non-zero. A regression that reverted to inline event-loop rendering (the
+// original bug) would make guiThreadRenderCount == renderCount and redden this,
+// whereas the cache/cancel/count oracles above are thread-agnostic and would
+// not. (Phase-1 claim-check work item.)
+TEST_F(ThumbnailCacheCancelTest, RasterizationRunsOffTheGuiThread) {
+    if (!fixtureExists("test_3page.pdf")) {
+        GTEST_SKIP() << "test_3page.pdf fixture not available";
+    }
+
+    auto doc = pdfe::core::Document::open(context, getFixturePath("test_3page.pdf"));
+    ASSERT_NE(doc, nullptr);
+
+    pdfe::rendering::ThumbnailRenderer renderer(doc.get());
+
+    int deliveries = 0;
+    for (int i = 0; i < 3; ++i) {
+        renderer.requestThumbnail(i, QSize(128, 128), [&](int, QImage) {
+            ++deliveries;
+        });
+    }
+    pumpUntil([&] { return deliveries >= 3; }, 10000);
+
+    ASSERT_EQ(deliveries, 3) << "all three thumbnails must deliver";
+    EXPECT_GE(pdfe::rendering::ThumbnailRenderer::renderCount(), 3u)
+        << "the three pages must actually have rasterized";
+    EXPECT_EQ(pdfe::rendering::ThumbnailRenderer::guiThreadRenderCount(), 0u)
+        << "a thumbnail rasterized on the GUI/main thread -> the worker-pool "
+           "offload regressed and the UI-thread hang can recur";
+}
+
 // Oracle 2b — cancelPage stops a single page's not-yet-run work.
 TEST_F(ThumbnailCacheCancelTest, CancelPagePreventsRenderWork) {
     if (!fixtureExists("test_3page.pdf")) {

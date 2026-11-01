@@ -93,7 +93,15 @@ int main(int argc, char** argv) {
     QApplication app(argc, argv);
     QCoreApplication::setOrganizationName("PDFE");
     QCoreApplication::setApplicationName("PDFE");
-    QCoreApplication::setApplicationVersion("0.3.0");
+    // Derive from the single build source of truth (PDFE_VERSION_STRING =
+    // CMake PROJECT_VERSION) rather than a literal, so a version bump does not
+    // leave this harness reporting a stale version and reddening
+    // RegistryIsolationTest.DefaultSettingsIdentityIsTheProductHive, which
+    // asserts applicationVersion() == pdfe::app::currentVersion().
+#ifndef PDFE_VERSION_STRING
+#define PDFE_VERSION_STRING "0.0.0"
+#endif
+    QCoreApplication::setApplicationVersion(QString::fromLatin1(PDFE_VERSION_STRING));
 
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

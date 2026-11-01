@@ -55,12 +55,16 @@ int main(int argc, char* argv[])
 
     QApplication app(argc, argv);
     QApplication::setApplicationName("PDFE");
-    // Kept in step with project(pdfe VERSION ...) in the top-level CMakeLists,
-    // src/app/pdfe.rc, and VersionInfo.cpp's fallback. A hard-coded literal here
-    // that drifts from the resource makes the app REPORT one version while its
-    // file properties claim another -- which is the shape of a support call
-    // nobody can answer.
-    QApplication::setApplicationVersion("0.3.0");
+    // Derived from project(pdfe VERSION ...) via the PDFE_VERSION_STRING compile
+    // definition (src/app/CMakeLists.txt sets it from ${PROJECT_VERSION}), the
+    // same single source VersionInfo.cpp uses. This used to be a hard-coded
+    // literal that drifted from src/app/pdfe.rc on a version bump, making the app
+    // REPORT one version while its file properties claimed another -- the shape
+    // of a support call nobody can answer. Now there is one source of truth.
+#ifndef PDFE_VERSION_STRING
+#define PDFE_VERSION_STRING "0.0.0"
+#endif
+    QApplication::setApplicationVersion(QString::fromLatin1(PDFE_VERSION_STRING));
     QApplication::setOrganizationName("PDFE");
 
     // Set the runtime window / taskbar icon. Qt 6 on Windows does

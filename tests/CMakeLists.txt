@@ -266,6 +266,9 @@ add_executable(pdfe_tests
     test_page_op_preservation_matrix.cpp
     test_page_split_preservation.cpp
     test_tile_cache.cpp
+    # Phase 3 of the thumbnail-driven zoom-hang fix: TileCache::invalidateOtherZoom
+    # + PdfCanvas::setZoom eviction of stale-zoom tiles (bounded LRU, no churn).
+    test_tile_cache_zoom_invalidate.cpp
     test_tile_renderer.cpp
     # GitHub #287 — the fitz error-stack assertion that cost a whole shard
     # (408 tests recorded as errors). Raises the rate of the CHECK rather than
@@ -287,6 +290,20 @@ add_executable(pdfe_tests
     test_printing.cpp
     test_thumbnails.cpp
     test_thumbnail_cache_cancel.cpp
+    # GitHub #287 sibling guard: ThumbnailRenderer now owns a private QThreadPool
+    # with cloned MuPDF contexts, so it inherits the mid-render-cancel error-stack
+    # abort class. Cancels WHILE workers are mid-render (the existing thumbnail
+    # cancel tests only cover cancel-before-dispatch). Default iters small; raise
+    # with PDFE_CANCEL_STRESS_ITERS.
+    test_thumbnail_cancel_stress.cpp
+    # Phase 2 of the thumbnail-driven zoom-hang fix: PagePanel requests only a
+    # bounded visible window of thumbnails (not all N pages) and loads more on
+    # scroll. Oracle is ThumbnailRenderer::renderCount().
+    test_page_panel_lazy_thumbnails.cpp
+    # Phase 4: integration hardening — scroll a large thumbnail panel through its
+    # full range then zoom repeatedly; asserts bounded renderCount (hang proxy),
+    # cache reuse, zoom/thumbnail path independence, and no crash.
+    test_thumbnail_zoom_integration.cpp
     test_bookmarks.cpp
     test_font_matching.cpp
     test_hidpi.cpp
