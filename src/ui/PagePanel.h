@@ -35,6 +35,14 @@ public:
     void setCurrentPage(int pageIndex);
     void clearDocument();
     void refreshPages();
+
+    /// Drop the cached thumbnail for one page and re-render it if visible
+    /// (fix-tre-writetarget phase-4). After an in-place page edit (e.g. a TRE
+    /// region recomposite) the page's thumbnail is stale; the panel does not
+    /// subscribe to Document::markPageDirty, so the caller must ask for this
+    /// explicitly or the thumbnail keeps showing the pre-edit image.
+    void invalidateThumbnail(int pageIndex);
+
     QList<int> selectedPageIndices() const;
 
     /// Pipeline a7c2e541 phase-17 test-automation hook (closes

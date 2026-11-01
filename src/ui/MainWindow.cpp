@@ -13112,28 +13112,57 @@ void MainWindow::onTreRegionSelected(int pageIndex, QRectF pdfRect)
     // Step 4: Create and execute the appropriate command
     pdfe::tre::RegionId regionId{static_cast<uint32_t>(pageIndex * 1000 + 1)};
 
-    std::unique_ptr<pdfe::commands::Command> cmd;
-
+    // fix-tre-writetarget phase-4: the command's execute() returns void, so the
+    // edit's success was previously IGNORED — the page was "refreshed" and the
+    // title marked dirty even when the recomposite committed nothing visible, and
+    // no cache/thumbnail invalidation happened, so a successful edit could fail
+    // to show. Keep a raw pointer to the concrete command (the undo manager owns
+    // it after execute()) and read succeeded() to drive refresh-on-success and a
+    // VISIBLE failure otherwise.
+    bool editLanded = false;
     if (approach == pdfe::tre::Approach::B_HybridReconstruction) {
-        cmd = std::make_unique<pdfe::tre::ReconstructRegionCommand>(
+        auto rc = std::make_unique<pdfe::tre::ReconstructRegionCommand>(
             document_.get(), muPdfContext_,
             regionReconstructor_.get(), imageReplacer_.get(),
             pdfContentWriter_.get(),
             pageIndex, selectionPdf, editedText, regionId);
+        auto* raw = rc.get();
+        undoManager_->execute(std::move(rc));
+        editLanded = raw->succeeded();
     } else {
-        cmd = std::make_unique<pdfe::tre::ImageReplaceCommand>(
+        auto ic = std::make_unique<pdfe::tre::ImageReplaceCommand>(
             document_.get(), muPdfContext_,
             imageReplacer_.get(), pdfContentWriter_.get(),
             pageIndex, selectionPdf, editedText, regionId);
+        auto* raw = ic.get();
+        undoManager_->execute(std::move(ic));
+        editLanded = raw->succeeded();
     }
 
-    undoManager_->execute(std::move(cmd));
-
-    // Step 5: Refresh the page display
-    if (canvas_) {
-        canvas_->refreshPage(pageIndex);
+    // Step 5: Refresh the page display, and — on success — invalidate the caches
+    // that would otherwise serve the pre-edit image (the ImageReplacer original-
+    // image LRU and the thumbnail panel, which does not subscribe to markPageDirty).
+    if (editLanded) {
+        if (document_) document_->markPageDirty(pageIndex);
+        if (imageReplacer_) imageReplacer_->invalidateOriginalCache(pageIndex);
+        if (pagePanel_) pagePanel_->invalidateThumbnail(pageIndex);
+        if (canvas_) canvas_->refreshPage(pageIndex);
+        writeRecompositeStatus("RECOMPOSITE_DONE", pageIndex, QStringLiteral("ok"));
+        updateWindowTitle();
+    } else {
+        // Surface the failure instead of silently no-op'ing (the command already
+        // restored the pre-edit state on failure). The region was recognized but
+        // the change could not be committed visibly — e.g. the target image is
+        // covered by another image at that region.
+        writeRecompositeStatus("RECOMPOSITE_FAILED", pageIndex,
+                               QStringLiteral("edit could not be committed visibly"));
+        if (canvas_) canvas_->refreshPage(pageIndex);
+        QMessageBox::warning(this, tr("Edit Text"),
+            tr("The edit could not be applied to the selected region. The text "
+               "was recognized, but the change could not be committed to the "
+               "page image (for example, the region is covered by another image "
+               "on the page). The page was left unchanged."));
     }
-    updateWindowTitle();
 
     } catch (const std::exception& ex) {
         QMessageBox::critical(this, tr("Text Recognition Error"),

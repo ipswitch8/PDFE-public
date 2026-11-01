@@ -308,9 +308,17 @@ public:
             contentWriter_->topmostImageOverRegion(page, document, regionFitz);
         if (!top.has_value()) return false;  // nothing covers it; no claim to make
 
-        // Identity by dimensions AND placement. Dimensions alone are ambiguous
-        // on a page carrying two same-sized images -- the very situation that
-        // sends us down the fallback path.
+        // Identity by resource NAME when both are known (fix-tre-writetarget):
+        // topmostImageOverRegion now resolves the drawn XObject name, and the
+        // write target carries one too. Names are unambiguous even when two
+        // images share dimensions -- the very situation that sends us down the
+        // fallback path. Same name => the write lands in the image on top and is
+        // visible; a different name => something is drawn over the target.
+        if (!top->xobjectName.empty() && !target.xobjectName.empty()) {
+            return top->xobjectName != target.xobjectName;
+        }
+
+        // Fallback identity when a name is unavailable: dimensions AND placement.
         const bool sameSize = top->width == target.width &&
                               top->height == target.height;
         if (!sameSize) return true;

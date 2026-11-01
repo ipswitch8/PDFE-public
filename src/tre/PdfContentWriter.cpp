@@ -17,8 +17,111 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <vector>
+
+#include <mupdf/fitz.h>
+#include <mupdf/pdf.h>
 
 namespace pdfe::tre {
+
+// ---------------------------------------------------------------------------
+// Draw-order image enumeration (fix-tre-writetarget)
+//
+// The write-target bug: resolving a page image back to a resource NAME by
+// matching (Width,Height) is ambiguous whenever a resources dict holds several
+// identical-dimension image XObjects (the e1139 file: 573 identical 1700x2200
+// images, one drawn per page). The unambiguous signal is the content stream's
+// own `/Name Do` operator plus the CTM that places it — exactly what the
+// pdf_filter_page_contents image-filter callback reports, in draw order. We
+// enumerate those draws (name + placement, converted into fitz device space so
+// it compares directly with a selection rect) and resolve against them instead
+// of guessing from dimensions/area.
+// ---------------------------------------------------------------------------
+namespace {
+
+struct DrawnImage {
+    std::string name;    // page-resource XObject name actually drawn
+    QRectF fitzBbox;     // placement in fitz device space (top-left origin, Y-down)
+    int w = 0;           // pixel width
+    int h = 0;           // pixel height
+};
+
+struct DrawnImageState {
+    std::vector<DrawnImage>* out = nullptr;
+    double pageH = 0.0;  // page height in fitz points, for the PDF-user->device Y flip
+};
+
+// image_filter callback: record each drawn image XObject's resource name and
+// its placement. The CTM maps the image unit square into PDF user space (Y-up);
+// fz_transform_rect gives its axis-aligned bbox there, which we flip about the
+// page height into fitz device space (Y-down) so it is directly comparable with
+// a selection rect. Rotated/sheared placements are handled conservatively by
+// the transformed bounding box (matches the existing enumeration in
+// ImageManager). Inline images (no name) are ignored — they carry no resource
+// key to write back into.
+fz_image* drawnImageFilter(fz_context* /*ctx*/, void* opaque, fz_matrix ctm,
+                           const char* name, fz_image* image, fz_rect /*scissor*/)
+{
+    auto* st = static_cast<DrawnImageState*>(opaque);
+    if (st && st->out && name && name[0] && image) {
+        const fz_rect r = fz_transform_rect(fz_unit_rect, ctm);  // PDF user space
+        DrawnImage d;
+        d.name = name;
+        d.fitzBbox = QRectF(r.x0, st->pageH - r.y1,
+                            r.x1 - r.x0, r.y1 - r.y0);           // flip Y -> device
+        d.w = image->w;
+        d.h = image->h;
+        st->out->push_back(std::move(d));
+    }
+    return image;  // no_update=1: never rewrites the page
+}
+
+// Enumerate drawn image XObjects in content-stream (draw) order. `out` MUST live
+// in the caller's frame (not inside the MuPdfContext guarded region): a longjmp
+// out of pdf_filter_page_contents would otherwise skip the std::string dtors of
+// the collected names (GitHub #118 hazard class).
+void enumerateDrawnImages(fz_context* ctx, pdf_document* pdfDoc,
+                          pdf_page* pdfPage, double pageH,
+                          std::vector<DrawnImage>* out)
+{
+    DrawnImageState st;
+    st.out = out;
+    st.pageH = pageH;
+
+    pdf_sanitize_filter_options sopts;
+    std::memset(&sopts, 0, sizeof(sopts));
+    sopts.opaque = &st;
+    sopts.image_filter = drawnImageFilter;
+
+    pdf_filter_factory factories[2];
+    std::memset(factories, 0, sizeof(factories));
+    factories[0].filter = pdf_new_sanitize_filter;
+    factories[0].options = &sopts;
+    factories[1].filter = nullptr;
+
+    pdf_filter_options opts;
+    std::memset(&opts, 0, sizeof(opts));
+    opts.filters = factories;
+    opts.newlines = 1;
+    opts.no_update = 1;  // enumerate only; never rewrite the page
+
+    pdf_filter_page_contents(ctx, pdfDoc, pdfPage, &opts);
+}
+
+// Whether the page-resource XObject `name` is DCTDecode (JPEG).
+bool xobjectIsJpeg(fz_context* ctx, pdf_page* pdfPage, const std::string& name)
+{
+    pdf_obj* resources = pdf_page_resources(ctx, pdfPage);
+    if (!resources) return false;
+    pdf_obj* xo = pdf_dict_get(ctx, resources, PDF_NAME(XObject));
+    if (!xo) return false;
+    pdf_obj* val = pdf_dict_gets(ctx, xo, name.c_str());
+    if (!val) return false;
+    pdf_obj* filter = pdf_dict_get(ctx, val, PDF_NAME(Filter));
+    return filter && pdf_name_eq(ctx, filter, PDF_NAME(DCTDecode));
+}
+
+}  // namespace
 
 // ---------------------------------------------------------------------------
 // PIMPL Implementation
@@ -60,65 +163,78 @@ std::optional<PageImageInfo> PdfContentWriter::findPageImageXObject(
         return std::nullopt;
     }
 
+    // fix-tre-writetarget (Finding 2): the historical rule was "largest image
+    // XObject by pixel area", with a strict `>` that kept the FIRST of any tie.
+    // On a resources dict full of identical-dimension images (the e1139 file,
+    // 573 identical 1700x2200 XObjects) every image ties on pixel area, so the
+    // pick was an arbitrary dictionary-order one that need not be the image the
+    // page actually draws. Resolve instead against the images the page DRAWS,
+    // choosing the largest by DISPLAYED area; only one of the identical XObjects
+    // is drawn per page, so the tie is gone. Placement is deliberately NOT
+    // recorded here: the two-argument replacePageImage() contract treats this as
+    // "the page's main image" under the page-spanning assumption, and recording
+    // a placement would change that fallback path. If the page draws no named
+    // image (e.g. images nested only inside a Form XObject), fall back to the
+    // old resources-dict largest-pixel-area walk.
+    std::vector<DrawnImage> draws;
+    PageImageInfo info;
+    bool found = false;
+
     try {
-        return pImpl_->context_->executeReturn<std::optional<PageImageInfo>>(
-            [&](fz_context* ctx) -> std::optional<PageImageInfo> {
-                fz_page* fzPage = page->fzPage();
-                fz_document* fzDoc = document->fzDocument();
-                pdf_page* pdfPage = pdf_page_from_fz_page(ctx, fzPage);
-                const pdf_document* pdfDoc = pdf_document_from_fz_document(ctx, fzDoc);
+        pImpl_->context_->execute([&](fz_context* ctx) {
+            fz_page* fzPage = page->fzPage();
+            fz_document* fzDoc = document->fzDocument();
+            pdf_page* pdfPage = pdf_page_from_fz_page(ctx, fzPage);
+            pdf_document* pdfDoc = pdf_document_from_fz_document(ctx, fzDoc);
+            if (!pdfPage || !pdfDoc) return;
 
-                if (!pdfPage || !pdfDoc) {
-                    return std::nullopt;
+            const fz_rect bounds = fz_bound_page(ctx, fzPage);
+            const double pageH = bounds.y1 - bounds.y0;
+            enumerateDrawnImages(ctx, pdfDoc, pdfPage, pageH, &draws);
+
+            double bestDisplayArea = -1.0;
+            for (const auto& d : draws) {
+                const double area = d.fitzBbox.width() * d.fitzBbox.height();
+                if (area > bestDisplayArea) {
+                    bestDisplayArea = area;
+                    info.xobjectName = d.name;
+                    info.width = d.w;
+                    info.height = d.h;
+                    info.isJpeg = xobjectIsJpeg(ctx, pdfPage, d.name);
+                    found = true;
                 }
+            }
+            if (found) return;
 
-                pdf_obj* resources = pdf_page_resources(ctx, pdfPage);
-                if (!resources) {
-                    return std::nullopt;
+            // Fallback: no named image draw found. Old behaviour — largest image
+            // XObject in the resources dict by pixel area, first on tie.
+            pdf_obj* resources = pdf_page_resources(ctx, pdfPage);
+            if (!resources) return;
+            pdf_obj* xobjectDict = pdf_dict_get(ctx, resources, PDF_NAME(XObject));
+            if (!xobjectDict) return;
+            int bestArea = 0;
+            const int len = pdf_dict_len(ctx, xobjectDict);
+            for (int i = 0; i < len; ++i) {
+                pdf_obj* key = pdf_dict_get_key(ctx, xobjectDict, i);
+                pdf_obj* val =
+                    pdf_resolve_indirect(ctx, pdf_dict_get_val(ctx, xobjectDict, i));
+                if (!val) continue;
+                pdf_obj* subtype = pdf_dict_get(ctx, val, PDF_NAME(Subtype));
+                if (!pdf_name_eq(ctx, subtype, PDF_NAME(Image))) continue;
+                const int w = pdf_dict_get_int(ctx, val, PDF_NAME(Width));
+                const int h = pdf_dict_get_int(ctx, val, PDF_NAME(Height));
+                const int area = w * h;
+                if (area > bestArea) {
+                    bestArea = area;
+                    info.xobjectName = pdf_to_name(ctx, key);
+                    info.width = w;
+                    info.height = h;
+                    pdf_obj* filter = pdf_dict_get(ctx, val, PDF_NAME(Filter));
+                    info.isJpeg = filter && pdf_name_eq(ctx, filter, PDF_NAME(DCTDecode));
+                    found = true;
                 }
-
-                pdf_obj* xobjectDict = pdf_dict_get(ctx, resources, PDF_NAME(XObject));
-                if (!xobjectDict) {
-                    return std::nullopt;
-                }
-
-                // Find largest image XObject
-                PageImageInfo bestInfo;
-                int bestArea = 0;
-
-                int len = pdf_dict_len(ctx, xobjectDict);
-                for (int i = 0; i < len; ++i) {
-                    pdf_obj* key = pdf_dict_get_key(ctx, xobjectDict, i);
-                    pdf_obj* val = pdf_dict_get_val(ctx, xobjectDict, i);
-                    val = pdf_resolve_indirect(ctx, val);
-
-                    if (!val) continue;
-
-                    pdf_obj* subtype = pdf_dict_get(ctx, val, PDF_NAME(Subtype));
-                    if (!pdf_name_eq(ctx, subtype, PDF_NAME(Image))) {
-                        continue;
-                    }
-
-                    int w = pdf_dict_get_int(ctx, val, PDF_NAME(Width));
-                    int h = pdf_dict_get_int(ctx, val, PDF_NAME(Height));
-                    int area = w * h;
-
-                    if (area > bestArea) {
-                        bestArea = area;
-                        bestInfo.xobjectName = pdf_to_name(ctx, key);
-                        bestInfo.width = w;
-                        bestInfo.height = h;
-
-                        pdf_obj* filter = pdf_dict_get(ctx, val, PDF_NAME(Filter));
-                        bestInfo.isJpeg = filter && pdf_name_eq(ctx, filter, PDF_NAME(DCTDecode));
-                    }
-                }
-
-                if (bestArea == 0) {
-                    return std::nullopt;
-                }
-                return bestInfo;
-            });
+            }
+        });
     } catch (const std::exception& e) {
         qWarning("PdfContentWriter::findPageImageXObject: %s", e.what());
         return std::nullopt;
@@ -126,6 +242,9 @@ std::optional<PageImageInfo> PdfContentWriter::findPageImageXObject(
         qWarning("PdfContentWriter::findPageImageXObject: unknown exception");
         return std::nullopt;
     }
+
+    if (!found) return std::nullopt;
+    return info;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,150 +259,97 @@ std::optional<PageImageInfo> PdfContentWriter::findImageXObjectForRegion(
         return std::nullopt;
     }
 
-    // DECLARED IN THIS FRAME, FILLED BY THE LAMBDA (GitHub #118's hazard class).
+    // The resolved target is hoisted to THIS frame (not the guarded region):
+    // PageImageInfo owns a std::string, and a longjmp out of the MuPDF region
+    // would skip its destructor (GitHub #118 hazard class). The draw list is
+    // owned here too so the enumerated names unwind safely.
     //
-    // `info` used to be a local inside the executeReturn lambda, whose body runs
-    // inside MuPdfContext's fz_try. PageImageInfo owns a std::string
-    // (xobjectName), and MuPDF unwinds by longjmp, so an fz_throw from any of
-    // the pdf_* calls that follow its declaration would skip its destructor and
-    // leak that string's buffer. Hoisting it here means ordinary C++ unwinding
-    // owns it no matter how MuPDF leaves the region.
-    //
-    // The lambda therefore returns bool (did we find exactly one match?) rather
-    // than std::optional<PageImageInfo>, which is what kept a PageImageInfo
-    // being materialised inside the guarded region. Behaviour is unchanged:
-    // every former `return std::nullopt` is a `return false`, and the single
-    // success path is `return true` with `info` already filled.
+    // fix-tre-writetarget: resolve the region to the XObject NAME the page
+    // actually DRAWS, via the content stream's `/Name Do` operators and their
+    // CTM placement (enumerateDrawnImages), NOT by matching pixel (Width,Height)
+    // against the resources dict. The old dimension match was ambiguous whenever
+    // two image resources shared a size and bailed to nullopt even when the page
+    // drew them at different, unambiguous placements (the e1139 bug: 573
+    // identical 1700x2200 XObjects, one drawn per page).
+    std::vector<DrawnImage> draws;
     PageImageInfo info;
+    bool resolved = false;
 
     try {
-        const bool matched = pImpl_->context_->executeReturn<bool>(
-            [&](fz_context* ctx) -> bool {
-                fz_page* fzPage = page->fzPage();
-                fz_document* fzDoc = document->fzDocument();
-                pdf_page* pdfPage = pdf_page_from_fz_page(ctx, fzPage);
-                const pdf_document* pdfDoc = pdf_document_from_fz_document(ctx, fzDoc);
-                if (!pdfPage || !pdfDoc) {
-                    return false;
+        pImpl_->context_->execute([&](fz_context* ctx) {
+            fz_page* fzPage = page->fzPage();
+            fz_document* fzDoc = document->fzDocument();
+            pdf_page* pdfPage = pdf_page_from_fz_page(ctx, fzPage);
+            pdf_document* pdfDoc = pdf_document_from_fz_document(ctx, fzDoc);
+            if (!pdfPage || !pdfDoc) return;
+
+            const fz_rect bounds = fz_bound_page(ctx, fzPage);
+            const double pageH = bounds.y1 - bounds.y0;
+            enumerateDrawnImages(ctx, pdfDoc, pdfPage, pageH, &draws);
+            if (draws.empty()) return;
+
+            const double regionArea = std::max(0.0, regionFitz.width()) *
+                                      std::max(0.0, regionFitz.height());
+            const QPointF regionCenter = regionFitz.center();
+
+            // Among the drawn images covering the region, choose the one covering
+            // the largest FRACTION of it; ties go to the LATER draw, which is the
+            // image on top (the same rule as Page::sourceImageDpiAt(), expressed
+            // over draw order rather than bbox tightness).
+            int bestIdx = -1;
+            double bestFrac = 0.0;
+            for (int i = 0; i < static_cast<int>(draws.size()); ++i) {
+                const QRectF& bb = draws[i].fitzBbox;
+                if (bb.width() <= 0.0 || bb.height() <= 0.0) continue;
+                const QRectF isect = bb.intersected(regionFitz);
+                const double overlap = (isect.isValid() && !isect.isEmpty())
+                                           ? isect.width() * isect.height()
+                                           : 0.0;
+                const double frac =
+                    regionArea > 0.0 ? overlap / regionArea
+                                     : (bb.contains(regionCenter) ? 1.0 : 0.0);
+                if (frac <= 0.0) continue;
+                if (bestIdx < 0 || frac > bestFrac + 1e-9) {
+                    bestFrac = frac;
+                    bestIdx = i;              // strictly better coverage
+                } else if (frac > bestFrac - 1e-9) {
+                    bestIdx = i;              // tie -> prefer the later (topmost) draw
                 }
+            }
+            if (bestIdx < 0) return;          // nothing covers the region
 
-                // --- Step 1: which IMAGE is under the region? ----------------
-                // Deliberately the same rule as Page::sourceImageDpiAt(): most
-                // of the region covered wins; ties go to the tightest bbox,
-                // which is the image drawn last and therefore on top. The two
-                // must agree — a region whose DPI comes from the thumbnail but
-                // whose pixels are written to the photo is exactly #262.
-                fz_stext_options opts =
-                    pdfe::core::pdfeStextOptions(FZ_STEXT_PRESERVE_IMAGES);
-                fz_stext_page* stextPage =
-                    fz_new_stext_page_from_page(ctx, fzPage, &opts);
-                if (!stextPage) {
-                    return false;
+            // Ambiguity guard, preserved from the old Step 2 but narrowed to the
+            // case draw order genuinely cannot resolve: another covering draw is
+            // a DIFFERENT resource occupying the SAME placement (two images
+            // stacked exactly). Then which XObject owns the visible content is
+            // unknowable without rendering, so report nothing rather than guess
+            // -- the caller falls back and the occlusion guard catches an
+            // invisible write. Different placements are no longer ambiguous.
+            const QRectF chosen = draws[bestIdx].fitzBbox;
+            const double tol = 1.0;
+            for (int i = 0; i < static_cast<int>(draws.size()); ++i) {
+                if (i == bestIdx) continue;
+                if (draws[i].name == draws[bestIdx].name) continue;
+                const QRectF& bb = draws[i].fitzBbox;
+                const QRectF isect = bb.intersected(regionFitz);
+                const bool covers = (isect.isValid() && !isect.isEmpty()) ||
+                                    (regionArea <= 0.0 && bb.contains(regionCenter));
+                if (!covers) continue;
+                if (std::abs(bb.x() - chosen.x()) <= tol &&
+                    std::abs(bb.y() - chosen.y()) <= tol &&
+                    std::abs(bb.width() - chosen.width()) <= tol &&
+                    std::abs(bb.height() - chosen.height()) <= tol) {
+                    return;                   // same-placement ambiguity -> nullopt
                 }
+            }
 
-                const double regionArea = std::max(0.0, regionFitz.width()) *
-                                          std::max(0.0, regionFitz.height());
-                const QPointF regionCenter = regionFitz.center();
-
-                double bestFrac = 0.0;
-                double bestBboxArea = 0.0;
-                int bestW = 0;
-                int bestH = 0;
-                QRectF bestRect;
-                bool found = false;
-
-                for (fz_stext_block* block = stextPage->first_block; block;
-                     block = block->next) {
-                    if (block->type != FZ_STEXT_BLOCK_IMAGE) continue;
-                    fz_image* img = block->u.i.image;
-                    if (!img || img->w <= 0 || img->h <= 0) continue;
-
-                    const double bw = block->bbox.x1 - block->bbox.x0;
-                    const double bh = block->bbox.y1 - block->bbox.y0;
-                    if (bw <= 0.0 || bh <= 0.0) continue;
-
-                    const QRectF blockRect(block->bbox.x0, block->bbox.y0, bw, bh);
-                    const double bboxArea = bw * bh;
-                    const QRectF isect = blockRect.intersected(regionFitz);
-                    const double overlap = (isect.isValid() && !isect.isEmpty())
-                                               ? isect.width() * isect.height()
-                                               : 0.0;
-                    const double frac =
-                        regionArea > 0.0
-                            ? overlap / regionArea
-                            : (blockRect.contains(regionCenter) ? 1.0 : 0.0);
-                    if (frac <= 0.0) continue;
-
-                    const bool better =
-                        !found || frac > bestFrac + 1e-9 ||
-                        (std::abs(frac - bestFrac) <= 1e-9 && bboxArea < bestBboxArea);
-                    if (better) {
-                        found = true;
-                        bestFrac = frac;
-                        bestBboxArea = bboxArea;
-                        bestW = img->w;
-                        bestH = img->h;
-                        bestRect = blockRect;
-                    }
-                }
-
-                fz_drop_stext_page(ctx, stextPage);
-
-                if (!found) {
-                    return false;
-                }
-
-                // --- Step 2: tie that image back to an XObject NAME ----------
-                // The stext walk yields pixel dimensions and a placement, not a
-                // resource key, and the writer needs the key. Match on (Width,
-                // Height). If two image resources share dimensions the match is
-                // ambiguous, and an ambiguous answer here is a silent write into
-                // the wrong image -- the very failure this function exists to
-                // stop -- so report nothing rather than pick.
-                pdf_obj* resources = pdf_page_resources(ctx, pdfPage);
-                if (!resources) return false;
-                pdf_obj* xobjectDict = pdf_dict_get(ctx, resources, PDF_NAME(XObject));
-                if (!xobjectDict) return false;
-
-                // `info` is the caller's — see the note above this try block.
-                int matches = 0;
-                const int len = pdf_dict_len(ctx, xobjectDict);
-                for (int i = 0; i < len; ++i) {
-                    pdf_obj* key = pdf_dict_get_key(ctx, xobjectDict, i);
-                    pdf_obj* val = pdf_resolve_indirect(
-                        ctx, pdf_dict_get_val(ctx, xobjectDict, i));
-                    if (!val) continue;
-
-                    pdf_obj* subtype = pdf_dict_get(ctx, val, PDF_NAME(Subtype));
-                    if (!pdf_name_eq(ctx, subtype, PDF_NAME(Image))) continue;
-
-                    const int w = pdf_dict_get_int(ctx, val, PDF_NAME(Width));
-                    const int h = pdf_dict_get_int(ctx, val, PDF_NAME(Height));
-                    if (w != bestW || h != bestH) continue;
-
-                    ++matches;
-                    if (matches > 1) break;
-
-                    info.xobjectName = pdf_to_name(ctx, key);
-                    info.width = w;
-                    info.height = h;
-                    pdf_obj* filter = pdf_dict_get(ctx, val, PDF_NAME(Filter));
-                    info.isJpeg = filter && pdf_name_eq(ctx, filter, PDF_NAME(DCTDecode));
-                    info.placementFitz = bestRect;
-                }
-
-                // An ambiguous match (more than one image of these dimensions)
-                // reports nothing rather than guessing — unchanged, it is just
-                // spelled `false` now and `info` is left for the caller to drop.
-                if (matches != 1) {
-                    return false;
-                }
-                return true;
-            });
-        if (!matched) {
-            return std::nullopt;
-        }
-        return info;
+            info.xobjectName = draws[bestIdx].name;
+            info.width = draws[bestIdx].w;
+            info.height = draws[bestIdx].h;
+            info.placementFitz = chosen;
+            info.isJpeg = xobjectIsJpeg(ctx, pdfPage, draws[bestIdx].name);
+            resolved = true;
+        });
     } catch (const std::exception& e) {
         qWarning("PdfContentWriter::findImageXObjectForRegion: %s", e.what());
         return std::nullopt;
@@ -291,6 +357,9 @@ std::optional<PageImageInfo> PdfContentWriter::findImageXObjectForRegion(
         qWarning("PdfContentWriter::findImageXObjectForRegion: unknown exception");
         return std::nullopt;
     }
+
+    if (!resolved) return std::nullopt;
+    return info;
 }
 
 // ---------------------------------------------------------------------------
@@ -305,52 +374,41 @@ std::optional<PageImageInfo> PdfContentWriter::topmostImageOverRegion(
         return std::nullopt;
     }
 
-    // DECLARED IN THIS FRAME, FILLED BY THE LAMBDA — same reasoning as
-    // findImageXObjectForRegion above: PageImageInfo owns a std::string, and a
-    // longjmp out of the guarded region would skip its destructor. The lambda
-    // returns bool so no PageImageInfo is ever materialised inside the region.
+    // Hoisted to THIS frame for std::string safety under a MuPDF longjmp (as in
+    // findImageXObjectForRegion). topmostImageOverRegion now ALSO records the
+    // drawn XObject NAME (via enumerateDrawnImages), so the occlusion check can
+    // compare identity by name rather than by dimensions — which are ambiguous
+    // on a page carrying several same-sized images.
+    std::vector<DrawnImage> draws;
     PageImageInfo top;
+    bool hit = false;
 
     try {
-        const bool found = pImpl_->context_->executeReturn<bool>(
-            [&](fz_context* ctx) -> bool {
-                fz_page* fzPage = page->fzPage();
-                if (!fzPage) return false;
+        pImpl_->context_->execute([&](fz_context* ctx) {
+            fz_page* fzPage = page->fzPage();
+            fz_document* fzDoc = document->fzDocument();
+            pdf_page* pdfPage = pdf_page_from_fz_page(ctx, fzPage);
+            pdf_document* pdfDoc = pdf_document_from_fz_document(ctx, fzDoc);
+            if (!pdfPage || !pdfDoc) return;
 
-                fz_stext_options opts =
-                    pdfe::core::pdfeStextOptions(FZ_STEXT_PRESERVE_IMAGES);
-                fz_stext_page* stextPage =
-                    fz_new_stext_page_from_page(ctx, fzPage, &opts);
-                if (!stextPage) return false;
+            const fz_rect bounds = fz_bound_page(ctx, fzPage);
+            const double pageH = bounds.y1 - bounds.y0;
+            enumerateDrawnImages(ctx, pdfDoc, pdfPage, pageH, &draws);
 
-                // stext blocks come in content-stream order, so the LAST image
-                // block covering the point is the one drawn on top of it.
-                const QPointF centre = regionFitz.center();
-                bool hit = false;
-
-                for (fz_stext_block* block = stextPage->first_block; block;
-                     block = block->next) {
-                    if (block->type != FZ_STEXT_BLOCK_IMAGE) continue;
-                    fz_image* img = block->u.i.image;
-                    if (!img || img->w <= 0 || img->h <= 0) continue;
-
-                    const double bw = block->bbox.x1 - block->bbox.x0;
-                    const double bh = block->bbox.y1 - block->bbox.y0;
-                    if (bw <= 0.0 || bh <= 0.0) continue;
-
-                    const QRectF rect(block->bbox.x0, block->bbox.y0, bw, bh);
-                    if (!rect.contains(centre)) continue;
-
-                    hit = true;
-                    top.width = img->w;
-                    top.height = img->h;
-                    top.placementFitz = rect;
-                }
-
-                fz_drop_stext_page(ctx, stextPage);
-                return hit;
-            });
-        if (!found) {
+            // Draws are in content-stream order, so the LAST image covering the
+            // region centre is the one drawn on top of it.
+            const QPointF centre = regionFitz.center();
+            for (const auto& d : draws) {
+                if (!d.fitzBbox.contains(centre)) continue;
+                hit = true;
+                top.xobjectName = d.name;
+                top.width = d.w;
+                top.height = d.h;
+                top.placementFitz = d.fitzBbox;
+                top.isJpeg = xobjectIsJpeg(ctx, pdfPage, d.name);
+            }
+        });
+        if (!hit) {
             return std::nullopt;
         }
         return top;

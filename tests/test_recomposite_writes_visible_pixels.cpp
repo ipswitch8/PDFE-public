@@ -378,6 +378,16 @@ INSTANTIATE_TEST_SUITE_P(
         // Same page, a region the small image does not cover.
         Arrangement{"mixed_dpi_page.pdf", "300-DPI photo alone",
                     QRectF(300, 150, 150, 150), true},
+        // fix-tre-writetarget: two image XObjects share 1000x1000 in one
+        // resources dict, drawn at distinct placements. The region sits on the
+        // target (fzImg1); the decoy (fzImg0) shares its dimensions. Against
+        // unmodified code the (Width,Height) tie makes findImageXObjectForRegion
+        // return nullopt and this row reds at ASSERT_TRUE(target.has_value());
+        // the draw name+CTM fix resolves the target, which is NOT the largest
+        // (the decoy's display is bigger), so expectLargest is false.
+        Arrangement{"duplicate_dimension_shared_resource.pdf",
+                    "duplicate-dimension decoy drawn elsewhere",
+                    QRectF(100, 580, 80, 80), false},
         // An ordinary single-image scan: the arrangement that always worked,
         // kept here so a "fix" that only handles multi-image pages is caught.
         Arrangement{"test_scanned.pdf", "single full-page scan", QRectF(), true}),
@@ -405,11 +415,14 @@ INSTANTIATE_TEST_SUITE_P(
 // `occluded_write_target.pdf` exists to fire it, and every step is forced
 // rather than incidental — see make_occluded_write_target_page() for the full
 // argument. In short: the edited region sits on a 300x300 image drawn LAST over
-// a 1200x1200 one, and a second 300x300 image elsewhere on the page makes the
-// dimension match ambiguous. So selection bails out (by design, rather than
-// guess between two same-sized images), the fallback lands on the 1200x1200
-// base, and the top image paints over the result. The write is committed and
-// invisible — which must be reported as FAILURE.
+// a 1200x1200 one, and a SECOND 300x300 image is stacked at the SAME placement,
+// so draw-name+CTM resolution cannot say which of the two owns the visible
+// content. So selection bails out (by design, rather than guess between two
+// images at one spot), the fallback lands on the 1200x1200 base, and the top
+// image paints over the result. The write is committed and invisible — which
+// must be reported as FAILURE. (fix-tre-writetarget: the ambiguity is now
+// same-PLACEMENT, not same-dimension-different-placement; the latter is resolved
+// by placement and no longer bails.)
 // ---------------------------------------------------------------------------
 
 /// Shared rig for the two tests that drive `ImageReplacer::replace()` for real.
@@ -574,10 +587,11 @@ TEST_F(RecompositeOccludedTargetTest, TheFallbackTargetIsTheOccludedImage)
     const auto resolved = contentWriter_->findImageXObjectForRegion(
         page_.get(), document_.get(), topRegion);
     EXPECT_FALSE(resolved.has_value())
-        << "region selection resolved a target on a page where two image "
-           "resources share 300x300 dimensions. It must bail out instead of "
-           "guessing, or the fallback path below is never taken and this "
-           "fixture tests nothing.";
+        << "region selection resolved a target on a page where two 300x300 image "
+           "resources are stacked at the SAME placement. Draw order cannot say "
+           "which owns the visible content, so it must bail out instead of "
+           "guessing, or the fallback path below is never taken and this fixture "
+           "tests nothing.";
 
     const auto fallback = contentWriter_->findPageImageXObject(
         page_.get(), document_.get());
@@ -684,4 +698,206 @@ TEST_F(RecompositeVisiblePixelsTest, ARegionMostlyOverThePhotoResolvesToThePhoto
            "clipping the thumbnail's corner, resolved to the 300px thumbnail. "
            "Selection is picking the smallest overlapping image rather than the "
            "one that actually covers the region.";
+}
+
+// ===========================================================================
+// fix-tre-writetarget — DUPLICATE-DIMENSION SHARED RESOURCE DICT
+//
+// The field bug (desktop file e1139, 573 pages): one resources dict holds many
+// image XObjects that all share a single pixel size (1700x2200), and each page
+// draws one of them by name via `/I<n> Do`. The write-back cannot tell them
+// apart, because it ties the image under the region back to a resource NAME by
+// matching (Width, Height) — which matches ALL of them. It bails to nullopt,
+// the caller falls back to findPageImageXObject()'s "largest by area" (a tie
+// among equal-area images, broken arbitrarily by dict order), and the edit is
+// written into an image that is not the one under the cursor. The user sees no
+// change (either option in the Edit-Text dialog), exactly as reported.
+//
+// `duplicate_dimension_shared_resource.pdf` is the committed-size reproduction:
+// two 1000x1000 images in one resources dict, drawn at DISTINCT, non-overlapping
+// placements. fzImg0 (the decoy) is drawn first — large, top — and wins the
+// equal-area tie in findPageImageXObject; fzImg1 (the target) is drawn second —
+// small, bottom-left — and is the one the edit region sits on. The defective
+// property reproduced is "duplicate (Width,Height) in one resources dict"; the
+// draw name+CTM fix must resolve the target by the placement the page actually
+// draws, not by dimensions.
+// ===========================================================================
+
+class DuplicateDimensionWriteTargetTest : public ::testing::Test {
+protected:
+    void SetUp() override
+    {
+        context_ = std::make_shared<MuPdfContext>();
+        const std::filesystem::path fixture =
+            std::filesystem::path(TEST_FIXTURES_DIR) /
+            "duplicate_dimension_shared_resource.pdf";
+        if (!std::filesystem::exists(fixture)) {
+            GTEST_SKIP() << "duplicate_dimension_shared_resource.pdf not available";
+        }
+        document_ = Document::open(context_, fixture);
+        ASSERT_NE(document_, nullptr);
+        ASSERT_GT(document_->pageCount(), 0);
+        fontEmbedder_ = std::make_unique<pdfe::fonts::PdfFontEmbedder>(context_.get());
+        writer_ = std::make_unique<PdfContentWriter>(context_.get(), fontEmbedder_.get());
+    }
+
+    void TearDown() override
+    {
+        writer_.reset();
+        fontEmbedder_.reset();
+        document_.reset();
+        context_.reset();
+    }
+
+    QImage renderCrop(const QRect& r)
+    {
+        auto page = document_->page(0);
+        if (!page) return {};
+        const QImage full = page->render(QRectF(), 1.0f);
+        if (full.isNull()) return {};
+        return full.copy(r.intersected(full.rect()));
+    }
+
+    static QImage solidBlock()
+    {
+        QImage img(612, 792, QImage::Format_RGB888);
+        img.fill(QColor(255, 0, 255));  // magenta — absent from the fixture
+        return img;
+    }
+
+    std::shared_ptr<MuPdfContext> context_;
+    std::unique_ptr<Document> document_;
+    std::unique_ptr<pdfe::fonts::PdfFontEmbedder> fontEmbedder_;
+    std::unique_ptr<PdfContentWriter> writer_;
+};
+
+// The target (fzImg1) is drawn at fitz Rect(80, 560, 200, 680); this region
+// sits squarely inside it and clear of the decoy (fzImg0) at Rect(56,56,556,416).
+namespace {
+const QRectF kDupTargetRegion(100, 580, 80, 80);  // over fzImg1 only
+const QRect  kDupTargetCrop(100, 580, 80, 80);    // render-oracle crop over fzImg1
+const QRect  kDupDecoyCrop(100, 100, 300, 200);   // render-oracle crop over fzImg0 only
+}  // namespace
+
+// The resolution half: duplicate dimensions must not defeat name resolution
+// when the page draws the images at distinct placements.
+TEST_F(DuplicateDimensionWriteTargetTest,
+       RegionResolvesToTheDrawnTargetDespiteDuplicateDimensions)
+{
+    auto page = document_->page(0);
+    ASSERT_NE(page, nullptr);
+
+    const auto target = writer_->findImageXObjectForRegion(
+        page.get(), document_.get(), kDupTargetRegion);
+    ASSERT_TRUE(target.has_value())
+        << "two image XObjects share 1000x1000, so the (Width,Height) name tie "
+           "in step 2 is ambiguous and resolution bails to nullopt. But the page "
+           "draws the target by name at a distinct placement, so the drawn "
+           "/Name Do + CTM disambiguates it. Bailing here is the fix-tre-"
+           "writetarget defect: the caller then falls back to the largest image, "
+           "which is the decoy.";
+
+    // Placement must be the target's (80,560,120,120), not the decoy's
+    // page-spanning (56,56,500,360).
+    EXPECT_NEAR(target->placementFitz.x(), 80.0, 2.0);
+    EXPECT_NEAR(target->placementFitz.y(), 560.0, 2.0);
+    EXPECT_LT(target->placementFitz.width(), 300.0)
+        << "resolved placement is the wide top decoy, not the small target the "
+           "edit region sits on";
+}
+
+// The visibility half, driven exactly as production resolves a write target
+// (ImageReplacer::resolveWriteTarget): region-aware first, largest-image
+// fallback when that returns nullopt. The edit must change the target the page
+// draws under the region, and must leave the equal-dimension decoy untouched.
+TEST_F(DuplicateDimensionWriteTargetTest,
+       EditLandsInTheDrawnTargetAndLeavesTheDecoyUntouched)
+{
+    const QImage targetBefore = renderCrop(kDupTargetCrop);
+    const QImage decoyBefore = renderCrop(kDupDecoyCrop);
+    ASSERT_FALSE(targetBefore.isNull());
+    ASSERT_FALSE(decoyBefore.isNull());
+
+    auto page = document_->page(0);
+    ASSERT_NE(page, nullptr);
+
+    auto target = writer_->findImageXObjectForRegion(
+        page.get(), document_.get(), kDupTargetRegion);
+    if (!target.has_value()) {
+        // The production fallback — the arbitrary equal-area pick that causes
+        // the bug. Kept here so the test exercises the real code path rather
+        // than asserting only on the resolver.
+        target = writer_->findPageImageXObject(page.get(), document_.get());
+    }
+    ASSERT_TRUE(target.has_value()) << "no write target resolved at all";
+
+    ASSERT_TRUE(writer_->replacePageImage(
+        page.get(), document_.get(), solidBlock(), *target))
+        << "the write itself failed; the instrument cannot measure targeting";
+
+    const QImage targetAfter = renderCrop(kDupTargetCrop);
+    const QImage decoyAfter = renderCrop(kDupDecoyCrop);
+    ASSERT_FALSE(targetAfter.isNull());
+    ASSERT_FALSE(decoyAfter.isNull());
+
+    EXPECT_GT(differingPixels(targetBefore, targetAfter), 0)
+        << "the edit over the target region changed nothing the user sees. The "
+           "duplicate-dimension tie sent the write to the decoy (fzImg0), drawn "
+           "elsewhere, so the target (fzImg1) under the edit is untouched. This "
+           "is the fix-tre-writetarget invisible-edit report.";
+    EXPECT_EQ(differingPixels(decoyBefore, decoyAfter), 0)
+        << "the decoy image — nowhere near the edit — changed, because the write "
+           "landed in it instead of the target under the region.";
+}
+
+// ===========================================================================
+// fix-tre-writetarget (Finding 3) — Page::sourceImageDpi() area-tie.
+//
+// sourceImageDpi() reports a page-maximum DPI by keeping the largest image by
+// pixel AREA (strict `>`), then dividing its pixel dimensions by the PAGE size.
+// Two images of equal area therefore tie, and the tie keeps whichever is
+// iterated first — which can be the lower-DPI one, under-reporting the page's
+// true maximum resolution. `equal_area_mixed_dim.pdf` has a 1000x1000 image
+// (fzImg0, ~118 page-DPI, inserted first so it wins the tie) and a 2000x500
+// image (fzImg1, ~235 page-DPI) of identical area. Different dimensions mean
+// this does NOT trigger the write-ambiguity above — it isolates the DPI tie.
+// ===========================================================================
+
+class DuplicateDimensionSourceDpiTest : public ::testing::Test {
+protected:
+    void SetUp() override
+    {
+        context_ = std::make_shared<MuPdfContext>();
+        const std::filesystem::path fixture =
+            std::filesystem::path(TEST_FIXTURES_DIR) / "equal_area_mixed_dim.pdf";
+        if (!std::filesystem::exists(fixture)) {
+            GTEST_SKIP() << "equal_area_mixed_dim.pdf not available";
+        }
+        document_ = Document::open(context_, fixture);
+        ASSERT_NE(document_, nullptr);
+        ASSERT_GT(document_->pageCount(), 0);
+    }
+
+    void TearDown() override
+    {
+        document_.reset();
+        context_.reset();
+    }
+
+    std::shared_ptr<MuPdfContext> context_;
+    std::unique_ptr<Document> document_;
+};
+
+TEST_F(DuplicateDimensionSourceDpiTest, PageMaximumDpiIsNotUnderReportedByAnAreaTie)
+{
+    auto page = document_->page(0);
+    ASSERT_NE(page, nullptr);
+
+    const double dpi = page->sourceImageDpi();
+    EXPECT_GE(dpi, 230.0)
+        << "sourceImageDpi() returned " << dpi << ". Two images of equal pixel "
+           "AREA tie, and the strict-`>` area rule keeps whichever is iterated "
+           "first (the 1000x1000 image at ~118 DPI), under-reporting the page's "
+           "real ~235-DPI maximum (the 2000x500 image). The page maximum must "
+           "not depend on an arbitrary dict-order tie-break.";
 }

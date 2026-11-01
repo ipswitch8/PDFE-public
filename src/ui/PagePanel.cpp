@@ -460,6 +460,18 @@ void PagePanel::refreshPages()
     }
 }
 
+void PagePanel::invalidateThumbnail(int pageIndex)
+{
+    if (!thumbnailRenderer_ || pageIndex < 0) {
+        return;
+    }
+    // Clear the LRU cache entry so the next request re-rasterizes from the
+    // edited page, then re-request the visible window (requestThumbnail() dedups
+    // and the just-cleared page is now a cache miss, so it actually re-renders).
+    thumbnailRenderer_->invalidatePage(pageIndex);
+    updateVisibleThumbnails();
+}
+
 QList<int> PagePanel::selectedPageIndices() const
 {
     QList<int> indices;

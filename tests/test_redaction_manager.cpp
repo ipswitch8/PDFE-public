@@ -222,6 +222,28 @@ TEST_F(RedactionManagerTest, GetRedactionMarkAt_HitTest) {
     EXPECT_EQ(hit.value(), created.annotIndex);
 }
 
+// fix-tre-writetarget (sweep Finding 5): overlapping redaction marks at the same
+// point must resolve to the TOPMOST (last-drawn) mark, not the first-indexed one
+// underneath it. Annotations render in array order, so the later-created mark is
+// painted on top and is the one the user clicked. Pre-fix getRedactionMarkAt
+// returned on the first containing mark (lowest index) — this reds against that.
+TEST_F(RedactionManagerTest, GetRedactionMarkAt_OverlappingPrefersTopmost) {
+    auto* page = getPage(0);
+    // Two marks covering the SAME point (150,125); d1 is created second, so it
+    // is drawn on top and has the higher annot index.
+    auto d0 = manager_->createRedactionMark(page, QRectF(100, 100, 120, 60));
+    auto d1 = manager_->createRedactionMark(page, QRectF(110, 110, 120, 60));
+    ASSERT_NE(d0.annotIndex, d1.annotIndex);
+
+    auto hit = manager_->getRedactionMarkAt(page, QPointF(150, 125));
+    ASSERT_TRUE(hit.has_value());
+    EXPECT_EQ(hit.value(), d1.annotIndex)
+        << "overlapping redaction marks resolved to the mark UNDERNEATH (index "
+        << hit.value() << ") instead of the topmost last-drawn one (index "
+        << d1.annotIndex << "). The user clicks the mark they can see — the one "
+           "on top.";
+}
+
 TEST_F(RedactionManagerTest, GetRedactionMarkAt_Miss) {
     auto* page = getPage(0);
     manager_->createRedactionMark(page, QRectF(100, 100, 100, 50));

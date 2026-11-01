@@ -7,10 +7,12 @@
 #include "core/MuPdfContext.h"
 #include "core/TextBlock.h"
 #include "core/TextLine.h"
+#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 extern "C" {
@@ -622,4 +624,141 @@ TEST(MuPdfFzAlwaysInvariant, FzAlwaysRunsOnSuccessFromInsideExecute) {
     EXPECT_EQ(tryBodyRanCount, 1) << "fz_try body must run on success";
     EXPECT_EQ(alwaysRanCount, 1)
         << "fz_always must run on success path too";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase-3 (fix-tre-writetarget) — sweep Finding 1: the font-resource-key
+// collision.
+//
+// shared_basefont_collision.pdf has two DISTINCT page font resources, /F0 and
+// /F1, that BOTH declare /BaseFont /Helvetica, each drawing one run:
+//     BT /F0 24 Tf 72 700 Td (RUN ZERO) Tj ET
+//     BT /F1 24 Tf 72 650 Td (RUN ONE)  Tj ET
+// Because buildFontNameMapping keys psNameToResKey by /BaseFont, the two
+// resources collide and the last-iterated one (/F1) wins. Editing the /F0 run
+// therefore used to be re-emitted under /F1 — a committed-write defect (wrong
+// resource / potentially wrong glyphs), not a mere render artifact.
+//
+// ORACLE (committed content, not an API return): save the edit, reopen the
+// SAVED pdf in an isolated fitz context, read the page content-stream bytes,
+// locate the injected replacement show string "RUNZEROX", and assert the Tf
+// operator that governs it names /F0 (the resource the edited run used), NOT
+// the colliding /F1 alias. FAILS against unmodified code (emits /F1); PASSES
+// after threading the live Tf resource key (inj.resKey) through emission.
+namespace {
+
+// Load page 0's full (decompressed, concatenated) content stream of `path`
+// into a std::string, using an isolated fitz context.
+std::string loadPage0ContentStream(const std::filesystem::path& path) {
+    std::string out;
+    fz_context* ctx = fz_new_context(nullptr, nullptr, FZ_STORE_DEFAULT);
+    if (!ctx) return out;
+    pdf_document* pdf = nullptr;
+    fz_buffer* buf = nullptr;
+    fz_try(ctx) {
+        pdf = pdf_open_document(ctx, path.string().c_str());
+        pdf_obj* pageObj = pdf_lookup_page_obj(ctx, pdf, 0);
+        pdf_obj* contents = pageObj
+            ? pdf_dict_get(ctx, pageObj, PDF_NAME(Contents)) : nullptr;
+        if (contents) {
+            if (pdf_is_array(ctx, contents)) {
+                buf = fz_new_buffer(ctx, 1024);
+                int n = pdf_array_len(ctx, contents);
+                for (int i = 0; i < n; ++i) {
+                    fz_buffer* part =
+                        pdf_load_stream(ctx, pdf_array_get(ctx, contents, i));
+                    unsigned char* pd = nullptr;
+                    size_t pl = fz_buffer_storage(ctx, part, &pd);
+                    fz_append_data(ctx, buf, pd, pl);
+                    fz_append_byte(ctx, buf, '\n');
+                    fz_drop_buffer(ctx, part);
+                }
+            } else {
+                buf = pdf_load_stream(ctx, contents);
+            }
+            unsigned char* data = nullptr;
+            size_t len = fz_buffer_storage(ctx, buf, &data);
+            out.assign(reinterpret_cast<const char*>(data), len);
+        }
+    }
+    fz_always(ctx) {
+        if (buf) fz_drop_buffer(ctx, buf);
+        if (pdf) pdf_drop_document(ctx, pdf);
+    }
+    fz_catch(ctx) {}
+    fz_drop_context(ctx);
+    return out;
+}
+
+// The resource name (e.g. "F0") of the Tf operator that governs the show
+// operator at byte position `showPos`: the nearest "Tf" at/before showPos, and
+// the "/Fxxx" name token immediately preceding it. Empty if none found.
+std::string governingFontResName(const std::string& content, size_t showPos) {
+    size_t tf = content.rfind("Tf", showPos);
+    if (tf == std::string::npos) return "";
+    size_t slash = content.rfind('/', tf);
+    if (slash == std::string::npos) return "";
+    std::string name;
+    for (size_t j = slash + 1;
+         j < content.size() && (std::isalnum(static_cast<unsigned char>(content[j])));
+         ++j) {
+        name.push_back(content[j]);
+    }
+    return name;
+}
+
+}  // namespace
+
+TEST(ContentStreamFontKeyCollision,
+     EditEmitsTheRunsActualResourceKeyNotACollidingBaseFontAlias) {
+    auto context = std::make_shared<MuPdfContext>();
+    std::filesystem::path fixture =
+        std::filesystem::path(TEST_FIXTURES_DIR) / "shared_basefont_collision.pdf";
+    ASSERT_TRUE(std::filesystem::exists(fixture))
+        << "fixture missing: " << fixture
+        << " (generate via tests/fixtures/make_shared_basefont_collision.py)";
+
+    auto document = Document::open(context, fixture);
+    ASSERT_TRUE(document);
+    auto page = document->page(0);
+    ASSERT_TRUE(page);
+
+    auto blocks = page->extractText();
+    TextEditModel model(blocks);
+    std::vector<TextSpan> spans;
+    for (int i = 0; i < model.spanCount(); ++i) spans.push_back(model.span(i));
+
+    int target = -1;
+    for (int i = 0; i < static_cast<int>(spans.size()); ++i) {
+        if (spans[i].text.find(U"RUN ZERO") != std::u32string::npos) {
+            target = i;
+            break;
+        }
+    }
+    ASSERT_GE(target, 0) << "could not find the 'RUN ZERO' span (the /F0 run)";
+
+    std::vector<std::pair<int, std::u32string>> mods{{target, U"RUNZEROX"}};
+    ContentStreamEditor editor(context.get());
+    editor.applyEdits(page.get(), document.get(), spans, mods);
+
+    std::filesystem::path out =
+        std::filesystem::temp_directory_path() / "pdfe_basefont_collision_out.pdf";
+    document->saveAs(out);
+    page.reset();
+    document.reset();
+    context.reset();
+
+    std::string content = loadPage0ContentStream(out);
+    ASSERT_FALSE(content.empty()) << "saved page content stream was empty";
+
+    size_t showPos = content.find("RUNZEROX");
+    ASSERT_NE(showPos, std::string::npos)
+        << "injected replacement show 'RUNZEROX' not found in saved content:\n"
+        << content;
+
+    std::string gov = governingFontResName(content, showPos);
+    EXPECT_EQ(gov, "F0")
+        << "injected '/F0' run must be re-emitted under /F0 (the resource it "
+           "actually used), not the colliding /BaseFont alias /F1. Governing "
+           "Tf resource was '/" << gov << "'.\nSaved content:\n" << content;
 }

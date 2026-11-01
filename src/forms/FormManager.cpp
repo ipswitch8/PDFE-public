@@ -772,6 +772,20 @@ void FormManager::setCalculationOrder(
         }
 
         // Resolve each requested name to the matching field object.
+        //
+        // fix-tre-writetarget (sweep Finding 6) — DOCUMENTED, left as-is.
+        // This map is keyed by fully-qualified field name. PDF 32000-1 §12.7.3.2
+        // requires fully-qualified field names to be UNIQUE within a document, so
+        // this key cannot collide in a well-formed AcroForm. A malformed form with
+        // two fields sharing a qualified name is the only way to collide, and for
+        // that case there is no spec-defined "correct" field to put in /CO — the
+        // calculation order of a duplicate-named field is undefined input. The
+        // behaviour here is at least DETERMINISTIC (walkAcroFormFields visits the
+        // Fields array in a fixed order, so the last-encountered duplicate wins
+        // every run), which is the most we can promise for malformed input; /CO is
+        // a recalculation-order hint, not a data-integrity structure, so a
+        // cosmetic arbitrary-among-duplicates pick is acceptable. Not worth a
+        // reject-the-form or first-wins change that would still be arbitrary.
         std::map<std::string, pdf_obj*> nameToField;
         pdf_obj* fields = pdf_dict_get(ctx, acroForm, PDF_NAME(Fields));
         walkAcroFormFields(ctx, fields, "",

@@ -83,9 +83,16 @@ void ReconstructRegionCommand::execute() {
     if (!result.success) {
         qDebug() << "ReconstructRegionCommand: Approach B failed, falling back to Approach C";
 
-        // Fall back to Approach C (image replacement)
+        // Fall back to Approach C (image replacement).
+        // fix-tre-writetarget phase-4: snapToLines=false so the edit modifies the
+        // exact selected region rather than snapping to HOCR line boundaries and
+        // erasing adjacent text — matching the working span-edit call site in
+        // MainWindow::refreshImageForScannedPage. (The glyph-atlas / fontMatch /
+        // enrichedAtlas args are built only on the overlay span-edit path and have
+        // no region-flow equivalent, so they stay at their defaults here.)
         auto fallback = imageReplacer_->replace(
-            page.get(), document_, pageIndex_, selectionPdf_, editedText_, regionId_);
+            page.get(), document_, pageIndex_, selectionPdf_, editedText_, regionId_,
+            /*snapToLines=*/false);
 
         if (!fallback.success) {
             qWarning() << "TRE reconstruction failed:" << QString::fromStdString(fallback.errorMessage);
@@ -207,9 +214,13 @@ void ImageReplaceCommand::execute() {
     savedImageRef_ = contentWriter_->saveImageXObjectRef(page.get(), document_);
     savedContentsRef_ = contentWriter_->saveContentsRef(page.get(), document_);
 
-    // Execute Approach C (image replacement only)
+    // Execute Approach C (image replacement only).
+    // fix-tre-writetarget phase-4: snapToLines=false — edit the exact selected
+    // region, not the whole HOCR line (matches the working span-edit call site).
+    // Atlas/fontMatch args are overlay-span-only and stay at their defaults.
     auto result = imageReplacer_->replace(
-        page.get(), document_, pageIndex_, selectionPdf_, editedText_, regionId_);
+        page.get(), document_, pageIndex_, selectionPdf_, editedText_, regionId_,
+        /*snapToLines=*/false);
 
     if (!result.success) {
         qWarning() << "TRE image replacement failed:" << QString::fromStdString(result.errorMessage);

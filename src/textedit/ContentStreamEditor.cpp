@@ -295,6 +295,14 @@ struct FilterState {
     // injection can reproduce the source colourspace operator.
     TrackedFill currentFill;
 
+    // Phase-3 (sweep Finding 1): the live PDF font resource key (e.g. "F0")
+    // named by the most recent `Tf` operator, maintained by the ColorTracker
+    // chain processor upstream of sanitize. Read in textFilterCallback at the
+    // moment a replacement span is matched so the injection is emitted under
+    // the EXACT resource the edited run used — not re-derived by /BaseFont
+    // name, which collides when two page fonts share one base font.
+    std::string currentFontResKey;
+
     // Input: which spans to replace
     struct Replacement {
         QRectF bbox;              // Original span bounding box in fitz space
@@ -333,6 +341,13 @@ struct FilterState {
         // injection emits the original operator (k/g/scn) instead of flattening
         // to rg. RGB/None fall through to the legacy textColor `rg` path.
         TrackedFill capturedFill;
+
+        /// Phase-3 (sweep Finding 1): the live `/Fn` resource key in effect at
+        /// the matched text-show, captured from FilterState::currentFontResKey.
+        /// When non-empty it is PREFERRED over a psNameToResKey[/BaseFont]
+        /// lookup at emission, so a span that used /F0 is re-emitted under /F0
+        /// even when /F0 and /F1 share one /BaseFont. Empty → legacy lookup.
+        std::string resKey;
 
         /// Per-run segments propagated from the source Replacement.
         /// Empty → emission walks the legacy single-Tf path.
@@ -827,7 +842,13 @@ CT_FWD_f(op_Tc) CT_FWD_f(op_Tw) CT_FWD_f(op_Tz) CT_FWD_f(op_TL)
 CT_FWD_i(op_Tr) CT_FWD_f(op_Ts)
 static void ct_op_Tf(fz_context* ctx, pdf_processor* p, const char* n,
                     pdf_font_desc* font, float sz) {
-    pdf_processor* c = CT_C(p); if (c->op_Tf) c->op_Tf(ctx, c, n, font, sz); }
+    // Phase-3 (sweep Finding 1): record the live resource key BEFORE
+    // forwarding, so a later matched show-text reads the exact /Fn that was in
+    // effect. Operators flow ColorTracker→sanitize, so this Tf precedes the
+    // show that textFilterCallback matches.
+    ColorTracker* t = ctSelf(p);
+    if (t->st) t->st->currentFontResKey = (n ? n : std::string());
+    pdf_processor* c = t->chain; if (c->op_Tf) c->op_Tf(ctx, c, n, font, sz); }
 CT_FWD_2f(op_Td) CT_FWD_2f(op_TD)
 static void ct_op_Tm(fz_context* ctx, pdf_processor* p,
                     float a, float b, float cc, float d, float e, float f) {
@@ -1150,6 +1171,7 @@ static int textFilterCallback(
         inj.textColor = repl.textColor;
         inj.textColorKnown = repl.textColorKnown;
         inj.capturedFill = state->currentFill;  // R3-06 source colourspace
+        inj.resKey = state->currentFontResKey;  // Phase-3 live Tf resource key
         inj.runSegments = repl.runSegments;  // UI-TE-SAVE-08 phase-2
         state->pendingInjections.push_back(std::move(inj));
     }
@@ -1173,13 +1195,20 @@ static void afterTextObjectCallback(
         // Emit: BT
         chain->op_BT(ctx, chain);
 
-        // Resolve PostScript font name to PDF resource key
+        // Resolve PostScript font name to PDF resource key.
+        // Phase-3 (sweep Finding 1): prefer the live Tf resource key captured
+        // at the matched show over a /BaseFont-name lookup, which collides when
+        // two page fonts share one /BaseFont and the last-iterated one wins.
         std::string resKey;
-        auto resIt = state->psNameToResKey.find(inj.fontName);
-        if (resIt != state->psNameToResKey.end()) {
-            resKey = resIt->second;
+        if (!inj.resKey.empty()) {
+            resKey = inj.resKey;
         } else {
-            resKey = inj.fontName;  // Fallback: try fontName directly
+            auto resIt = state->psNameToResKey.find(inj.fontName);
+            if (resIt != state->psNameToResKey.end()) {
+                resKey = resIt->second;
+            } else {
+                resKey = inj.fontName;  // Fallback: try fontName directly
+            }
         }
 
         // Load font from page resources (or XObject resources as fallback) and emit Tf
@@ -1450,15 +1479,26 @@ static void afterTextObjectWithSubstitutionCallback(
                 }
             }
         } else {
+            bool usedLiveResKey = false;
             auto it = state->fontSwitches.find(inj.fontName);
             if (it != state->fontSwitches.end()) {
                 fontNameToUse = it->second.substituteResName;
                 hScale = it->second.horizontalScale * 100.0f;
+            } else if (!inj.resKey.empty()) {
+                // Phase-3 (sweep Finding 1): with no font switch, prefer the
+                // live Tf resource key captured at the matched show over a
+                // /BaseFont-name lookup (collides when two page fonts share
+                // one base font). inj.resKey is already a page resource key,
+                // so skip the psNameToResKey resolution below.
+                fontNameToUse = inj.resKey;
+                usedLiveResKey = true;
             }
             // Resolve PostScript name to PDF resource key if needed
-            auto resIt = state->psNameToResKey.find(fontNameToUse);
-            if (resIt != state->psNameToResKey.end()) {
-                fontNameToUse = resIt->second;
+            if (!usedLiveResKey) {
+                auto resIt = state->psNameToResKey.find(fontNameToUse);
+                if (resIt != state->psNameToResKey.end()) {
+                    fontNameToUse = resIt->second;
+                }
             }
         }
 

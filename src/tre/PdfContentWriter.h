@@ -106,9 +106,11 @@ public:
     /// from an occluded write. Measured on mixed_dpi_page.pdf: one user edit
     /// drives five recomposite passes, and passes 2-5 all have that shape.
     ///
-    /// `xobjectName` is not populated: the caller needs identity, which
-    /// dimensions plus placement supply, and resolving a name here would
-    /// reintroduce the dimension ambiguity this is used to reason about.
+    /// `xobjectName` IS populated (fix-tre-writetarget): it is resolved from the
+    /// content stream's own `/Name Do` draw operator, so the occlusion check can
+    /// compare identity by name — unambiguous even when several images on the
+    /// page share dimensions. `placementFitz` is the drawn placement in fitz
+    /// device space.
     ///
     /// @param regionFitz Selection rect in fitz points (top-left origin, Y-down)
     /// @return The topmost covering image's dimensions and placement, or nullopt

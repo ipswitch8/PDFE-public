@@ -38,6 +38,14 @@ public:
     void undo() override;
     [[nodiscard]] std::string description() const override;
 
+    /// Whether the last execute() actually landed an edit (Approach B or the
+    /// Approach C fallback succeeded). The caller (MainWindow::onTreRegionSelected)
+    /// reads this AFTER handing the command to the undo manager so it can refresh
+    /// the page / invalidate caches on success and surface a visible failure
+    /// otherwise, instead of silently assuming the edit worked (fix-tre-writetarget
+    /// phase-4).
+    [[nodiscard]] bool succeeded() const { return executed_; }
+
 private:
     pdfe::core::Document* document_;
     std::shared_ptr<pdfe::core::MuPdfContext> context_;
@@ -74,6 +82,10 @@ public:
     void execute() override;
     void undo() override;
     [[nodiscard]] std::string description() const override;
+
+    /// Whether the last execute() actually landed the image replacement. See
+    /// ReconstructRegionCommand::succeeded() (fix-tre-writetarget phase-4).
+    [[nodiscard]] bool succeeded() const { return executed_; }
 
 private:
     pdfe::core::Document* document_;

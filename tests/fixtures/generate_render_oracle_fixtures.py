@@ -215,31 +215,38 @@ def make_occluded_write_target_page(out: Path) -> None:
     * ``base``  1200x1200 px at Rect(51, 51, 561, 651) — by a wide margin the
       largest image by pixel area, so ``findPageImageXObject()`` picks it
       deterministically rather than by dictionary order.
-    * ``decoy`` 300x300 px at Rect(400, 100, 472, 172) — nowhere near the edited
-      region. Its only job is to share pixel dimensions with ``top``.
-    * ``top``   300x300 px at Rect(80, 470, 224, 614) — drawn LAST, over
-      ``base``, and carrying the invisible OCR span that gets edited.
+    * ``decoy`` 300x300 px at Rect(80, 470, 224, 614) — stacked at the SAME
+      placement as ``top`` (a different resource occupying the same spot), so
+      draw-order resolution cannot tell which owns the visible content.
+    * ``top``   300x300 px at Rect(80, 470, 224, 614) — drawn LAST, over both
+      ``base`` and ``decoy``, carrying the invisible OCR span that gets edited.
 
     The sequence that results, and every step of it is forced rather than
     incidental:
 
-    1. ``findImageXObjectForRegion()`` walks the stext image blocks and picks
-       ``top`` — it covers the region and has the tightest bbox.
-    2. It then maps that back to an XObject name by pixel dimensions, and
-       300x300 matches BOTH ``top`` and ``decoy``. Ambiguous, so it returns
-       nullopt rather than guessing.
+    1. ``findImageXObjectForRegion()`` enumerates the drawn image XObjects (name
+       + CTM placement) and finds the topmost one covering the region: ``top``.
+    2. But ``decoy`` is drawn at the SAME placement as ``top`` (they are stacked
+       exactly), so a DIFFERENT resource occupies the same spot. Draw order
+       cannot say which XObject owns the visible content without rendering, so
+       resolution returns nullopt rather than guessing.
     3. The caller falls back to ``findPageImageXObject()``, which returns
-       ``base`` — strictly the largest, so no tie to break.
+       ``base`` — strictly the largest displayed image, so no tie to break.
     4. The composite is written into ``base``, and ``top`` — drawn afterwards —
        paints straight over it. The write is committed and invisible.
 
     So ``ImageReplacer::replace()`` over the ``top`` region must report
-    ``success == false``. Remove the visibility check and it reports success for
-    a write the user cannot see, which is GitHub #262 restored.
+    ``success == false`` (its occlusion guard sees the topmost image's name is
+    not the fallback target's). Remove the guard and it reports success for a
+    write the user cannot see, which is GitHub #262 restored.
 
-    Note the shape of this fixture is an argument FOR the ambiguity bail-out,
-    not against it: the bail-out is what makes the failure honest instead of a
-    coin-flip between two same-sized images.
+    fix-tre-writetarget note: before the draw-name+CTM resolution fix this
+    ambiguity was created by two SAME-DIMENSION images at DIFFERENT placements
+    (dimension matching could not tell them apart). The fix resolves those by
+    placement, so the ambiguity that still genuinely defeats resolution — and
+    keeps this occlusion guard exercised — is two images at the SAME placement.
+    The shape of the fixture is an argument FOR the bail-out, not against it: it
+    makes the failure honest instead of a coin-flip between two stacked images.
     """
     doc = fitz.open()
     page = doc.new_page(width=PAGE_W_PT, height=PAGE_H_PT)
@@ -251,13 +258,14 @@ def make_occluded_write_target_page(out: Path) -> None:
     base = _rasterized_text(1200, 1200, base_lines, font_path=ARIAL, font_px=70)
     page.insert_image(base_rect, pixmap=_pil_to_pixmap(base))
 
-    # Same pixel dimensions as `top`, deliberately, and placed clear of the
-    # edited region so it can only ever contribute the dimension ambiguity.
-    decoy_rect = fitz.Rect(400, 100, 472, 172)
+    # SAME placement as `top`, deliberately: a distinct resource stacked at the
+    # same spot so draw-name+CTM resolution genuinely cannot disambiguate the two
+    # (the only ambiguity that survives the fix-tre-writetarget placement fix),
+    # forcing the fallback onto `base` and exercising the occlusion guard.
+    top_rect = fitz.Rect(80, 470, 80 + 144, 470 + 144)
+    decoy_rect = top_rect
     decoy = _rasterized_text(300, 300, ["DECOY"], font_path=ARIAL, font_px=40)
     page.insert_image(decoy_rect, pixmap=_pil_to_pixmap(decoy))
-
-    top_rect = fitz.Rect(80, 470, 80 + 144, 470 + 144)
     top_lines = ["OCCLUDED", "top image"]
     top = _rasterized_text(300, 300, top_lines, font_path=ARIAL, font_px=40)
     page.insert_image(top_rect, pixmap=_pil_to_pixmap(top))
@@ -274,6 +282,123 @@ def make_occluded_write_target_page(out: Path) -> None:
     finally:
         doc.close()
         ttf.unlink(missing_ok=True)
+
+
+def make_duplicate_dimension_shared_resource_page(out: Path) -> None:
+    """Page with TWO identical-pixel-dimension image XObjects in one shared
+    resources dict, drawn at distinct, non-overlapping placements.
+
+    The fix-tre-writetarget bug. The real trigger (desktop file e1139, 573
+    pages) is a single resources dict holding many image XObjects that all share
+    one pixel size (1700x2200), each page drawing one of them by name. That
+    defeats PdfContentWriter's write-target resolution, which:
+
+      * `findImageXObjectForRegion()` picks the right image under the region by
+        stext overlap (correct), then ties it back to an XObject *name* by
+        matching (Width, Height) -- which matches BOTH images here, so it bails
+        to nullopt ("matches != 1");
+      * the caller falls back to `findPageImageXObject()`, "largest by area" with
+        a strict `>` tie-break, so among equal-area images the FIRST in the
+        (key-sorted) XObject dict wins -- an arbitrary pick, not the one under
+        the edit.
+
+    This fixture reproduces that with the minimum structure: two 1000x1000
+    images, equal pixel area, different DISPLAY placements that do not overlap.
+    The committed-size minimisation of 573 identical images is two identical
+    images; the defective property is "duplicate (Width,Height) in one resources
+    dict", which two reproduce exactly.
+
+    Determinism of the RED (load-bearing). PyMuPDF names inserted images
+    ``fzImg0``, ``fzImg1``, ... in INSERTION order, and MuPDF iterates an XObject
+    dict in sorted-key order, so ``fzImg0`` is visited first. We insert the
+    DECOY first (-> ``fzImg0``) and the TARGET second (-> ``fzImg1``):
+
+      * DECOY  1000x1000 px at Rect(56, 56, 556, 416)  -- large, TOP, NOT under
+        the edit region. Because it is ``fzImg0`` it wins findPageImageXObject's
+        equal-area tie, so the buggy fallback writes HERE.
+      * TARGET 1000x1000 px at Rect(80, 560, 200, 680) -- small, BOTTOM-LEFT,
+        the edit region sits on it.
+
+    So against unmodified code an edit over the target region is written into the
+    decoy (elsewhere): the target region does not change (invisible edit) and the
+    decoy's own pixels DO change. The fix -- resolve by the drawn ``/Name Do`` +
+    CTM -- writes into the target, so the target region changes and the decoy is
+    left untouched. Both halves flip, which is what the phase-1 tests assert.
+
+    An invisible glyphless OCR span is laid over the target so the end-to-end
+    ImageReplacer::replace() path can also drive this fixture.
+    """
+    doc = fitz.open()
+    page = doc.new_page(width=PAGE_W_PT, height=PAGE_H_PT)
+
+    # DECOY first -> fzImg0 (wins the equal-area tie), large, top, not under edit.
+    decoy_rect = fitz.Rect(56, 56, 556, 416)
+    decoy_lines = ["DECOY BACKDROP", "identical pixel size",
+                   "drawn elsewhere on the page", "the quick brown fox"]
+    decoy = _rasterized_text(1000, 1000, decoy_lines, font_path=ARIAL, font_px=70)
+    page.insert_image(decoy_rect, pixmap=_pil_to_pixmap(decoy))
+
+    # TARGET second -> fzImg1, small, bottom-left, the edit lands here.
+    target_rect = fitz.Rect(80, 560, 200, 680)
+    target_lines = ["TARGET", "edit here"]
+    target = _rasterized_text(1000, 1000, target_lines, font_path=ARIAL, font_px=90)
+    page.insert_image(target_rect, pixmap=_pil_to_pixmap(target))
+
+    ttf = Path(out).parent / "_glyphless_tmp.ttf"
+    write_glyphless_ttf(ttf)
+    try:
+        page.insert_font(fontname="GLF", fontfile=str(ttf))
+        _insert_invisible_ocr_layer(page, target_rect, 1000, 1000, target_lines,
+                                    90, "GLF")
+        doc.save(str(out), garbage=1, deflate=True)
+    finally:
+        doc.close()
+        ttf.unlink(missing_ok=True)
+
+
+def make_equal_area_mixed_dim_page(out: Path) -> None:
+    """Page with two image XObjects of EQUAL pixel AREA but DIFFERENT pixel
+    dimensions, to expose Page::sourceImageDpi()'s arbitrary area-tie.
+
+    sourceImageDpi() reports a page-maximum DPI by walking the resources dict,
+    keeping the largest image by pixel area (strict `>` tie-break), and dividing
+    its pixel dimensions by the PAGE size in inches (it does NOT use the image's
+    on-page display size). So two images of equal area compute DIFFERENT DPIs --
+    a wide image resolves to a higher page-relative DPI -- yet the area tie keeps
+    whichever is visited first, which may be the lower-DPI one. The page's true
+    maximum resolution is then under-reported.
+
+    * LOW  1000x1000 px, inserted FIRST -> fzImg0 (wins the area tie):
+      page-relative DPI = max(1000/8.5, 1000/11) ~= 118 DPI.
+    * HIGH 2000x500  px, inserted SECOND -> fzImg1 (equal area 1,000,000):
+      page-relative DPI = max(2000/8.5, 500/11) ~= 235 DPI.
+
+    Against unmodified code sourceImageDpi() returns ~118 (fzImg0), under-
+    reporting the page's real ~235-DPI maximum. The phase-1 test asserts the
+    page maximum is NOT under-reported (>= ~235); the phase-2 fix makes it so.
+    Different dimensions mean this does NOT also trigger the (Width,Height)
+    write-ambiguity -- that is the duplicate-dimension fixture's job; this one
+    isolates the DPI tie.
+    """
+    doc = fitz.open()
+    page = doc.new_page(width=PAGE_W_PT, height=PAGE_H_PT)
+
+    # LOW first -> fzImg0 (wins the area tie); 1000x1000 ~= 118 page-DPI.
+    low_rect = fitz.Rect(56, 56, 556, 556)
+    low = _rasterized_text(1000, 1000,
+                           ["LOW DPI", "1000 x 1000", "the quick brown fox"],
+                           font_path=ARIAL, font_px=70)
+    page.insert_image(low_rect, pixmap=_pil_to_pixmap(low))
+
+    # HIGH second -> fzImg1; 2000x500, equal area, ~235 page-DPI.
+    high_rect = fitz.Rect(56, 580, 556, 700)
+    high = _rasterized_text(2000, 500,
+                            ["HIGH DPI 2000 x 500 wide scan strip"],
+                            font_path=ARIAL, font_px=110)
+    page.insert_image(high_rect, pixmap=_pil_to_pixmap(high))
+
+    doc.save(str(out), garbage=1, deflate=True)
+    doc.close()
 
 
 def make_multilingual(out: Path) -> None:
@@ -415,6 +540,9 @@ def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     targets = [
         ("mixed_dpi_page.pdf", make_mixed_dpi_page),
+        ("duplicate_dimension_shared_resource.pdf",
+         make_duplicate_dimension_shared_resource_page),
+        ("equal_area_mixed_dim.pdf", make_equal_area_mixed_dim_page),
         ("multilingual_latin_arabic.pdf", make_multilingual),
         ("mixed_content_page.pdf", make_mixed_content),
         ("nav_selfcheck.pdf", make_nav_selfcheck),

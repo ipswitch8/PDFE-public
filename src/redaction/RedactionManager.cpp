@@ -504,8 +504,14 @@ std::optional<int> RedactionManager::getRedactionMarkAt(
                 fz_rect r = pdf_bound_annot(ctx, annot);
                 QRectF rect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
                 if (rect.contains(pdfPoint)) {
+                    // fix-tre-writetarget (sweep Finding 5): on overlapping
+                    // redaction marks, select the TOPMOST, i.e. the one drawn
+                    // last. Annotations render in array order, so the later
+                    // annot is painted on top and is what the user clicked.
+                    // The old code returned on the FIRST containing mark (lowest
+                    // index), selecting the one underneath. Keep scanning and let
+                    // the last match win rather than early-returning the first.
                     result = idx;
-                    return;
                 }
             }
             annot = pdf_next_annot(ctx, annot);

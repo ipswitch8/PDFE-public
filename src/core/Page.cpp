@@ -179,35 +179,6 @@ double Page::sourceImageDpi() const {
             pdf_obj* xobjectDict = pdf_dict_get(ctx, resources, PDF_NAME(XObject));
             if (!xobjectDict) return 0.0;
 
-            int bestArea = 0;
-            int bestW = 0;
-            int bestH = 0;
-
-            int len = pdf_dict_len(ctx, xobjectDict);
-            for (int i = 0; i < len; ++i) {
-                pdf_obj* val = pdf_dict_get_val(ctx, xobjectDict, i);
-                val = pdf_resolve_indirect(ctx, val);
-                if (!val) continue;
-
-                pdf_obj* subtype = pdf_dict_get(ctx, val, PDF_NAME(Subtype));
-                if (!pdf_name_eq(ctx, subtype, PDF_NAME(Image))) {
-                    continue;
-                }
-
-                int w = pdf_dict_get_int(ctx, val, PDF_NAME(Width));
-                int h = pdf_dict_get_int(ctx, val, PDF_NAME(Height));
-                if (w <= 0 || h <= 0) continue;
-
-                int area = w * h;
-                if (area > bestArea) {
-                    bestArea = area;
-                    bestW = w;
-                    bestH = h;
-                }
-            }
-
-            if (bestArea == 0) return 0.0;
-
             fz_rect bounds = fz_bound_page(ctx, pImpl->fzPage);
             double pageWPt = bounds.x1 - bounds.x0;
             double pageHPt = bounds.y1 - bounds.y0;
@@ -227,12 +198,39 @@ double Page::sourceImageDpi() const {
                 pageWIn = pageWPt / 72.0;
                 pageHIn = pageHPt / 72.0;
             }
+            if (pageWIn <= 0.0 || pageHIn <= 0.0) return 0.0;
 
-            double dpiW = static_cast<double>(bestW) / pageWIn;
-            double dpiH = static_cast<double>(bestH) / pageHIn;
-            // Take the larger — matches how the image was sampled in its
-            // longer direction, rejects slight skew from rounding.
-            return std::max(dpiW, dpiH);
+            // fix-tre-writetarget (Finding 3): return the MAXIMUM source DPI over
+            // the page's image XObjects, not the DPI of the largest-by-pixel-area
+            // one. The old strict-`>` area rule kept the FIRST of any area tie, so
+            // on a page carrying two equal-area images of different dimensions it
+            // could report the lower-DPI image and under-state the page maximum.
+            // Computing each image's DPI and taking the max removes that tie; on a
+            // single-image page the result is identical to the old behaviour.
+            double bestDpi = 0.0;
+            int len = pdf_dict_len(ctx, xobjectDict);
+            for (int i = 0; i < len; ++i) {
+                pdf_obj* val = pdf_dict_get_val(ctx, xobjectDict, i);
+                val = pdf_resolve_indirect(ctx, val);
+                if (!val) continue;
+
+                pdf_obj* subtype = pdf_dict_get(ctx, val, PDF_NAME(Subtype));
+                if (!pdf_name_eq(ctx, subtype, PDF_NAME(Image))) {
+                    continue;
+                }
+
+                int w = pdf_dict_get_int(ctx, val, PDF_NAME(Width));
+                int h = pdf_dict_get_int(ctx, val, PDF_NAME(Height));
+                if (w <= 0 || h <= 0) continue;
+
+                double dpiW = static_cast<double>(w) / pageWIn;
+                double dpiH = static_cast<double>(h) / pageHIn;
+                // Take the larger axis — matches how the image was sampled in its
+                // longer direction, rejects slight skew from rounding.
+                bestDpi = std::max(bestDpi, std::max(dpiW, dpiH));
+            }
+
+            return bestDpi;  // 0.0 when the page has no image XObject
         }
     );
 }
