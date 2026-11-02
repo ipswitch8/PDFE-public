@@ -6,7 +6,7 @@
 [![Language: C++20](https://img.shields.io/badge/C%2B%2B-20-00599C.svg)](https://en.cppreference.com/w/cpp/20)
 [![UI: Qt 6](https://img.shields.io/badge/Qt-6.10-41CD52.svg)](https://www.qt.io/)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-0078D6.svg)](#platform-support)
-[![Release](https://img.shields.io/badge/release-0.3.0-blue.svg)](../../releases/latest)
+[![Release](https://img.shields.io/badge/release-latest-blue.svg)](../../releases/latest)
 
 PDFE is a desktop PDF editor built in modern C++20 on Qt 6, backed by
 [MuPDF](https://mupdf.com/) (rendering, annotations, forms, redaction, content
@@ -26,9 +26,9 @@ than the "recognize text then edit" flow in most commercial tools.
 ## Download
 
 Download the signed **Windows x64 installer** from the
-[latest release](../../releases/latest): **`PDFE-0.3.0-win64.exe`**, code-signed
+[latest release](../../releases/latest): **`PDFE-<version>-win64.exe`**, code-signed
 as Itwerx Corp (Azure Trusted Signing), with its SBOM
-(`PDFE-0.3.0-sbom.spdx.json`) attached alongside it. Each release names the
+(`PDFE-<version>-sbom.spdx.json`) attached alongside it. Each release names the
 corresponding source for that build in its notes.
 
 - **Windows x64 installer** (`.exe`, NSIS) — download, run, and PDFE installs with
@@ -42,10 +42,10 @@ corresponding source for that build in its notes.
   [`docs/installer-residue-and-hkcu-intent.md`](docs/installer-residue-and-hkcu-intent.md).
 - Prefer to build it yourself? See [Quick start](#quick-start).
 
-> **Version 0.3.0.** PDFE is feature-rich and heavily tested (6,610 automated
+> **Latest release.** PDFE is feature-rich and heavily tested (6,610 automated
 > tests), but early in its release lifecycle. See
 > [Project status](#project-status) for an honest read on maturity and scope.
-> The 0.3.0 installer is **code-signed as Itwerx Corp** (Azure Trusted
+> The latest installer is **code-signed as Itwerx Corp** (Azure Trusted
 > Signing); download it from the [latest release](../../releases/latest).
 > Because the publisher is brand new, SmartScreen reputation is still accruing,
 > so a warning may still appear until enough downloads establish it.
@@ -130,7 +130,7 @@ chart is split into sections so the product columns stay in view as you scroll.
 | Capability | **PDFE** | Acrobat Pro | Foxit | Nitro | PDF Expert | pdfFiller | PDF-XChange |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | Create PDF from images | ✓ | ✓ | ✓ | ✓ | ~ | ✓ | ✓ |
-| Create PDF from Office documents | ✗ | ✓ | ✓ | ✓ | ~ | ~ | ✓ |
+| Create PDF from Office documents | 🔜 | ✓ | ✓ | ✓ | ~ | ~ | ✓ |
 | Create PDF from scanner | 🔜 | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ |
 | Export to Word / Excel | ~¹ | ✓ | ✓ | ✓ | ~ | ~ | ✓ |
 | Batch processing | ✓ | ✓ | ✓ | ~ | ✗ | ~ | ~ |
@@ -149,6 +149,7 @@ These capabilities are actively planned (marked 🔜 in the chart above):
 
 - **macOS and Linux support** — the codebase is written with cross-platform intent and the build system already carries `macos-clang` / `linux-gcc` presets; first-class packaging and testing on those platforms is next up.
 - **UI for Office (Word / Excel) export** — the DOCX / XLSX export engines are implemented and tested today; wiring them into the File menu is coming soon.
+- **Create PDF from Office documents** — importing Word / Excel / PowerPoint (and similar) *as* new PDFs. This is the import direction; the export direction (PDF → Office) already ships as an engine (see above).
 - **Scanner input** — "Create PDF from scanner" (TWAIN/WIA acquisition) to complement the existing "Create PDF from images" wizard.
 - **Certificate (public-key) encryption** — encrypting a document to a list of recipient certificates, alongside today's password-based encryption.
 
@@ -272,9 +273,9 @@ delivers.
 - **Create PDF from images** — multi-file wizard, one page per image
 - **Print** and print preview
 
-> **Coming soon:** creating PDFs from a **scanner** (TWAIN/WIA). Creating PDFs
-> from **Office/HTML sources** is not currently planned (PDFE exports *to* Office
-> formats rather than importing them). There is **no XFA** form support.
+> **Coming soon:** creating PDFs from a **scanner** (TWAIN/WIA) and from
+> **Office documents** (Word / Excel / PowerPoint). Creating PDFs from **HTML
+> sources** is not currently planned. There is **no XFA** form support.
 
 ### Viewing & navigation
 - Multi-page view, zoom, pan, fit-width / fit-page / actual-size
@@ -376,10 +377,10 @@ delivers.
 - **Test-backed** — 6,610 GoogleTest cases plus a native pywinauto/WinAppDriver/FlaUI/PyAutoGUI UI suite.
 
 ### Coming soon (see [Roadmap](#roadmap--coming-soon))
-macOS/Linux support · Office-export UI · scanner input · certificate (public-key) encryption.
+macOS/Linux support · Office-export UI · Office→PDF creation · scanner input · certificate (public-key) encryption.
 
 ### Not planned / out of scope
-- **PDF creation from Office/HTML sources** — a different product category; PDFE handles the export direction only.
+- **PDF creation from HTML sources** — a different product category. (PDF creation *from Office documents* is now on the [roadmap](#roadmap--coming-soon).)
 - **Cloud / collaboration / web-based e-signature** — a deliberate local-only stance.
 - **Action-wizard macros**, **spell-check**, and a **manual tag-tree / reading-order editor**.
 - **Plugin SDK** — an explicit non-goal.
@@ -445,10 +446,10 @@ are operationally live rather than historical.
 
 ## Project status
 
-PDFE is **version 0.3.0** — ambitious in scope, extensively tested, but early
+PDFE is ambitious in scope, extensively tested, but early
 in its release lifecycle:
 
-- **The signed 0.3.0 installer is published** on the
+- **The signed installer is published** on the
   [latest release](../../releases/latest), **code-signed as Itwerx Corp via
   Azure Trusted Signing** — see [Download](#download). SmartScreen reputation
   for a new publisher builds with download volume, so a warning may still appear

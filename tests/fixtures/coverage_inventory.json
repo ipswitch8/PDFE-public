@@ -1073,6 +1073,31 @@
       "contentKind": "vector-text"
     },
     {
+      "path": "tests/fixtures/duplicate_dimension_shared_resource.pdf",
+      "relPath": "duplicate_dimension_shared_resource.pdf",
+      "fileSize": 57559,
+      "sizeCategory": "small",
+      "pageCount": 1,
+      "pagesCategory": "single",
+      "isEncrypted": false,
+      "needsPass": false,
+      "pdfVersion": "1.7",
+      "hasForm": false,
+      "hasAnnotations": false,
+      "hasImages": true,
+      "hasXrefStreams": false,
+      "isLinearized": false,
+      "hasOutputIntent": false,
+      "hasStructTree": false,
+      "pdfaClaim": null,
+      "encryption": {},
+      "scripts": [
+        "ascii"
+      ],
+      "hasText": true,
+      "contentKind": "mixed"
+    },
+    {
       "path": "tests/fixtures/embedded_descriptor_style.pdf",
       "relPath": "embedded_descriptor_style.pdf",
       "fileSize": 19895,
@@ -1174,6 +1199,29 @@
       ],
       "hasText": true,
       "contentKind": "vector-text"
+    },
+    {
+      "path": "tests/fixtures/equal_area_mixed_dim.pdf",
+      "relPath": "equal_area_mixed_dim.pdf",
+      "fileSize": 51498,
+      "sizeCategory": "small",
+      "pageCount": 1,
+      "pagesCategory": "single",
+      "isEncrypted": false,
+      "needsPass": false,
+      "pdfVersion": "1.7",
+      "hasForm": false,
+      "hasAnnotations": false,
+      "hasImages": true,
+      "hasXrefStreams": false,
+      "isLinearized": false,
+      "hasOutputIntent": false,
+      "hasStructTree": false,
+      "pdfaClaim": null,
+      "encryption": {},
+      "scripts": [],
+      "hasText": false,
+      "contentKind": "scanned-image-only"
     },
     {
       "path": "tests/fixtures/f15_annot_rotation.pdf",
@@ -4145,7 +4193,7 @@
     {
       "path": "tests/fixtures/image_pdf/a3_1200dpi_ocr_letter.pdf",
       "relPath": "image_pdf/a3_1200dpi_ocr_letter.pdf",
-      "fileSize": 773038,
+      "fileSize": 773080,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4168,7 +4216,7 @@
     {
       "path": "tests/fixtures/image_pdf/a3_150dpi_a4_photo.pdf",
       "relPath": "image_pdf/a3_150dpi_a4_photo.pdf",
-      "fileSize": 43460,
+      "fileSize": 43502,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4191,7 +4239,7 @@
     {
       "path": "tests/fixtures/image_pdf/a3_200dpi_fax_legal.pdf",
       "relPath": "image_pdf/a3_200dpi_fax_legal.pdf",
-      "fileSize": 65768,
+      "fileSize": 65810,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4214,7 +4262,7 @@
     {
       "path": "tests/fixtures/image_pdf/a3_300dpi_office_letter.pdf",
       "relPath": "image_pdf/a3_300dpi_office_letter.pdf",
-      "fileSize": 102952,
+      "fileSize": 102994,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4237,7 +4285,7 @@
     {
       "path": "tests/fixtures/image_pdf/a3_600dpi_archival_a4.pdf",
       "relPath": "image_pdf/a3_600dpi_archival_a4.pdf",
-      "fileSize": 276277,
+      "fileSize": 276319,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4260,7 +4308,7 @@
     {
       "path": "tests/fixtures/image_pdf/a3_72dpi_web_letter.pdf",
       "relPath": "image_pdf/a3_72dpi_web_letter.pdf",
-      "fileSize": 18553,
+      "fileSize": 18595,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4283,7 +4331,7 @@
     {
       "path": "tests/fixtures/image_pdf/a3_mixed_dpi_5page.pdf",
       "relPath": "image_pdf/a3_mixed_dpi_5page.pdf",
-      "fileSize": 1243884,
+      "fileSize": 1243862,
       "sizeCategory": "small",
       "pageCount": 5,
       "pagesCategory": "few",
@@ -4306,7 +4354,7 @@
     {
       "path": "tests/fixtures/image_pdf/b3_blue_ledger_300dpi.pdf",
       "relPath": "image_pdf/b3_blue_ledger_300dpi.pdf",
-      "fileSize": 76046,
+      "fileSize": 76088,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4329,7 +4377,7 @@
     {
       "path": "tests/fixtures/image_pdf/b3_gradient_shaded_300dpi.pdf",
       "relPath": "image_pdf/b3_gradient_shaded_300dpi.pdf",
-      "fileSize": 341195,
+      "fileSize": 341237,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4352,7 +4400,7 @@
     {
       "path": "tests/fixtures/image_pdf/b3_halftone_news_200dpi.pdf",
       "relPath": "image_pdf/b3_halftone_news_200dpi.pdf",
-      "fileSize": 50687,
+      "fileSize": 50729,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4375,7 +4423,7 @@
     {
       "path": "tests/fixtures/image_pdf/b3_halftone_news_600dpi.pdf",
       "relPath": "image_pdf/b3_halftone_news_600dpi.pdf",
-      "fileSize": 326854,
+      "fileSize": 326896,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4398,7 +4446,7 @@
     {
       "path": "tests/fixtures/image_pdf/b3_highlighted_yellow_300dpi.pdf",
       "relPath": "image_pdf/b3_highlighted_yellow_300dpi.pdf",
-      "fileSize": 59869,
+      "fileSize": 59911,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4421,7 +4469,7 @@
     {
       "path": "tests/fixtures/image_pdf/b3_jpeg_blocky_200dpi.pdf",
       "relPath": "image_pdf/b3_jpeg_blocky_200dpi.pdf",
-      "fileSize": 72113,
+      "fileSize": 72171,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4444,7 +4492,7 @@
     {
       "path": "tests/fixtures/image_pdf/b3_textured_gray_300dpi.pdf",
       "relPath": "image_pdf/b3_textured_gray_300dpi.pdf",
-      "fileSize": 8883113,
+      "fileSize": 8883155,
       "sizeCategory": "medium",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4467,7 +4515,7 @@
     {
       "path": "tests/fixtures/image_pdf/b3_uniform_white_300dpi.pdf",
       "relPath": "image_pdf/b3_uniform_white_300dpi.pdf",
-      "fileSize": 59276,
+      "fileSize": 59318,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4490,7 +4538,7 @@
     {
       "path": "tests/fixtures/image_pdf/b3_yellowed_news_300dpi.pdf",
       "relPath": "image_pdf/b3_yellowed_news_300dpi.pdf",
-      "fileSize": 63503,
+      "fileSize": 63545,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4513,7 +4561,7 @@
     {
       "path": "tests/fixtures/image_pdf/c2_color_ledger_10page.pdf",
       "relPath": "image_pdf/c2_color_ledger_10page.pdf",
-      "fileSize": 9406707,
+      "fileSize": 9406765,
       "sizeCategory": "medium",
       "pageCount": 10,
       "pagesCategory": "ten_to_99",
@@ -4536,7 +4584,7 @@
     {
       "path": "tests/fixtures/image_pdf/c2_large_12page_600dpi.pdf",
       "relPath": "image_pdf/c2_large_12page_600dpi.pdf",
-      "fileSize": 23219360,
+      "fileSize": 23219418,
       "sizeCategory": "medium",
       "pageCount": 12,
       "pagesCategory": "ten_to_99",
@@ -4559,7 +4607,7 @@
     {
       "path": "tests/fixtures/image_pdf/c2_mixed_8page.pdf",
       "relPath": "image_pdf/c2_mixed_8page.pdf",
-      "fileSize": 11394670,
+      "fileSize": 11394728,
       "sizeCategory": "medium",
       "pageCount": 8,
       "pagesCategory": "few",
@@ -4582,7 +4630,7 @@
     {
       "path": "tests/fixtures/image_pdf/c2_small_6page_300dpi.pdf",
       "relPath": "image_pdf/c2_small_6page_300dpi.pdf",
-      "fileSize": 4181296,
+      "fileSize": 4181354,
       "sizeCategory": "small",
       "pageCount": 6,
       "pagesCategory": "few",
@@ -4605,7 +4653,7 @@
     {
       "path": "tests/fixtures/image_pdf/c2_tiny_20page_72dpi.pdf",
       "relPath": "image_pdf/c2_tiny_20page_72dpi.pdf",
-      "fileSize": 1609346,
+      "fileSize": 1609404,
       "sizeCategory": "small",
       "pageCount": 20,
       "pagesCategory": "ten_to_99",
@@ -4775,7 +4823,7 @@
     {
       "path": "tests/fixtures/mixed_dpi_page.pdf",
       "relPath": "mixed_dpi_page.pdf",
-      "fileSize": 106713,
+      "fileSize": 109918,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -4791,9 +4839,11 @@
       "hasStructTree": false,
       "pdfaClaim": null,
       "encryption": {},
-      "scripts": [],
-      "hasText": false,
-      "contentKind": "scanned-image-only"
+      "scripts": [
+        "ascii"
+      ],
+      "hasText": true,
+      "contentKind": "mixed"
     },
     {
       "path": "tests/fixtures/mixed_size_scan.pdf",
@@ -4918,6 +4968,31 @@
       ],
       "hasText": true,
       "contentKind": "vector-text"
+    },
+    {
+      "path": "tests/fixtures/occluded_write_target.pdf",
+      "relPath": "occluded_write_target.pdf",
+      "fileSize": 65949,
+      "sizeCategory": "small",
+      "pageCount": 1,
+      "pagesCategory": "single",
+      "isEncrypted": false,
+      "needsPass": false,
+      "pdfVersion": "1.7",
+      "hasForm": false,
+      "hasAnnotations": false,
+      "hasImages": true,
+      "hasXrefStreams": false,
+      "isLinearized": false,
+      "hasOutputIntent": false,
+      "hasStructTree": false,
+      "pdfaClaim": null,
+      "encryption": {},
+      "scripts": [
+        "ascii"
+      ],
+      "hasText": true,
+      "contentKind": "mixed"
     },
     {
       "path": "tests/fixtures/outbound_neighbor.pdf",
@@ -5913,7 +5988,7 @@
     {
       "path": "tests/fixtures/realworld/unicode_metadata/unicode_metadata.pdf",
       "relPath": "realworld/unicode_metadata/unicode_metadata.pdf",
-      "fileSize": 867,
+      "fileSize": 830,
       "sizeCategory": "tiny",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -6147,6 +6222,31 @@
       "scripts": [],
       "hasText": false,
       "contentKind": "scanned-image-only"
+    },
+    {
+      "path": "tests/fixtures/shared_basefont_collision.pdf",
+      "relPath": "shared_basefont_collision.pdf",
+      "fileSize": 728,
+      "sizeCategory": "tiny",
+      "pageCount": 1,
+      "pagesCategory": "single",
+      "isEncrypted": false,
+      "needsPass": false,
+      "pdfVersion": "1.7",
+      "hasForm": false,
+      "hasAnnotations": false,
+      "hasImages": false,
+      "hasXrefStreams": false,
+      "isLinearized": false,
+      "hasOutputIntent": false,
+      "hasStructTree": false,
+      "pdfaClaim": null,
+      "encryption": {},
+      "scripts": [
+        "ascii"
+      ],
+      "hasText": true,
+      "contentKind": "vector-text"
     },
     {
       "path": "tests/fixtures/sig_clean_signed.pdf",
@@ -7286,7 +7386,7 @@
     {
       "path": "tests/fixtures/test_scanned_with_ocr.pdf",
       "relPath": "test_scanned_with_ocr.pdf",
-      "fileSize": 60888,
+      "fileSize": 62410,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -7487,7 +7587,7 @@
     {
       "path": "tests/fixtures/test_timestamped.pdf",
       "relPath": "test_timestamped.pdf",
-      "fileSize": 17177,
+      "fileSize": 17143,
       "sizeCategory": "small",
       "pageCount": 1,
       "pagesCategory": "single",
@@ -7784,5 +7884,5 @@
       "contentKind": "vector-text"
     }
   ],
-  "count": 318
+  "count": 322
 }
