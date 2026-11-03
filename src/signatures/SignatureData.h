@@ -123,6 +123,14 @@ struct SigningOptions {
     std::string pfxPassword;
     std::string reason;
     std::string location;
+
+    /// GitHub #327 — path to an image file (PNG/JPEG/…) to use as the
+    /// VISIBLE signature graphic. When non-empty and the signature is
+    /// visible, it is loaded into an `fz_image*` and passed to
+    /// `pdf_sign_signature` as the appearance graphic; the text fields
+    /// (name/date/reason/DN per `appearanceFlags`) still compose on top.
+    /// Empty means the text-only appearance PDFE produced before #327.
+    std::string imagePath;
     int appearanceFlags = 0x3F; // PDF_SIGNATURE_DEFAULT_APPEARANCE
     bool useTimestamp = false;
     std::string tsaUrl;

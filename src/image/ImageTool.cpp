@@ -468,6 +468,38 @@ const PageImageInfo& ImageTool::selectedImage() const {
     return emptyInfo;
 }
 
+bool ImageTool::selectImage(const std::string& xobjectName) {
+    if (xobjectName.empty()) {
+        return false;
+    }
+    for (int i = 0; i < static_cast<int>(impl_->images_.size()); ++i) {
+        if (impl_->images_[i].xobjectName == xobjectName) {
+            impl_->selectedIndex_ = i;
+            impl_->activeHandle_ = HandlePosition::None;
+            impl_->dragging_ = false;
+            // Same side effects a click-select produces: handles paint and the
+            // image-toolbar actions enable off imageSelected (GitHub #329).
+            emit imageSelected(impl_->images_[i]);
+            emit repaintRequested();
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ImageTool::selectLast() {
+    if (impl_->images_.empty()) {
+        return false;
+    }
+    const int last = static_cast<int>(impl_->images_.size()) - 1;
+    impl_->selectedIndex_ = last;
+    impl_->activeHandle_ = HandlePosition::None;
+    impl_->dragging_ = false;
+    emit imageSelected(impl_->images_[last]);
+    emit repaintRequested();
+    return true;
+}
+
 void ImageTool::deselect() {
     if (impl_->selectedIndex_ >= 0) {
         impl_->selectedIndex_ = -1;

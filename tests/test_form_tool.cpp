@@ -310,3 +310,51 @@ TEST_F(FormToolTest, FieldCreatedCallback) {
         EXPECT_EQ(capturedRect, testRect);
     }
 }
+
+// GitHub #328 — clicking a Signature field in interaction mode must route into
+// the signing flow. The exact defect was a MISSING `case FormFieldType::
+// Signature:` in onMousePress's switch: the click fell to `default:` and only
+// selected the field, so nothing on the canvas ever reached signing. Drive a
+// real press onto a placed signature field and assert the activation callback
+// fires once with the right page/widget — the seam MainWindow connects to open
+// the Sign dialog against THAT field.
+TEST_F(FormToolTest, ClickSignatureFieldEmitsActivation_Issue328) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+
+    // Place a signature field (createFormField sets /FT /Sig).
+    QRectF sigRect(72, 72, 180, 54);
+    int newWidget = manager->createFormField(
+        page.get(), pdfe::forms::FormFieldType::Signature, sigRect,
+        "Issue328SigField");
+    ASSERT_GE(newWidget, 0) << "failed to create signature field";
+
+    // Find the widget index the tool will report (page widget-list index).
+    auto fields = manager->getFormFields(page.get());
+    int sigIdx = -1;
+    for (const auto& f : fields) {
+        if (f.type == pdfe::forms::FormFieldType::Signature) {
+            sigIdx = f.widgetIndex;
+            break;
+        }
+    }
+    ASSERT_GE(sigIdx, 0) << "created field is not reported as a Signature field";
+
+    auto sigField = manager->getFormField(page.get(), sigIdx);
+    QPointF center = sigField.rect.center();
+
+    int gotPage = -999, gotWidget = -999, calls = 0;
+    tool->signatureFieldActivated = [&](int p, int w) {
+        gotPage = p; gotWidget = w; ++calls;
+    };
+
+    QMouseEvent event(QEvent::MouseButtonPress, QPointF(0, 0),
+                      Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMousePress(&event, 0, center);
+
+    EXPECT_EQ(calls, 1)
+        << "signatureFieldActivated must fire exactly once on a signature-field click";
+    EXPECT_EQ(gotPage, page->index());
+    EXPECT_EQ(gotWidget, sigIdx);
+    EXPECT_EQ(tool->selectedFieldIndex(), sigIdx)
+        << "the clicked signature field should also become selected";
+}

@@ -63,6 +63,28 @@ public:
     /// Get the currently selected image info.
     const PageImageInfo& selectedImage() const;
 
+    /// Programmatically select the enumerated image whose XObject key equals
+    /// @p xobjectName, WITHOUT a mouse click (GitHub #329).
+    ///
+    /// Before this existed, `selectedIndex_` only became valid through the
+    /// hit-test in mousePressEvent, so a freshly inserted image had no
+    /// selection, drew no handles, and left the image-toolbar actions disabled
+    /// until the user separately clicked it. This is the entry point
+    /// MainWindow::onInsertImage() calls so the just-inserted image is live
+    /// immediately. On a match it sets the selection, emits `imageSelected`
+    /// (which paints the handles and enables the toolbar actions) and requests
+    /// a repaint. Returns true if a matching image was found and selected;
+    /// false (selection unchanged) if the name is empty or not present among
+    /// the currently enumerated images.
+    bool selectImage(const std::string& xobjectName);
+
+    /// Select the last enumerated image on the page, or false if the page has
+    /// none. Enumeration order follows the page content stream, so the last
+    /// entry is the most-recently drawn image — the one a fresh append places
+    /// on top. Prefer selectImage(name) when the XObject identity is known;
+    /// this is the fallback for callers that only know "the one just added".
+    bool selectLast();
+
     /// Deselect the current image.
     void deselect();
 

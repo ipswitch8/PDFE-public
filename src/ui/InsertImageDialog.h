@@ -30,9 +30,18 @@ namespace pdfe::ui {
 /// it, and the issue guessed it would need an engine change — it does not:
 /// `ImageTool` already emits `rotateRequested` (and `resizeRequested`,
 /// `cropRequested`), and `MainWindow` already connects all three to real
-/// commands. Post-insert manipulation works today. The gap was that nothing put
-/// the user in front of it, which `onInsertImage()` now fixes by selecting the
-/// inserted image in the image tool so those handles are immediately live.
+/// commands. Post-insert manipulation works today.
+///
+/// REACHABILITY (GitHub #329). The gap was that nothing put the user in front
+/// of those handles. `onInsertImage()` now does two things after the insert
+/// command runs: it activates the image tool, AND it selects the just-inserted
+/// image by the XObject identity `InsertImageCommand` reports
+/// (`ImageTool::selectImage`). Activating the tool alone was not enough —
+/// `ImageTool::setPage()` re-enumerates with `selectedIndex_ == -1`, so until
+/// the explicit selectImage() call the image drew no handles and the image
+/// toolbar actions stayed disabled until the user clicked it. With the
+/// selection in place the resize/rotate/crop/remove handles and actions are
+/// live immediately, no extra click required.
 ///
 /// AUTOMATION. Every control carries a stable `objectName` and an
 /// `accessibleName`, per the project's UI-testing rules, and the dialog

@@ -45,11 +45,20 @@ public slots:
 
 private slots:
     void onBrowsePfx();
+    void onBrowseImage();
     void validateInput();
 
 private:
     QLineEdit* pfxPathEdit_ = nullptr;
     QPushButton* browseButton_ = nullptr;
+
+    // GitHub #327 — image-of-signature controls. imagePathEdit_ is
+    // read-only (populated via the Browse button's file dialog) and
+    // imagePreviewLabel_ shows a thumbnail of the chosen image. Wired
+    // into SigningOptions::imagePath in signingOptions().
+    QLineEdit* imagePathEdit_ = nullptr;
+    QPushButton* imageBrowseButton_ = nullptr;
+    QLabel* imagePreviewLabel_ = nullptr;
     QLineEdit* pfxPasswordEdit_ = nullptr;
     QLineEdit* reasonEdit_ = nullptr;
     QLineEdit* locationEdit_ = nullptr;

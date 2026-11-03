@@ -13,6 +13,7 @@
 #include <QFileDialog>
 #include <QScrollArea>
 #include <QFrame>
+#include <QPixmap>
 #include "ui/TestDialogSeam.h"
 
 namespace pdfe::ui {
@@ -140,6 +141,34 @@ SignDialog::SignDialog(QWidget* parent)
     showLogoCheck_->setChecked(true);
     appearLayout->addWidget(showLogoCheck_);
 
+    // GitHub #327 — image-of-signature picker. A read-only path field
+    // plus a Browse button (mirroring the PFX pfxPathEdit_/browseButton_
+    // pattern) and a small preview thumbnail. The chosen image becomes
+    // the VISIBLE signature graphic; the text fields above still compose
+    // on top per the Show-* flags.
+    auto* imageRow = new QHBoxLayout();
+    imagePathEdit_ = new QLineEdit(this);
+    imagePathEdit_->setObjectName("imagePathEdit");
+    imagePathEdit_->setAccessibleName(tr("Signature image path"));
+    imagePathEdit_->setReadOnly(true);
+    imagePathEdit_->setPlaceholderText(tr("Optional image for the signature appearance"));
+    imageRow->addWidget(imagePathEdit_, 1);
+
+    imageBrowseButton_ = new QPushButton(tr("Browse..."), this);
+    imageBrowseButton_->setObjectName("imageBrowseButton");
+    imageBrowseButton_->setAccessibleName(tr("Browse for Signature Image"));
+    imageRow->addWidget(imageBrowseButton_);
+    appearLayout->addLayout(imageRow);
+
+    imagePreviewLabel_ = new QLabel(this);
+    imagePreviewLabel_->setObjectName("imagePreviewLabel");
+    imagePreviewLabel_->setAccessibleName(tr("Signature Image Preview"));
+    imagePreviewLabel_->setMinimumHeight(48);
+    imagePreviewLabel_->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
+    imagePreviewLabel_->setAlignment(Qt::AlignCenter);
+    imagePreviewLabel_->setText(tr("No signature image selected"));
+    appearLayout->addWidget(imagePreviewLabel_);
+
     mainLayout->addWidget(appearGroup);
 
     // Timestamp group
@@ -233,6 +262,7 @@ SignDialog::SignDialog(QWidget* parent)
 
     // Connections
     connect(browseButton_, &QPushButton::clicked, this, &SignDialog::onBrowsePfx);
+    connect(imageBrowseButton_, &QPushButton::clicked, this, &SignDialog::onBrowseImage);
     connect(pfxPathEdit_, &QLineEdit::textChanged, this, &SignDialog::validateInput);
     connect(pfxPasswordEdit_, &QLineEdit::textChanged, this, &SignDialog::validateInput);
     connect(okButton_, &QPushButton::clicked, this, &QDialog::accept);
@@ -271,6 +301,9 @@ pdfe::signatures::SigningOptions SignDialog::signingOptions() const
     opts.certification = static_cast<pdfe::signatures::CertificationLevel>(
         certificationCombo_->currentData().toInt());
 
+    // GitHub #327 — image-of-signature graphic path (empty = text-only).
+    opts.imagePath = imagePathEdit_->text().toStdString();
+
     return opts;
 }
 
@@ -282,6 +315,32 @@ void SignDialog::onBrowsePfx()
 
     if (!path.isEmpty()) {
         pfxPathEdit_->setText(path);
+    }
+}
+
+void SignDialog::onBrowseImage()
+{
+    QString path = QFileDialog::getOpenFileName(
+        this, tr("Select Signature Image"),
+        QString(),
+        tr("Image Files (*.png *.jpg *.jpeg *.bmp *.gif);;All Files (*)"));
+
+    if (path.isEmpty()) return;
+
+    imagePathEdit_->setText(path);
+
+    // Show a thumbnail of the chosen image so the user sees what will be
+    // embedded. A load failure leaves the path set (signField/preview will
+    // surface any real decode error) but swaps the thumbnail for a note.
+    QPixmap pix(path);
+    if (!pix.isNull()) {
+        imagePreviewLabel_->setPixmap(
+            pix.scaled(imagePreviewLabel_->width() > 0
+                           ? imagePreviewLabel_->width()
+                           : 200,
+                       48, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    } else {
+        imagePreviewLabel_->setText(tr("Could not preview image"));
     }
 }
 

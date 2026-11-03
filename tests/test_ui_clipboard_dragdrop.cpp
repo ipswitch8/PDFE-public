@@ -30,6 +30,7 @@
 
 #include <gtest/gtest.h>
 
+#include <QAction>
 #include <QApplication>
 #include <QClipboard>
 #include <QCoreApplication>
@@ -386,6 +387,214 @@ TEST_F(UiClipboardDragDropTest, PageDragOutCarriesImage) {
     // Out-of-range index yields no payload.
     std::unique_ptr<QMimeData> bad(panel.buildPageDragMimeData(9999));
     EXPECT_EQ(bad, nullptr);
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// GitHub #325 — cross-document page drag, at the REAL drop surface.
+//
+// These post genuine QDragEnterEvent/QDropEvent carrying the
+// application/x-pdfe-page MIME to a LIVE MainWindow with an open target
+// document — the actual production path a drag from another window's Pages
+// panel takes. They do NOT call InsertPageFromDocumentCommand directly (that is
+// covered at the command level in test_page_commands.cpp); the gap these close
+// is MainWindow::dragEnterEvent/dropEvent + the drag-source registry resolution
+// + undo wiring, none of which the command-level tests touch.
+//
+// The source document is registered through the SAME public registry
+// (PagePanel::registerDragSource) the real PageListWidget drag uses, so the
+// token under test is the real token.
+// ═════════════════════════════════════════════════════════════════════════
+
+namespace {
+// Build an application/x-pdfe-page payload for (token, pageIndex) exactly as
+// PagePanel::attachPageThumbToMime does.
+std::unique_ptr<QMimeData> makePageDragPayload(const QString& token,
+                                               int pageIndex) {
+    auto mime = std::make_unique<QMimeData>();
+    const QString body = token + QChar('\n') + QString::number(pageIndex);
+    mime->setData(PagePanel::pageMimeType(), body.toUtf8());
+    return mime;
+}
+} // namespace
+
+// A valid cross-document page drop copies the source page into the target
+// (pageCount increments, the grafted page is identifiable by the source's
+// distinctive rotation) and creates an undo entry that reverts it.
+//
+// RED / mutation: drop the hasFormat(pageMimeType) branch from
+// MainWindow::dropEvent → the custom payload falls through to the file-URL
+// path (which has no URLs) and nothing is inserted → this fails.
+TEST_F(UiClipboardDragDropTest, CrossDocumentPageDropCopiesPageAndCreatesUndo) {
+    if (!std::filesystem::exists(pdf_)) {
+        GTEST_SKIP() << "test_3page.pdf fixture missing";
+    }
+    // Target: the document in the live window.
+    mw_->openFile(QString::fromStdString(pdf_.string()));
+    ASSERT_TRUE(spinUntil([&]{ return mw_->documentForTesting() != nullptr; }));
+    auto* target = mw_->documentForTesting();
+    const int targetBefore = target->pageCount();
+    ASSERT_GT(targetBefore, 0);
+
+    // Source: a SEPARATE document, with a distinguishing rotation on page 0 so
+    // the grafted page is identifiable after the copy.
+    auto srcCtx = std::make_shared<pdfe::core::MuPdfContext>();
+    auto source = pdfe::core::Document::open(srcCtx, pdf_);
+    ASSERT_NE(source, nullptr);
+    source->rotatePage(0, 90);
+    ASSERT_EQ(source->currentRotation(0), 90);
+
+    const QString token = PagePanel::registerDragSource(source.get());
+    ASSERT_FALSE(token.isEmpty());
+
+    auto mime = makePageDragPayload(token, 0);
+
+    QDragEnterEvent enter(QPoint(20, 20), Qt::CopyAction, mime.get(),
+                          Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(mw_.get(), &enter);
+    ASSERT_TRUE(enter.isAccepted())
+        << "dragEnter must accept a cross-document page payload when a target "
+           "document is open";
+
+    QDropEvent drop(QPointF(20, 20), Qt::CopyAction, mime.get(),
+                    Qt::LeftButton, Qt::NoModifier, QEvent::Drop);
+    QApplication::sendEvent(mw_.get(), &drop);
+    EXPECT_TRUE(drop.isAccepted())
+        << "the cross-document page drop must be accepted";
+
+    ASSERT_TRUE(spinUntil(
+        [&]{ return target->pageCount() == targetBefore + 1; }))
+        << "a valid cross-document drop must copy one page into the target";
+    EXPECT_EQ(target->currentRotation(targetBefore), 90)
+        << "the appended page must be the copied source page (rot 90)";
+
+    // The source is unchanged — a copy, not a move.
+    EXPECT_EQ(source->pageCount(), targetBefore);
+    EXPECT_EQ(source->currentRotation(0), 90);
+
+    // An undo entry exists and reverts the copy.
+    auto* undoAction = mw_->findChild<QAction*>("undoAction");
+    ASSERT_NE(undoAction, nullptr);
+    EXPECT_TRUE(undoAction->isEnabled())
+        << "the cross-document copy must create an undo entry";
+    undoAction->trigger();
+    ASSERT_TRUE(spinUntil([&]{ return target->pageCount() == targetBefore; }))
+        << "undo of the cross-document copy must remove the copied page";
+
+    PagePanel::unregisterDragSource(source.get());
+}
+
+// A drop whose token resolves to the SAME document is ignored — that is the
+// in-panel reorder case (GitHub #326), not a cross-document copy.
+//
+// RED / mutation: remove the `source == document_.get()` guard in dropEvent →
+// dropping a page onto its own window would duplicate the page → this fails.
+TEST_F(UiClipboardDragDropTest, CrossDocumentDropSameDocumentIsIgnored) {
+    if (!std::filesystem::exists(pdf_)) {
+        GTEST_SKIP() << "test_3page.pdf fixture missing";
+    }
+    mw_->openFile(QString::fromStdString(pdf_.string()));
+    ASSERT_TRUE(spinUntil([&]{ return mw_->documentForTesting() != nullptr; }));
+    auto* target = mw_->documentForTesting();
+    const int before = target->pageCount();
+
+    // Register the TARGET's own document as the drag source.
+    const QString token = PagePanel::registerDragSource(target);
+    ASSERT_FALSE(token.isEmpty());
+
+    auto mime = makePageDragPayload(token, 0);
+    QDropEvent drop(QPointF(20, 20), Qt::CopyAction, mime.get(),
+                    Qt::LeftButton, Qt::NoModifier, QEvent::Drop);
+    QApplication::sendEvent(mw_.get(), &drop);
+    QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 100);
+
+    EXPECT_EQ(target->pageCount(), before)
+        << "dropping a page onto its OWN window must not add a page";
+
+    PagePanel::unregisterDragSource(target);
+}
+
+// A drop whose source token no longer resolves (the source window closed /
+// was unregistered) is ignored: no page added, no crash, no dangling deref.
+// This is the safety claim previously asserted only in a code comment.
+//
+// RED / mutation: have dropEvent dereference the resolved source without the
+// nullptr guard → this crashes instead of being ignored.
+TEST_F(UiClipboardDragDropTest, CrossDocumentDropWithStaleTokenIsIgnored) {
+    if (!std::filesystem::exists(pdf_)) {
+        GTEST_SKIP() << "test_3page.pdf fixture missing";
+    }
+    mw_->openFile(QString::fromStdString(pdf_.string()));
+    ASSERT_TRUE(spinUntil([&]{ return mw_->documentForTesting() != nullptr; }));
+    auto* target = mw_->documentForTesting();
+    const int before = target->pageCount();
+
+    // Register a source, capture its token, then UNREGISTER it — modelling the
+    // source window closing between the drag starting and the drop landing.
+    auto srcCtx = std::make_shared<pdfe::core::MuPdfContext>();
+    auto source = pdfe::core::Document::open(srcCtx, pdf_);
+    ASSERT_NE(source, nullptr);
+    const QString token = PagePanel::registerDragSource(source.get());
+    ASSERT_FALSE(token.isEmpty());
+    PagePanel::unregisterDragSource(source.get());
+    ASSERT_EQ(PagePanel::resolveDragSource(token), nullptr)
+        << "precondition: the token must no longer resolve";
+
+    auto mime = makePageDragPayload(token, 0);
+    QDropEvent drop(QPointF(20, 20), Qt::CopyAction, mime.get(),
+                    Qt::LeftButton, Qt::NoModifier, QEvent::Drop);
+    QApplication::sendEvent(mw_.get(), &drop);  // must not crash
+    QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 100);
+
+    EXPECT_EQ(target->pageCount(), before)
+        << "a drop whose source token no longer resolves must be ignored";
+}
+
+// dragEnterEvent accepts the custom MIME ONLY when a target document is open,
+// and the file-URL ("drop a .pdf to open") path still works regardless.
+//
+// RED / mutation: drop the `if (document_)` guard in the custom-MIME branch of
+// dragEnterEvent → a page-drop would be advertised as droppable onto an empty
+// window with nothing to insert into → the first expectation fails.
+TEST_F(UiClipboardDragDropTest, DragEnterCustomMimeRequiresOpenDocument) {
+    if (!std::filesystem::exists(pdf_)) {
+        GTEST_SKIP() << "test_3page.pdf fixture missing";
+    }
+    // No document open yet: a cross-document page payload must NOT be accepted.
+    ASSERT_EQ(mw_->documentForTesting(), nullptr);
+    const QString token = QStringLiteral("doesnotmatter-deadbeef");
+    {
+        auto mime = makePageDragPayload(token, 0);
+        QDragEnterEvent enter(QPoint(20, 20), Qt::CopyAction, mime.get(),
+                              Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(mw_.get(), &enter);
+        EXPECT_FALSE(enter.isAccepted())
+            << "a page-drop must not be accepted when no target document is open";
+    }
+
+    // The file-URL open path is unaffected with no document open.
+    {
+        QMimeData urlMime;
+        urlMime.setUrls({ QUrl::fromLocalFile(
+            QString::fromStdString(pdf_.string())) });
+        QDragEnterEvent enter(QPoint(20, 20), Qt::CopyAction, &urlMime,
+                              Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(mw_.get(), &enter);
+        EXPECT_TRUE(enter.isAccepted())
+            << "the file-URL drop-to-open path must still be accepted (not "
+               "regressed by the #325 custom-MIME branch)";
+    }
+
+    // With a document open, the custom page payload IS accepted.
+    mw_->openFile(QString::fromStdString(pdf_.string()));
+    ASSERT_TRUE(spinUntil([&]{ return mw_->documentForTesting() != nullptr; }));
+    {
+        auto mime = makePageDragPayload(token, 0);
+        QDragEnterEvent enter(QPoint(20, 20), Qt::CopyAction, mime.get(),
+                              Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(mw_.get(), &enter);
+        EXPECT_TRUE(enter.isAccepted())
+            << "a page-drop must be accepted once a target document is open";
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────

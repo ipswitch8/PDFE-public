@@ -189,6 +189,16 @@ public:
     std::function<void()> fieldDeselected;
     std::function<void(int pageIndex, FormFieldType type, QRectF rect)> fieldCreated;
 
+    /// GitHub #328 — a Signature field was clicked in interaction mode.
+    /// FormTool owns neither the SignatureManager nor the document, so it
+    /// cannot run the signing flow itself; it reports the activation and
+    /// MainWindow (which wires this) opens the Sign dialog and signs THAT
+    /// field. Carries the page index and the clicked widget's index in the
+    /// page's widget list (the same index FormManager::getFormField uses).
+    /// A Qt signal is not an option here — FormTool is not a QObject (it
+    /// uses std::function callbacks throughout, like fieldSelected above).
+    std::function<void(int pageIndex, int widgetIndex)> signatureFieldActivated;
+
 private:
     void commitEdit();
     void cancelEdit();

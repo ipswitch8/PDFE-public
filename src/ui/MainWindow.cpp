@@ -997,6 +997,46 @@ MainWindow::MainWindow(QWidget* parent)
         });
     }
 
+    // GitHub #329: hidden two-pipe readback seam for imageSelectionDiag().
+    // Mirrors the alt-text readback pipe. Lets a Python UI test observe the
+    // image tool's selection + placement (the PdfCanvas render area has no UIA
+    // tree, so this is how the test confirms a freshly-inserted image is
+    // selected without a manual click, and reads the bounding box back after a
+    // resize drag). Gated by PDFE_TEST_PIPES; absent in production.
+    if (pdfe::ui::testseam::testPipesEnabled()) {
+        testImageSelectionQueryPipe_ = new QLineEdit(this);
+        testImageSelectionQueryPipe_->setObjectName(
+            "testImageSelectionQueryPipe");
+        testImageSelectionQueryPipe_->setAccessibleName(
+            "Test Image Selection Query");
+        testImageSelectionQueryPipe_->resize(0, 0);
+        testImageSelectionQueryPipe_->setFocusPolicy(Qt::NoFocus);
+        testImageSelectionQueryPipe_->setMaximumSize(0, 0);
+
+        testImageSelectionResultPipe_ = new QLineEdit(this);
+        testImageSelectionResultPipe_->setObjectName(
+            "testImageSelectionResultPipe");
+        testImageSelectionResultPipe_->setAccessibleName(
+            "Test Image Selection Result");
+        testImageSelectionResultPipe_->resize(0, 0);
+        testImageSelectionResultPipe_->setFocusPolicy(Qt::NoFocus);
+        testImageSelectionResultPipe_->setMaximumSize(0, 0);
+        testImageSelectionResultPipe_->setReadOnly(true);
+
+        connect(testImageSelectionQueryPipe_, &QLineEdit::textChanged,
+                this, [this](const QString& trigger) {
+            if (!trigger.isEmpty()) {
+                const QString diag = imageSelectionDiag();
+                testImageSelectionResultPipe_->blockSignals(true);
+                testImageSelectionResultPipe_->setText(diag);
+                testImageSelectionResultPipe_->blockSignals(false);
+                testImageSelectionQueryPipe_->blockSignals(true);
+                testImageSelectionQueryPipe_->clear();
+                testImageSelectionQueryPipe_->blockSignals(false);
+            }
+        });
+    }
+
     // Pipeline 7-loop: hidden two-pipe readback seam for the comment-panel
     // row inventory.  Mirrors the alt-text readback pipe.  Lets Python UI
     // tests read the comment-tree row list from the model instead of
@@ -3776,10 +3816,26 @@ static bool droppedUrlNamesACandidatePdf(const QUrl& url, QString& pathOut)
 
 void MainWindow::dragEnterEvent(QDragEnterEvent* event)
 {
+    if (!event || !event->mimeData()) {
+        return;
+    }
+
+    // GitHub #325 — a page dragged out of ANOTHER PDFE window's Pages panel.
+    // Accept it so the drop can copy that page into this document. Checked
+    // before the file-URL path and kept distinct from it: a cross-document page
+    // drop is not a "open this .pdf" drop. We only accept when a live document
+    // is open here (there must be somewhere to insert the page).
+    if (event->mimeData()->hasFormat(PagePanel::pageMimeType())) {
+        if (document_) {
+            event->acceptProposedAction();
+        }
+        return;
+    }
+
     // Accept the drag only when the payload includes at least one local,
     // non-remote file URL with a .pdf suffix. Other drops (text, image data,
     // shell virtual files) fall through unhandled. (UI-DD-01, WIN-21)
-    if (!event || !event->mimeData() || !event->mimeData()->hasUrls()) {
+    if (!event->mimeData()->hasUrls()) {
         return;
     }
     QString path;
@@ -3793,9 +3849,49 @@ void MainWindow::dragEnterEvent(QDragEnterEvent* event)
 
 void MainWindow::dropEvent(QDropEvent* event)
 {
+    if (!event || !event->mimeData()) {
+        return;
+    }
+
+    // GitHub #325 — cross-document page drop. Copy the dragged page from the
+    // source document into THIS document. Distinguished from a file-URL drop by
+    // the custom MIME type; a copy, not a move (the source is untouched).
+    if (event->mimeData()->hasFormat(PagePanel::pageMimeType())) {
+        if (!document_ || !undoManager_) {
+            return;
+        }
+        QString token;
+        int srcPage = -1;
+        if (!PagePanel::parsePageMime(
+                event->mimeData()->data(PagePanel::pageMimeType()),
+                token, srcPage)) {
+            return;
+        }
+        pdfe::core::Document* source = PagePanel::resolveDragSource(token);
+        // Source window gone, or this IS the source document (that is an
+        // in-panel reorder, GitHub #326 — not a cross-document copy): ignore.
+        if (!source || source == document_.get()) {
+            return;
+        }
+        if (srcPage < 0 || srcPage >= source->pageCount()) {
+            return;
+        }
+        // Append the copied page at the end of this document.
+        const int atIndex = document_->pageCount();
+        auto cmd = std::make_unique<pdfe::commands::InsertPageFromDocumentCommand>(
+            document_.get(), atIndex, source, srcPage);
+        undoManager_->execute(std::move(cmd));
+        onDocumentStructureChanged();
+        if (canvas_) {
+            canvas_->goToPage(atIndex);
+        }
+        event->acceptProposedAction();
+        return;
+    }
+
     // Open one .pdf from the drop. Multi-file drops open a single document;
     // the rest are ignored — Acrobat behaves the same. (UI-DD-01)
-    if (!event || !event->mimeData() || !event->mimeData()->hasUrls()) {
+    if (!event->mimeData()->hasUrls()) {
         return;
     }
 
@@ -9119,6 +9215,26 @@ QString MainWindow::documentEncryptionDiag() const
     }
 }
 
+QString MainWindow::imageSelectionDiag() const
+{
+    // GitHub #329 — let a UI test observe the image tool's selection without a
+    // UIA tree over the canvas.
+    if (!pdfe::ui::testseam::testPipesEnabled()) {
+        return QStringLiteral("seam-disabled");
+    }
+    if (!imageTool_ || !imageTool_->hasSelection()) {
+        return QStringLiteral("none");
+    }
+    const auto& info = imageTool_->selectedImage();
+    const QRectF& b = info.boundingBox;
+    return QStringLiteral("sel=1;xobj=%1;bbox=%2,%3,%4,%5")
+        .arg(QString::fromStdString(info.xobjectName))
+        .arg(b.x())
+        .arg(b.y())
+        .arg(b.width())
+        .arg(b.height());
+}
+
 QString MainWindow::currentPageOcrText()
 {
     if (!document_ || !canvas_) {
@@ -11168,6 +11284,22 @@ void MainWindow::onAnnotationToolSelected(QAction* action)
         };
         formTool->fieldCreated = [this](int pageIndex, pdfe::forms::FormFieldType type, QRectF rect) {
             createFormField(pageIndex, type, rect);
+        };
+        // GitHub #328 — route a click on a Signature field into the signing
+        // flow. Without this the click only selected the field (default arm).
+        //
+        // Deferred via QTimer::singleShot(0): the activation fires from inside
+        // FormTool::onMousePress, i.e. synchronously within the canvas
+        // mouse-press handler (and, when driven by the testClickByPdfCoordPipe
+        // seam, nested inside that pipe's UIA SetValue RPC). Opening the modal
+        // SignDialog::exec() there would run a nested event loop inside the
+        // mouse handler and block the pipe RPC until dismissed. Deferring to
+        // the next event-loop tick lets the press handler return first — the
+        // same reason activateToolByObjectName() defers modal-opening actions.
+        formTool->signatureFieldActivated = [this](int pageIndex, int widgetIndex) {
+            QTimer::singleShot(0, this, [this, pageIndex, widgetIndex]() {
+                onSignatureFieldActivated(pageIndex, widgetIndex);
+            });
         };
 
         // Show the form toolbar. The field-type actions are connected ONCE in
@@ -13848,6 +13980,20 @@ void MainWindow::onSignDocument()
 
     if (targetPage < 0 || targetWidget < 0) return;
 
+    signTargetField(targetPage, targetWidget);
+}
+
+// GitHub #328 — the dialog/probe/save/sign sequence, factored out of
+// onSignDocument so the canvas signature-field-click path can run the
+// IDENTICAL flow against a specific field. targetWidget is the index into
+// SignatureManager's signature-only widget list (the index signField and
+// listSignatures use), NOT the page-wide widget index FormTool reports —
+// onSignatureFieldActivated() does that translation before calling here.
+void MainWindow::signTargetField(int targetPage, int targetWidget)
+{
+    if (!document_ || !signatureManager_) return;
+    if (targetPage < 0 || targetWidget < 0) return;
+
     // Show sign dialog
     SignDialog dialog(this);
     if (dialog.exec() != QDialog::Accepted) return;
@@ -13937,6 +14083,58 @@ void MainWindow::onSignDocument()
             tr("Failed to sign the document. Check that the certificate "
                "and password are correct, then try again."));
     }
+}
+
+// GitHub #328 — a Signature form field was clicked on the canvas (reported
+// by FormTool::signatureFieldActivated). pageWidgetIndex is the clicked
+// widget's index in the page's FULL widget list (FormManager indexing), which
+// differs from the signature-only index SignatureManager uses — translate it
+// by matching the clicked field's rect/name against the unsigned signatures on
+// that page, then run the same sign flow onSignDocument uses.
+void MainWindow::onSignatureFieldActivated(int pageIndex, int pageWidgetIndex)
+{
+    if (!document_ || !signatureManager_ || !formManager_) return;
+
+    std::string clickedName;
+    QRectF clickedRect;
+    try {
+        auto page = document_->page(pageIndex);
+        if (!page) return;
+        auto fd = formManager_->getFormField(page.get(), pageWidgetIndex);
+        clickedName = fd.fieldName;
+        clickedRect = fd.rect;
+    } catch (const std::exception&) {
+        return;
+    }
+
+    // Map the page-widget index to the signature-only index. Prefer a field
+    // name match; fall back to an (epsilon) rect match for the same page. Both
+    // the FormManager rect and the SignatureData rect come from pdf_annot_rect
+    // in fitz space, so they are the same values for the same widget.
+    auto sigs = signatureManager_->listSignatures(document_.get());
+    int targetWidget = -1;
+    const double eps = 0.5;
+    for (const auto& s : sigs) {
+        if (s.isSigned || s.pageIndex != pageIndex) continue;
+        bool nameMatch = !clickedName.empty() && s.fieldName == clickedName;
+        bool rectMatch =
+            std::abs(s.rect.x() - clickedRect.x()) < eps &&
+            std::abs(s.rect.y() - clickedRect.y()) < eps &&
+            std::abs(s.rect.width() - clickedRect.width()) < eps &&
+            std::abs(s.rect.height() - clickedRect.height()) < eps;
+        if (nameMatch || rectMatch) {
+            targetWidget = s.widgetIndex;
+            break;
+        }
+    }
+
+    if (targetWidget < 0) {
+        // Clicked field is a signature widget but could not be resolved to an
+        // unsigned signature (e.g. already signed). Nothing to do silently.
+        return;
+    }
+
+    signTargetField(pageIndex, targetWidget);
 }
 
 void MainWindow::onVerifySignatures()
@@ -14254,9 +14452,22 @@ void MainWindow::onInsertImage()
 
     auto cmd = std::make_unique<pdfe::image::InsertImageCommand>(
         imageManager_.get(), page.get(), document_.get(), opts);
+    // Keep a non-owning handle so we can read the inserted image's XObject
+    // identity AFTER execute() populates result(). undoManager_ retains the
+    // command on its stack, so this pointer stays valid past the move.
+    auto* insertCmd = cmd.get();
     commandPages_.push_back(std::move(page));
     undoManager_->execute(std::move(cmd));
     canvas_->refreshPage(pageIdx);
+
+    // The identity of the image that was just inserted. InsertImageCommand
+    // records it from the key ImageManager::insertImage() added to the page's
+    // XObject dict, so it is the exact name a subsequent enumeration will use —
+    // deterministic even when the page already held other images, which a
+    // largest-area or "topmost" heuristic would not be.
+    const std::string insertedXObject =
+        insertCmd->result().success ? insertCmd->result().imageInfo.xobjectName
+                                     : std::string();
 
     // Put the user in front of the handles that already exist.
     //
@@ -14264,11 +14475,22 @@ void MainWindow::onInsertImage()
     // onImageToolSelected() connects all three to real commands — post-insert
     // manipulation has worked the whole time. What was missing is that nothing
     // took the user there, so after inserting they had to know to switch tools
-    // and find the image themselves. Rotation in particular was reported as
-    // absent when it was merely unreachable from this path.
+    // AND click the image before any handle existed. Rotation in particular was
+    // reported as absent when it was merely unreachable from this path.
     if (imageToolAction_ && imageToolAction_->isEnabled()) {
         imageToolAction_->setChecked(true);
         onAnnotationToolSelected(imageToolAction_);
+
+        // GitHub #329 — close the reachability gap. Activating the tool above
+        // re-enumerates the page's images (onImageToolSelected ->
+        // ImageTool::setPage -> refreshImages) but leaves selectedIndex_ == -1,
+        // so without this call the just-inserted image has no selection: no
+        // handles paint and the image-toolbar actions stay disabled until the
+        // user clicks it. Select it by the XObject identity the insert produced
+        // so the handles are live and the actions enabled with no extra click.
+        if (imageTool_ && !insertedXObject.empty()) {
+            imageTool_->selectImage(insertedXObject);
+        }
     }
 }
 

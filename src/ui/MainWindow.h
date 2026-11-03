@@ -502,6 +502,20 @@ public:
     /// "seam-disabled" when the seam is off.
     Q_INVOKABLE QString documentEncryptionDiag() const;
 
+    /// GitHub #329 test-only seam: report the image tool's CURRENT selection
+    /// state, so a pywinauto test can confirm a freshly-inserted image is
+    /// manipulable without a manual canvas click (the PdfCanvas render area has
+    /// no UIA tree, so this readback is how a UI test observes selection and
+    /// placement). Format:
+    ///   "none"                       — no image tool active, or nothing selected
+    ///   "sel=1;xobj=<name>;bbox=<x>,<y>,<w>,<h>"  — otherwise, bbox in PDF points
+    /// The bbox lets the test compute a resize-handle location in PDF
+    /// coordinates for dragByPdfCoord, and read it back after the drag to assert
+    /// the placement actually changed. Driven via "testImageSelectionQueryPipe"
+    /// → "testImageSelectionResultPipe". Gated on testPipesEnabled(); returns
+    /// "seam-disabled" when the seam is off.
+    Q_INVOKABLE QString imageSelectionDiag() const;
+
 
     /// Pipeline b3f19d72 phase-1 test-only seam: set the annotation
     /// selection state directly. Production code reaches the same
@@ -955,6 +969,14 @@ private slots:
 
     // Signatures
     void onSignDocument();
+    /// GitHub #328 — handles FormTool::signatureFieldActivated: a Signature
+    /// form field was clicked on the canvas. Resolves the clicked page-widget
+    /// index to a signature index and runs the sign flow against that field.
+    void onSignatureFieldActivated(int pageIndex, int pageWidgetIndex);
+    /// GitHub #328 — the dialog/probe/save/sign sequence shared by
+    /// onSignDocument and onSignatureFieldActivated. targetWidget is a
+    /// signature-only index (see SignatureManager::signField).
+    void signTargetField(int targetPage, int targetWidget);
     void onVerifySignatures();
     /// Pipeline F phase-9: user-confirmed network fetch for OCSP+CRL
     /// followed by /DSS embedding. NEVER auto-runs; only triggered by
@@ -1663,6 +1685,13 @@ private:
     /// activeToolDiag() — confirms the per-region tool routing decision.
     class QLineEdit* testActiveToolQueryPipe_ = nullptr;
     class QLineEdit* testActiveToolResultPipe_ = nullptr;
+
+    /// GitHub #329: hidden two-pipe readback seam for imageSelectionDiag().
+    /// A test writes any non-empty string to the query pipe; the handler calls
+    /// imageSelectionDiag() and publishes the result on the result pipe, read
+    /// via UIA ValuePattern. Gated by testPipesEnabled().
+    class QLineEdit* testImageSelectionQueryPipe_ = nullptr;
+    class QLineEdit* testImageSelectionResultPipe_ = nullptr;
 
     /// Pipeline e7d3c2a1 phase-3: hidden two-pipe readback seam for
     /// currentPageOcrText() — drives OCR on the current page and returns the

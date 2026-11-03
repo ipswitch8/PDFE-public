@@ -10,6 +10,8 @@
 #include "core/Document.h"
 #include "core/Page.h"
 
+#include <QImage>
+
 #include <filesystem>
 #include <memory>
 
@@ -463,6 +465,44 @@ TEST_F(SignatureManagerTest, PreviewAppearance) {
         EXPECT_GT(preview.width(), 0);
         EXPECT_GT(preview.height(), 0);
     }
+}
+
+// GitHub #327 — SigningOptions.imagePath must actually reach the appearance
+// pipeline, not merely be stored. previewSignatureAppearance builds the SAME
+// appearance pixmap the signature embeds (pdf_preview_signature_as_pixmap vs
+// pdf_sign_signature, both taking the graphic argument), so a preview WITH an
+// image that differs pixel-for-pixel from the text-only preview proves the
+// image path is consumed. Asserting a stored string would prove nothing.
+TEST_F(SignatureManagerTest, PreviewReflectsSignatureImage_Issue327) {
+    std::string pfxPath = fixturesDir() + "/test_signer.pfx";
+    std::string imgPath = fixturesDir() + "/test_image_rgb.png";
+    if (!std::filesystem::exists(pfxPath) || !std::filesystem::exists(imgPath)) {
+        GTEST_SKIP() << "test_signer.pfx or test_image_rgb.png not available";
+    }
+
+    SigningOptions base;
+    base.pfxPath = pfxPath;
+    base.pfxPassword = "test123";
+    base.reason = "Test";
+    base.location = "Lab";
+
+    QImage textOnly;
+    ASSERT_NO_THROW(textOnly = manager_->previewSignatureAppearance(200, 100, base));
+
+    SigningOptions withImage = base;
+    withImage.imagePath = imgPath;
+    QImage withImg;
+    ASSERT_NO_THROW(withImg = manager_->previewSignatureAppearance(200, 100, withImage));
+
+    // The image-of-signature graphic must change the rendered appearance.
+    ASSERT_FALSE(withImg.isNull())
+        << "preview with imagePath produced no image — the image path was not consumed";
+    // Equality would mean imagePath was ignored. A null text-only preview with
+    // a non-null image preview is also a real difference (the image added the
+    // only content), so accept either form of "not identical".
+    EXPECT_TRUE(textOnly.isNull() || withImg != textOnly)
+        << "preview WITH image is identical to text-only: "
+           "SigningOptions.imagePath had no effect on the appearance";
 }
 
 // Test 22: Clear signature on unsigned field (no-op, should not throw)

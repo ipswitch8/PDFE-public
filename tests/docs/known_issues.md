@@ -2858,3 +2858,51 @@ restoring the current index.
 The test's assertion needed no change. It already asserted a *contiguous* run
 rather than a count of three, so an additive gesture that happened to pick three
 could not have satisfied it.
+
+---
+
+## CI-LIMITATION-DPI-RELAYOUT-INVARIANT
+
+> **Triage 2026-11-03 (pipeline ui-fixes-2026-11): filed as GitHub #330.** This
+> entry is the evidence record; the issue tracks the open question. Environment-
+> dependent, pre-existing, **not** introduced by the ui-fixes-2026-11 batch.
+
+`DpiChangeRelayoutTest.ScreenDpiChangeIsDeliveredAndLeavesLayoutIntact`
+(`tests/test_dpi_change_relayout.cpp:229`) fails in the current self-hosted/RDP
+display environment. The test delivers a pure **logical** DPI doubling (no window
+resize) and asserts the canvas size is unchanged; observed `after.canvasSize =
+QSize(592, 993)` vs `baseline = QSize(592, 961)` — the canvas **height** grows by
+32px.
+
+**Evidence it is pre-existing, not a regression.** Bisected during the
+ui-fixes-2026-11 full-suite verification: reverting every file that batch modified
+to the pre-batch commit `96b2b118`, rebuilding, and re-running reproduces the
+**identical** failure (993 vs 961, 2/2). The batch touches no DPI/canvas/relayout
+source (`git diff --name-only 96b2b118..54025ccb`). The v0.3.2 full run (a
+different session) reported this test green, which points to display/DPI-
+environment dependence (devicePixelRatio / high-DPI rounding under RDP) rather
+than a deterministic code defect.
+
+**Boundary.** Excluded from the ui-fixes-2026-11 phase-5 full-suite gate with this
+evidence (out of that batch's scope: page drag/reorder, signatures, image
+placement). Open question in #330: genuine latent DPI-relayout bug vs. an
+exact-equality invariant too strict for Qt6 high-DPI rounding in some
+environments. Resolution path: reproduce under a non-RDP console session at fixed
+display scaling to isolate environment vs. code.
+
+## CI-LIMITATION-FZTRY-RAII-COMPILE-DB (reaffirmed 2026-11-03)
+
+The three `FzTryRaiiBoundary` static-analysis tests
+(`ScrubDocumentScopedSurfacesKeepsItsLocalsOutsideFzTry`,
+`TheRepairedLocalsStayOutsideTheirGuardedRegions`,
+`NoRepairedFileThrowsACxxExceptionAcrossTheBoundary`) fail in this environment
+with "N translation unit(s) failed to parse → scan found 0 guarded regions"
+because they read a stale `build/vs2022-asan/compile_commands.json` whose `-imsvc`
+include paths point at a vanished `vcpkg_installed` tree. Pre-existing and already
+documented in
+[`docs/audit/release-readiness/v0.3.2-published-2026-11-01.md`](../../docs/audit/release-readiness/v0.3.2-published-2026-11-01.md)
+(owner follow-up: reconfigure the ASan preset to regenerate the compile DB). It
+affects all 221 TUs including files the ui-fixes-2026-11 batch never touched, so
+it is not a regression of that batch; excluded from its phase-5 full-suite gate on
+that basis. The other four `FzTryRaiiBoundary` tests (self-test, baseline
+population, CI-wiring, GitHub #196 ownership) run and pass.

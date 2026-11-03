@@ -193,6 +193,50 @@ private:
 };
 
 /**
+ * @brief GitHub #325 — copy a single page from ANOTHER open document into this
+ *        document at a given index (cross-document page drag).
+ *
+ * Unlike ImportPagesCommand (which re-opens a source FILE by path), this takes
+ * a live source Document* — the document owned by the window the page was
+ * dragged out of. The source is consulted ONLY during the first execute(): the
+ * page is grafted (copied) in, and the grafted page object is then retained so
+ * that undo/redo need no further access to the source. The source window may
+ * therefore close after the drop without breaking undo/redo.
+ *
+ * A copy, not a move: the source document is never modified.
+ */
+class InsertPageFromDocumentCommand : public Command {
+public:
+    /**
+     * @param target          the document receiving the page
+     * @param atIndex         insert position in @p target (0-based, 0..pageCount)
+     * @param source          the document the page is copied FROM
+     * @param sourcePageIndex the page to copy (0-based) in @p source
+     */
+    InsertPageFromDocumentCommand(
+        pdfe::core::Document* target,
+        int atIndex,
+        pdfe::core::Document* source,
+        int sourcePageIndex
+    );
+
+    ~InsertPageFromDocumentCommand() override;
+
+    void execute() override;
+    void undo() override;
+    void redo() override;
+    [[nodiscard]] std::string description() const override;
+
+private:
+    pdfe::core::Document* target_;
+    int atIndex_;
+    pdfe::core::Document* source_;  // used only on the first execute()
+    int sourcePageIndex_;
+    void* retainedPageObj_ = nullptr;  // holds the grafted page across undo/redo
+    bool executed_ = false;
+};
+
+/**
  * @brief Command to delete multiple pages from a document.
  *
  * Supports undo by retaining all page objects and reinserting them.

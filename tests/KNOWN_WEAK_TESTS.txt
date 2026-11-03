@@ -334,6 +334,32 @@
 # test body rewrites to call move_page_programmatic(0, 2) and asserts
 # document-dirty title-bar indicator.
 
+# ─── Pipeline ui-fixes-2026-11 (GitHub #326): real-gesture page-reorder ──
+
+# UIFIX-DRAG-1 (WEAK, xfail strict=False) -- tests/test_ui_page_reorder_drag.py.
+# This test DELIBERATELY drives the REAL within-file reorder gesture (a genuine
+# Win32 SendInput press/move/release on a thumbnail), NOT the
+# movePageProgrammatic bypass that P10-INFRA-1 added -- the whole point is to
+# regression-cover #326's actual gesture -> dropEvent -> onPageDropped ->
+# pageMoved -> MovePageCommand path end-to-end, which the bypass skips. It
+# asserts the real end state (document page-order permutation + dirty title),
+# never routing through movePageProgrammatic.
+# It is xfail(strict=False) because OS-level SendInput provably does not
+# reliably initiate a Qt6 QListWidget InternalMove QDrag on this build -- the
+# SAME platform limitation whose test-automation workaround is P10-INFRA-1
+# above. This is a harness/OS limitation, not a product defect: the #326 fix
+# (PagePanel setMovement Snap->Static, so the gesture reaches the drop handler)
+# is pinned DETERMINISTICALLY by the PASSING C++ guard
+# PagePanelQInvokable.DragReorderConfiguration_RoutesRealDragThroughDropHandler
+# (asserts movement()==Static, dragDropMode()==InternalMove,
+# defaultDropAction()==MoveAction), and the model/command behaviour by
+# PageCommandTest.MovePageCommand_ReorderChangesDocumentOrderAndMarksDirty.
+# strict=False so that if a future Qt/driver combination CAN start the drag,
+# the test surfaces as XPASS (a signal to promote it to a hard assertion) rather
+# than failing the suite. Do NOT "fix" this by routing the assertion through
+# movePageProgrammatic -- that would re-open the exact coverage hole #326 fell
+# through.
+
 # ─── Phase 11 (a7c2e541): test-infrastructure debt for redaction E2E ──
 
 # P11-INFRA-1 RESOLVED (pipeline a7c2e541 phase-17 + b3d7f942 phase-3):

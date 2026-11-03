@@ -2,10 +2,12 @@
 #include <gtest/gtest.h>
 #include "image/ImageCommands.h"
 #include "image/ImageManager.h"
+#include "image/ImageContentEditor.h"
 #include "image/ImageData.h"
 #include "core/MuPdfContext.h"
 #include "core/Document.h"
 #include "core/Page.h"
+#include <algorithm>
 #include <filesystem>
 #include <memory>
 
@@ -405,6 +407,87 @@ TEST_F(ImageCommandsTest, InsertImage_UndoRedo_MultiCycle) {
     cmd.undo();
     auto afterUndo2 = manager_->enumerateImages(page.get(), doc.get());
     EXPECT_EQ(afterUndo2.size(), initialCount);
+
+    page.reset();
+    doc.reset();
+    std::error_code ec;
+    std::filesystem::remove(tempPath, ec);
+}
+
+// GitHub #329 — the reposition/resize command path an inserted image reaches
+// through its (now live) handles. The existing ImageContentEditor tests assert
+// resizeImage() RETURNS true and preserves the image count; neither proves the
+// geometry actually moved, nor that undo puts it back. This asserts the real
+// behavioural contract against enumeration (which recomputes the bounding box
+// from the drawn CTM), so it fails if resize became a no-op or if undo stopped
+// restoring the prior content stream.
+TEST_F(ImageCommandsTest, ResizeImage_ChangesGeometryAndUndoReverts) {
+    if (!std::filesystem::exists(imagePdfPath_)) {
+        GTEST_SKIP() << "Test fixture not available: " << imagePdfPath_;
+    }
+
+    auto tempPath = std::filesystem::temp_directory_path() / "pdfe_test_cmd_resize_geom.pdf";
+    {
+        auto doc = pdfe::core::Document::open(context_, imagePdfPath_);
+        doc->saveAs(tempPath);
+    }
+
+    auto doc = pdfe::core::Document::open(context_, tempPath);
+    auto page = doc->page(0);
+
+    auto findByName = [](const std::vector<pdfe::image::PageImageInfo>& v,
+                         const std::string& name)
+        -> const pdfe::image::PageImageInfo* {
+        auto it = std::find_if(v.begin(), v.end(),
+            [&](const pdfe::image::PageImageInfo& i) { return i.xobjectName == name; });
+        return it == v.end() ? nullptr : &*it;
+    };
+
+    auto before = manager_->enumerateImages(page.get(), doc.get());
+    ASSERT_FALSE(before.empty()) << "fixture must contain at least one image";
+    const std::string name = before[0].xobjectName;
+    const QRectF origBox = before[0].boundingBox;
+    ASSERT_GT(origBox.width(), 0.0);
+    ASSERT_GT(origBox.height(), 0.0);
+
+    // A target size and position clearly distinct from the original, so a
+    // no-op resize cannot accidentally satisfy the assertion.
+    const float newW = static_cast<float>(origBox.width()) + 123.0f;
+    const float newH = static_cast<float>(origBox.height()) + 77.0f;
+    const float newX = static_cast<float>(origBox.x()) + 41.0f;
+    const float newY = static_cast<float>(origBox.y()) + 29.0f;
+
+    auto editor = std::make_unique<pdfe::image::ImageContentEditor>(context_);
+    pdfe::image::ResizeImageCommand cmd(
+        manager_.get(), editor.get(), page.get(), doc.get(),
+        name, newW, newH, newX, newY);
+
+    cmd.execute();
+
+    auto after = manager_->enumerateImages(page.get(), doc.get());
+    const auto* resized = findByName(after, name);
+    ASSERT_NE(resized, nullptr) << "image vanished after resize";
+    EXPECT_NEAR(resized->boundingBox.width(), newW, 1.0)
+        << "ResizeImageCommand did not change the drawn width";
+    EXPECT_NEAR(resized->boundingBox.height(), newH, 1.0)
+        << "ResizeImageCommand did not change the drawn height";
+    // And it is genuinely different from where it started.
+    EXPECT_GT(std::abs(resized->boundingBox.width() - origBox.width()), 1.0);
+    EXPECT_GT(std::abs(resized->boundingBox.height() - origBox.height()), 1.0);
+
+    cmd.undo();
+
+    auto reverted = manager_->enumerateImages(page.get(), doc.get());
+    const auto* restored = findByName(reverted, name);
+    ASSERT_NE(restored, nullptr) << "image vanished after undo";
+    EXPECT_NEAR(restored->boundingBox.width(), origBox.width(), 1.0)
+        << "undo did not restore the original width";
+    EXPECT_NEAR(restored->boundingBox.height(), origBox.height(), 1.0)
+        << "undo did not restore the original height";
+    EXPECT_NEAR(restored->boundingBox.x(), origBox.x(), 1.0)
+        << "undo did not restore the original x position";
+    EXPECT_NEAR(restored->boundingBox.y(), origBox.y(), 1.0)
+        << "undo did not restore the original y position";
 
     page.reset();
     doc.reset();

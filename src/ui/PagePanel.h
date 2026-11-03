@@ -3,6 +3,7 @@
 #include <QWidget>
 #include <QImage>
 #include <QList>
+#include <QString>
 
 #include <utility>
 
@@ -85,6 +86,45 @@ public:
     /// out-of-range index. Lets a headless test assert the drag-out contract
     /// without driving a flaky synthetic mouse-drag gesture.
     QMimeData* buildPageDragMimeData(int pageIndex) const;
+
+    // ─── GitHub #325: cross-document page drag ──────────────────────────────
+    //
+    // A page dragged out of this panel carries, ALONGSIDE the existing
+    // thumbnail image + text label, a custom MIME payload identifying the
+    // SOURCE document and the dragged page index. A different PDFE window can
+    // recognise that payload (MainWindow::dropEvent) and copy the page into its
+    // own document. The image/text stay so an external app still sees a bitmap.
+    //
+    // The MIME body is UTF-8 "<source-doc-id>\n<pageIndex>". The id is a
+    // process-local token from the registry below, NOT a raw pointer the drop
+    // side would blindly dereference: the registry resolves it to a live
+    // Document* only while the source panel still holds that document, so a
+    // source window that closed mid-drag resolves to nullptr and the drop is
+    // safely ignored.
+
+    /// The custom drag MIME type. Stable string so both the source
+    /// (PageListWidget::mimeData) and the target (MainWindow) agree.
+    static const QString& pageMimeType();
+
+    /// Register @p doc as a drag source and return its stable token. Idempotent
+    /// — the same live document always maps to the same token. Returns an empty
+    /// string for a null document.
+    static QString registerDragSource(pdfe::core::Document* doc);
+
+    /// Resolve a token produced by registerDragSource() back to the Document,
+    /// or nullptr if that document is no longer a registered drag source (e.g.
+    /// its window closed). NEVER returns a dangling pointer.
+    static pdfe::core::Document* resolveDragSource(const QString& token);
+
+    /// Drop @p doc from the drag-source registry. Called when the panel stops
+    /// holding the document (setDocument to another doc, clearDocument, or
+    /// destruction). Unknown documents are ignored.
+    static void unregisterDragSource(pdfe::core::Document* doc);
+
+    /// Parse a @ref pageMimeType payload into (token, pageIndex). Returns false
+    /// if @p payload is malformed.
+    static bool parsePageMime(const QByteArray& payload, QString& tokenOut,
+                              int& pageIndexOut);
 
     /// GitHub #136 (CI-LIMITATION-PAGEPANEL-POPULATE-RACE): number of rows
     /// currently in the thumbnail QListWidget.

@@ -18,6 +18,8 @@
 #include <QResizeEvent>
 #include <QShowEvent>
 #include <QRect>
+#include <QByteArray>
+#include <QHash>
 #include <algorithm>
 #include <functional>
 #include <utility>
@@ -41,8 +43,13 @@ namespace pdfe::ui {
 // identical payload. On Windows QMimeData image data is surfaced to the
 // clipboard/drag as CF_DIB/CF_BITMAP, so an external drop target (another app)
 // receives the page as a pasteable bitmap.
+//
+// GitHub #325: when @p dragSourceId is non-empty it also attaches the custom
+// cross-document MIME payload identifying the source document + page, so a
+// different PDFE window can copy the page in. The image/text are kept so a
+// genuinely external app still sees a bitmap.
 static void attachPageThumbToMime(QMimeData* md, const QListWidgetItem* item,
-                                  int row) {
+                                  int row, const QString& dragSourceId) {
     if (!md || !item) return;
     const QIcon icon = item->icon();
     if (!icon.isNull()) {
@@ -57,6 +64,11 @@ static void attachPageThumbToMime(QMimeData* md, const QListWidgetItem* item,
                               ? QString("PDF page %1").arg(row + 1)
                               : item->text();
     md->setText(label);
+
+    if (!dragSourceId.isEmpty()) {
+        const QString body = dragSourceId + QChar('\n') + QString::number(row);
+        md->setData(pdfe::ui::PagePanel::pageMimeType(), body.toUtf8());
+    }
 }
 
 // Custom list widget that handles drag-drop events for page reordering
@@ -66,6 +78,10 @@ class PageListWidget : public QListWidget {
 public:
     using QListWidget::QListWidget;
     std::function<void(int, int)> onPageDropped;
+    // GitHub #325: returns the stable drag-source token for the panel's current
+    // document (empty when there is none). Set by PagePanel so mimeData() can
+    // tag the drag with the source-document identity.
+    std::function<QString()> dragSourceId;
 
 protected:
     void dropEvent(QDropEvent* event) override {
@@ -84,7 +100,8 @@ protected:
         QMimeData* md = QListWidget::mimeData(items);
         if (!md) md = new QMimeData();
         if (!items.isEmpty() && items.first()) {
-            attachPageThumbToMime(md, items.first(), row(items.first()));
+            const QString srcId = dragSourceId ? dragSourceId() : QString();
+            attachPageThumbToMime(md, items.first(), row(items.first()), srcId);
         }
         return md;
     }
@@ -105,7 +122,14 @@ PagePanel::PagePanel(QWidget* parent)
     listWidget_->setIconSize(QSize(128, 128));
     listWidget_->setSpacing(10);
     listWidget_->setResizeMode(QListWidget::Adjust);
-    listWidget_->setMovement(QListWidget::Snap);
+    // GitHub #326: movement MUST be Static. A non-Static movement
+    // (previously Snap) makes QListView handle the drag gesture itself —
+    // repositioning the icon's rect in free space — and NEVER falls through to
+    // the drag-drop subsystem, so PageListWidget::dropEvent / onPageDropped /
+    // pageMoved never fire for a real drag and the reorder touches only the
+    // icon, never the Document. With Static, InternalMove's drop handling runs,
+    // the drop reaches MovePageCommand, and the document order actually changes.
+    listWidget_->setMovement(QListWidget::Static);
     listWidget_->setUniformItemSizes(true);
 
     // Enable drag-drop for page reordering
@@ -116,6 +140,13 @@ PagePanel::PagePanel(QWidget* parent)
     // Connect drag-drop callback
     pageList->onPageDropped = [this](int from, int to) {
         emit pageMoved(from, to);
+    };
+
+    // GitHub #325: tag outgoing drags with the current document's identity so
+    // another PDFE window can copy the page. Registration is lazy (only when a
+    // drag actually asks for the id) and idempotent.
+    pageList->dragSourceId = [this]() -> QString {
+        return document_ ? PagePanel::registerDragSource(document_) : QString();
     };
 
     // Connect item click
@@ -174,6 +205,12 @@ PagePanel::PagePanel(QWidget* parent)
 
 PagePanel::~PagePanel()
 {
+    // GitHub #325: stop vouching for this document as a drag source — a drop
+    // that resolves its token after we are gone must get nullptr, not a
+    // dangling pointer.
+    if (document_) {
+        PagePanel::unregisterDragSource(document_);
+    }
     if (thumbnailRenderer_) {
         thumbnailRenderer_->cancelAll();
         delete thumbnailRenderer_;
@@ -188,6 +225,12 @@ void PagePanel::setDocument(pdfe::core::Document* doc)
         thumbnailRenderer_->cancelAll();
         delete thumbnailRenderer_;
         thumbnailRenderer_ = nullptr;
+    }
+
+    // GitHub #325: the old document is no longer reachable through this panel,
+    // so it can no longer be a drag source from here.
+    if (document_ && document_ != doc) {
+        PagePanel::unregisterDragSource(document_);
     }
 
     document_ = doc;
@@ -250,6 +293,9 @@ void PagePanel::clearDocument()
         thumbnailRenderer_ = nullptr;
     }
 
+    if (document_) {
+        PagePanel::unregisterDragSource(document_);
+    }
     document_ = nullptr;
     listWidget_->clear();
 }
@@ -262,7 +308,12 @@ QMimeData* PagePanel::buildPageDragMimeData(int pageIndex) const
     QListWidgetItem* item = listWidget_->item(pageIndex);
     if (!item) return nullptr;
     auto* md = new QMimeData();
-    attachPageThumbToMime(md, item, pageIndex);
+    // Produce the SAME payload a real QDrag carries, including the #325
+    // cross-document identity, so a headless test can assert the drag-out
+    // contract without a synthetic mouse-drag.
+    const QString srcId =
+        document_ ? PagePanel::registerDragSource(document_) : QString();
+    attachPageThumbToMime(md, item, pageIndex, srcId);
     return md;
 }
 
@@ -529,6 +580,74 @@ void PagePanel::onContextMenuRequested(const QPoint& pos)
     } else if (selected == extractSelectedAction_) {
         emit extractPagesRequested(indices);
     }
+}
+
+// ─── GitHub #325: cross-document drag-source registry ────────────────────
+//
+// Process-local, main-thread-only (drag and drop both run on the GUI thread).
+// Maps a stable string token <-> live Document*. The token embeds a
+// monotonic counter so a Document* whose address is later reused by a
+// different document cannot be mistaken for the original.
+
+namespace {
+QHash<QString, pdfe::core::Document*>& tokenToDoc() {
+    static QHash<QString, pdfe::core::Document*> m;
+    return m;
+}
+QHash<pdfe::core::Document*, QString>& docToToken() {
+    static QHash<pdfe::core::Document*, QString> m;
+    return m;
+}
+quint64 nextDragSourceSerial() {
+    static quint64 serial = 0;
+    return ++serial;
+}
+} // namespace
+
+const QString& PagePanel::pageMimeType() {
+    static const QString kType = QStringLiteral("application/x-pdfe-page");
+    return kType;
+}
+
+QString PagePanel::registerDragSource(pdfe::core::Document* doc) {
+    if (!doc) return QString();
+    auto it = docToToken().find(doc);
+    if (it != docToToken().end()) {
+        return it.value();
+    }
+    const QString token = QStringLiteral("%1-%2")
+                              .arg(nextDragSourceSerial())
+                              .arg(reinterpret_cast<quintptr>(doc), 0, 16);
+    docToToken().insert(doc, token);
+    tokenToDoc().insert(token, doc);
+    return token;
+}
+
+pdfe::core::Document* PagePanel::resolveDragSource(const QString& token) {
+    if (token.isEmpty()) return nullptr;
+    return tokenToDoc().value(token, nullptr);
+}
+
+void PagePanel::unregisterDragSource(pdfe::core::Document* doc) {
+    if (!doc) return;
+    auto it = docToToken().find(doc);
+    if (it == docToToken().end()) return;
+    tokenToDoc().remove(it.value());
+    docToToken().erase(it);
+}
+
+bool PagePanel::parsePageMime(const QByteArray& payload, QString& tokenOut,
+                              int& pageIndexOut) {
+    const QString s = QString::fromUtf8(payload);
+    const int nl = s.indexOf(QChar('\n'));
+    if (nl <= 0) return false;
+    const QString token = s.left(nl);
+    bool ok = false;
+    const int page = s.mid(nl + 1).toInt(&ok);
+    if (token.isEmpty() || !ok || page < 0) return false;
+    tokenOut = token;
+    pageIndexOut = page;
+    return true;
 }
 
 // ─── Pipeline a7c2e541 phase-17 test-automation hooks ────────────────────

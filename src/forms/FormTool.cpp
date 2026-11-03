@@ -195,6 +195,21 @@ void FormTool::onMousePress(QMouseEvent* event, int pageIndex, QPointF pdfPoint)
                     }
                     break;
 
+                case FormFieldType::Signature:
+                    // GitHub #328 — placement set /FT /Sig, but there was no
+                    // arm here, so a click on a signature field fell through
+                    // to `default:` and only selected it: nothing on the
+                    // canvas ever reached the signing flow. Select it (so the
+                    // highlight/properties follow the click), then report the
+                    // activation. MainWindow owns the SignatureManager and the
+                    // document and runs the dialog/save/sign sequence against
+                    // THIS field.
+                    selectField(widgetIdx);
+                    if (signatureFieldActivated) {
+                        signatureFieldActivated(page_->index(), widgetIdx);
+                    }
+                    break;
+
                 default:
                     selectField(widgetIdx);
                     break;

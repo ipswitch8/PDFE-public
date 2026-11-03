@@ -144,6 +144,70 @@ TEST_F(InsertImageActivatesToolTest, TheImageToolIsActiveAfterInserting)
            "and the user disagree about which tool is in use";
 }
 
+// GitHub #329 — the actual reachability gap: after inserting, the image must be
+// SELECTED without a manual click, or no handles paint and the image-toolbar
+// actions stay disabled. Activating the tool (the test above) is necessary but
+// NOT sufficient: ImageTool::setPage re-enumerates with selectedIndex_ == -1.
+// This asserts the selection against the real ImageTool state (not a private
+// field), and that the user-visible consequence — the toolbar actions — follows.
+TEST_F(InsertImageActivatesToolTest, TheInsertedImageIsSelectedWithoutAClick)
+{
+    ChoosingMainWindow mw;
+    mw.openFile(QString::fromStdString(pdf_));
+    settle();
+    ASSERT_NE(mw.documentForTesting(), nullptr) << "fixture failed to open";
+
+    auto* canvas = mw.findChild<pdfe::ui::PdfCanvas*>();
+    ASSERT_NE(canvas, nullptr);
+    ASSERT_EQ(canvas->imageTool(), nullptr)
+        << "precondition: the image tool must NOT already be active";
+
+    auto* removeAction = mw.findChild<QAction*>(QStringLiteral("imageRemoveAction"));
+    auto* resizeAction = mw.findChild<QAction*>(QStringLiteral("imageResizeAction"));
+    ASSERT_NE(removeAction, nullptr);
+    ASSERT_NE(resizeAction, nullptr);
+    ASSERT_FALSE(removeAction->isEnabled())
+        << "precondition: image actions must start disabled";
+
+    auto* insert = mw.findChild<QAction*>(QStringLiteral("insertImageAction"));
+    ASSERT_NE(insert, nullptr);
+
+    pdfe::ui::testseam::enqueueFileDialogPath(QString::fromStdString(image_));
+    insert->trigger();
+    settle();
+
+    ASSERT_EQ(mw.promptCount, 1)
+        << "the options dialog was not consulted, so the insert path did not run";
+
+    auto* tool = canvas->imageTool();
+    ASSERT_NE(tool, nullptr) << "the image tool is not active after inserting";
+
+    // The core #329 assertion: the just-inserted image is selected, with NO
+    // mouse click anywhere. This is what makes the handles paint.
+    EXPECT_TRUE(tool->hasSelection())
+        << "GitHub #329: after inserting, the image tool reports NO selection, "
+           "so no resize/rotate/crop handles are drawn and the image cannot be "
+           "manipulated until the user separately clicks it — the reported gap.";
+
+    const auto& selected = tool->selectedImage();
+    EXPECT_TRUE(selected.isValid())
+        << "the reported selection is not a valid image";
+    // test_single.pdf has no images of its own, so the one selected image is the
+    // one just inserted; its size is the size the 'user' chose in the dialog.
+    EXPECT_NEAR(selected.boundingBox.width(), ChoosingMainWindow::kW, 2.0)
+        << "the selected image is not the one just inserted (width mismatch)";
+    EXPECT_NEAR(selected.boundingBox.height(), ChoosingMainWindow::kH, 2.0)
+        << "the selected image is not the one just inserted (height mismatch)";
+
+    // The user-visible consequence of the selection: the image-toolbar actions
+    // enable off ImageTool::imageSelected, which selectImage() emits.
+    EXPECT_TRUE(removeAction->isEnabled())
+        << "#329: the Remove Image action is still disabled after insert, so "
+           "the selection did not propagate to the toolbar";
+    EXPECT_TRUE(resizeAction->isEnabled())
+        << "#329: the Resize Image action is still disabled after insert";
+}
+
 // Cancelling must not activate anything, or the "activate on success" claim
 // would be "activate always" and the first test could not tell them apart.
 TEST_F(InsertImageActivatesToolTest, CancellingTheDialogInsertsNothingAndChangesNoTool)

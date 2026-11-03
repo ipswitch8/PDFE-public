@@ -273,11 +273,31 @@ void SignatureManager::signField(const pdfe::core::Document* doc, const pdfe::co
         // caller placed (typically zero-area for true invisibility).
         const int appearanceFlags = opts.invisible ? 0 : opts.appearanceFlags;
 
-        pdf_sign_signature(ctx, widget, signer,
-                          appearanceFlags,
-                          nullptr, // no graphic image
-                          opts.reason.empty() ? nullptr : opts.reason.c_str(),
-                          opts.location.empty() ? nullptr : opts.location.c_str());
+        // GitHub #327 — image-of-signature graphic for the VISIBLE
+        // appearance. Loaded only for a visible signature (an invisible
+        // one writes no appearance stream at all). MuPDF rasterises the
+        // image INTO the appearance stream during pdf_sign_signature, so
+        // we own the fz_image and must drop it ourselves afterwards — it
+        // is NOT consumed the way the signer is by the later save. Wrap
+        // the sign call so the image is dropped on the error path too
+        // (fz_always), then re-raise into execute()'s fz_catch.
+        fz_image* graphic = nullptr;
+        if (!opts.invisible && !opts.imagePath.empty()) {
+            graphic = fz_new_image_from_file(ctx, opts.imagePath.c_str());
+        }
+        fz_try(ctx) {
+            pdf_sign_signature(ctx, widget, signer,
+                              appearanceFlags,
+                              graphic,
+                              opts.reason.empty() ? nullptr : opts.reason.c_str(),
+                              opts.location.empty() ? nullptr : opts.location.c_str());
+        }
+        fz_always(ctx) {
+            if (graphic) fz_drop_image(ctx, graphic);
+        }
+        fz_catch(ctx) {
+            fz_rethrow(ctx);
+        }
 
         // Certification signature: stamp /Perms /DocMDP on /Root so
         // readers enforce the certification level. The DocMDP dict is
@@ -588,35 +608,53 @@ QImage SignatureManager::previewSignatureAppearance(int w, int h, const SigningO
 
     impl_->context->execute([&](fz_context* ctx) {
         pdf_pkcs7_signer* signer = nullptr;
-        if (!opts.pfxPath.empty()) {
-            signer = impl_->bridge->readPfx(ctx, opts.pfxPath.c_str(), opts.pfxPassword.c_str());
-        }
+        fz_image* graphic = nullptr;
+        fz_pixmap* pix = nullptr;
 
-        fz_pixmap* pix = pdf_preview_signature_as_pixmap(ctx, w, h,
-            FZ_LANG_UNSET, signer, opts.appearanceFlags, nullptr,
-            opts.reason.empty() ? nullptr : opts.reason.c_str(),
-            opts.location.empty() ? nullptr : opts.location.c_str());
-
-        if (pix) {
-            int pw = fz_pixmap_width(ctx, pix);
-            int ph = fz_pixmap_height(ctx, pix);
-            int stride = fz_pixmap_stride(ctx, pix);
-            int n = fz_pixmap_components(ctx, pix);
-            unsigned char* samples = fz_pixmap_samples(ctx, pix);
-
-            QImage::Format fmt = QImage::Format_Invalid;
-            if (n == 4) fmt = QImage::Format_RGBA8888;
-            else if (n == 3) fmt = QImage::Format_RGB888;
-            else if (n == 2) fmt = QImage::Format_Grayscale8; // gray+alpha, approximate
-            else if (n == 1) fmt = QImage::Format_Grayscale8;
-
-            if (fmt != QImage::Format_Invalid && pw > 0 && ph > 0) {
-                result = QImage(samples, pw, ph, stride, fmt).copy();
+        // GitHub #327 — the preview must reflect the image-of-signature
+        // graphic so the dialog shows the user what will actually be
+        // embedded. Mirror the graphic argument of signField(): load the
+        // image (when supplied) and pass it to the same pixmap builder,
+        // then drop everything we own on both the success and error paths.
+        fz_try(ctx) {
+            if (!opts.pfxPath.empty()) {
+                signer = impl_->bridge->readPfx(ctx, opts.pfxPath.c_str(), opts.pfxPassword.c_str());
             }
-            fz_drop_pixmap(ctx, pix);
-        }
+            if (!opts.imagePath.empty()) {
+                graphic = fz_new_image_from_file(ctx, opts.imagePath.c_str());
+            }
 
-        if (signer) pdf_drop_signer(ctx, signer);
+            pix = pdf_preview_signature_as_pixmap(ctx, w, h,
+                FZ_LANG_UNSET, signer, opts.appearanceFlags, graphic,
+                opts.reason.empty() ? nullptr : opts.reason.c_str(),
+                opts.location.empty() ? nullptr : opts.location.c_str());
+
+            if (pix) {
+                int pw = fz_pixmap_width(ctx, pix);
+                int ph = fz_pixmap_height(ctx, pix);
+                int stride = fz_pixmap_stride(ctx, pix);
+                int n = fz_pixmap_components(ctx, pix);
+                unsigned char* samples = fz_pixmap_samples(ctx, pix);
+
+                QImage::Format fmt = QImage::Format_Invalid;
+                if (n == 4) fmt = QImage::Format_RGBA8888;
+                else if (n == 3) fmt = QImage::Format_RGB888;
+                else if (n == 2) fmt = QImage::Format_Grayscale8; // gray+alpha, approximate
+                else if (n == 1) fmt = QImage::Format_Grayscale8;
+
+                if (fmt != QImage::Format_Invalid && pw > 0 && ph > 0) {
+                    result = QImage(samples, pw, ph, stride, fmt).copy();
+                }
+            }
+        }
+        fz_always(ctx) {
+            if (pix) fz_drop_pixmap(ctx, pix);
+            if (graphic) fz_drop_image(ctx, graphic);
+            if (signer) pdf_drop_signer(ctx, signer);
+        }
+        fz_catch(ctx) {
+            fz_rethrow(ctx);
+        }
     });
 
     return result;

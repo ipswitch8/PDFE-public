@@ -812,6 +812,159 @@ TEST_F(PageCommandTest, MovePageCommand_Redo) {
 }
 
 // ============================================================================
+// GitHub #326 — a real within-file reorder must change the DOCUMENT order and
+// mark it dirty, not merely move a thumbnail icon.
+//
+// The UI defect was that the drag gesture never reached MovePageCommand. These
+// cases pin the command path the fixed gesture now routes through: that the
+// command actually reorders the Document (asserted against pageInfo(), NOT via
+// the movePageProgrammatic bypass) AND flips isModified(), which is what makes
+// "save+reopen preserves the new order" and the dirty-state prompt true. A
+// reorder that left isModified() false would silently lose the edit on close.
+// ============================================================================
+
+TEST_F(PageCommandTest, MovePageCommand_ReorderChangesDocumentOrderAndMarksDirty) {
+    if (!document) {
+        GTEST_SKIP() << "Test PDF not available";
+    }
+
+    ASSERT_GE(document->pageCount(), 3);
+
+    stampPageIdentities();
+    const std::vector<int> before = pageIdentities();
+    requireDistinctIdentities(before);
+
+    auto cmd = std::make_unique<pdfe::commands::MovePageCommand>(
+        document.get(), 0, 2);
+    undoManager->execute(std::move(cmd));
+
+    // 1) The Document's page order actually changed — not just an icon.
+    const std::vector<int> after = pageIdentities();
+    ASSERT_NE(after, before)
+        << "the move did not change the Document page order (the #326 defect: "
+           "only the thumbnail icon moved)";
+    // (0 -> 2) lands at display index 1; see buildMovePermutation.
+    EXPECT_EQ(after, (std::vector<int>{before[1], before[0], before[2]}))
+        << "moving page 0 to index 2 must yield order 1,0,2 in the Document";
+
+    // 2) The document is dirty, so close/save sees unsaved work.
+    EXPECT_TRUE(document->isModified())
+        << "a persisted reorder must mark the document modified";
+
+    // 3) An undo entry exists and reverts the Document order.
+    ASSERT_TRUE(undoManager->canUndo());
+    undoManager->undo();
+    EXPECT_EQ(pageIdentities(), before)
+        << "undo did not restore the original Document page order";
+}
+
+// ============================================================================
+// GitHub #325 — InsertPageFromDocumentCommand copies a page from one open
+// document into another, at the requested index, undoably.
+// ============================================================================
+
+TEST_F(PageCommandTest, InsertPageFromDocument_CopiesSourcePageAtIndex) {
+    if (!document) {
+        GTEST_SKIP() << "Test PDF not available";
+    }
+    ASSERT_GE(document->pageCount(), 3);
+
+    // A SECOND, independent document is the drag source. Give its page 0 a
+    // rotation none of the target pages carry, so the grafted page is
+    // identifiable by that rotation after the copy.
+    auto source = pdfe::core::Document::open(context, testPdf);
+    ASSERT_TRUE(source) << "could not open the source document";
+    ASSERT_GE(source->pageCount(), 1);
+    source->rotatePage(0, 90);
+    const int sourceRot = source->currentRotation(0);
+    ASSERT_EQ(sourceRot, 90);
+
+    // Target pages all start at rotation 0 (distinct from 90).
+    const int targetCount = document->pageCount();
+    for (int i = 0; i < targetCount; ++i) {
+        ASSERT_EQ(document->currentRotation(i), 0)
+            << "fixture assumption broken: target page " << i
+            << " is not at rotation 0";
+    }
+
+    // Copy source page 0 into the TARGET at index 1.
+    const int atIndex = 1;
+    auto cmd = std::make_unique<pdfe::commands::InsertPageFromDocumentCommand>(
+        document.get(), atIndex, source.get(), 0);
+    undoManager->execute(std::move(cmd));
+
+    // Page count grew by one; the copied page landed at index 1 carrying the
+    // source's distinctive rotation.
+    EXPECT_EQ(document->pageCount(), targetCount + 1)
+        << "the source page was not inserted";
+    EXPECT_EQ(document->currentRotation(atIndex), sourceRot)
+        << "the page at the insert index is not the copied source page";
+
+    // The source is unchanged — this is a copy, not a move.
+    EXPECT_EQ(source->pageCount(), 3);
+    EXPECT_EQ(source->currentRotation(0), sourceRot);
+}
+
+TEST_F(PageCommandTest, InsertPageFromDocument_UndoRemovesCopiedPage) {
+    if (!document) {
+        GTEST_SKIP() << "Test PDF not available";
+    }
+    ASSERT_GE(document->pageCount(), 3);
+
+    auto source = pdfe::core::Document::open(context, testPdf);
+    ASSERT_TRUE(source);
+    source->rotatePage(0, 90);
+
+    const int targetCount = document->pageCount();
+    auto cmd = std::make_unique<pdfe::commands::InsertPageFromDocumentCommand>(
+        document.get(), 1, source.get(), 0);
+    undoManager->execute(std::move(cmd));
+    ASSERT_EQ(document->pageCount(), targetCount + 1);
+
+    // The copy must actually have happened before undo can prove anything.
+    ASSERT_EQ(document->currentRotation(1), 90)
+        << "the copy was a no-op, so undoing it proves nothing";
+
+    ASSERT_TRUE(undoManager->canUndo());
+    undoManager->undo();
+    EXPECT_EQ(document->pageCount(), targetCount)
+        << "undo did not remove the copied page";
+    // The original page that was at index 1 is back at index 1 (rotation 0).
+    EXPECT_EQ(document->currentRotation(1), 0)
+        << "undo removed the wrong page / left the document shifted";
+}
+
+TEST_F(PageCommandTest, InsertPageFromDocument_RedoReinsertsWithoutSource) {
+    if (!document) {
+        GTEST_SKIP() << "Test PDF not available";
+    }
+    ASSERT_GE(document->pageCount(), 3);
+
+    const int targetCount = document->pageCount();
+    {
+        // The source lives ONLY inside this scope — gone before redo runs, to
+        // prove redo does not re-consult it (the source window may have closed).
+        auto source = pdfe::core::Document::open(context, testPdf);
+        ASSERT_TRUE(source);
+        source->rotatePage(0, 90);
+        auto cmd = std::make_unique<pdfe::commands::InsertPageFromDocumentCommand>(
+            document.get(), 1, source.get(), 0);
+        undoManager->execute(std::move(cmd));
+    }
+    ASSERT_EQ(document->pageCount(), targetCount + 1);
+
+    undoManager->undo();
+    ASSERT_EQ(document->pageCount(), targetCount);
+
+    ASSERT_TRUE(undoManager->canRedo());
+    undoManager->redo();
+    EXPECT_EQ(document->pageCount(), targetCount + 1)
+        << "redo did not re-insert the copied page";
+    EXPECT_EQ(document->currentRotation(1), 90)
+        << "redo re-inserted a different page than execute did";
+}
+
+// ============================================================================
 // ImportPagesCommand (F2)
 // ============================================================================
 

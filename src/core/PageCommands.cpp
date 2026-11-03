@@ -312,6 +312,72 @@ std::string ImportPagesCommand::description() const
 }
 
 // ============================================================================
+// InsertPageFromDocumentCommand (GitHub #325 — cross-document page drag)
+// ============================================================================
+
+InsertPageFromDocumentCommand::InsertPageFromDocumentCommand(
+    pdfe::core::Document* target,
+    int atIndex,
+    pdfe::core::Document* source,
+    int sourcePageIndex
+)
+    : target_(target)
+    , atIndex_(atIndex)
+    , source_(source)
+    , sourcePageIndex_(sourcePageIndex)
+{
+}
+
+InsertPageFromDocumentCommand::~InsertPageFromDocumentCommand()
+{
+    // Document-independent release — the owning Document may already be gone at
+    // teardown (defect B2); see DeletePageCommand::~DeletePageCommand.
+    if (retainedPageObj_) {
+        pdfe::core::Document::releaseRetainedPage(retainedPageObj_);
+    }
+}
+
+void InsertPageFromDocumentCommand::execute()
+{
+    // The source is only reachable NOW (at the drop). Copy the page in; from
+    // here on undo/redo operate purely on target_ via a retained copy, so the
+    // source window is free to close.
+    if (!target_ || !source_) return;
+    target_->graftPage(atIndex_, *source_, sourcePageIndex_);
+    executed_ = true;
+}
+
+void InsertPageFromDocumentCommand::undo()
+{
+    if (!executed_ || !target_) return;
+    // Retain the grafted page before removing it so redo can restore the exact
+    // same object without re-consulting the (possibly gone) source.
+    retainedPageObj_ = target_->retainPageObj(atIndex_);
+    target_->deletePage(atIndex_);
+}
+
+void InsertPageFromDocumentCommand::redo()
+{
+    if (!target_) return;
+    if (retainedPageObj_) {
+        // insertPageObj grafts an independent COPY, so the holder is done once
+        // inserted — release it (a later undo re-retains a fresh one).
+        target_->insertPageObj(atIndex_, retainedPageObj_);
+        target_->releasePageObj(retainedPageObj_);
+        retainedPageObj_ = nullptr;
+    } else {
+        // First redo after construction (no prior undo): fall back to the
+        // source-backed graft.
+        execute();
+    }
+}
+
+std::string InsertPageFromDocumentCommand::description() const
+{
+    return "Insert Page from Document at " + std::to_string(atIndex_ + 1);
+}
+
+// ============================================================================
 // DeletePageRangeCommand
 // ============================================================================
 
