@@ -910,6 +910,15 @@ add_executable(pdfe_tests
     test_network_path_policy.cpp
     test_network_settings_wiring.cpp
     test_save_as_network_policy.cpp
+    # Pipeline ui-report-netopen phase-3 (fix #3): the network-open REFUSAL
+    # offers a one-click "Allow this" that flips allowUserNetworkPaths and
+    # re-attempts the open, instead of the shared Ok-only dead-end box.
+    test_network_open_allow_this.cpp
+    # Pipeline ui-report-netopen phase-2: the report-issue surface targets the
+    # PUBLIC GitHub mirror (not the private dev repo) and offers an email
+    # channel to pdfe@itwerx.net. Headless value assertions via MainWindow's
+    # static accessors, which the UI reads too.
+    test_report_issue_targets.cpp
     test_calculation_order.cpp
     test_navigation_history.cpp
     test_image_to_pdf_wizard.cpp

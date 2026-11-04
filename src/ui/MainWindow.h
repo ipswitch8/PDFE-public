@@ -339,6 +339,27 @@ public:
     /// Reset both /URI counters. Tests call this in SetUp().
     static void resetUriCountersForTesting();
 
+    // ------------------------------------------------------------------
+    // Pipeline ui-report-netopen phase-2 (report-issue surface).
+    //
+    // Both values the "Report an issue" surface uses are exposed here as
+    // static accessors so a headless GoogleTest can assert them WITHOUT
+    // constructing a MainWindow or opening the chooser dialog. The UI code
+    // (onReportIssue) and the test both read these — the strings live in one
+    // place, not buried in a dialog lambda a test can't reach.
+    //
+    //   reportIssueUrl()    -> the PUBLIC GitHub mirror's issues/new URL.
+    //       The private dev repo (ipswitch8/PDFE) is unreachable by external
+    //       users; the report link must target ipswitch8/PDFE-public.
+    //   reportIssueEmail()  -> the product's public support address,
+    //       pdfe@itwerx.net (Itwerx Corp brand address; user-facing, not a
+    //       secret).
+    //   reportIssueMailto() -> the mailto: URL the Email button opens,
+    //       prefilled with a subject.
+    static QString reportIssueUrl();
+    static QString reportIssueEmail();
+    static QString reportIssueMailto();
+
     /// Test-visible accessor that queues an alignment directly for the
     /// given page + bounding rect. Real UI code queues via
     /// queueAlignmentForActiveSpan which derives these from the active
@@ -759,6 +780,15 @@ public:
     /// containing a duplicate cannot produce two editors on one document.
     void setDropRoutingDelegated(bool delegated) { dropRoutingDelegated_ = delegated; }
     bool dropRoutingDelegated() const { return dropRoutingDelegated_; }
+
+    /// GitHub #240 test seam: shorten the network-reachability probe budget so
+    /// a test driving a deliberately unreachable UNC does not wait the full
+    /// production budget (3 s). Zero (the default) means production. Used by
+    /// the network-open "Allow this" tests, which re-attempt an open against an
+    /// unreachable host after flipping the setting and must not block on it.
+    void setNetworkProbeTimeoutMsForTesting(int ms) {
+        networkProbeTimeoutMsForTesting_ = ms;
+    }
 
 signals:
     /// GitHub #241 — this window was asked to open a file it should not open

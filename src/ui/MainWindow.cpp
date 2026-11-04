@@ -7094,13 +7094,68 @@ void MainWindow::openFile(const QString& filePath)
             return;
         }
         if (decision == NetworkOpenDecision::Refused) {
-            reportOpenFailure(
-                tr("Cannot Open Document"),
-                tr("“%1” is on a network (UNC) path.").arg(displayName),
-                tr("PDFE is configured to open local files only, so this UNC / "
-                   "network location was not opened:\n%1")
-                    .arg(QDir::toNativeSeparators(fileName)),
-                tr("Refused UNC / network path: %1").arg(fileName));
+            // GitHub #240 (pipeline ui-report-netopen, fix #3). The shared
+            // reportOpenFailure box is QMessageBox::Ok-only — a dead end that
+            // tells the user network opens are turned off but offers no way to
+            // proceed except to hunt through Preferences, toggle a checkbox,
+            // and retry the open by hand. openFile() is BY DEFINITION the
+            // user's own request (File > Open, an Explorer drop, a recent-files
+            // entry, the command line), so this leg offers to flip the very
+            // setting that refused it and then open the file in one step.
+            //
+            // This does NOT weaken the document-requested refusal: that leg is
+            // Document::open(OpenOrigin::DocumentRequested), which is unchanged
+            // and still refuses. Only the Preferences-driven USER-open policy
+            // (AppSettings::allowUserNetworkPaths, default TRUE) is in play
+            // here, and "Allow this" sets it exactly as the Preferences
+            // checkbox would.
+            const QString title = tr("Cannot Open Document");
+            QMessageBox box(
+                QMessageBox::Question, title,
+                tr("“%1” is on a network (UNC) location.").arg(displayName),
+                QMessageBox::Cancel, this);
+            box.setObjectName("networkOpenBlockedDialog");
+            box.setAccessibleName(title);
+            box.setInformativeText(
+                tr("PDFE is currently set to open local files only, so this "
+                   "network location was not opened:\n%1\n\nWhether files on "
+                   "network locations may be opened is controlled by the "
+                   "“Allow opening files from network locations” setting in "
+                   "Preferences. You can allow it now and open this file.")
+                    .arg(QDir::toNativeSeparators(fileName)));
+            // A real button, not a role on the Ok-only box: clicking it must
+            // persist the setting and open the file, so it needs its own leg.
+            QPushButton* allowButton =
+                box.addButton(tr("Allow this"), QMessageBox::AcceptRole);
+            allowButton->setObjectName("networkOpenAllowButton");
+            allowButton->setAccessibleName(
+                tr("Allow opening files from network locations and open this "
+                   "file"));
+            // Cancel is the safe default (Enter / Escape leaves the setting
+            // untouched and opens nothing).
+            box.setDefaultButton(QMessageBox::Cancel);
+            // The app-modal exec() below is invisible to UIA on this platform
+            // (see tests/helpers/modal_dialog.py); registerDialogIntrospection
+            // is the seam an unattended test uses to see the dialog and drive
+            // the Allow button. Inert unless PDFE_TEST_PIPES is set.
+            pdfe::ui::testseam::registerDialogIntrospection(&box);
+            box.exec();
+
+            if (box.clickedButton() == allowButton && appSettings_) {
+                // Persist exactly as the Preferences checkbox would, then
+                // re-run the open. decideNetworkOpen() will no longer return
+                // Refused: a reachable share opens, and an unreachable one
+                // shows the existing "did not respond" message — which is
+                // correct, and is the Unreachable branch above, unchanged.
+                appSettings_->setAllowUserNetworkPaths(true);
+                appSettings_->sync();
+                openFile(fileName);
+                return;
+            }
+
+            // Cancel: setting unchanged, nothing opened.
+            statusBar()->showMessage(
+                tr("Refused UNC / network path: %1").arg(fileName), 5000);
             return;
         }
         // Reachable — fall through and open it like any other file.
@@ -9684,10 +9739,81 @@ void MainWindow::onDocumentation()
         QUrl("https://github.com/ipswitch8/PDFE#documentation"));
 }
 
+// Pipeline ui-report-netopen phase-2. Single source of truth for the three
+// values the report-issue surface uses. Headless GoogleTest reads these; the
+// chooser dialog below reads the same accessors, so the strings cannot drift
+// between the test and the shipped UI.
+QString MainWindow::reportIssueUrl()
+{
+    // PUBLIC mirror. The dev repo (ipswitch8/PDFE) is private and unreachable
+    // by external users — the report link must point at the public mirror.
+    return QStringLiteral("https://github.com/ipswitch8/PDFE-public/issues/new");
+}
+
+QString MainWindow::reportIssueEmail()
+{
+    // Itwerx Corp's public product address — user-facing brand, not a secret.
+    return QStringLiteral("pdfe@itwerx.net");
+}
+
+QString MainWindow::reportIssueMailto()
+{
+    return QStringLiteral("mailto:") + reportIssueEmail()
+           + QStringLiteral("?subject=PDFE%20issue%20report");
+}
+
 void MainWindow::onReportIssue()
 {
-    QDesktopServices::openUrl(
-        QUrl("https://github.com/ipswitch8/PDFE/issues/new"));
+    // Offer the user a choice of reporting channel rather than opening one
+    // directly. App-modal QDialog with a stable objectName + two action
+    // buttons (GitHub / Email) plus Cancel. registerDialogIntrospection makes
+    // it inspectable by the UI harness (UIA cannot enumerate a Qt modal).
+    QDialog dialog(this);
+    dialog.setObjectName(QStringLiteral("reportIssueChooserDialog"));
+    dialog.setWindowTitle(tr("Report an Issue"));
+    dialog.setModal(true);
+
+    auto* layout = new QVBoxLayout(&dialog);
+
+    auto* prompt = new QLabel(tr("How would you like to report an issue?"),
+                              &dialog);
+    prompt->setObjectName(QStringLiteral("reportIssuePromptLabel"));
+    prompt->setWordWrap(true);
+    layout->addWidget(prompt);
+
+    auto* buttons = new QHBoxLayout();
+
+    auto* githubButton = new QPushButton(tr("Report on &GitHub"), &dialog);
+    githubButton->setObjectName(QStringLiteral("reportIssueGithubButton"));
+    githubButton->setAccessibleName(tr("Report an issue on GitHub"));
+    githubButton->setDefault(true);
+    buttons->addWidget(githubButton);
+
+    auto* emailButton = new QPushButton(tr("Report by &Email"), &dialog);
+    emailButton->setObjectName(QStringLiteral("reportIssueEmailButton"));
+    emailButton->setAccessibleName(tr("Report an issue by email"));
+    buttons->addWidget(emailButton);
+
+    auto* cancelButton = new QPushButton(tr("Cancel"), &dialog);
+    cancelButton->setObjectName(QStringLiteral("reportIssueCancelButton"));
+    cancelButton->setAccessibleName(tr("Cancel"));
+    buttons->addWidget(cancelButton);
+
+    layout->addLayout(buttons);
+
+    // Each action opens its target, then accepts so exec() returns.
+    connect(githubButton, &QPushButton::clicked, &dialog, [&dialog]() {
+        QDesktopServices::openUrl(QUrl(MainWindow::reportIssueUrl()));
+        dialog.accept();
+    });
+    connect(emailButton, &QPushButton::clicked, &dialog, [&dialog]() {
+        QDesktopServices::openUrl(QUrl(MainWindow::reportIssueMailto()));
+        dialog.accept();
+    });
+    connect(cancelButton, &QPushButton::clicked, &dialog, &QDialog::reject);
+
+    pdfe::ui::testseam::registerDialogIntrospection(&dialog);
+    dialog.exec();
 }
 
 void MainWindow::maybeCheckForUpdateOnStartup()
