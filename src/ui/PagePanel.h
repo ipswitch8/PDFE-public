@@ -4,6 +4,7 @@
 #include <QImage>
 #include <QList>
 #include <QString>
+#include <QPoint>
 
 #include <utility>
 
@@ -77,6 +78,36 @@ public:
     /// the drag intent vs the completed move).
     /// Returns true if from/to are in range and from != to.
     Q_INVOKABLE bool dragItemProgrammatic(int fromIndex, int toIndex);
+
+    /// GitHub #333 test seam: run the REAL within-document drop-reorder dispatch
+    /// that the thumbnail list's dropEvent invokes for a same-panel drag.
+    /// @p fromRow is the dragged source row; @p insertBeforeIndex is the
+    /// drop-indicator insert position (0..pageCount, where pageCount appends).
+    /// Applies the same insert-before index math and no-op guard as a real
+    /// internal drop and emits pageMoved(from,to) via onPageDropped. Returns the
+    /// `to` emitted, or -1 when the drop does not change the order. This is the
+    /// identical code path a real gesture's QDropEvent runs, not a mock — the
+    /// only thing it bypasses is the un-synthesizable QDrag loop and viewport
+    /// hit-testing (see @ref internalDropInsertIndexAt for that half).
+    Q_INVOKABLE int simulateInternalDrop(int fromRow, int insertBeforeIndex);
+
+    /// GitHub #333 test seam: the geometry mapping the thumbnail list uses to
+    /// turn a drop position (in viewport coordinates) into an insert-before
+    /// index. Exposed so a test with real layout geometry can assert the
+    /// before/after-midpoint decision. Returns -1 if the list is unavailable.
+    Q_INVOKABLE int internalDropInsertIndexAt(const QPoint& viewportPos) const;
+
+    /// GitHub #333 test seam: drive the REAL thumbnail-list dragEnter/drop
+    /// overrides for a same-document drag of @p fromRow dropped at
+    /// @p viewportPos, using the actual #325 drag payload this panel produces.
+    /// Qt does not route a manually-sent QDropEvent to a view's protected
+    /// handlers, so a test cannot deliver one through the event loop; this
+    /// invokes those handlers directly with a synthetic event (the exact objects
+    /// Qt hands them in production). Returns true iff the drag is recognised as
+    /// internal and CONSUMED by both handlers (so it would not bubble to
+    /// MainWindow's same-document no-op); pageMoved(from,to) fires as a side
+    /// effect for an order-changing drop.
+    Q_INVOKABLE bool deliverSyntheticInternalDrag(int fromRow, const QPoint& viewportPos);
 
     /// R3-15 drag-out: build the QMimeData payload a page drag produces — the
     /// page thumbnail as image data (QMimeData::setImageData, surfaced as

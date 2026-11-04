@@ -948,6 +948,22 @@ void TextEditTool::setPage(int pageIndex)
     rebuildModel();
 }
 
+void TextEditTool::reloadPage()
+{
+    // Unlike setPage(), there is no unchanged-index early return: this is the
+    // seam a page-geometry change (GitHub #334 — page /Rotate) uses to force a
+    // re-extraction of the live-text model on the SAME page index, whose span
+    // geometry is now stale. Commit any in-flight edit first (as setPage does),
+    // then rebuild. No page loaded → nothing to rebuild.
+    if (currentPageIndex_ < 0 || !document_)
+        return;
+
+    if (isEditing()) {
+        commitEdit();
+    }
+    rebuildModel();
+}
+
 void TextEditTool::rebuildModel()
 {
     model_.reset();

@@ -296,6 +296,14 @@ void OcrPipeline::invalidateAllCaches()
     pImpl_->charBoxHocrCache_.clear();
 }
 
+void OcrPipeline::primeHocrCacheForTesting(int pageIndex)
+{
+    std::lock_guard<std::mutex> lock(pImpl_->mutex_);
+    // Mirror the real cache write (hocrCache_[pageIndex][lang] = hocr) with a
+    // non-empty sentinel so isCached(pageIndex) reports true.
+    pImpl_->hocrCache_[pageIndex]["eng"] = "<div class='ocr_page'></div>";
+}
+
 const OcrConfig& OcrPipeline::config() const
 {
     return config_;

@@ -120,6 +120,13 @@ public:
     /// Invalidate all cached OCR results.
     void invalidateAllCaches();
 
+    /// Test seam (GitHub #334): populate the word-level HOCR cache for a page
+    /// with a non-empty sentinel, WITHOUT running Tesseract (no tessdata
+    /// needed). Lets a regression test assert that a page rotation clears this
+    /// page-index-keyed cache via MainWindow::onDocumentStructureChanged(),
+    /// i.e. that isCached(pageIndex) flips true → false across the rotate.
+    void primeHocrCacheForTesting(int pageIndex);
+
     /// Get the current OCR configuration.
     [[nodiscard]] const OcrConfig& config() const;
 

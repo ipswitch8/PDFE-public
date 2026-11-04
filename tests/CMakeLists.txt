@@ -569,6 +569,7 @@ add_executable(pdfe_tests
     test_hocr_parser.cpp
     test_tre_coord_mapper.cpp
     test_coord_mapper_rotation.cpp
+    test_rotation_text_cache.cpp
     test_ocr_pipeline.cpp
     test_ocr_language_routing.cpp
     test_bg_color_detector.cpp
@@ -610,6 +611,7 @@ add_executable(pdfe_tests
     test_sign_dialog_geometry.cpp
     test_pdf_canvas_q_invokable.cpp
     test_page_panel_q_invokable.cpp
+    test_page_panel_internal_reorder.cpp
     test_page_panel_range_selection.cpp
     test_main_window_q_invokable.cpp
     test_uncovered_dialogs.cpp

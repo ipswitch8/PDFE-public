@@ -8,11 +8,16 @@
 #include <QIcon>
 #include <QPixmap>
 #include <QPainter>
+#include <QPen>
 #include <QSignalBlocker>
 #include <QMenu>
 #include <QAction>
 #include <QItemSelectionModel>
 #include <QDropEvent>
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDragLeaveEvent>
+#include <QPaintEvent>
 #include <QMimeData>
 #include <QScrollBar>
 #include <QResizeEvent>
@@ -83,14 +88,150 @@ public:
     // tag the drag with the source-document identity.
     std::function<QString()> dragSourceId;
 
-protected:
-    void dropEvent(QDropEvent* event) override {
-        int fromRow = currentRow();
-        QListWidget::dropEvent(event);
-        int toRow = currentRow();
-        if (fromRow >= 0 && toRow >= 0 && fromRow != toRow && onPageDropped) {
-            onPageDropped(fromRow, toRow);
+    // ─── GitHub #333: within-document thumbnail reorder ──────────────────────
+    //
+    // Compute the insert-BEFORE index (0..count) for a drop at viewport
+    // position @p pos. This is the position the dragged page should land in
+    // front of; `count` means "append after the last page". IconMode flows
+    // items left-to-right in a wrapping grid, so the horizontal midpoint of the
+    // hovered cell decides whether the drop lands before or after it.
+    int dropInsertIndex(const QPointF& pos) const {
+        const int n = count();
+        if (n == 0) return 0;
+        const QPoint p = pos.toPoint();
+        const QModelIndex idx = indexAt(p);
+        if (!idx.isValid()) {
+            return n;  // dropped in empty space past the items -> append
         }
+        const int row = idx.row();
+        const QRect r = visualRect(idx);
+        if (r.isNull()) return n;
+        return (p.x() < r.center().x()) ? row : row + 1;
+    }
+
+    // Perform the within-document reorder a same-panel drop requests: the page
+    // dragged from row @p fromRow is dropped at insert-before index
+    // @p insertIndex. Returns the `to` handed to onPageDropped, or -1 when the
+    // drop does not change the order (so no empty "Move Page" undo is pushed).
+    //
+    // `to` uses MovePageCommand's insert-before convention directly:
+    // buildMovePermutation() (src/core/PageCommands.cpp) removes `from` then
+    // re-inserts it at (from < to ? to-1 : to), so passing the raw insert-before
+    // index gives the visually-expected landing spot. A drop back into the
+    // page's own slot is insert-before `fromRow` or `fromRow+1`; both are
+    // no-ops and are skipped here.
+    int performInternalReorder(int fromRow, int insertIndex) {
+        const int n = count();
+        if (fromRow < 0 || fromRow >= n) return -1;
+        if (insertIndex < 0) insertIndex = 0;
+        if (insertIndex > n) insertIndex = n;
+        const int to = insertIndex;
+        if (to == fromRow || to == fromRow + 1) return -1;
+        if (onPageDropped) onPageDropped(fromRow, to);
+        return to;
+    }
+
+    // GitHub #333 test seam (invoked via PagePanel::deliverSyntheticInternalDrag):
+    // run the REAL dragEnter + drop overrides with a synthetic event carrying
+    // @p mime at @p pos. Qt does not route a manually-sent drag event to a
+    // view's protected handlers, so a test cannot deliver one through the event
+    // loop; this calls those handlers directly — the same methods, with the same
+    // event objects, Qt invokes for a live drag. Returns true iff BOTH handlers
+    // accepted (recognised the drag as internal and consumed it, so it would not
+    // bubble to MainWindow's same-document no-op).
+    bool deliverSyntheticInternalDrag(QMimeData* mime, const QPointF& pos) {
+        QDragEnterEvent enter(pos.toPoint(), Qt::MoveAction, mime,
+                              Qt::LeftButton, Qt::NoModifier);
+        dragEnterEvent(&enter);
+        QDropEvent drop(pos, Qt::MoveAction, mime,
+                        Qt::LeftButton, Qt::NoModifier, QEvent::Drop);
+        dropEvent(&drop);
+        return enter.isAccepted() && drop.isAccepted();
+    }
+
+protected:
+    // GitHub #333: distinguish a SAME-document (internal) reorder drag from an
+    // external one (a cross-document drag out of ANOTHER PDFE window — #325 — or
+    // a file-URL drop from the shell). We key off the drag's own MIME rather
+    // than QDropEvent::source(): source() is only populated by a live QDrag loop
+    // (it cannot be set on a synthetic test event, and we want this decision
+    // headlessly testable), whereas the #325 payload already carries the
+    // originating document's stable token. A drag started in THIS panel carries
+    // THIS document's token (== dragSourceId()); a cross-window drag carries a
+    // different document's token; a file drop carries no such payload. So
+    // "token == our own token" is exactly a same-document drag, and the dragged
+    // row travels in the same payload. On a match the handlers accept the event
+    // (stopping it bubbling to MainWindow::dropEvent, whose same-document branch
+    // deliberately no-ops it); otherwise they defer to the base class so the
+    // event propagates to MainWindow and the #325 cross-document path runs.
+    bool isInternalDrag(const QDropEvent* event, int* fromRowOut = nullptr) const {
+        if (!event || !event->mimeData()) return false;
+        const QByteArray payload =
+            event->mimeData()->data(PagePanel::pageMimeType());
+        if (payload.isEmpty()) return false;
+        QString token;
+        int row = -1;
+        if (!PagePanel::parsePageMime(payload, token, row)) return false;
+        const QString own = dragSourceId ? dragSourceId() : QString();
+        if (own.isEmpty() || token != own) return false;
+        if (fromRowOut) *fromRowOut = row;
+        return true;
+    }
+
+    void dragEnterEvent(QDragEnterEvent* event) override {
+        if (isInternalDrag(event)) {
+            event->setDropAction(Qt::MoveAction);
+            event->accept();
+            setDropIndicator(dropInsertIndex(event->position()));
+            return;
+        }
+        // External drag (cross-document #325 or a file-URL drop): let the base
+        // handler ignore it so it bubbles to MainWindow.
+        QListWidget::dragEnterEvent(event);
+    }
+
+    void dragMoveEvent(QDragMoveEvent* event) override {
+        if (isInternalDrag(event)) {
+            event->setDropAction(Qt::MoveAction);
+            event->accept();
+            setDropIndicator(dropInsertIndex(event->position()));
+            return;
+        }
+        QListWidget::dragMoveEvent(event);
+    }
+
+    void dragLeaveEvent(QDragLeaveEvent* event) override {
+        setDropIndicator(-1);
+        QListWidget::dragLeaveEvent(event);
+    }
+
+    void dropEvent(QDropEvent* event) override {
+        int fromRow = -1;
+        if (isInternalDrag(event, &fromRow)) {
+            performInternalReorder(fromRow, dropInsertIndex(event->position()));
+            setDropIndicator(-1);
+            event->setDropAction(Qt::MoveAction);
+            event->accept();  // consume: must NOT bubble to the same-doc no-op
+            return;
+        }
+        // External drop: defer to the base handler (unaccepted in InternalMove
+        // mode for a foreign source) so MainWindow::dropEvent gets it (#325).
+        QListWidget::dropEvent(event);
+    }
+
+    // GitHub #333: paint the drop-position indicator. QAbstractItemView routes
+    // the viewport's paint through this override, so drawing with a painter on
+    // viewport() lands on top of the thumbnails.
+    void paintEvent(QPaintEvent* event) override {
+        QListWidget::paintEvent(event);
+        const QRect bar = dropIndicatorRect();
+        if (bar.isNull()) return;
+        QPainter p(viewport());
+        QPen pen(palette().highlight().color());
+        pen.setWidth(2);
+        p.setPen(pen);
+        p.setBrush(palette().highlight().color());
+        p.drawRect(bar);
     }
 
     // R3-15: Qt calls this to build the drag payload. We keep the base
@@ -104,6 +245,34 @@ protected:
             attachPageThumbToMime(md, items.first(), row(items.first()), srcId);
         }
         return md;
+    }
+
+private:
+    // Insert-before index currently shown as a drop indicator, or -1 for none.
+    int dropIndicatorIndex_ = -1;
+
+    void setDropIndicator(int index) {
+        if (index != dropIndicatorIndex_) {
+            dropIndicatorIndex_ = index;
+            viewport()->update();
+        }
+    }
+
+    // A thin vertical bar at the left edge of the item we would insert before,
+    // or the right edge of the last item when appending. Null when no indicator
+    // is shown or geometry is unavailable.
+    QRect dropIndicatorRect() const {
+        const int idx = dropIndicatorIndex_;
+        const int n = count();
+        if (idx < 0 || n == 0) return QRect();
+        if (idx < n) {
+            const QRect r = visualItemRect(item(idx));
+            if (r.isNull()) return QRect();
+            return QRect(r.left() - 2, r.top(), 3, r.height());
+        }
+        const QRect r = visualItemRect(item(n - 1));
+        if (r.isNull()) return QRect();
+        return QRect(r.right(), r.top(), 3, r.height());
     }
 };
 
@@ -124,11 +293,16 @@ PagePanel::PagePanel(QWidget* parent)
     listWidget_->setResizeMode(QListWidget::Adjust);
     // GitHub #326: movement MUST be Static. A non-Static movement
     // (previously Snap) makes QListView handle the drag gesture itself —
-    // repositioning the icon's rect in free space — and NEVER falls through to
-    // the drag-drop subsystem, so PageListWidget::dropEvent / onPageDropped /
-    // pageMoved never fire for a real drag and the reorder touches only the
-    // icon, never the Document. With Static, InternalMove's drop handling runs,
-    // the drop reaches MovePageCommand, and the document order actually changes.
+    // repositioning the icon's rect in free space — and NEVER delivers the drag
+    // to PageListWidget's DnD handlers, so the reorder touches only the icon,
+    // never the Document.
+    //
+    // GitHub #333: Static alone is NOT sufficient — IconMode's InternalMove has
+    // no inter-row drop machinery, so the list never accepts the same-document
+    // drag and it bubbles to MainWindow::dropEvent, whose same-document branch
+    // deliberately no-ops it. PageListWidget therefore handles the internal drag
+    // explicitly (dragEnter/dragMove/drop overrides above) and only an EXTERNAL
+    // drag is left to bubble to MainWindow for the #325 cross-document path.
     listWidget_->setMovement(QListWidget::Static);
     listWidget_->setUniformItemSizes(true);
 
@@ -677,6 +851,47 @@ bool PagePanel::dragItemProgrammatic(int fromIndex, int toIndex)
     // is needed (e.g. emitting a separate pageDragRequested signal
     // before the move), this is the entry-point to extend.
     return movePageProgrammatic(fromIndex, toIndex);
+}
+
+int PagePanel::simulateInternalDrop(int fromRow, int insertBeforeIndex)
+{
+    // GitHub #333 test seam: run the EXACT internal-drop dispatch that
+    // PageListWidget::dropEvent invokes for a same-panel drag. Not a mock — it
+    // calls the real performInternalReorder (insert-before index math + no-op
+    // guard + onPageDropped → pageMoved). A synthetic QDropEvent cannot populate
+    // source() nor carry reliable viewport geometry headlessly, so the drop
+    // position is supplied pre-resolved as an insert-before index.
+    if (!listWidget_) return -1;
+    return static_cast<PageListWidget*>(listWidget_)
+        ->performInternalReorder(fromRow, insertBeforeIndex);
+}
+
+int PagePanel::internalDropInsertIndexAt(const QPoint& viewportPos) const
+{
+    // GitHub #333 test seam: the geometry mapping PageListWidget uses to turn a
+    // drop position into an insert-before index. Exposed so a test with real
+    // layout geometry can assert the before/after-midpoint decision.
+    if (!listWidget_) return -1;
+    return static_cast<PageListWidget*>(listWidget_)
+        ->dropInsertIndex(QPointF(viewportPos));
+}
+
+bool PagePanel::deliverSyntheticInternalDrag(int fromRow, const QPoint& viewportPos)
+{
+    // GitHub #333 test seam: exercise the REAL dragEnter/drop overrides (incl.
+    // the isInternalDrag token check and the accept-so-it-does-not-bubble
+    // behaviour) with the exact #325 drag payload this panel builds for a
+    // same-panel drag. Qt cannot route a synthetic QDropEvent to a view's
+    // protected handlers, so the forwarding call invokes them directly. Returns
+    // true iff the drag was recognised as internal and consumed; pageMoved(from,
+    // to) fires as a side effect for an order-changing drop.
+    if (!listWidget_) return false;
+    QMimeData* mime = buildPageDragMimeData(fromRow);
+    if (!mime) return false;
+    const bool consumed = static_cast<PageListWidget*>(listWidget_)
+        ->deliverSyntheticInternalDrag(mime, QPointF(viewportPos));
+    delete mime;
+    return consumed;
 }
 
 bool PagePanel::selectPagesProgrammatic(const QList<int>& pageIndices)

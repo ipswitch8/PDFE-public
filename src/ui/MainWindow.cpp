@@ -12611,6 +12611,24 @@ void MainWindow::onDocumentStructureChanged(bool preserveCommandPages)
         tileRenderer_->cancelAll();
     }
 
+    // Invalidate the page-index-keyed TEXT-EXTRACTION caches, symmetric to the
+    // tile-cache invalidation above. A structure change (page /Rotate, insert,
+    // delete) alters page geometry and/or shifts every downstream page index,
+    // so the CoordMapper AffineTransform (which bakes pg->rotation()) and the
+    // OcrPipeline HOCR layout caches are now stale for the selection→text path.
+    // Without this, editing text after rotating a page reads PRE-rotation text:
+    // the bitmap and click→PDF mapping update while these caches do not
+    // (GitHub #334). invalidateAllCaches() — not a per-page invalidate — is
+    // deliberate: a rotate may target arbitrary selected pages (not just the
+    // current one), and insert/delete renumbers pages so any single index would
+    // be wrong. Clearing all simply forces a lazy recompute at the new geometry.
+    if (coordMapper_) {
+        coordMapper_->invalidateAllCaches();
+    }
+    if (ocrPipeline_) {
+        ocrPipeline_->invalidateAllCaches();
+    }
+
     // Refresh page panel thumbnails + notify accessibility bridge
     if (pagePanel_) {
         pagePanel_->refreshPages();
@@ -12634,6 +12652,18 @@ void MainWindow::onDocumentStructureChanged(bool preserveCommandPages)
     if (canvas_) {
         canvas_->refreshAllPages();
         canvas_->goToPage(currentPage);
+
+        // Force the live-text editor to re-extract its model at the new page
+        // geometry. A /Rotate leaves the current page INDEX unchanged, so the
+        // ordinary setPage(idx) path short-circuits (it early-returns on an
+        // unchanged index with a model already loaded) and the stale
+        // pre-rotation span boundingBox/charQuads would survive — a click would
+        // then hit-test against old geometry (GitHub #334). reloadPage() has no
+        // unchanged-index early return, forcing the rebuild. No-op when the
+        // Text Edit tool is not active.
+        if (auto* textEditTool = canvas_->textEditTool()) {
+            textEditTool->reloadPage();
+        }
     }
 
     // Update status bar

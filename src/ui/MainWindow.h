@@ -608,6 +608,18 @@ public:
     /// through this accessor, not by reopening the file on disk.
     pdfe::core::Document* documentForTesting() const { return document_.get(); }
 
+    /// GitHub #334 test seams — the rotate-then-edit cache-invalidation path.
+    /// onDocumentStructureChanged() invalidates the page-index-keyed text
+    /// caches (CoordMapper transform, OcrPipeline HOCR) and rebuilds the live
+    /// TextEditTool model so a post-rotation selection resolves post-rotation
+    /// text. These let a regression test warm those caches, drive the REAL
+    /// rotate action, and assert the caches reflect the new geometry. The TRE
+    /// pipeline is lazily constructed, so a test forces it up first.
+    void initTreComponentsForTesting() { initTreComponents(); }
+    pdfe::tre::CoordMapper* coordMapperForTesting() const { return coordMapper_.get(); }
+    pdfe::tre::OcrPipeline* ocrPipelineForTesting() const { return ocrPipeline_.get(); }
+    PdfCanvas* canvasForTesting() const { return canvas_; }
+
     /// GitHub #240 — the alignment pipeline, so a test can select which Save As
     /// branch runs.
     ///

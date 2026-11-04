@@ -64,6 +64,18 @@ public:
     void deactivate();
     void setPage(int pageIndex);
 
+    /// Force a rebuild of the live-text model for the CURRENT page, even when
+    /// the page index has not changed. setPage() early-returns on an unchanged
+    /// index (and when a model is already loaded), which is correct for plain
+    /// navigation but WRONG after a page-geometry change (e.g. a /Rotate edit):
+    /// the span boundingBox/charQuads baked into model_ are extracted in the
+    /// page's PRE-rotation coordinate space, so a post-rotation click would
+    /// hit-test against stale geometry and select the wrong span (GitHub #334).
+    /// MainWindow::onDocumentStructureChanged() calls this, symmetric to the
+    /// render tile-cache invalidation, so the editor re-extracts text at the
+    /// new geometry. No-op when no page is loaded (currentPageIndex_ < 0).
+    void reloadPage();
+
     // Mouse events (pdfPoint is in PDF coordinates)
     void onMousePress(QMouseEvent* event, int pageIndex, QPointF pdfPoint);
     void onMouseMove(QMouseEvent* event, int pageIndex, QPointF pdfPoint);
