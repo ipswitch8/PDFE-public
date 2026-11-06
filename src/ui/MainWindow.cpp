@@ -537,6 +537,12 @@ void MainWindow::resetLaunchCountersForTesting()
 // Meta-audit F13 (SEC-49): /URI external-action gate state. See MainWindow.h.
 MainWindow::UriHandler MainWindow::sUriHandler_;
 std::mutex MainWindow::sUriHandlerMutex_;
+
+// GitHub #337: report-surface opener + email-fallback seam state. See MainWindow.h.
+MainWindow::ReportOpener MainWindow::sReportOpener_;
+std::mutex MainWindow::sReportOpenerMutex_;
+MainWindow::ReportEmailFallbackHook MainWindow::sReportEmailFallbackHook_;
+std::mutex MainWindow::sReportEmailFallbackHookMutex_;
 std::atomic<int> MainWindow::sUriDispatchedCount_{0};
 std::atomic<int> MainWindow::sUriRefusedCount_{0};
 
@@ -620,6 +626,19 @@ void MainWindow::setUriHandlerForTesting(UriHandler handler)
 {
     std::lock_guard<std::mutex> lock(sUriHandlerMutex_);
     sUriHandler_ = std::move(handler);
+}
+
+// GitHub #337 seam setters. See MainWindow.h.
+void MainWindow::setReportOpenerForTesting(ReportOpener opener)
+{
+    std::lock_guard<std::mutex> lock(sReportOpenerMutex_);
+    sReportOpener_ = std::move(opener);
+}
+
+void MainWindow::setReportEmailFallbackHookForTesting(ReportEmailFallbackHook hook)
+{
+    std::lock_guard<std::mutex> lock(sReportEmailFallbackHookMutex_);
+    sReportEmailFallbackHook_ = std::move(hook);
 }
 
 int MainWindow::uriDispatchedCountForTesting()
@@ -1521,12 +1540,19 @@ MainWindow::MainWindow(QWidget* parent)
                     }
                 }
             }
+            // GitHub #335 residual: expose the process-wide count of
+            // PageListWidget::startDrag() entries so the live-gesture drag test
+            // can tell a synthetic drag that REACHED startDrag from one that
+            // died upstream at Qt's drag-initiation threshold.
+            const int pageDragStarts =
+                pdfe::ui::PagePanel::startDragInvocationCountForTesting();
             const QString result = QStringLiteral(
                 "page=%1,scrollY=%2,annots=%3,selected=%4,"
-                "scrollX=%5,selCount=%6,viewRot=%7,pageRot=%8,rect=%9")
+                "scrollX=%5,selCount=%6,viewRot=%7,pageRot=%8,"
+                "pageDragStarts=%9,rect=%10")
                 .arg(page).arg(scrollY).arg(annots).arg(selected)
                 .arg(scrollX).arg(selCount).arg(viewRot).arg(pageRot)
-                .arg(rect);
+                .arg(pageDragStarts).arg(rect);
             testViewStateResultPipe_->blockSignals(true);
             testViewStateResultPipe_->setText(result);
             testViewStateResultPipe_->blockSignals(false);
@@ -9801,18 +9827,129 @@ void MainWindow::onReportIssue()
 
     layout->addLayout(buttons);
 
-    // Each action opens its target, then accepts so exec() returns.
-    connect(githubButton, &QPushButton::clicked, &dialog, [&dialog]() {
-        QDesktopServices::openUrl(QUrl(MainWindow::reportIssueUrl()));
+    // Each action opens its target, then accepts so exec() returns. The email
+    // path (GitHub #337) checks whether the open actually succeeded and, if the
+    // OS has no mailto handler, shows a Copy-address fallback instead of leaving
+    // the user at the "You'll need a new app" error.
+    connect(githubButton, &QPushButton::clicked, &dialog, [this, &dialog]() {
+        openReportUrl(MainWindow::reportIssueUrl());
         dialog.accept();
     });
-    connect(emailButton, &QPushButton::clicked, &dialog, [&dialog]() {
-        QDesktopServices::openUrl(QUrl(MainWindow::reportIssueMailto()));
+    connect(emailButton, &QPushButton::clicked, &dialog, [this, &dialog]() {
+        reportIssueByEmail();
         dialog.accept();
     });
     connect(cancelButton, &QPushButton::clicked, &dialog, &QDialog::reject);
 
     pdfe::ui::testseam::registerDialogIntrospection(&dialog);
+    dialog.exec();
+}
+
+// GitHub #337. Route the report surface's URL opens through the test seam when
+// armed, else the real shell; return the bool the base call produces (which the
+// old email path discarded).
+bool MainWindow::openReportUrl(const QString& url)
+{
+    ReportOpener opener;
+    {
+        std::lock_guard<std::mutex> lock(sReportOpenerMutex_);
+        opener = sReportOpener_;
+    }
+    if (opener) {
+        return opener(url);   // test seam: no real shell dispatch
+    }
+    return QDesktopServices::openUrl(QUrl(url));
+}
+
+// GitHub #337. Attempt to open the prefilled mailto: URL. Returns true if it
+// opened; on failure (no registered mailto handler — openUrl returns false)
+// shows the Copy-address fallback and returns false.
+bool MainWindow::reportIssueByEmail()
+{
+    if (openReportUrl(MainWindow::reportIssueMailto())) {
+        return true;
+    }
+    showReportIssueEmailFallback();
+    return false;
+}
+
+// GitHub #337. The exact action the fallback's Copy button performs — placed in
+// one method so the headless regression test exercises the same code the button
+// runs, not a parallel copy.
+void MainWindow::copyReportIssueEmailToClipboard()
+{
+    if (QClipboard* clip = QApplication::clipboard()) {
+        clip->setText(MainWindow::reportIssueEmail());
+    }
+}
+
+// GitHub #337. Shown when the mailto: open failed. Exposes the support address
+// (selectable) with a Copy-email-address button and the suggested subject, so a
+// user with no mail client can still reach pdfe@itwerx.net. When the test hook
+// is armed the fully-wired dialog is handed to it instead of exec()'d, so a
+// headless test can click the real Copy button without blocking on the modal.
+void MainWindow::showReportIssueEmailFallback()
+{
+    QDialog dialog(this);
+    dialog.setObjectName(QStringLiteral("reportIssueEmailFallbackDialog"));
+    dialog.setWindowTitle(tr("Report by Email"));
+    dialog.setModal(true);
+
+    auto* layout = new QVBoxLayout(&dialog);
+
+    auto* prompt = new QLabel(
+        tr("No email app is set up to open a message automatically. "
+           "Copy the address below and email us your report:"),
+        &dialog);
+    prompt->setObjectName(QStringLiteral("reportIssueEmailFallbackPromptLabel"));
+    prompt->setWordWrap(true);
+    layout->addWidget(prompt);
+
+    // Selectable so the address can be copied by hand too, and so it is a
+    // real, inspectable string in the UIA/introspection tree.
+    auto* addressLabel = new QLabel(MainWindow::reportIssueEmail(), &dialog);
+    addressLabel->setObjectName(QStringLiteral("reportIssueEmailFallbackAddressLabel"));
+    addressLabel->setTextInteractionFlags(Qt::TextSelectableByMouse
+                                          | Qt::TextSelectableByKeyboard);
+    layout->addWidget(addressLabel);
+
+    auto* subjectLabel = new QLabel(
+        tr("Suggested subject: PDFE issue report"), &dialog);
+    subjectLabel->setObjectName(QStringLiteral("reportIssueEmailFallbackSubjectLabel"));
+    subjectLabel->setWordWrap(true);
+    layout->addWidget(subjectLabel);
+
+    auto* buttons = new QHBoxLayout();
+
+    auto* copyButton = new QPushButton(tr("&Copy email address"), &dialog);
+    copyButton->setObjectName(QStringLiteral("reportIssueEmailCopyButton"));
+    copyButton->setAccessibleName(tr("Copy the support email address"));
+    copyButton->setDefault(true);
+    buttons->addWidget(copyButton);
+
+    auto* closeButton = new QPushButton(tr("Close"), &dialog);
+    closeButton->setObjectName(QStringLiteral("reportIssueEmailFallbackCloseButton"));
+    closeButton->setAccessibleName(tr("Close"));
+    buttons->addWidget(closeButton);
+
+    layout->addLayout(buttons);
+
+    connect(copyButton, &QPushButton::clicked, &dialog, []() {
+        MainWindow::copyReportIssueEmailToClipboard();
+    });
+    connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    pdfe::ui::testseam::registerDialogIntrospection(&dialog);
+
+    ReportEmailFallbackHook hook;
+    {
+        std::lock_guard<std::mutex> lock(sReportEmailFallbackHookMutex_);
+        hook = sReportEmailFallbackHook_;
+    }
+    if (hook) {
+        hook(&dialog);   // test seam: inspect/click the real dialog, no modal block
+        return;
+    }
     dialog.exec();
 }
 

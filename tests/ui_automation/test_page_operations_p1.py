@@ -1476,34 +1476,54 @@ def _op_move_to_start(fx, tmp) -> tuple[str, str]:
 
 
 def _op_drag_drop_reorder_short(fx, tmp) -> tuple[str, str]:
-    """Reorder page 0 to position 1.
+    """Short (adjacent) reorder that verifies the resulting PAGE ORDER.
 
     Pipeline f7c2a4e8 phase-3 (B1): switched from pyautogui_drag (which
     doesn't reliably trigger Qt6 QListWidget InternalMove) to the
-    testDragPipe Q_INVOKABLE seam. Routes through PagePanel::
-    dragItemProgrammatic which emits pageMoved → MovePageCommand,
-    same model-side effect as a user drag.
+    testDragPipe Q_INVOKABLE seam. GitHub #338 correction: that seam routes
+    through PagePanel::dragItemProgrammatic, which only emits pageMoved →
+    MovePageCommand — it does NOT drive startDrag()/dropEvent/the InternalMove
+    event path, so this row pins the COMMAND/MODEL half only, not that a real
+    drag gesture reaches it (the #335 lesson). The real-gesture end-to-end path
+    is covered by tests/test_ui_page_reorder_drag.py (xfail, P10-INFRA-1).
+
+    The oracle was dirty-marker-only, which a reorder that silently did nothing
+    could still satisfy — and the OLD input "0,1" was exactly that: a downward
+    move to the immediately-next index is a documented MovePageCommand NO-OP
+    (buildMovePermutation uses finalPos = to-1, so move(0→1) yields the identity
+    permutation [0,1,2]) yet MainWindow::onPageMoved still marks the document
+    dirty. So "0,1" dirtied WITHOUT reordering and the old oracle passed it — the
+    #338 false-green in the flesh. A genuine SHORT reorder is "1,0" (move page 1
+    up one slot): [Page 1, Page 2, Page 3] → [Page 2, Page 1, Page 3], so page 0
+    must become "Page 2" — NOT the original "Page 1". The oracle now asserts that.
     """
     pipe = find_by_suffix(fx.main_window, "testDragPipe")
     if pipe is None:
         return "red", "testDragPipe not reachable; PDFE_TEST_PIPES must be set"
     try:
-        pipe.set_edit_text("0,1")
+        # "1,0": a real adjacent reorder (page 1 up to index 0). NOT "0,1",
+        # which is a no-op under MovePageCommand's to-1 semantics (see docstring).
+        pipe.set_edit_text("1,0")
         time.sleep(1.0)
     except Exception as e:
         return "red", f"testDragPipe write failed: {e}"
     if not _pdfe_alive():
         return "red", "pdfe crashed during drag-drop"
-    if _title_is_dirty(fx):
-        return "green", "drag-drop short: dirty after drag — reorder accepted"
-    return "red", "drag-drop short: dirty marker absent — reorder did not register"
+    if not _title_is_dirty(fx):
+        return "red", "drag-drop short: dirty marker absent — reorder did not register"
+    ok, detail = _save_and_verify_page_order(fx, tmp, "Page 2")
+    if not ok:
+        return "red", f"drag-drop short: {detail}"
+    return "green", f"drag-drop short: dirty + order verified; {detail}"
 
 
 def _op_drag_drop_reorder_far(fx, tmp) -> tuple[str, str]:
-    """Reorder page 0 to last position. Uses testDragPipe (same as
-    _op_drag_drop_reorder_short — see phase-3 B1 comment there).
+    """Reorder page 0 to last position and verify the resulting PAGE ORDER.
+    Uses testDragPipe (same seam + #338 caveat as _op_drag_drop_reorder_short).
 
-    test_3page.pdf has 3 pages; target index = 2 (last).
+    test_3page.pdf has 3 pages; target index = 2 (last). Opening order is
+    [Page 1, Page 2, Page 3]; moving index 0 to index 2 yields
+    [Page 2, Page 3, Page 1], so page 0 must read "Page 2" — NOT "Page 1".
     """
     pipe = find_by_suffix(fx.main_window, "testDragPipe")
     if pipe is None:
@@ -1519,9 +1539,12 @@ def _op_drag_drop_reorder_far(fx, tmp) -> tuple[str, str]:
         return "red", f"testDragPipe write failed: {e}"
     if not _pdfe_alive():
         return "red", "pdfe crashed during drag-drop far"
-    if _title_is_dirty(fx):
-        return "green", "drag-drop far: dirty after drag — reorder accepted"
-    return "red", "drag-drop far: dirty marker absent — reorder did not register"
+    if not _title_is_dirty(fx):
+        return "red", "drag-drop far: dirty marker absent — reorder did not register"
+    ok, detail = _save_and_verify_page_order(fx, tmp, "Page 2")
+    if not ok:
+        return "red", f"drag-drop far: {detail}"
+    return "green", f"drag-drop far: dirty + order verified; {detail}"
 
 
 # ---------------------------------------------------------------------------

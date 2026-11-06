@@ -17,6 +17,7 @@
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDragLeaveEvent>
+#include <QDrag>
 #include <QPaintEvent>
 #include <QMimeData>
 #include <QScrollBar>
@@ -26,6 +27,7 @@
 #include <QByteArray>
 #include <QHash>
 #include <algorithm>
+#include <atomic>
 #include <functional>
 #include <utility>
 
@@ -38,6 +40,13 @@ namespace {
 // shown, as in a headless test) so small documents still fully populate.
 constexpr int kPrefetchMargin = 6;
 constexpr int kFallbackWindow = 20;
+
+// GitHub #335 residual observability. Incremented every time
+// PageListWidget::startDrag() is ENTERED (real gesture or deterministic seam).
+// A live-gesture UI test reads it (via PagePanel::startDragInvocationCountForTesting,
+// surfaced on MainWindow's view-state pipe as pageDragStarts) to tell a gesture
+// that reached startDrag from one that died upstream at Qt's drag-init threshold.
+std::atomic<int> g_pageStartDragCount{0};
 } // namespace
 
 namespace pdfe::ui {
@@ -247,7 +256,97 @@ protected:
         return md;
     }
 
+    // ─── GitHub #335: own the drag so the clearOrRemove() tail never runs ────
+    //
+    // #333 added dropEvent (above) but left Qt's default icon-mode drag path in
+    // force. On a REAL gesture QAbstractItemView::mouseMoveEvent calls startDrag,
+    // which (unoverridden) reaches QListView::startDrag ->
+    // QIconModeViewBase::filterStartDrag (qlistview.cpp:951/2889). That runs
+    // drag->exec() and then, because our dropEvent accepts the internal drop
+    // WITHOUT delegating to QAbstractItemView::dropEvent, Qt's dd->dropEventMoved
+    // stays false — so on the MoveAction return it executes dd->clearOrRemove()
+    // (qlistview.cpp:2915-2917 → qabstractitemview.cpp:4557), a model->removeRows
+    // on the dragged source row. That silent deletion, plus refreshPages()
+    // rebuilding the list re-entrantly from inside exec(), is why a real reorder
+    // "does nothing" / desyncs (GitHub #335).
+    //
+    // Overriding startDrag to build the QDrag + exec() ourselves and return
+    // WITHOUT the base call removes that tail entirely: filterStartDrag never
+    // runs, so clearOrRemove() never runs, and dropEvent stays the sole mutator.
+    // We reuse mimeData() (the #325 payload) so a real drag still carries this
+    // document's token and both the internal-reorder and cross-document (#325)
+    // drop targets keep recognising it.
+    void startDrag(Qt::DropActions supportedActions) override {
+        // GitHub #335 residual: mark that Qt actually ENTERED startDrag. A live
+        // synthetic drag that never increments this died upstream, at the
+        // drag-initiation threshold, not in this override.
+        g_pageStartDragCount.fetch_add(1, std::memory_order_acq_rel);
+        const QList<QListWidgetItem*> items = selectedItems();
+        if (items.isEmpty() || !items.first()) return;
+        QMimeData* data = mimeData(items);
+        if (!data) return;
+
+        QDrag* drag = new QDrag(this);
+        drag->setMimeData(data);  // QDrag takes ownership
+        const QModelIndex idx = indexFromItem(items.first());
+        if (idx.isValid()) {
+            const QRect r = visualRect(idx);
+            if (!r.isNull()) {
+                drag->setPixmap(items.first()->icon().pixmap(r.size()));
+            }
+        }
+
+        const Qt::DropAction wanted =
+            (supportedActions & Qt::MoveAction) ? Qt::MoveAction : defaultDropAction();
+
+        inInternalDrag_ = true;
+        if (execInternalDragForTest) {
+            // A headless test cannot enter the real, window-system-driven modal
+            // QDrag::exec() loop (it blocks and is exactly the exec() loop UI
+            // tests must not enter). This hook lets a test drive THIS override
+            // deterministically: it receives the live QDrag (with the real
+            // mimeData built above) and returns the action exec() would.
+            execInternalDragForTest(drag);
+        } else {
+            drag->exec(wanted, Qt::MoveAction);
+        }
+        inInternalDrag_ = false;
+        setDropIndicator(-1);
+        // Deliberately NO fall-through to QListView::startDrag — see above.
+    }
+
+public:
+    // True while this list's own startDrag()/exec() is on the stack. PagePanel
+    // reads it (via isInternalDragActive()) to defer the list rebuild out of the
+    // drag loop; see PagePanel::refreshPages().
+    bool isInternalDragActive() const { return inInternalDrag_; }
+
+    // GitHub #335 test seam: drive the REAL startDrag override deterministically
+    // (no blocking OS drag loop). Caller must have selected the source row first;
+    // @p dropPos is the viewport drop position (far past the items -> append).
+    // Returns true iff the drag was recognised + consumed as internal.
+    bool startInternalDragForTest(const QPointF& dropPos) {
+        bool consumed = false;
+        execInternalDragForTest = [this, dropPos, &consumed](QDrag* drag) -> Qt::DropAction {
+            // Deliver the drop the way a live exec() loop would — through the
+            // SAME dragEnter/drop overrides, carrying the SAME mimeData this
+            // override just built.
+            consumed = deliverSyntheticInternalDrag(drag->mimeData(), dropPos);
+            return Qt::MoveAction;  // the exact return that triggers clearOrRemove
+                                    // in the base path this override replaces
+        };
+        startDrag(Qt::MoveAction);
+        execInternalDragForTest = nullptr;
+        return consumed;
+    }
+
+    // Test-only exec() replacement; see startDrag() / startInternalDragForTest().
+    std::function<Qt::DropAction(QDrag*)> execInternalDragForTest;
+
 private:
+    // True while startDrag()/exec() is on the stack (see isInternalDragActive()).
+    bool inInternalDrag_ = false;
+
     // Insert-before index currently shown as a drop indicator, or -1 for none.
     int dropIndicatorIndex_ = -1;
 
@@ -291,25 +390,31 @@ PagePanel::PagePanel(QWidget* parent)
     listWidget_->setIconSize(QSize(128, 128));
     listWidget_->setSpacing(10);
     listWidget_->setResizeMode(QListWidget::Adjust);
-    // GitHub #326: movement MUST be Static. A non-Static movement
-    // (previously Snap) makes QListView handle the drag gesture itself —
-    // repositioning the icon's rect in free space — and NEVER delivers the drag
-    // to PageListWidget's DnD handlers, so the reorder touches only the icon,
-    // never the Document.
-    //
-    // GitHub #333: Static alone is NOT sufficient — IconMode's InternalMove has
-    // no inter-row drop machinery, so the list never accepts the same-document
-    // drag and it bubbles to MainWindow::dropEvent, whose same-document branch
-    // deliberately no-ops it. PageListWidget therefore handles the internal drag
-    // explicitly (dragEnter/dragMove/drop overrides above) and only an EXTERNAL
-    // drag is left to bubble to MainWindow for the #325 cross-document path.
+    // GitHub #326/#333/#335: keep movement Static so dropped icons do not
+    // free-float in the IconMode grid (and because the #326 configuration guard
+    // in test_page_panel_q_invokable.cpp pins it). Static is NOT what routes a
+    // real drag to our handlers, though — the earlier comment claiming the drop
+    // "never reaches" the handlers without Static was wrong. PageListWidget now
+    // owns the whole gesture: startDrag() builds + execs the QDrag itself and
+    // dragEnter/dragMove/drop recognise the internal drag by its #325 token
+    // (above). Movement mode no longer governs delivery, and crucially
+    // startDrag() returns WITHOUT the base QListView path so Qt's
+    // QIconModeViewBase::filterStartDrag → clearOrRemove() model deletion never
+    // runs (GitHub #335 root cause). An EXTERNAL drag is still left to bubble to
+    // MainWindow for the #325 cross-document path.
     listWidget_->setMovement(QListWidget::Static);
     listWidget_->setUniformItemSizes(true);
 
-    // Enable drag-drop for page reordering
+    // Enable drag-drop for page reordering. setDragDropMode(InternalMove) already
+    // flips setDragEnabled(true) + viewport()->setAcceptDrops(true), but we
+    // re-assert both explicitly AFTER every mode/movement call so the gesture is
+    // not silently disabled if these lines are ever reordered (the order-
+    // dependency the old #326 note worried about).
     listWidget_->setDragDropMode(QAbstractItemView::InternalMove);
     listWidget_->setDefaultDropAction(Qt::MoveAction);
     listWidget_->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    listWidget_->setDragEnabled(true);
+    listWidget_->viewport()->setAcceptDrops(true);
 
     // Connect drag-drop callback
     pageList->onPageDropped = [this](int from, int to) {
@@ -506,6 +611,13 @@ int PagePanel::panelItemCount() const
     return listWidget_ ? listWidget_->count() : 0;
 }
 
+int PagePanel::startDragInvocationCountForTesting()
+{
+    // GitHub #335 residual observability — see the header. Process-wide count of
+    // PageListWidget::startDrag() entries.
+    return g_pageStartDragCount.load(std::memory_order_acquire);
+}
+
 void PagePanel::onThumbnailReady(int pageIndex, QImage thumbnail)
 {
     if (pageIndex < 0 || pageIndex >= listWidget_->count()) {
@@ -664,11 +776,38 @@ void PagePanel::refreshPages()
         return;
     }
 
+    // GitHub #335: a within-document drag reorder reaches here synchronously
+    // from INSIDE the QDrag::exec() nested loop:
+    //   dropEvent → onPageDropped → pageMoved → MainWindow::onPageMoved →
+    //   onDocumentStructureChanged → refreshPages().
+    // Rebuilding the list (clear() + repopulate) while exec() is still on the
+    // stack tears down the very items the drag machinery is operating over.
+    // Defer the rebuild to the next event-loop turn so it runs only after exec()
+    // has unwound. Non-drag callers (delete/rotate/insert) see no change — the
+    // flag is false and the rebuild runs synchronously as before.
+    if (listWidget_
+        && static_cast<PageListWidget*>(listWidget_)->isInternalDragActive()) {
+        QMetaObject::invokeMethod(this, [this]() { refreshPages(); },
+                                  Qt::QueuedConnection);
+        return;
+    }
+
     // Save current selection
     QList<int> selectedIndices = selectedPageIndices();
 
     // Cancel pending thumbnails
     thumbnailRenderer_->cancelAll();
+
+    // GitHub #336: drop the whole thumbnail IMAGE cache before rebuilding. The
+    // cache is keyed by CacheKey{pageIndex,w,h}; cancelAll() clears only pending
+    // tasks, not cached bitmaps. A delete/insert/reorder renumbers every page at
+    // or after the edit point, so the item that lands at a shifted index would
+    // otherwise be served the STALE bitmap cached under that index (navigation
+    // was correct via Qt::UserRole, only the picture was stale). A full clear is
+    // correct here — a renumber invalidates every index from the edit point on,
+    // and refreshPages() already re-requests the visible window below. This also
+    // fixes the latent rotate staleness.
+    thumbnailRenderer_->invalidate();
 
     // Clear and rebuild list
     listWidget_->clear();
@@ -729,16 +868,22 @@ void PagePanel::onContextMenuRequested(const QPoint& pos)
     menu.addSeparator();
     menu.addAction(extractSelectedAction_);
 
-    // Execute menu and handle actions
+    // Execute menu and handle actions. The action->signal mapping lives in
+    // dispatchContextMenuAction so the real modal path and the GitHub #339 test
+    // seam run identical code.
     QAction* selected = menu.exec(listWidget_->mapToGlobal(pos));
+    dispatchContextMenuAction(selected);
+}
 
+bool PagePanel::dispatchContextMenuAction(QAction* selected)
+{
     if (!selected) {
-        return;
+        return false;
     }
 
     QList<int> indices = selectedPageIndices();
     if (indices.isEmpty()) {
-        return;
+        return false;
     }
 
     if (selected == rotateCWAction_) {
@@ -753,7 +898,32 @@ void PagePanel::onContextMenuRequested(const QPoint& pos)
         emit pagesDeleteRequested(indices);
     } else if (selected == extractSelectedAction_) {
         emit extractPagesRequested(indices);
+    } else {
+        return false;
     }
+    return true;
+}
+
+bool PagePanel::triggerContextMenuActionForTest(const QString& actionObjectName)
+{
+    // GitHub #339: drive the real action->signal dispatch without the modal
+    // menu.exec(). Resolve the member QAction by objectName so the test targets
+    // the SAME object the context menu adds (not a freshly-made stand-in).
+    QAction* target = nullptr;
+    const QList<QAction*> actions = {
+        rotateCWAction_, rotateCCWAction_, rotate180Action_,
+        insertBlankPageAction_, deleteSelectedAction_, extractSelectedAction_
+    };
+    for (QAction* a : actions) {
+        if (a && a->objectName() == actionObjectName) {
+            target = a;
+            break;
+        }
+    }
+    if (!target) {
+        return false;
+    }
+    return dispatchContextMenuAction(target);
 }
 
 // ─── GitHub #325: cross-document drag-source registry ────────────────────
@@ -841,15 +1011,17 @@ bool PagePanel::movePageProgrammatic(int fromIndex, int toIndex)
 
 bool PagePanel::dragItemProgrammatic(int fromIndex, int toIndex)
 {
-    // Pipeline f7c2a4e8 phase-3 (B1): currently routes through the
-    // same pageMoved signal as movePageProgrammatic. The distinction
-    // exists so tests that specifically test the drag-drop reorder
-    // workflow (P-GAP-93 drag_drop_reorder_short / drag_drop_reorder_far)
-    // can call dragItemProgrammatic and get a documented "this is a
-    // drag-style move" entry-point even though the model-side effect
-    // is identical. If a future divergence in drag-vs-move semantics
-    // is needed (e.g. emitting a separate pageDragRequested signal
-    // before the move), this is the entry-point to extend.
+    // Pipeline f7c2a4e8 phase-3 (B1); GitHub #338 correction. This routes
+    // through the SAME pageMoved signal as movePageProgrammatic and does NOTHING
+    // drag-specific: no startDrag(), no QDrag::exec(), no dropEvent(), no
+    // InternalMove event path. The name records drag-style test INTENT only; the
+    // model-side effect is identical to movePageProgrammatic. A matrix row that
+    // asserts only the result of this call therefore pins the command/model half,
+    // NOT that a real drag gesture reaches it (the #335 lesson) — such rows must
+    // additionally assert the resulting page-order permutation, and the real
+    // event path is covered by simulateInternalDrop / deliverRealDragReorder /
+    // the live-gesture test_ui_page_reorder_drag.py. If a future divergence in
+    // drag-vs-move semantics is needed, this is the entry-point to extend.
     return movePageProgrammatic(fromIndex, toIndex);
 }
 
@@ -892,6 +1064,22 @@ bool PagePanel::deliverSyntheticInternalDrag(int fromRow, const QPoint& viewport
         ->deliverSyntheticInternalDrag(mime, QPointF(viewportPos));
     delete mime;
     return consumed;
+}
+
+bool PagePanel::deliverRealDragReorder(int fromRow, const QPoint& viewportPos)
+{
+    // GitHub #335 test seam: unlike deliverSyntheticInternalDrag (#333), which
+    // calls the protected dropEvent directly and so proves the handler but NEVER
+    // that a real drag reaches it, this goes through the REAL startDrag()
+    // override — the initiation path #333's seam skipped and #335 broke in. It
+    // selects the source row (startDrag reads selectedItems()) and drives the
+    // override; the override's test hook delivers the drop so no blocking,
+    // window-system-dependent QDrag::exec() loop is entered.
+    if (!listWidget_) return false;
+    if (fromRow < 0 || fromRow >= listWidget_->count()) return false;
+    if (!selectPagesProgrammatic({fromRow})) return false;
+    return static_cast<PageListWidget*>(listWidget_)
+        ->startInternalDragForTest(QPointF(viewportPos));
 }
 
 bool PagePanel::selectPagesProgrammatic(const QList<int>& pageIndices)

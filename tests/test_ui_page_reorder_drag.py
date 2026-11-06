@@ -146,6 +146,18 @@ def _order_signature(session: PDFESession, n: int) -> List[int]:
     return sig
 
 
+def _page_drag_starts(session: PDFESession) -> Optional[int]:
+    """GitHub #335 residual: how many times PageListWidget::startDrag() has been
+    entered, read from the view-state seam (field ``pageDragStarts``). Lets this
+    test distinguish a synthetic drag that REACHED startDrag from one that died
+    upstream at Qt's drag-initiation threshold."""
+    from tests.helpers.canvas_geometry import view_state
+    st = view_state(session)
+    if st is None or "pageDragStarts" not in st:
+        return None
+    return int(st["pageDragStarts"])
+
+
 def _refocus(session: PDFESession) -> None:
     from tests.helpers.canvas_geometry import refocus_canvas
     refocus_canvas(session)
@@ -253,15 +265,26 @@ def _hand_drag(x1: int, y1: int, x2: int, y2: int) -> None:
 
 @pytest.mark.xfail(
     reason=(
-        "KNOWN_WEAK P10-INFRA-1: a synthetic OS-level drag (SendInput) does not "
-        "make Qt6's QListWidget START an InternalMove QDrag on this build, so "
-        "the real reorder gesture cannot be driven end-to-end from the test "
-        "harness. The gesture ROUTING half of GitHub #326 is pinned "
-        "deterministically by the live-widget configuration guard "
-        "(test_page_panel_q_invokable.py::DragReorderConfiguration...) and the "
+        "KNOWN_WEAK P10-INFRA-1, re-measured 2026-11-05 against the GitHub #335 "
+        "startDrag() override — and the measurement OVERTURNED the prior "
+        "assumption. The old reason claimed SendInput could not make Qt even "
+        "BEGIN the drag. MEASURED this run via the new pageDragStarts view-state "
+        "seam: after a 71s dwelling SendInput drag, PageListWidget::startDrag() "
+        "was entered exactly ONCE (pageDragStarts 0 -> 1) — so the synthetic "
+        "gesture DOES now cross Qt's drag-initiation threshold and reach the "
+        "#335 override. What still fails is DOWNSTREAM: the real QDrag::exec() "
+        "modal loop, driven by synthetic SendInput, does not deliver a drop that "
+        "dropEvent turns into a reorder, so the document order is unchanged after "
+        "the gesture. The failure point has therefore moved from drag-INITIATION "
+        "to drop/EXEC under synthetic input; #335's startDrag override runs, but "
+        "the un-driveable half is now the OS modal drag/drop loop, which a "
+        "headless/synthetic harness cannot complete. The real startDrag()+exec "
+        "path (with a deterministic drop delivery) is covered by "
+        "test_page_panel_real_drag_reorder.cpp; the routing/config half by "
+        "test_page_panel_q_invokable.py::DragReorderConfiguration...; the "
         "model/command half by test_page_commands.py. This test drives the REAL "
         "drag (never the movePageProgrammatic bypass) and asserts the true end "
-        "state; it will XPASS the day the synthetic drag becomes drivable. "
+        "state; it will XPASS the day the synthetic drop becomes drivable. "
         "strict=False so an XPASS is reported, not failed."
     ),
     strict=False,
@@ -308,6 +331,12 @@ def test_within_file_reorder_drag_changes_document_order():
         last_rect = _item_rect(lst, 2)
         assert src and last_rect, "could not resolve thumbnail item rectangles."
 
+        # GitHub #335 residual observability: snapshot the startDrag() entry
+        # count so, if the reorder does not happen, we can say WHERE it died
+        # rather than restate the pre-#335 assumption.
+        starts_before = _page_drag_starts(s)
+        print(f"[#335-residual] pageDragStarts before drag = {starts_before}")
+
         after = before
         drop_points = [
             # Just below the last thumbnail (end-of-list insert).
@@ -329,6 +358,23 @@ def test_within_file_reorder_drag_changes_document_order():
             # layout) before the next attempt.
             lst = _find_page_panel_list(s) or lst
             src = _item_center(lst, 0) or src
+
+        # GitHub #335 residual: report where the gesture died. If startDrag()
+        # never incremented, Qt did not even begin the InternalMove QDrag —
+        # the synthetic SendInput moves did not cross the drag-initiation
+        # threshold — so the failure is UPSTREAM of the startDrag() override
+        # #335 added, not in the clearOrRemove tail it fixed.
+        starts_after = _page_drag_starts(s)
+        print(f"[#335-residual] pageDragStarts after drag  = {starts_after}")
+        if starts_before is not None and starts_after is not None:
+            if starts_after == starts_before:
+                print("[#335-residual] MEASURED: startDrag() was NOT entered — "
+                      "the synthetic drag died at Qt's drag-INITIATION "
+                      "threshold, upstream of the #335 override.")
+            else:
+                print("[#335-residual] MEASURED: startDrag() WAS entered "
+                      f"({starts_after - starts_before}x) — the gesture reached "
+                      "the override; any remaining failure is at drop/exec.")
 
         # 3) END-STATE assertions — the real path, no bypass.
         assert after != before, (

@@ -612,7 +612,9 @@ add_executable(pdfe_tests
     test_pdf_canvas_q_invokable.cpp
     test_page_panel_q_invokable.cpp
     test_page_panel_internal_reorder.cpp
+    test_page_panel_real_drag_reorder.cpp
     test_page_panel_range_selection.cpp
+    test_page_panel_thumbnail_cache_flush.cpp
     test_main_window_q_invokable.cpp
     test_uncovered_dialogs.cpp
     test_image_data.cpp
@@ -921,6 +923,12 @@ add_executable(pdfe_tests
     # channel to pdfe@itwerx.net. Headless value assertions via MainWindow's
     # static accessors, which the UI reads too.
     test_report_issue_targets.cpp
+    # GitHub #337: the "Report by Email" path detects a failed mailto open (no
+    # registered handler) and shows a Copy-address fallback instead of leaving
+    # the user at the OS "You'll need a new app" error. Drives the failure path
+    # via the report-opener seam and clicks the real Copy button via the
+    # fallback hook.
+    test_report_issue_email_fallback.cpp
     test_calculation_order.cpp
     test_navigation_history.cpp
     test_image_to_pdf_wizard.cpp

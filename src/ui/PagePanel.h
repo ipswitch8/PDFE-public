@@ -67,16 +67,21 @@ public:
     /// Returns true if all indices are in range; false otherwise.
     Q_INVOKABLE bool selectPagesProgrammatic(const QList<int>& pageIndices);
 
-    /// Pipeline f7c2a4e8 phase-3 (B1 / testDragPipe): unified
-    /// programmatic drag-drop reorder. This is the higher-level
-    /// equivalent of movePageProgrammatic — it lets tests drive the
-    /// drag-drop reorder workflow (including the InternalMove event
-    /// path Qt uses for QListWidget) directly. movePageProgrammatic
-    /// emits pageMoved(from,to) which routes through MovePageCommand;
-    /// dragItemProgrammatic does the same plus emits the
-    /// pageDragRequested signal (if any subscriber needs to observe
-    /// the drag intent vs the completed move).
-    /// Returns true if from/to are in range and from != to.
+    /// Pipeline f7c2a4e8 phase-3 (B1 / testDragPipe): a MODEL-LEVEL reorder
+    /// entry-point, NOT a drag-event driver. GitHub #338 correction: despite
+    /// the "drag" in the name, this does exactly what movePageProgrammatic does
+    /// — it emits pageMoved(from,to), which routes through MovePageCommand ->
+    /// Document::reorderPages. It does NOT exercise startDrag(), QDrag::exec(),
+    /// dropEvent(), the drop-indicator geometry, or any part of Qt's
+    /// InternalMove event path. The name records "this move came from a
+    /// drag-style test" intent only; the model-side effect is identical to
+    /// movePageProgrammatic. A test that asserts only this proves the
+    /// command/model half, NOT that a real drag gesture reaches it (the #335
+    /// lesson). For the REAL event path use: simulateInternalDrop /
+    /// internalDropInsertIndexAt (drop dispatch + geometry),
+    /// deliverRealDragReorder (the real startDrag()+exec), or the live-gesture
+    /// test_ui_page_reorder_drag.py (end-to-end, currently xfail per
+    /// P10-INFRA-1). Returns true if from/to are in range and from != to.
     Q_INVOKABLE bool dragItemProgrammatic(int fromIndex, int toIndex);
 
     /// GitHub #333 test seam: run the REAL within-document drop-reorder dispatch
@@ -108,6 +113,45 @@ public:
     /// MainWindow's same-document no-op); pageMoved(from,to) fires as a side
     /// effect for an order-changing drop.
     Q_INVOKABLE bool deliverSyntheticInternalDrag(int fromRow, const QPoint& viewportPos);
+
+    /// GitHub #335 test seam: drive the REAL QDrag initiation path — the thumbnail
+    /// list's startDrag() override — for a same-document drag of @p fromRow
+    /// dropped at @p viewportPos. Unlike deliverSyntheticInternalDrag (which calls
+    /// dropEvent directly and so NEVER exercises startDrag/QDrag::exec, the gap
+    /// that let GitHub #335 through), this selects the source row and invokes the
+    /// real startDrag() override, which builds the QDrag, execs it (via a test
+    /// hook that delivers the drop deterministically instead of the blocking OS
+    /// drag loop), and returns WITHOUT the base clearOrRemove() tail. Returns true
+    /// iff the drag was recognised + consumed as internal; pageMoved(from,to)
+    /// fires as a side effect, and any resulting refreshPages() is deferred out of
+    /// the (simulated) drag loop exactly as in production.
+    Q_INVOKABLE bool deliverRealDragReorder(int fromRow, const QPoint& viewportPos);
+
+    /// GitHub #335 residual observability: the number of times the thumbnail
+    /// list's ``PageListWidget::startDrag()`` override has been ENTERED since
+    /// process start (counts both the real-gesture path and the deterministic
+    /// seams). A live-gesture UI test reads this before/after a synthetic
+    /// SendInput drag: if it does NOT increment, the gesture died at Qt's
+    /// drag-INITIATION threshold (QAbstractItemView::mouseMoveEvent never
+    /// crossed startDragDistance from the batched synthetic moves) — i.e.
+    /// UPSTREAM of the override #335 added, which is why #335 fixes the
+    /// post-initiation clearOrRemove tail but cannot make the synthetic gesture
+    /// driveable. Surfaced to the Python harness via MainWindow's view-state
+    /// pipe (field ``pageDragStarts``). Process-wide; not reset between tests.
+    static int startDragInvocationCountForTesting();
+
+    /// GitHub #339 test seam: run the REAL context-menu action dispatch for the
+    /// member QAction with object name @p actionObjectName (e.g.
+    /// "deleteSelectedAction"), on the current selection, WITHOUT entering the
+    /// modal ``QMenu::exec()`` that UIA cannot drive. This exercises the exact
+    /// ``selected == deleteSelectedAction_ -> emit pagesDeleteRequested(indices)``
+    /// mapping that a real right-click > Delete runs — the link the direct
+    /// DeletePageRangeCommand tests bypass entirely — so a regression that
+    /// unwired the Delete item from its signal is caught. Returns true iff a
+    /// matching action was found, the selection was non-empty, and the
+    /// corresponding signal was emitted. The menu POPUP geometry / exec() itself
+    /// remains outside unit-test reach (documented modal limit).
+    Q_INVOKABLE bool triggerContextMenuActionForTest(const QString& actionObjectName);
 
     /// R3-15 drag-out: build the QMimeData payload a page drag produces — the
     /// page thumbnail as image data (QMimeData::setImageData, surfaced as
@@ -205,6 +249,14 @@ private slots:
     void updateVisibleThumbnails();
 
 private:
+    /// GitHub #339: the post-selection dispatch of a chosen context-menu action
+    /// to its signal. Extracted from onContextMenuRequested so both the real
+    /// modal path and triggerContextMenuActionForTest() run the identical
+    /// action->signal mapping. Reads the current selection via
+    /// selectedPageIndices(); a no-op if the selection is empty or @p selected
+    /// is null/unrecognised. Returns true iff a signal was emitted.
+    bool dispatchContextMenuAction(QAction* selected);
+
     void generateThumbnails();
     /// First and last model rows whose cell intersects the list viewport, or
     /// {-1,-1} if the panel has no rows / no usable geometry yet.

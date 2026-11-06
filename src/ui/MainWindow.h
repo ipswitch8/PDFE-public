@@ -35,6 +35,7 @@ class QFrame;        // GitHub #60 -- active-content advisory banner
 class QToolButton;   // GitHub #60 -- its dismiss control
 class QDragEnterEvent;
 class QDropEvent;
+class QDialog;   // GitHub #337 -- report-by-email fallback dialog seam
 class QUrl;   // GitHub #18 -- MainWindow::submitCurrentFormTo
 
 namespace pdfe::core {
@@ -359,6 +360,42 @@ public:
     static QString reportIssueUrl();
     static QString reportIssueEmail();
     static QString reportIssueMailto();
+
+    // ------------------------------------------------------------------
+    // GitHub #337 — graceful mailto fallback.
+    //
+    // The "Report by Email" button used to call QDesktopServices::openUrl()
+    // on the mailto: URL and DISCARD the bool it returns. On a machine with
+    // no registered mailto handler, openUrl() returns false and Windows shows
+    // "You'll need a new app to open this mailto" — the report dead-ends with
+    // no way to reach the address. reportIssueByEmail() now checks that bool
+    // and, on failure, shows a fallback dialog exposing the address with a
+    // Copy-email-address button.
+    //
+    //   reportIssueByEmail() -> attempt to open the mailto: URL; returns true
+    //       if it opened, false if the fallback dialog was shown instead.
+    //   copyReportIssueEmailToClipboard() -> the exact action the fallback's
+    //       Copy button performs; places reportIssueEmail() on the clipboard.
+    //       Exposed so a headless test asserts the same code the button runs.
+    //
+    // Two seams (modelled on sUriHandler_) let a headless GoogleTest force the
+    // failure path and observe the fallback WITHOUT a registered handler or a
+    // blocking modal exec():
+    //   setReportOpenerForTesting()      -> replaces QDesktopServices::openUrl
+    //       for the report surface; the test returns false to simulate "no
+    //       handler". Pass an empty std::function to restore the shell path.
+    //   setReportEmailFallbackHookForTesting() -> when set, the constructed
+    //       (and fully wired) fallback QDialog is handed to this callback
+    //       instead of exec()'d, so the test can click the real Copy button
+    //       and assert the clipboard without blocking on a modal.
+    bool reportIssueByEmail();
+    static void copyReportIssueEmailToClipboard();
+
+    using ReportOpener = std::function<bool(const QString& url)>;
+    static void setReportOpenerForTesting(ReportOpener opener);
+
+    using ReportEmailFallbackHook = std::function<void(QDialog* fallback)>;
+    static void setReportEmailFallbackHookForTesting(ReportEmailFallbackHook hook);
 
     /// Test-visible accessor that queues an alignment directly for the
     /// given page + bounding rect. Real UI code queues via
@@ -1130,6 +1167,22 @@ private:
     // Meta-audit F13 (SEC-49): process-wide /URI gate test seam state.
     static UriHandler sUriHandler_;
     static std::mutex sUriHandlerMutex_;
+
+    // GitHub #337: report-surface opener + email-fallback test seams. Guarded
+    // like sUriHandler_ above (latent today — callers are single-threaded —
+    // but armed from a test and the sibling precedent is a mutex).
+    static ReportOpener sReportOpener_;
+    static std::mutex sReportOpenerMutex_;
+    static ReportEmailFallbackHook sReportEmailFallbackHook_;
+    static std::mutex sReportEmailFallbackHookMutex_;
+
+    // GitHub #337 helpers. openReportUrl routes through sReportOpener_ when
+    // armed, else QDesktopServices::openUrl, and returns the bool the base
+    // call produces. showReportIssueEmailFallback builds the Copy-address
+    // dialog; both are private because the public entry point is
+    // reportIssueByEmail().
+    bool openReportUrl(const QString& url);
+    void showReportIssueEmailFallback();
 
     // WIN-87 site #4 publish-window test seam. See the public setter for why
     // a production-code hook is justified here.

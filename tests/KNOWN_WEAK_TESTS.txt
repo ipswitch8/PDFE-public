@@ -344,11 +344,17 @@
 # pageMoved -> MovePageCommand path end-to-end, which the bypass skips. It
 # asserts the real end state (document page-order permutation + dirty title),
 # never routing through movePageProgrammatic.
-# It is xfail(strict=False) because OS-level SendInput provably does not
-# reliably initiate a Qt6 QListWidget InternalMove QDrag on this build -- the
-# SAME platform limitation whose test-automation workaround is P10-INFRA-1
-# above. This is a harness/OS limitation, not a product defect: the #326 fix
-# (PagePanel setMovement Snap->Static, so the gesture reaches the drop handler)
+# It is xfail(strict=False) because OS-level SendInput provably cannot drive the
+# reorder end-to-end on this build. GitHub #335 re-measurement (2026-11-05) via
+# the new pageDragStarts view-state seam REFINED the mechanism and overturned the
+# earlier wording: a synthetic SendInput drag now DOES reach startDrag()
+# (pageDragStarts observed 0 -> 1 after the #335 startDrag override), so the
+# gesture is no longer blocked at drag-INITIATION. What remains un-driveable is
+# DOWNSTREAM -- the real QDrag::exec() modal OS drag/drop loop does not turn the
+# synthetic release into a drop that reorders, so the document order is unchanged.
+# The limitation is now the OS modal drag loop under synthetic input, not the
+# start threshold. Still a harness/OS limitation, not a product defect: the #326
+# fix (PagePanel setMovement Snap->Static, so the gesture reaches the drop handler)
 # is pinned DETERMINISTICALLY by the PASSING C++ guard
 # PagePanelQInvokable.DragReorderConfiguration_RoutesRealDragThroughDropHandler
 # (asserts movement()==Static, dragDropMode()==InternalMove,
