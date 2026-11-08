@@ -481,13 +481,27 @@ void SelectTool::onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pdfPo
         return;
     }
 
+    // GitHub #343: emit the annotation's OWN page index, not the page the
+    // pointer happens to be over at release. `pageIndex` here is the hover
+    // page under the cursor, which differs from the source page the moment a
+    // drag crosses a page boundary (onMouseMove deliberately ignores the hover
+    // page). The annotation is indexed on `currentPageIndex_` — the page it was
+    // selected on (set in onMousePress) — so emitting `pageIndex` made the
+    // MainWindow handler call getAnnotation(targetPage, selectedAnnotIndex_)
+    // with an index that belongs to the source page: out of range on the
+    // target page → stale/OOB deref → crash. Using currentPageIndex_ keeps the
+    // move on the annotation's own page (a within-page move is unaffected,
+    // since there currentPageIndex_ == pageIndex). The handler also bounds-
+    // checks defensively.
+    const int sourcePageIndex = currentPageIndex_;
+
     if (activeHandle_ == Handle::Rotate) {
         double currentAngle = computeRotation(pdfPoint);
         double startAngle = computeRotation(dragStartPdf_);
         rotationDegrees_ = dragStartRotation_ + (currentAngle - startAngle);
 
         if (annotationRotated) {
-            annotationRotated(pageIndex, selectedAnnotIndex_, rotationDegrees_);
+            annotationRotated(sourcePageIndex, selectedAnnotIndex_, rotationDegrees_);
         }
 
         isDragging_ = false;
@@ -499,7 +513,7 @@ void SelectTool::onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pdfPo
         QRectF newRect = computeResizedRect(activeHandle_, pdfPoint);
 
         if (annotationMoved) {
-            annotationMoved(pageIndex, selectedAnnotIndex_, dragStartRect_, newRect);
+            annotationMoved(sourcePageIndex, selectedAnnotIndex_, dragStartRect_, newRect);
         }
 
         selectedAnnotRect_ = newRect;
@@ -511,7 +525,7 @@ void SelectTool::onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pdfPo
             QRectF newRect = dragStartRect_.translated(dx, dy);
 
             if (annotationMoved) {
-                annotationMoved(pageIndex, selectedAnnotIndex_, dragStartRect_, newRect);
+                annotationMoved(sourcePageIndex, selectedAnnotIndex_, dragStartRect_, newRect);
             }
 
             selectedAnnotRect_ = newRect;

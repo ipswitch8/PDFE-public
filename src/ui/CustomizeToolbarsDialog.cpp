@@ -10,6 +10,8 @@
 #include <QLineEdit>
 #include <QListView>
 #include <QPushButton>
+#include <QSet>
+#include <QSignalBlocker>
 #include <QStandardItemModel>
 #include <QVBoxLayout>
 #include "ui/TestDialogSeam.h"
@@ -66,8 +68,20 @@ CustomizeToolbarsDialog::CustomizeToolbarsDialog(
 {
     setupUi();
     if (!layouts_.empty()) {
-        for (const auto& l : layouts_) {
-            toolbarCombo_->addItem(l.toolbarName);
+        // GitHub #363 — populate the combo with signals BLOCKED. Otherwise the
+        // first addItem sets currentIndex 0 and emits currentIndexChanged, which
+        // (currentToolbarIndex_ defaults to 0) runs onToolbarSelected →
+        // persistCurrentSelectionBack() against the still-EMPTY current model,
+        // overwriting layouts_[0].actionIds with an empty list. The subsequent
+        // rebuildCurrentList() then reads that wiped layout and shows the first
+        // toolbar as having no actions — i.e. "Current treated as empty". With
+        // signals blocked during population, the explicit selectToolbar(0) below
+        // is the first (and correct) build of both lists.
+        {
+            const QSignalBlocker block(toolbarCombo_);
+            for (const auto& l : layouts_) {
+                toolbarCombo_->addItem(l.toolbarName);
+            }
         }
         selectToolbar(0);
     }
@@ -470,8 +484,26 @@ void CustomizeToolbarsDialog::onToolbarSelected(int index) {
 
 void CustomizeToolbarsDialog::rebuildAvailableList() {
     availableModel_->clear();
+
+    // GitHub #363. Available used to append the ENTIRE action registry and
+    // never subtract the Current list, so every action appeared in BOTH lists
+    // — Available overlapped Current completely and "Current" looked like it
+    // held nothing distinct. Build the set of objectNames already on the
+    // selected toolbar and EXCLUDE them from Available so the two lists are
+    // disjoint. The current ids are read from the selected toolbar's layout,
+    // which persistCurrentSelectionBack() keeps in sync; rebuildAvailableList()
+    // is now also called on every add/remove so the exclusion stays current.
+    QSet<QString> currentIds;
+    if (currentToolbarIndex_ >= 0
+        && currentToolbarIndex_ < static_cast<int>(layouts_.size())) {
+        for (const QString& id : layouts_[currentToolbarIndex_].actionIds) {
+            if (!id.isEmpty()) currentIds.insert(id);
+        }
+    }
+
     for (QAction* a : registry_) {
         if (!a) continue;
+        if (currentIds.contains(a->objectName())) continue;  // #363: no overlap
         availableModel_->appendRow(makeActionItem(a));
     }
     availableModel_->sort(0);
@@ -526,6 +558,10 @@ void CustomizeToolbarsDialog::onAddClicked() {
     currentModel_->insertRow(insertAt, cloned);
     currentList_->setCurrentIndex(currentModel_->index(insertAt, 0));
     persistCurrentSelectionBack();
+    // GitHub #363: the added action must leave Available so the two lists stay
+    // disjoint. persistCurrentSelectionBack() has already updated the layout
+    // this reads from.
+    rebuildAvailableList();
 }
 
 void CustomizeToolbarsDialog::onRemoveClicked() {
@@ -533,6 +569,8 @@ void CustomizeToolbarsDialog::onRemoveClicked() {
     if (row < 0) return;
     currentModel_->removeRow(row);
     persistCurrentSelectionBack();
+    // GitHub #363: the removed action must reappear in Available.
+    rebuildAvailableList();
 }
 
 void CustomizeToolbarsDialog::onMoveUpClicked() {
@@ -573,6 +611,30 @@ void CustomizeToolbarsDialog::onResetClicked() {
 
 std::vector<ToolbarLayout> CustomizeToolbarsDialog::updatedLayouts() const {
     return layouts_;
+}
+
+// GitHub #363 test seam — read the live model contents the UI populates.
+QStringList CustomizeToolbarsDialog::availableObjectNamesForTesting() const {
+    QStringList out;
+    if (!availableModel_) return out;
+    for (int i = 0; i < availableModel_->rowCount(); ++i) {
+        if (QStandardItem* it = availableModel_->item(i)) {
+            out.push_back(it->data(Qt::UserRole).toString());
+        }
+    }
+    return out;
+}
+
+QStringList CustomizeToolbarsDialog::currentObjectNamesForTesting() const {
+    QStringList out;
+    if (!currentModel_) return out;
+    for (int i = 0; i < currentModel_->rowCount(); ++i) {
+        if (QStandardItem* it = currentModel_->item(i)) {
+            const QString id = it->data(Qt::UserRole).toString();
+            if (!id.isEmpty()) out.push_back(id);  // skip separators
+        }
+    }
+    return out;
 }
 
 // ─── Pipeline b3f19d72 phase-1 test-automation hooks ─────────────────────

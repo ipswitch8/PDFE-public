@@ -115,6 +115,42 @@ public:
     /// Check if OpenSSL is available and initialized.
     bool isAvailable() const;
 
+    /// GitHub #361 — options for createSelfSignedPfx(). Subject fields plus a
+    /// validity period and key size. CN is required; O is optional. No secret
+    /// material lives here (the passphrase is a separate argument so it is never
+    /// bundled into a loggable struct).
+    struct SelfSignedCertOptions {
+        std::string commonName;        ///< Subject CN (required; rejected if empty).
+        std::string organization;      ///< Subject O (optional).
+        int validityDays = 365;        ///< Days valid from now (<=0 => 365).
+        int rsaBits = 2048;            ///< RSA key size (<2048 => 2048).
+    };
+
+    /// GitHub #361 — result of createSelfSignedPfx(). The error message is
+    /// deliberately GENERIC: it never contains the passphrase, the private key,
+    /// or any certificate bytes, mirroring the signTargetField design that
+    /// drops exception text so secrets cannot leak into a log or a UI string.
+    struct SelfSignedCertResult {
+        bool success = false;
+        std::string errorMessage;      ///< Empty on success; secret-free on failure.
+    };
+
+    /// GitHub #361 — generate an RSA key + a self-signed X.509 certificate from
+    /// @p opts and package them into a PKCS#12 (.pfx) at @p outputPfxPath,
+    /// protected by @p passphrase. Uses ONLY the OpenSSL already linked into
+    /// this bridge — no new dependency.
+    ///
+    /// Validation (performed BEFORE any key material is generated, so a rejected
+    /// request writes NOTHING to disk): empty CN and empty passphrase are both
+    /// rejected with success=false. An empty output path is likewise rejected.
+    ///
+    /// SECURITY: on no path does this function log the passphrase or the private
+    /// key; @p errorMessage is always secret-free.
+    static SelfSignedCertResult createSelfSignedPfx(
+        const std::string& outputPfxPath,
+        const std::string& passphrase,
+        const SelfSignedCertOptions& opts);
+
     /// Read a PFX/PKCS12 file and return a MuPDF-compatible signer.
     /// Caller must call dropSigner() when done.
     /// @note Parameters are const char* (not std::string&) because this function

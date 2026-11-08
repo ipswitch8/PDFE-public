@@ -33,6 +33,14 @@ struct AnnotationData {
     QPointF lineStart;
     QPointF lineEnd;
 
+    // GitHub #350: machine-readable measurement tag (the "[PDFE-MEASURE:...]"
+    // marker produced by MeasureTool::buildContents). Carried HERE — a hidden,
+    // non-visible field — rather than in `contents`, so the user-facing text
+    // box shows only the human-readable value while code that needs the
+    // structured mode/value/unit can still recover it. Empty for every
+    // annotation that is not a perimeter/area measurement.
+    std::string measureTag;
+
     // Timestamps
     int64_t creationDate = 0;
     int64_t modificationDate = 0;

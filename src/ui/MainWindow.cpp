@@ -63,6 +63,7 @@
 #include "../annotations/CropTool.h"
 #include "../core/PageOperations.h"
 #include "../optimize/GrayscaleConverter.h"
+#include "../optimize/GrayscaleCommand.h"
 #include "PageLabelsDialog.h"
 
 #include <QInputDialog>
@@ -5686,7 +5687,7 @@ void MainWindow::createMenus()
         grayAct->setStatusTip(tr(
             "Recolor all pages, images, and text to DeviceGray"));
         connect(grayAct, &QAction::triggered, this, [this]() {
-            if (!document_) return;
+            if (!document_ || !undoManager_) return;
             const int rc = QMessageBox::question(this,
                 tr("Convert to Grayscale"),
                 tr("Convert every page to grayscale? This recolors all "
@@ -5694,18 +5695,25 @@ void MainWindow::createMenus()
                    "Save the file afterwards to persist the change."),
                 QMessageBox::Ok | QMessageBox::Cancel);
             if (rc != QMessageBox::Ok) return;
-            auto result = pdfe::optimize::GrayscaleConverter::
-                convertDocumentToGrayscale(document_.get());
-            if (result.ok) {
+            // GitHub #355: route through the UndoManager so the conversion is
+            // undoable (undo restores the original colour content), matching
+            // the adjacent Crop path. The command stays owned by the undo
+            // stack after execute(), so reading its result via a borrowed
+            // pointer is safe.
+            auto cmd = std::make_unique<pdfe::optimize::GrayscaleCommand>(
+                document_.get());
+            auto* cmdPtr = cmd.get();
+            undoManager_->execute(std::move(cmd));
+            if (cmdPtr->ok()) {
                 if (canvas_) canvas_->refreshAllPages();
                 statusBar_->showMessage(tr(
                     "Converted %1 page(s) to grayscale")
-                        .arg(result.pagesConverted), 5000);
+                        .arg(cmdPtr->pagesConverted()), 5000);
             } else {
                 QMessageBox::warning(this, tr("Convert to Grayscale"),
                     tr("Conversion finished with %1 page(s) failed: %2")
-                        .arg(result.pagesFailed)
-                        .arg(QString::fromStdString(result.errorMessage)));
+                        .arg(cmdPtr->pagesFailed())
+                        .arg(QString::fromStdString(cmdPtr->errorMessage())));
             }
         });
         toolsMenu->addAction(grayAct);
@@ -6025,6 +6033,26 @@ void MainWindow::createToolBar()
 
     toolBar->addAction(fitWidthAction_);
     toolBar->addAction(fitPageAction_);
+}
+
+QImage MainWindow::resolveLibraryStampImage(const QString& libraryName)
+{
+    // GitHub #359: a listed stamp whose image is null means the library is
+    // corrupt (e.g. a PNG that failed to decode on load). Fail LOUDLY rather
+    // than degrade in silence, which previously looked identical to "the
+    // imported stamp was ignored". Returns the resolved image, or a null QImage
+    // after warning if it could not be loaded.
+    QImage img = imageStampLibrary_ ? imageStampLibrary_->stamp(libraryName)
+                                    : QImage();
+    if (img.isNull()) {
+        ++stampWarningCountForTesting_;
+        if (!suppressStampWarningForTesting_) {
+            QMessageBox::warning(this, tr("Stamp"),
+                tr("The image stamp '%1' could not be loaded and was not "
+                   "placed. Try re-importing it.").arg(libraryName));
+        }
+    }
+    return img;
 }
 
 void MainWindow::createAnnotationToolBar()
@@ -6412,13 +6440,23 @@ void MainWindow::createAnnotationToolBar()
                     stampAct->setChecked(false); return;
                 }
             } else if (pickIdx >= firstImageIdx && imageStampLibrary_) {
+                // GitHub #359: resolve the picked entry by its LIBRARY NAME, not
+                // the "Image: <name>" display label. imageStampNames[] carries
+                // the real names in menu order, so this index maps the display
+                // choice straight back to the key stamp()/setImageStamp() use.
                 const int imgIdx = pickIdx - firstImageIdx;
-                if (imgIdx < imageStampNames.size()) {
+                if (imgIdx >= 0 && imgIdx < imageStampNames.size()) {
                     stampName = imageStampNames[imgIdx];
-                    stampImage = imageStampLibrary_->stamp(stampName);
+                    // GitHub #359: resolveLibraryStampImage() looks up the image
+                    // and, on a null/corrupt one, warns LOUDLY and returns null
+                    // (the old code silently un-checked and returned, which
+                    // looked identical to "ignored" or dropped the user onto a
+                    // text stamp). The resolve + warn are a single testable unit.
+                    stampImage = resolveLibraryStampImage(stampName);
                 }
                 if (stampImage.isNull()) {
-                    stampAct->setChecked(false); return;
+                    stampAct->setChecked(false);
+                    return;
                 }
             }
 
@@ -7024,6 +7062,18 @@ void MainWindow::setupPanelShortcuts()
 void MainWindow::openFile(const QString& filePath)
 {
     if (filePath.isEmpty()) {
+        return;
+    }
+
+    // GitHub #358 test seam: observe every non-empty open attempt. Inert in
+    // production (unset). The combine-auto-open test uses it to prove that the
+    // wizard's combineFinished(path) actually reaches openFile() with the
+    // combined output path, exactly once. When set it also SHORT-CIRCUITS the
+    // real load so a headless unit test cannot wedge on the window's document
+    // machinery — the routing is what #358 is about, and the real load path is
+    // covered by the many openFile() tests elsewhere.
+    if (openFileObserverForTesting_) {
+        openFileObserverForTesting_(filePath);
         return;
     }
 
@@ -8694,6 +8744,14 @@ void MainWindow::onUndo()
         // is still needed for actual page operations (insert/delete/
         // move/import) which DO invalidate page wrappers, hence the
         // pageCount-delta guard.
+        // GitHub #347/#348 — read the command's UI effect BEFORE undo() moves it
+        // to the redo stack. A count-preserving page-structure command (Move,
+        // Rotate) must still rebuild the panel thumbnails; a content command
+        // (image insert) must invalidate its one page's thumbnail. The old
+        // page-count-delta gate alone caught neither.
+        const pdfe::commands::Command* undone = undoManager_->peekUndoCommand();
+        const bool structuralCmd = undone && undone->affectsPageStructure();
+        const int thumbPage = undone ? undone->affectedThumbnailPage() : -1;
         const int pageCountBefore = document_ ? document_->pageCount() : 0;
         undoManager_->undo();
         const int pageCountAfter = document_ ? document_->pageCount() : 0;
@@ -8725,14 +8783,24 @@ void MainWindow::onUndo()
         // commands leaves the PagePanel showing a stale page list
         // even though the document model is correctly reverted.
         // Discovered in phase-7 (docs/undo-panel-refresh-bug.md).
-        if (pageCountBefore != pageCountAfter) {
+        if (pageCountBefore != pageCountAfter || structuralCmd) {
+            // GitHub #347 — count change OR a count-preserving page-structure
+            // command (Move/Rotate): rebuild the Pages-panel thumbnails.
             onDocumentStructureChanged();
-        } else if (commentPanel_) {
-            // Non-structural undo (annotations, text edits): keep
-            // commandPages_ intact, but still refresh the comment
-            // panel so undo of CreateAnnotation / ModifyAnnotation is
-            // reflected in the tree.
-            commentPanel_->refresh();
+        } else {
+            if (commentPanel_) {
+                // Non-structural undo (annotations, text edits): keep
+                // commandPages_ intact, but still refresh the comment
+                // panel so undo of CreateAnnotation / ModifyAnnotation is
+                // reflected in the tree.
+                commentPanel_->refresh();
+            }
+            // GitHub #348 — a content edit (image insert) that preserves the
+            // page set still changed one page's appearance; invalidate exactly
+            // that page's thumbnail so the panel re-rasterizes it on undo.
+            if (thumbPage >= 0 && pagePanel_) {
+                pagePanel_->invalidateThumbnail(thumbPage);
+            }
         }
         // Pipeline b3d7f942 phase-3 (GAP-7): refresh the redaction panel
         // after undo so CreateRedactionCommand::undo() (which calls
@@ -8754,6 +8822,11 @@ void MainWindow::onRedo()
         // Cluster #5 fix: see onUndo above for the rationale. Same
         // page-count guard around onDocumentStructureChanged() to
         // avoid invalidating commandPages_ on non-structural redos.
+        // GitHub #347/#348 — same UI-effect probe as onUndo, read before redo()
+        // moves the command back to the undo stack.
+        const pdfe::commands::Command* redone = undoManager_->peekRedoCommand();
+        const bool structuralCmd = redone && redone->affectsPageStructure();
+        const int thumbPage = redone ? redone->affectedThumbnailPage() : -1;
         const int pageCountBefore = document_ ? document_->pageCount() : 0;
         undoManager_->redo();
         const int pageCountAfter = document_ ? document_->pageCount() : 0;
@@ -8776,11 +8849,16 @@ void MainWindow::onRedo()
         }
 
         if (canvas_) canvas_->refreshAllPages();
-        // Same panel-refresh gap as onUndo, see above.
-        if (pageCountBefore != pageCountAfter) {
+        // Same panel-refresh gap as onUndo, see above (GitHub #347/#348).
+        if (pageCountBefore != pageCountAfter || structuralCmd) {
             onDocumentStructureChanged();
-        } else if (commentPanel_) {
-            commentPanel_->refresh();
+        } else {
+            if (commentPanel_) {
+                commentPanel_->refresh();
+            }
+            if (thumbPage >= 0 && pagePanel_) {
+                pagePanel_->invalidateThumbnail(thumbPage);
+            }
         }
         // Pipeline b3d7f942 phase-3 (GAP-7): refresh the redaction panel
         // after redo so CreateRedactionCommand::redo() (restoreRedactionMark)
@@ -9759,10 +9837,22 @@ void MainWindow::onAbout()
     dialog.exec();
 }
 
+// GitHub #364. Help > Documentation / F1 used to open
+// https://github.com/ipswitch8/PDFE#documentation — the PRIVATE dev repo and a
+// nonexistent anchor, unreachable by external users. It now targets the PUBLIC
+// mirror's README via the documentationUrl() accessor, routed through the same
+// openReportUrl() opener seam the report-issue surface uses (so a headless test
+// can assert the opener fired with the URL without launching a browser).
+QString MainWindow::documentationUrl()
+{
+    // PUBLIC mirror. The dev repo (ipswitch8/PDFE) is private and unreachable
+    // by external users — the docs link must point at the public mirror.
+    return QStringLiteral("https://github.com/ipswitch8/PDFE-public#readme");
+}
+
 void MainWindow::onDocumentation()
 {
-    QDesktopServices::openUrl(
-        QUrl("https://github.com/ipswitch8/PDFE#documentation"));
+    openReportUrl(MainWindow::documentationUrl());
 }
 
 // Pipeline ui-report-netopen phase-2. Single source of truth for the three
@@ -9997,10 +10087,20 @@ void MainWindow::maybeCheckForUpdateOnStartup()
         });
 }
 
+// GitHub #365. Help > Check for Updates used to open
+// https://github.com/ipswitch8/PDFE/releases — the PRIVATE dev repo, unreachable
+// by external users. It now targets the PUBLIC mirror's releases page via the
+// checkUpdatesUrl() accessor, routed through the openReportUrl() opener seam.
+QString MainWindow::checkUpdatesUrl()
+{
+    // PUBLIC mirror. The dev repo (ipswitch8/PDFE) is private and unreachable
+    // by external users — the releases link must point at the public mirror.
+    return QStringLiteral("https://github.com/ipswitch8/PDFE-public/releases");
+}
+
 void MainWindow::onCheckUpdates()
 {
-    QDesktopServices::openUrl(
-        QUrl("https://github.com/ipswitch8/PDFE/releases"));
+    openReportUrl(MainWindow::checkUpdatesUrl());
 }
 
 void MainWindow::onPageChanged(int pageIndex)
@@ -10561,9 +10661,26 @@ void MainWindow::onAnnotationToolSelected(QAction* action)
         };
         selectTool->annotationMoved = [this](int pageIndex, int annotIndex, QRectF oldRect, QRectF newRect) {
             if (!document_ || !annotationManager_ || !undoManager_) return;
+            if (pageIndex < 0 || pageIndex >= document_->pageCount()) return;
             auto page = document_->page(pageIndex);
             if (!page) return;
             auto* pagePtr = page.get();
+
+            // GitHub #343: reject an out-of-range annotation index BEFORE
+            // touching the model. A cross-page drag used to emit the hover
+            // (target) page with the source page's annotation index, so this
+            // index may not resolve on `pagePtr`. getAnnotation() throws a
+            // MuPdfException for an out-of-range index, and this lambda runs
+            // inside a Qt mouse-event handler where an escaping C++ exception
+            // terminates the process (same hazard as SelectTool::onPaintOverlay,
+            // GitHub #234). The SelectTool fix now emits the annotation's own
+            // page, so this guard is belt-and-braces — but a silent no-op on a
+            // stale index is the correct, crash-free behaviour regardless.
+            if (annotIndex < 0 ||
+                annotIndex >= static_cast<int>(
+                    annotationManager_->getAnnotations(pagePtr).size())) {
+                return;
+            }
             commandPages_.push_back(std::move(page));
 
             auto oldData = annotationManager_->getAnnotation(pagePtr, annotIndex);
@@ -11769,6 +11886,28 @@ void MainWindow::onStickyNotePopupClosed(int pageIndex, int annotIndex)
     // Popup is already hidden; no additional cleanup needed
 }
 
+// GitHub #344 test seams. Defined out-of-line because StickyNotePopup is only
+// forward-declared in the header.
+void MainWindow::openStickyNotePopupForTesting(
+    const pdfe::annotations::AnnotationData& data)
+{
+    if (stickyNotePopup_) {
+        stickyNotePopup_->openForAnnotation(data, QPoint(100, 100));
+    }
+}
+
+bool MainWindow::isStickyNotePopupVisibleForTesting() const
+{
+    return stickyNotePopup_ && stickyNotePopup_->isPopupVisible();
+}
+
+void MainWindow::applyAnnotationPropertyChangeForTesting(
+    const pdfe::annotations::AnnotationData& data)
+{
+    // GitHub #344: drive the REAL slot so the stale-index guard is exercised.
+    onAnnotationPropertiesChanged(data);
+}
+
 void MainWindow::applyAtlasMode(pdfe::tre::AtlasMode mode)
 {
     currentAtlasMode_ = mode;
@@ -11977,6 +12116,22 @@ void MainWindow::onCommentPanelDelete(int pageIndex, int annotIndex)
         return;
     }
 
+    // GitHub #344: close the StickyNotePopup if it is bound to the annotation
+    // being deleted (or to one whose index shifts because of the deletion).
+    // The popup edits BY (pageIndex, annotIndex); deleting the FreeText it was
+    // opened for leaves the popup holding a stale index. A later popup edit
+    // routes through onStickyNotePopupContentsChanged → onAnnotationPropertiesChanged
+    // → getAnnotation(pagePtr, staleIndex), which throws on an out-of-range
+    // index and crashes the app (the "measure tip box" crash). Dropping the
+    // popup here removes the stale reference at the source; the guard added in
+    // onAnnotationPropertiesChanged is the second line of defence.
+    if (stickyNotePopup_ && stickyNotePopup_->isPopupVisible()) {
+        const auto& pd = stickyNotePopup_->annotationData();
+        if (pd.pageIndex == pageIndex && pd.annotIndex >= annotIndex) {
+            stickyNotePopup_->closePopup();
+        }
+    }
+
     // Create and execute delete command (keep page alive for undo/redo)
     auto* pagePtr = page.get();
     commandPages_.push_back(std::move(page));
@@ -12133,6 +12288,18 @@ void MainWindow::onAnnotationPropertiesChanged(pdfe::annotations::AnnotationData
 
     // Keep page alive for undo/redo
     auto* pagePtr = page.get();
+
+    // GitHub #344: upper-bound guard. data.annotIndex can be stale — e.g. the
+    // StickyNotePopup was opened for a FreeText that was since deleted from the
+    // comment panel, shifting or removing that index. getAnnotation() throws a
+    // MuPdfException ("Annotation index out of range") for an out-of-range
+    // index; this slot is reached from a popup/panel edit (not a Qt event
+    // handler, but a crash all the same), so a stale index must be a safe
+    // no-op rather than a throw. Checked against the live annotation count.
+    if (data.annotIndex >= static_cast<int>(
+            annotationManager_->getAnnotations(pagePtr).size())) {
+        return;
+    }
     commandPages_.push_back(std::move(page));
 
     // Get old annotation data
@@ -12330,17 +12497,36 @@ void MainWindow::onAnnotationCreatedByTool(int pageIndex, pdfe::annotations::Ann
         canvas_->refreshPage(pageIndex);
     }
 
-    // Auto-switch to SelectTool and show annotation properties after
-    // every annotation creation. Previously restricted to StickyNote
-    // and FreeText — extended to all types so the Properties Panel
-    // populates immediately, enabling configure operations (set color,
-    // set opacity, set contents) without a manual re-select click.
+    // After an annotation is created: show its properties, and — for the
+    // place-then-edit tools only — switch to the Select tool and open the
+    // inline editor.
+    //
+    // GitHub #366. This block USED to force-switch to the Select tool after
+    // EVERY creation (selectToolAction_->setChecked(true);
+    // onAnnotationToolSelected(selectToolAction_)). Annotation tools are
+    // checkable members of the exclusive annotToolGroup_, so forcing Select
+    // checked unchecked the originating tool — a Highlight / Rectangle / Ink /
+    // etc. "deselected after one use" and behaved as a one-shot, forcing the
+    // user to re-click the tool before each additional annotation.
+    //
+    // The switch is now SCOPED to the two tools that genuinely need it:
+    // StickyNote (Text) and FreeText place a single annotation and immediately
+    // open an inline editor (onStickyNoteDoubleClicked below), so leaving the
+    // creating tool armed would drop a second note on the next click into the
+    // editor. Every other (drag-to-create) tool now stays active so repeated
+    // annotations need no re-click. The Properties-panel populate is unchanged
+    // and does not depend on the active tool.
     {
-        // Switch to SelectTool
-        selectToolAction_->setChecked(true);
-        onAnnotationToolSelected(selectToolAction_);
+        const bool placeThenEditType =
+            (snapshot.type == pdfe::annotations::AnnotationType::Text ||
+             snapshot.type == pdfe::annotations::AnnotationType::FreeText);
+        if (placeThenEditType) {
+            // Switch to the Select tool for the place-then-edit workflow.
+            selectToolAction_->setChecked(true);
+            onAnnotationToolSelected(selectToolAction_);
+        }
 
-        // Select the new annotation and show properties panel.
+        // Populate the new annotation's properties and show properties panel.
         // Same index, same reason as above (GitHub #170): a list POSITION in
         // getAnnotations() is not an addressable annotation index.
         if (newIndex >= 0) {
@@ -12414,6 +12600,18 @@ void MainWindow::onAnnotationCreatedByTool(int pageIndex, pdfe::annotations::Ann
     // calls updateWindowTitle(). Discovered in phase-7/9 when the
     // title dirty marker was being used as a post-annotation oracle.
     updateWindowTitle();
+}
+
+// GitHub #366 test seams — see MainWindow.h.
+void MainWindow::triggerAnnotationCreatedByToolForTesting(
+    int pageIndex, pdfe::annotations::AnnotationData data)
+{
+    onAnnotationCreatedByTool(pageIndex, std::move(data));
+}
+
+QAction* MainWindow::annotToolGroupCheckedActionForTesting() const
+{
+    return annotToolGroup_ ? annotToolGroup_->checkedAction() : nullptr;
 }
 
 // ============================================================================
@@ -14249,16 +14447,24 @@ void MainWindow::onSignDocument()
         }
     }
 
+    // GitHub #360 — did WE create the signature field for this sign? Only a
+    // field created speculatively here (because the document had no unsigned
+    // field to target) may be rolled back on cancel; a pre-existing field the
+    // user placed earlier must survive a cancelled Sign dialog untouched.
+    bool createdNewField = false;
+    int createdFieldPage = -1;
     if (!hasUnsignedField) {
         // Create a new signature field first
         if (document_->pageCount() == 0) return;
 
-        auto page = document_->page(canvas_ ? canvas_->currentPage() : 0);
+        createdFieldPage = canvas_ ? canvas_->currentPage() : 0;
+        auto page = document_->page(createdFieldPage);
         auto cmd = std::make_unique<pdfe::signatures::CreateSignatureFieldCommand>(
             signatureManager_.get(), page.get(), "Signature",
             QRectF(50, 50, 200, 60));
         undoManager_->execute(std::move(cmd));
         commandPages_.push_back(std::move(page));
+        createdNewField = true;
 
         // Re-list to get the new field
         sigs = signatureManager_->listSignatures(document_.get());
@@ -14271,9 +14477,29 @@ void MainWindow::onSignDocument()
         }
     }
 
-    if (targetPage < 0 || targetWidget < 0) return;
+    if (targetPage < 0 || targetWidget < 0) {
+        // GitHub #360 — created a field but then failed to resolve it: undo so
+        // no stray SIGN marker is left behind.
+        if (createdNewField && undoManager_->canUndo()) {
+            undoManager_->undo();
+            if (canvas_ && createdFieldPage >= 0)
+                canvas_->refreshPage(createdFieldPage);
+        }
+        return;
+    }
 
-    signTargetField(targetPage, targetWidget);
+    // GitHub #360 — before: the field above was created AND committed, then
+    // signTargetField() showed the modal Sign dialog and simply returned on
+    // Cancel, leaving the red "SIGN" widget annotation on the page. Now, if we
+    // created the field for this sign and the flow aborted before committing to
+    // the signed save, roll the field back so the signature-field count returns
+    // to its pre-sign baseline.
+    const bool committed = signTargetField(targetPage, targetWidget);
+    if (createdNewField && !committed && undoManager_->canUndo()) {
+        undoManager_->undo();
+        if (canvas_ && createdFieldPage >= 0)
+            canvas_->refreshPage(createdFieldPage);
+    }
 }
 
 // GitHub #328 — the dialog/probe/save/sign sequence, factored out of
@@ -14282,16 +14508,36 @@ void MainWindow::onSignDocument()
 // SignatureManager's signature-only widget list (the index signField and
 // listSignatures use), NOT the page-wide widget index FormTool reports —
 // onSignatureFieldActivated() does that translation before calling here.
-void MainWindow::signTargetField(int targetPage, int targetWidget)
+bool MainWindow::signTargetField(int targetPage, int targetWidget)
 {
-    if (!document_ || !signatureManager_) return;
-    if (targetPage < 0 || targetWidget < 0) return;
+    if (!document_ || !signatureManager_) return false;
+    if (targetPage < 0 || targetWidget < 0) return false;
 
-    // Show sign dialog
-    SignDialog dialog(this);
-    if (dialog.exec() != QDialog::Accepted) return;
-
-    pdfe::signatures::SigningOptions opts = dialog.signingOptions();
+    // Show sign dialog.
+    //
+    // GitHub #360 — the modal exec() cannot be answered by a headless test, so
+    // when the Sign-flow test seam is engaged we take the injected result and
+    // options instead of showing the dialog. Inert in production (the optional
+    // is only ever set by setSignFlowTestInputsForTesting()).
+    pdfe::signatures::SigningOptions opts;
+    {
+        SignDialog dialog(this);
+        bool accepted;
+        if (signFlowTestInputs_) {
+            accepted = signFlowTestInputs_->dialogAccepted;
+            if (accepted) {
+                opts.pfxPath = signFlowTestInputs_->pfxPath.toStdString();
+                opts.pfxPassword = signFlowTestInputs_->pfxPassword.toStdString();
+            }
+        } else {
+            accepted = (dialog.exec() == QDialog::Accepted);
+            if (accepted) opts = dialog.signingOptions();
+        }
+        // GitHub #360 — Cancel returns false WITHOUT signing. The caller
+        // (onSignDocument) rolls back any field it created for this sign, so
+        // the cancelled flow leaves no stray "SIGN" marker on the page.
+        if (!accepted) return false;
+    }
 
     // P12-INFRA-1 sub-issue 3: validate the PFX credentials BEFORE
     // the Save As dialog opens so a wrong-password attempt surfaces
@@ -14327,27 +14573,66 @@ void MainWindow::signTargetField(int targetPage, int targetWidget)
                 tr("Failed to sign document: PFX could not be loaded "
                    "with the provided credentials (wrong password or "
                    "corrupt PFX)."));
-            return;
+            return false;
         }
     }
 
+    // GitHub #360 — true once the document has been saved under the new path
+    // and reopened; past that point any field created for this sign belongs to
+    // the saved document and must NOT be rolled back by the caller.
+    bool documentReplaced = false;
     try {
-        // Need to save document first so signing can do incremental write
-        QString savePath = QFileDialog::getSaveFileName(
-            this, tr("Save Signed PDF"),
-            currentFileName_,
-            tr("PDF Files (*.pdf)"));
-        if (savePath.isEmpty()) return;
+        // Need to save document first so signing can do incremental write.
+        // GitHub #360 — honor the injected Save-As path under the test seam
+        // (empty => simulate the user cancelling the Save-As dialog).
+        QString savePath;
+        if (signFlowTestInputs_) {
+            savePath = signFlowTestInputs_->savePath;
+        } else {
+            savePath = QFileDialog::getSaveFileName(
+                this, tr("Save Signed PDF"),
+                currentFileName_,
+                tr("PDF Files (*.pdf)"));
+        }
+        if (savePath.isEmpty()) return false;
 
         // SaveAs first to preserve original
         document_->saveAs(qStringToPath(savePath));
 
+        // GitHub #360 — the reopen below REPLACES document_, destroying the old
+        // Document and its Page objects. The undo stack (notably the
+        // CreateSignatureFieldCommand created for this sign) and commandPages_
+        // still hold raw/owned Page handles into that old document; left intact
+        // they dangle the moment the reassignment frees the old document, so a
+        // later undo — or teardown — dereferences freed memory (0xC0000005).
+        // Signing is a terminal save (undo across a sign+save is not supported),
+        // so invalidate them HERE, before the old Document is freed, mirroring
+        // the invalidation every other reopen path performs: null-rebind every
+        // command FIRST so each page_ is a defined nullptr, THEN drop the owned
+        // pages and clear the stack.
+        if (undoManager_) {
+            undoManager_->forEachCommand(
+                [](pdfe::commands::Command* c) { c->rebindPage(nullptr); });
+            undoManager_->clear();
+        }
+        commandPages_.clear();
+
         // Close current and reopen from new path
         std::filesystem::path newPath = qStringToPath(savePath);
         document_ = pdfe::core::Document::open(muPdfContext_, newPath);
+        documentReplaced = true;
 
-        auto page = document_->page(targetPage);
-        signatureManager_->signField(document_.get(), page.get(), targetWidget, opts);
+        {
+            // Scope the Page so it is released BEFORE the reopen below replaces
+            // (and frees) the Document that owns it. A Page holds an
+            // fz_keep_document reference and its index into THIS document; left
+            // alive across the reassignment it would outlive its owner, the
+            // lifecycle hazard every reopen path in this codebase is careful to
+            // avoid (see Document::saveThroughExternalRewrite's precondition and
+            // core/SaveWithRebind.h).
+            auto page = document_->page(targetPage);
+            signatureManager_->signField(document_.get(), page.get(), targetWidget, opts);
+        }
 
         // Refresh
         currentFileName_ = savePath;
@@ -14358,6 +14643,18 @@ void MainWindow::signTargetField(int targetPage, int targetWidget)
 
         // Reopen to refresh state after signing
         document_ = pdfe::core::Document::open(muPdfContext_, newPath);
+
+        // The rendering infrastructure binds to the Document by RAW pointer at
+        // construction: TileRenderer stores a Document* (set once in its ctor)
+        // and TileCache holds page-keyed tiles rendered from it. Neither is
+        // repointed when document_ is reassigned, so the tileRenderer_ built for
+        // the pre-sign document now dangles at freed memory, and the very next
+        // canvas_->setDocument() -> requestVisibleTiles() -> TileRenderer::
+        // requestTile() dereferences it through m_document->createDisplayList()
+        // (0xC0000005). Rebuild both against the reopened document, exactly as
+        // openFile() does, before the canvas can ask them to render.
+        tileCache_ = std::make_unique<pdfe::rendering::TileCache>();
+        tileRenderer_ = std::make_unique<pdfe::rendering::TileRenderer>(document_.get());
         canvas_->setDocument(document_.get(), tileCache_.get(), tileRenderer_.get());
 
         // Update signature panel
@@ -14366,6 +14663,7 @@ void MainWindow::signTargetField(int targetPage, int targetWidget)
         signaturePanelDock_->show();
 
         statusBar_->showMessage(tr("Document signed successfully"), 5000);
+        return true;
 
     } catch (const std::exception&) {
         // Intentionally do not surface e.what() — exception messages
@@ -14375,7 +14673,22 @@ void MainWindow::signTargetField(int targetPage, int targetWidget)
         QMessageBox::critical(this, tr("Signing Error"),
             tr("Failed to sign the document. Check that the certificate "
                "and password are correct, then try again."));
+        // GitHub #360 — if the reopen already happened, document_ now points at
+        // the saved copy and the create-command's page is gone, so the caller
+        // must not roll back (report committed). If saveAs threw BEFORE the
+        // reopen, the in-memory document is untouched and a speculatively
+        // created field can still be safely rolled back (report not committed).
+        return documentReplaced;
     }
+}
+
+// GitHub #360 — count signature widget fields (signed or not) on the current
+// document via the real AcroForm enumeration. Test-only oracle; returns 0 when
+// no document/manager is loaded.
+int MainWindow::signatureFieldCountForTesting() const
+{
+    if (!document_ || !signatureManager_) return 0;
+    return signatureManager_->countSignatures(document_.get());
 }
 
 // GitHub #328 — a Signature form field was clicked on the canvas (reported
@@ -14752,6 +15065,14 @@ void MainWindow::onInsertImage()
     commandPages_.push_back(std::move(page));
     undoManager_->execute(std::move(cmd));
     canvas_->refreshPage(pageIdx);
+
+    // GitHub #348 — the Pages-panel thumbnail for this page is keyed by page
+    // index and still holds the pre-insert bitmap; refreshPage() above only
+    // updates the main canvas. Invalidate exactly this page's thumbnail so the
+    // panel re-rasterizes it — the same gap the #336 delete/reorder fix closed.
+    // (Undo/redo of the insert refresh it too, via InsertImageCommand's
+    // affectedThumbnailPage() in onUndo/onRedo.)
+    if (pagePanel_) pagePanel_->invalidateThumbnail(pageIdx);
 
     // The identity of the image that was just inserted. InsertImageCommand
     // records it from the key ImageManager::insertImage() added to the page's
@@ -15442,7 +15763,20 @@ void MainWindow::loadSavedToolbarLayout()
 void MainWindow::onCombineFiles()
 {
     CombineFilesWizard wiz(muPdfContext_, this);
+    // GitHub #358: open the combined PDF automatically once the wizard reports
+    // success. Previously the wizard's result was discarded, so the user had to
+    // locate and open the file by hand. The same connection is replayed by
+    // connectCombineWizardForTesting() so the auto-open path is exercised
+    // headlessly without the modal exec() loop.
+    connectCombineWizardForTesting(&wiz);
     wiz.exec();
+}
+
+void MainWindow::connectCombineWizardForTesting(CombineFilesWizard* wiz)
+{
+    if (!wiz) return;
+    connect(wiz, &CombineFilesWizard::combineFinished, this,
+            &MainWindow::openFile);
 }
 
 void MainWindow::onCustomizeToolbars()

@@ -1,5 +1,7 @@
 #include "SignDialog.h"
 #include "signatures/SignatureData.h"
+#include "signatures/Pkcs7OpenSslBridge.h"
+#include "annotations/SignatureImageLibrary.h"  // GitHub #362
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -9,11 +11,16 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QPushButton>
+#include <QDialogButtonBox>
+#include <QSpinBox>
 #include <QLabel>
 #include <QFileDialog>
+#include <QInputDialog>
 #include <QScrollArea>
 #include <QFrame>
 #include <QPixmap>
+#include <QTemporaryFile>
+#include <QDir>
 #include "ui/TestDialogSeam.h"
 
 namespace pdfe::ui {
@@ -82,6 +89,15 @@ SignDialog::SignDialog(QWidget* parent)
     pfxPasswordEdit_->setEchoMode(QLineEdit::Password);
     pfxPasswordEdit_->setPlaceholderText(tr("Certificate password"));
     certLayout->addRow(tr("Password:"), pfxPasswordEdit_);
+
+    // GitHub #361 — let a user who has no certificate create a self-signed PFX
+    // in place, then sign with it. Clicking opens a subject/validity/passphrase
+    // entry path; on success the produced .pfx path + passphrase populate the
+    // fields above so signingOptions() returns them.
+    createCertButton_ = new QPushButton(tr("Create certificate..."), this);
+    createCertButton_->setObjectName("createCertButton");
+    createCertButton_->setAccessibleName(tr("Create Self-Signed Certificate"));
+    certLayout->addRow(QString(), createCertButton_);
 
     mainLayout->addWidget(certGroup);
 
@@ -168,6 +184,22 @@ SignDialog::SignDialog(QWidget* parent)
     imagePreviewLabel_->setAlignment(Qt::AlignCenter);
     imagePreviewLabel_->setText(tr("No signature image selected"));
     appearLayout->addWidget(imagePreviewLabel_);
+
+    // GitHub #362 — persisted signature-image library controls. A combo to
+    // RE-SELECT a previously saved signature image (index 0 is a
+    // non-selectable placeholder) and a button to SAVE the currently-browsed
+    // image under a name for reuse in later sessions.
+    auto* libraryRow = new QHBoxLayout();
+    savedImageCombo_ = new QComboBox(this);
+    savedImageCombo_->setObjectName("savedSignatureImageCombo");
+    savedImageCombo_->setAccessibleName(tr("Saved Signature Images"));
+    libraryRow->addWidget(savedImageCombo_, 1);
+
+    saveImageButton_ = new QPushButton(tr("Save image..."), this);
+    saveImageButton_->setObjectName("saveSignatureImageButton");
+    saveImageButton_->setAccessibleName(tr("Save Signature Image to Library"));
+    libraryRow->addWidget(saveImageButton_);
+    appearLayout->addLayout(libraryRow);
 
     mainLayout->addWidget(appearGroup);
 
@@ -262,11 +294,21 @@ SignDialog::SignDialog(QWidget* parent)
 
     // Connections
     connect(browseButton_, &QPushButton::clicked, this, &SignDialog::onBrowsePfx);
+    connect(createCertButton_, &QPushButton::clicked, this, &SignDialog::onCreateCert);
     connect(imageBrowseButton_, &QPushButton::clicked, this, &SignDialog::onBrowseImage);
+    connect(saveImageButton_, &QPushButton::clicked, this, &SignDialog::onSaveImageToLibrary);
+    connect(savedImageCombo_, QOverload<int>::of(&QComboBox::activated),
+            this, &SignDialog::onSelectSavedImage);
     connect(pfxPathEdit_, &QLineEdit::textChanged, this, &SignDialog::validateInput);
     connect(pfxPasswordEdit_, &QLineEdit::textChanged, this, &SignDialog::validateInput);
     connect(okButton_, &QPushButton::clicked, this, &QDialog::accept);
     connect(cancelButton_, &QPushButton::clicked, this, &QDialog::reject);
+
+    // GitHub #362 — load the persisted signature-image library on construction
+    // and populate the re-select combo from it.
+    signatureImages_ = std::make_unique<pdfe::annotations::SignatureImageLibrary>();
+    signatureImages_->loadFromSettings();
+    refreshSavedImageCombo();
 
     // Register with the dialog-introspection seam so tests can observe
     // this dialog while its modal exec() loop runs (UIA cannot enumerate
@@ -342,6 +384,251 @@ void SignDialog::onBrowseImage()
     } else {
         imagePreviewLabel_->setText(tr("Could not preview image"));
     }
+}
+
+// GitHub #362 — rebuild the re-select combo from the library. Index 0 is a
+// non-selectable placeholder so "no choice" is a distinct state; the saved
+// names follow in library (insertion) order.
+void SignDialog::refreshSavedImageCombo()
+{
+    if (!savedImageCombo_) return;
+    const bool wasBlocked = savedImageCombo_->blockSignals(true);
+    savedImageCombo_->clear();
+    savedImageCombo_->addItem(tr("Saved signatures..."));
+    if (signatureImages_) {
+        savedImageCombo_->addItems(signatureImages_->signatureImageNames());
+    }
+    savedImageCombo_->setCurrentIndex(0);
+    savedImageCombo_->blockSignals(wasBlocked);
+}
+
+// GitHub #362 — save the currently-browsed signature image into the persisted
+// library under a user-supplied name. Production asks for the name via a modal
+// QInputDialog; a headless test injects it via setSaveImageNameForTesting().
+void SignDialog::onSaveImageToLibrary()
+{
+    const QString path = imagePathEdit_->text();
+    if (path.isEmpty()) {
+        validationLabel_->setText(
+            tr("Browse for a signature image before saving it."));
+        return;
+    }
+    QImage img(path);
+    if (img.isNull()) {
+        validationLabel_->setText(tr("Could not load the signature image."));
+        return;
+    }
+
+    QString name;
+    if (saveImageNameForTesting_) {
+        name = *saveImageNameForTesting_;  // headless seam: skip the modal
+    } else {
+        bool ok = false;
+        name = QInputDialog::getText(
+            this, tr("Save Signature Image"),
+            tr("Name for this signature image:"), QLineEdit::Normal,
+            QString(), &ok);
+        if (!ok) return;  // user cancelled
+    }
+
+    name = name.trimmed();
+    if (name.isEmpty()) {
+        validationLabel_->setText(tr("A name is required to save the image."));
+        return;
+    }
+
+    if (!signatureImages_) {
+        signatureImages_ =
+            std::make_unique<pdfe::annotations::SignatureImageLibrary>();
+    }
+    // Same name overwrites in place (no duplicate); then persist immediately so
+    // the image survives to the next session.
+    signatureImages_->addSignatureImage(name, img);
+    signatureImages_->saveToSettings();
+    refreshSavedImageCombo();
+
+    // Leave the combo pointing at the freshly-saved entry for feedback.
+    const int idx = savedImageCombo_->findText(name);
+    if (idx >= 0) savedImageCombo_->setCurrentIndex(idx);
+    validationLabel_->setText(tr("Signature image saved."));
+}
+
+// GitHub #362 — re-select a previously saved signature image. The library
+// stores a QImage (no source path survives across sessions), so materialise it
+// to a temp PNG and point imagePathEdit_ at that file: the existing
+// imagePath-based signing path then works unchanged. Also refresh the preview.
+void SignDialog::onSelectSavedImage(int index)
+{
+    if (index <= 0 || !signatureImages_) return;  // 0 is the placeholder
+    const QString name = savedImageCombo_->itemText(index);
+    const QImage img = signatureImages_->signatureImage(name);
+    if (img.isNull()) return;
+
+    auto tmp = std::make_unique<QTemporaryFile>(
+        QDir(QDir::tempPath()).filePath(
+            QStringLiteral("pdfe_sigimg_XXXXXX.png")));
+    tmp->setAutoRemove(true);
+    if (!tmp->open() || !img.save(tmp->fileName(), "PNG")) {
+        validationLabel_->setText(
+            tr("Could not prepare the saved signature image."));
+        return;
+    }
+    const QString tmpPath = tmp->fileName();
+    // Keep the temp file alive for the dialog's lifetime (autoRemove deletes it
+    // on destruction).
+    selectedImageTempFile_ = std::move(tmp);
+
+    imagePathEdit_->setText(tmpPath);
+    QPixmap pix = QPixmap::fromImage(img);
+    if (!pix.isNull()) {
+        imagePreviewLabel_->setPixmap(
+            pix.scaled(imagePreviewLabel_->width() > 0
+                           ? imagePreviewLabel_->width()
+                           : 200,
+                       48, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
+}
+
+// GitHub #362 — headless read accessors (UIA cannot drive the combo modally).
+int SignDialog::savedSignatureImageCountForTesting() const
+{
+    return signatureImages_ ? signatureImages_->count() : 0;
+}
+
+bool SignDialog::selectSavedSignatureImageForTesting(const QString& name)
+{
+    if (!savedImageCombo_) return false;
+    const int idx = savedImageCombo_->findText(name);
+    if (idx <= 0) return false;
+    savedImageCombo_->setCurrentIndex(idx);
+    onSelectSavedImage(idx);
+    return true;
+}
+
+void SignDialog::onCreateCert()
+{
+    // GitHub #361 — gather the subject/validity/passphrase + output path, then
+    // run the REAL create + field-population path. Production shows two modals;
+    // a GoogleTest injects the values via setCreateCertTestInputsForTesting()
+    // and this method skips the modals but runs the identical create path below.
+    QString cn, org, pass, outPath;
+    int days = 365;
+
+    if (createCertTestInputs_) {
+        if (!createCertTestInputs_->accepted) {
+            return;  // simulate the user cancelling the entry dialog
+        }
+        cn      = createCertTestInputs_->commonName;
+        org     = createCertTestInputs_->organization;
+        days    = createCertTestInputs_->validityDays;
+        pass    = createCertTestInputs_->passphrase;
+        outPath = createCertTestInputs_->outputPath;
+    } else {
+        // Subject / validity / passphrase entry dialog. A plain QDialog instance
+        // (not a subclass) so the introspection build-guard does not require a
+        // new registered type, yet still registered here for UIA automation.
+        QDialog entry(this);
+        entry.setObjectName("createCertDialog");
+        entry.setAccessibleName(tr("Create Self-Signed Certificate"));
+        entry.setWindowTitle(tr("Create Self-Signed Certificate"));
+
+        auto* form = new QFormLayout(&entry);
+
+        auto* cnEdit = new QLineEdit(&entry);
+        cnEdit->setObjectName("certCnEdit");
+        cnEdit->setAccessibleName(tr("Certificate Common Name"));
+        cnEdit->setPlaceholderText(tr("e.g., Jane Doe"));
+        form->addRow(tr("Common Name (CN):"), cnEdit);
+
+        auto* orgEdit = new QLineEdit(&entry);
+        orgEdit->setObjectName("certOrgEdit");
+        orgEdit->setAccessibleName(tr("Certificate Organization"));
+        orgEdit->setPlaceholderText(tr("Optional"));
+        form->addRow(tr("Organization (O):"), orgEdit);
+
+        auto* daysSpin = new QSpinBox(&entry);
+        daysSpin->setObjectName("certValidityDaysSpin");
+        daysSpin->setAccessibleName(tr("Certificate Validity Days"));
+        daysSpin->setRange(1, 7300);
+        daysSpin->setValue(365);
+        form->addRow(tr("Validity (days):"), daysSpin);
+
+        auto* passEdit = new QLineEdit(&entry);
+        passEdit->setObjectName("certPassphraseEdit");
+        passEdit->setAccessibleName(tr("Certificate Passphrase"));
+        passEdit->setEchoMode(QLineEdit::Password);
+        form->addRow(tr("Passphrase:"), passEdit);
+
+        auto* buttons = new QDialogButtonBox(
+            QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &entry);
+        buttons->setObjectName("certButtonBox");
+        connect(buttons, &QDialogButtonBox::accepted, &entry, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &entry, &QDialog::reject);
+        form->addRow(buttons);
+
+        // Automation-friendly: let UIA-blind tests observe this modal's inventory.
+        pdfe::ui::testseam::registerDialogIntrospection(&entry);
+
+        if (entry.exec() != QDialog::Accepted) {
+            return;
+        }
+
+        cn   = cnEdit->text().trimmed();
+        org  = orgEdit->text().trimmed();
+        days = daysSpin->value();
+        pass = passEdit->text();
+
+        // Where to write the new .pfx. Honors the file-dialog path-injection
+        // seam used by the rest of the UI.
+        outPath = QFileDialog::getSaveFileName(
+            this, tr("Save New Certificate"),
+            QString(), tr("PFX Files (*.pfx)"));
+        if (outPath.isEmpty()) {
+            return;  // user cancelled the Save-As
+        }
+    }
+
+    // ---- Common path: the REAL create + field-population (#361) ----
+    createCertLastError_.clear();
+    if (cn.isEmpty()) {
+        createCertLastError_ = tr("Common Name (CN) is required.");
+        validationLabel_->setText(createCertLastError_);
+        return;
+    }
+    if (pass.isEmpty()) {
+        createCertLastError_ = tr("Certificate passphrase is required.");
+        validationLabel_->setText(createCertLastError_);
+        return;
+    }
+    if (outPath.isEmpty()) {
+        createCertLastError_ = tr("A certificate output path is required.");
+        validationLabel_->setText(createCertLastError_);
+        return;
+    }
+
+    pdfe::signatures::Pkcs7OpenSslBridge::SelfSignedCertOptions opts;
+    opts.commonName   = cn.toStdString();
+    opts.organization = org.toStdString();
+    opts.validityDays = days;
+
+    const auto res = pdfe::signatures::Pkcs7OpenSslBridge::createSelfSignedPfx(
+        outPath.toStdString(), pass.toStdString(), opts);
+
+    if (!res.success) {
+        // SECURITY (#361): res.errorMessage is secret-free by contract — the
+        // passphrase and key are never surfaced here.
+        createCertLastError_ = QString::fromStdString(res.errorMessage);
+        validationLabel_->setText(
+            tr("Certificate creation failed: %1").arg(createCertLastError_));
+        return;
+    }
+
+    // Populate the existing PFX fields so signingOptions() returns the freshly
+    // created certificate and the user can sign immediately.
+    pfxPathEdit_->setText(outPath);
+    pfxPasswordEdit_->setText(pass);
+    validationLabel_->setText(tr("Self-signed certificate created."));
+    createCertLastError_.clear();
 }
 
 void SignDialog::validateInput()

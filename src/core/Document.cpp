@@ -2295,6 +2295,55 @@ static bool permutePageTreeInPlace(fz_context* ctx, pdf_document* doc,
         return false;
     }
 
+    // GitHub #346 — DISTINCT-OBJECT GUARD (DEFENSE-IN-DEPTH). A valid page tree
+    // never places the same page object at two indices, so pdf_lookup_page_obj
+    // must return a distinct object for each index. If two indices ever resolved
+    // to the SAME pdf_obj*, this fast path's up-front resolve would push one
+    // shared object into the new /Kids twice, reading back as a page
+    // "duplicating" then "merging". The caller's order-index uniqueness check
+    // cannot catch it (the INDICES are distinct; only the resolved OBJECTS
+    // collide). Detect an object collision here and bail — having mutated
+    // nothing — to the general path, whose pdf_rearrange_pages re-resolves
+    // correctly (it drops and rebuilds the page map as it re-parents each page).
+    // Keyed on the indirect object NUMBER (robust to pointer aliasing), with a
+    // pointer fallback for the degenerate direct-object case (num == 0).
+    //
+    // NOTE (phase-3 claim-check + raw-MuPDF probe, 2026-11): the insert+graft
+    // ordering originally blamed for #346 does NOT produce this collision in
+    // MuPDF 1.26.10. pdf_insert_page mutates /Kids directly and never drops the
+    // cached fwd/rev_page_map, but an out-of-range lookup throws rather than
+    // aliasing, and the map is reloaded fresh at the correct post-edit count
+    // before any reorder resolves it — a warm-map probe replaying the real-app
+    // ordering got N distinct objects, no alias, no throw. This guard is
+    // therefore a cheap invariant check against a malformed/aliased tree or a
+    // future MuPDF regression, not the fix for a reachable 1.26.10 state. The
+    // user-visible "duplicate then merge" was a stale index-keyed THUMBNAIL
+    // served at the moved page's old position, closed by refreshPages()' cache
+    // flush on reorder (GitHub #336). See
+    // docs/audit/many-bugs-2026-11-investigation.md #346.
+    // The containers below live only across pdf_to_num() calls, which are pure
+    // accessors that never fz_throw, so no longjmp can skip their destructors —
+    // the usual "no C++ RAII inside the guarded region" rule does not bite here.
+    bool distinct = true;
+    {
+        std::set<int> seenNums;
+        std::set<pdf_obj*> seenPtrs;
+        for (int i = 0; i < n && distinct; ++i) {
+            const int num = pdf_to_num(ctx, pageObjs[i]);
+            if (num > 0) {
+                if (!seenNums.insert(num).second) distinct = false;
+            } else if (!seenPtrs.insert(pageObjs[i]).second) {
+                distinct = false;
+            }
+        }
+    }
+    if (!distinct) {
+        for (int i = 0; i < n; ++i) {
+            if (pageObjs[i]) { pdf_drop_obj(ctx, pageObjs[i]); pageObjs[i] = nullptr; }
+        }
+        return false;
+    }
+
     // PHASE 2 — mutate. From here a failure is a genuine failure and rethrows.
     pdf_obj* kids = nullptr;
     fz_var(kids);

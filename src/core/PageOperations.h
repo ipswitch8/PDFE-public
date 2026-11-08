@@ -15,6 +15,12 @@ class Document;
 /// when no /CropBox is explicitly set (matches PDF spec default).
 QRectF getPageCropBox(Document* doc, int pageIndex);
 
+/// GitHub #354: read the page's /MediaBox in PDF user-space (Y-up), as four
+/// raw floats expressed as a QRectF [x0 y0 w h]. Used to flip a screen/fitz
+/// (Y-down) crop rectangle into the Y-up CropBox at exactly one boundary.
+/// Returns an empty rect when the page or MediaBox is unavailable.
+QRectF getPageMediaBox(Document* doc, int pageIndex);
+
 /// Pipeline E phase-6 (Bucket 3d): write a new /CropBox to a page.
 /// `cropBox` is in PDF user-space (Y-up). Marks the document modified.
 /// Use the CropPageCommand wrapper for undoable edits via UndoManager.

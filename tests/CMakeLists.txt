@@ -261,6 +261,11 @@ add_executable(pdfe_tests
     test_generative_invariants.cpp
     test_page.cpp
     test_page_operations.cpp
+    # GitHub #346 — move-after-insert+graft keeps a correct permutation (rebuild
+    # characterization) AND moving a page refreshes the Pages-panel thumbnails
+    # (the reachable fix; the document-level aliasing is not reproducible in
+    # MuPDF 1.26.10 — see the file header + investigation doc).
+    test_page_insert_graft_move_distinct.cpp
     test_page_commands.cpp
     test_page_edit_destination_integrity.cpp
     test_page_op_preservation_matrix.cpp
@@ -375,6 +380,7 @@ add_executable(pdfe_tests
     test_text_edit_undo_chain.cpp
     test_annotations_phase4.cpp
     test_select_tool_stale_index_crash.cpp
+    test_select_tool_cross_page_move.cpp
     test_form_tool_document_closing.cpp
     test_annotation_tool_page_release.cpp
     test_forms_phase5.cpp
@@ -560,6 +566,11 @@ add_executable(pdfe_tests
     test_xfdf_encode_decode.cpp
     test_encryption_roundtrip.cpp
     test_signature_roundtrip.cpp
+    # GitHub #360 — a cancelled Sign Document dialog must not leave a stray
+    # signature field (the red "SIGN" widget) on the page. Drives the real
+    # MainWindow sign flow through a headless seam that injects the dialog
+    # result / Save-As path in place of the modal exec()s.
+    test_ui_sign_cancel_rollback.cpp
     test_pdfa_roundtrip.cpp
     test_pkcs7_roundtrip.cpp
     test_redaction_roundtrip.cpp
@@ -609,12 +620,24 @@ add_executable(pdfe_tests
     test_signature_panel.cpp
     test_sign_dialog.cpp
     test_sign_dialog_geometry.cpp
+    # GitHub #361 — creating a self-signed PFX when the user has none:
+    # Pkcs7OpenSslBridge::createSelfSignedPfx round-trip + validation + no-leak,
+    # and the SignDialog "Create certificate..." headless seam.
+    test_create_self_signed_cert.cpp
     test_pdf_canvas_q_invokable.cpp
     test_page_panel_q_invokable.cpp
     test_page_panel_internal_reorder.cpp
+    # Drop-location indicator geometry: the reorder drop marker is a HORIZONTAL
+    # line in the gap between thumbnails (insertion point), not a full-height
+    # vertical bar that hid the above/below direction.
+    test_page_panel_drop_indicator.cpp
     test_page_panel_real_drag_reorder.cpp
     test_page_panel_range_selection.cpp
     test_page_panel_thumbnail_cache_flush.cpp
+    # GitHub #347 (page undo/redo refresh) + #348 (image insert refresh) — the
+    # Pages-panel thumbnail must re-rasterize after a move/rotate undo-redo and
+    # after an image insert + its undo/redo.
+    test_page_thumbnail_refresh_undo_insert.cpp
     test_main_window_q_invokable.cpp
     test_uncovered_dialogs.cpp
     test_image_data.cpp
@@ -623,6 +646,9 @@ add_executable(pdfe_tests
     test_image_content_editor.cpp
     test_exif_stripper.cpp
     test_image_tool.cpp
+    # GitHub #340/#341/#342 — interactive image move, rotate-direction, and
+    # rotated-handle hit-test (see docs/audit/ui-image-stamp-interaction-investigation.md).
+    test_image_tool_interaction.cpp
     test_image_properties_panel.cpp
     test_metadata_manager.cpp
     test_metadata_commands.cpp
@@ -790,14 +816,28 @@ add_executable(pdfe_tests
     test_watermark_extended.cpp
     test_stamp_tokens.cpp
     test_image_stamp.cpp
+    # many-bugs-2026-11 phase-7: GitHub #359 — an imported image stamp must be
+    # placed as an Image XObject appearance, not silently degraded to text.
+    test_image_stamp_appearance.cpp
+    # sign-enh-361-362 phase-2: GitHub #362 — persisted signature-image library
+    # (save a browsed signature image once, reuse it across sessions). Mirrors
+    # the ImageStampLibrary persistence pattern; uses the SettingsScope seam so
+    # writes land in a purge-on-exit test hive, not the real user registry.
+    test_signature_image_library.cpp
+    test_sign_dialog_image_library.cpp
     test_file_attachment_annotation.cpp
     test_page_labels_editor.cpp
     test_crop_tool.cpp
+    test_crop_page_vertical_flip.cpp
     test_grayscale_converter.cpp
+    test_ui_watermark_mode_visibility.cpp
     test_compare_documents_view.cpp
     test_document_js_events.cpp
     test_toolbar_customization.cpp
     test_combine_files_wizard.cpp
+    # many-bugs-2026-11 phase-7: GitHub #357 (Combine "Drag to reorder" must
+    # actually reorder) and #358 (the combined PDF opens automatically).
+    test_combine_reorder_autoopen.cpp
     test_measure.cpp
     # PDF-57 / GitHub #21 (p84-remaining-open phase-6): the read side of
     # ISO 32000-1 §12.9 /Measure driving the displayed value, and surviving
@@ -812,6 +852,12 @@ add_executable(pdfe_tests
     test_system_font_discovery_panose.cpp
     test_dialog_object_names_phase11.cpp
     test_attachment_panel_mainwindow_integration.cpp
+    test_measure_tip_box_stale_crash.cpp
+    # many-bugs-2026-11 phase-4: GitHub #349 (committed Measure Distance /L must
+    # equal the drag endpoints, no post-mouse-up offset) and #350 (Perimeter/Area
+    # have an explicit complete seam; visible contents is the human value, the
+    # machine tag lives in a hidden field).
+    test_measure_commit_affordance.cpp
     test_image_exporter.cpp
     test_word_export.cpp
     test_excel_export.cpp
@@ -929,6 +975,17 @@ add_executable(pdfe_tests
     # via the report-opener seam and clicks the real Copy button via the
     # fallback hook.
     test_report_issue_email_fallback.cpp
+    # Pipeline many-bugs-2026-11 phase-9 (View / Help / Toolbar bugs):
+    #   #363 CustomizeToolbarsDialog Available excludes Current (disjoint lists)
+    #   #364/#365 Help > Documentation / Check for Updates target the PUBLIC
+    #             mirror (ipswitch8/PDFE-public), routed through the opener seam
+    #   #366 annotation tools stay active after a creation (no forced switch to
+    #        the Select tool)
+    #   #367 Highlight falls back to the dragged rect when no text is under it
+    test_customize_toolbars_available_disjoint.cpp
+    test_help_menu_public_urls.cpp
+    test_annotation_tool_persist_after_create.cpp
+    test_highlight_region_fallback.cpp
     test_calculation_order.cpp
     test_navigation_history.cpp
     test_image_to_pdf_wizard.cpp

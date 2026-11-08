@@ -50,14 +50,30 @@ static fz_image* imageFilterCallback(
         info.displayWidth = std::sqrt(ctm.a * ctm.a + ctm.b * ctm.b);
         info.displayHeight = std::sqrt(ctm.c * ctm.c + ctm.d * ctm.d);
 
-        // Bounding box from CTM
-        float x0 = ctm.e;
-        float y0 = ctm.f;
-        float x1 = ctm.e + ctm.a;
-        float y1 = ctm.f + ctm.d;
-        if (x0 > x1) std::swap(x0, x1);
-        if (y0 > y1) std::swap(y0, y1);
-        info.boundingBox = QRectF(x0, y0, x1 - x0, y1 - y0);
+        // Rotation of the placement, CCW-positive in PDF space (GitHub #342).
+        info.rotationRadians = std::atan2(ctm.b, ctm.a);
+
+        // GitHub #342: a PDF image is drawn by mapping the unit square through the
+        // CTM, so the on-page quad is the unit square scaled by display size, then
+        // rotated by rotationRadians about its centre. The OLD derivation used only
+        // the CTM diagonal (ctm.a / ctm.d) for width/height, which collapses to ~0
+        // once the rotation terms (b,c) carry the extent (e.g. a 90deg CTM has
+        // a=d=0), yielding a degenerate bbox the tool could neither draw nor hit.
+        //
+        // Store the UN-rotated, axis-aligned local rect (width=displayWidth,
+        // height=displayHeight) centred on the image's page-space centre. The centre
+        // is where the unit square's centre (0.5,0.5) maps through the CTM:
+        //   cx = a*0.5 + c*0.5 + e,  cy = b*0.5 + d*0.5 + f
+        // The tool reconstructs the oriented rect from this rect + rotationRadians.
+        // For an axis-aligned placement ([w 0 0 h x y]) this reduces to the former
+        // QRectF(x, y, w, h), so behaviour is unchanged when rotationRadians == 0.
+        float cx = ctm.a * 0.5f + ctm.c * 0.5f + ctm.e;
+        float cy = ctm.b * 0.5f + ctm.d * 0.5f + ctm.f;
+        info.boundingBox = QRectF(
+            cx - info.displayWidth / 2.0f,
+            cy - info.displayHeight / 2.0f,
+            info.displayWidth,
+            info.displayHeight);
 
         // DPI
         if (info.displayWidth > 0)

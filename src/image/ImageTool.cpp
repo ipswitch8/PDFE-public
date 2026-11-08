@@ -18,6 +18,10 @@ namespace {
 constexpr float handleSizePixels = 8.0f;
 constexpr float handleTolerancePixels = 12.0f;
 
+/// Minimum body-drag distance (PDF points) that counts as a move rather than a
+/// click-to-select. Below this a body-drag release commits nothing (GitHub #340).
+constexpr float kMinMoveDistance = 1.0f;
+
 /// Check if a point is within tolerance of a rectangle corner/edge.
 bool isNearPoint(QPointF p, QPointF target, float tolerance) {
     return (p - target).manhattanLength() < tolerance;
@@ -26,6 +30,16 @@ bool isNearPoint(QPointF p, QPointF target, float tolerance) {
 /// Get the center point of a rectangle.
 QPointF centerOf(const QRectF& rect) {
     return QPointF(rect.center().x(), rect.center().y());
+}
+
+/// Rotate point @p p about @p center by @p radians (CCW-positive, PDF y-up
+/// convention). Used to map a page-space mouse point into an image's un-rotated
+/// local frame (pass -rotationRadians) for hit-testing (GitHub #342).
+QPointF rotateAbout(QPointF p, QPointF center, float radians) {
+    const float c = std::cos(radians);
+    const float s = std::sin(radians);
+    const QPointF d = p - center;
+    return center + QPointF(d.x() * c - d.y() * s, d.x() * s + d.y() * c);
 }
 
 } // anonymous namespace
@@ -109,8 +123,19 @@ public:
     }
 
     /// Hit-test for a handle at the given position.
-    HandlePosition hitTestHandle(const QRectF& bbox, QPointF pos, float scale) const {
+    ///
+    /// @p bbox is the UN-rotated, axis-aligned local rect; @p rotationRadians is
+    /// the placement's rotation. The handle rects are defined in the un-rotated
+    /// local frame, so the page-space @p pos is inverse-rotated by -rotationRadians
+    /// about the rect centre before comparison (GitHub #342). With rotationRadians
+    /// == 0 this is a no-op and behaviour matches the former axis-aligned test.
+    HandlePosition hitTestHandle(const QRectF& bbox, QPointF pos, float scale,
+                                 float rotationRadians) const {
         const float tolerance = handleTolerancePixels / scale;
+
+        if (rotationRadians != 0.0f) {
+            pos = rotateAbout(pos, bbox.center(), -rotationRadians);
+        }
 
         // Test all handles
         for (auto handle : {
@@ -129,9 +154,19 @@ public:
     }
 
     /// Hit-test images at the given position (reverse order for z-order).
+    ///
+    /// Each image's boundingBox is its un-rotated local rect; inverse-rotate the
+    /// page-space @p pos by the image's own -rotationRadians about its centre
+    /// before the contains() test so a rotated image is still hittable (GitHub
+    /// #342). Unchanged for axis-aligned images (rotationRadians == 0).
     int hitTestImage(QPointF pos) const {
         for (int i = static_cast<int>(images_.size()) - 1; i >= 0; --i) {
-            if (images_[i].boundingBox.contains(pos)) {
+            const auto& img = images_[i];
+            QPointF local = pos;
+            if (img.rotationRadians != 0.0f) {
+                local = rotateAbout(pos, img.boundingBox.center(), -img.rotationRadians);
+            }
+            if (img.boundingBox.contains(local)) {
                 return i;
             }
         }
@@ -246,7 +281,8 @@ void ImageTool::mousePressEvent(QMouseEvent* event, QPointF pdfPos, float scale)
     // Check if clicking on a handle of the selected image
     if (impl_->selectedIndex_ >= 0 && impl_->selectedIndex_ < static_cast<int>(impl_->images_.size())) {
         const auto& selectedImg = impl_->images_[impl_->selectedIndex_];
-        HandlePosition handle = impl_->hitTestHandle(selectedImg.boundingBox, pdfPos, scale);
+        HandlePosition handle = impl_->hitTestHandle(
+            selectedImg.boundingBox, pdfPos, scale, selectedImg.rotationRadians);
 
         if (handle != HandlePosition::None) {
             // Start handle drag
@@ -303,7 +339,10 @@ void ImageTool::mouseMoveEvent(QMouseEvent* event, QPointF pdfPos, float scale) 
 
             float startAngle = std::atan2(start.y(), start.x()) * 180.0f / 3.14159265f;
             float endAngle = std::atan2(end.y(), end.x()) * 180.0f / 3.14159265f;
-            float deltaAngle = endAngle - startAngle;
+            // GitHub #341: atan2 in PDF space is CCW-positive, but the rotate
+            // command and the toolbar both treat POSITIVE as clockwise. Negate
+            // the CCW delta so a visually-clockwise drag yields a positive angle.
+            float deltaAngle = startAngle - endAngle;
 
             // Snap to 90-degree increments for preview
             impl_->pendingRotation_ = std::round(deltaAngle / 90.0f) * 90.0f;
@@ -343,13 +382,32 @@ void ImageTool::mouseReleaseEvent(QMouseEvent* event, QPointF pdfPos, float scal
 
             float startAngle = std::atan2(start.y(), start.x()) * 180.0f / 3.14159265f;
             float endAngle = std::atan2(end.y(), end.x()) * 180.0f / 3.14159265f;
-            float deltaAngle = endAngle - startAngle;
+            // GitHub #341: negate the CCW atan2 delta to the clockwise-positive
+            // convention the command and toolbar use (matches mouseMoveEvent).
+            float deltaAngle = startAngle - endAngle;
 
             // Snap to 90-degree increments
             deltaAngle = std::round(deltaAngle / 90.0f) * 90.0f;
 
             if (std::abs(deltaAngle) > 1.0f) {
                 emit rotateRequested(img.xobjectName, deltaAngle);
+            }
+        } else {
+            // GitHub #340: body drag (no handle). mouseMoveEvent has already
+            // translated the in-memory boundingBox; commit the move by emitting a
+            // position-carrying command. ResizeImageCommand re-places the image at
+            // (x,y) with the given w,h, so emit the UNCHANGED size and the new
+            // origin. Guard a ~0 delta so a plain click-to-select never commits a
+            // no-op move (preserving the selection-only press).
+            const QPointF delta = pdfPos - impl_->dragStart_;
+            if (std::hypot(delta.x(), delta.y()) > kMinMoveDistance) {
+                emit resizeRequested(
+                    img.xobjectName,
+                    img.boundingBox.width(),
+                    img.boundingBox.height(),
+                    img.boundingBox.x(),
+                    img.boundingBox.y()
+                );
             }
         }
     }
@@ -381,6 +439,22 @@ void ImageTool::paint(QPainter& painter, float scale) {
     const auto& img = impl_->images_[impl_->selectedIndex_];
     const QRectF& bbox = img.boundingBox;
 
+    // GitHub #342: bbox is the UN-rotated local rect. Draw the selection frame
+    // and handles in that local frame but under a painter rotation about the
+    // image centre so they land on the visually-rotated corners — matching the
+    // inverse-rotation the hit-test applies. baseDeg maps the CCW-positive PDF
+    // rotation to this painter's degrees (same sign relationship the live-preview
+    // outline below uses). No-op when rotationRadians == 0.
+    const float baseDeg = -img.rotationRadians * 180.0f / 3.14159265f;
+    const QPointF imgCenter = bbox.center();
+
+    painter.save();
+    if (img.rotationRadians != 0.0f) {
+        painter.translate(imgCenter);
+        painter.rotate(baseDeg);
+        painter.translate(-imgCenter);
+    }
+
     // Draw selection rectangle
     QPen selectionPen(Qt::blue, 1.0f / scale, Qt::DashLine);
     painter.setPen(selectionPen);
@@ -406,6 +480,7 @@ void ImageTool::paint(QPainter& painter, float scale) {
     QPointF rotationCenter = impl_->getRotationHandleCenter(bbox, scale);
     const float rotationRadius = handleSizePixels / (2.0f * scale);
     painter.drawEllipse(rotationCenter, rotationRadius, rotationRadius);
+    painter.restore();
 
     // Draw rotation angle indicator during drag
     if (impl_->dragging_ && impl_->activeHandle_ == HandlePosition::Rotation
@@ -421,12 +496,16 @@ void ImageTool::paint(QPainter& painter, float scale) {
         QString angleText = QString::fromLatin1("%1%2").arg(static_cast<int>(impl_->pendingRotation_)).arg(QChar(0x00B0));
         painter.drawText(rotationCenter + QPointF(rotationRadius * 2, 0), angleText);
 
-        // Draw a rotated outline preview
+        // Draw a rotated outline preview. GitHub #341: pendingRotation_ now carries
+        // the clockwise-positive convention (same as the committed command), so the
+        // painter rotates by +pendingRotation_ here (the former -pendingRotation_
+        // negated the raw CCW delta). Composing with baseDeg previews base + pending
+        // so the dotted outline matches what the commit will produce.
         QPen previewPen(Qt::blue, 1.0f / scale, Qt::DotLine);
         painter.setPen(previewPen);
         painter.setBrush(Qt::NoBrush);
         painter.translate(center);
-        painter.rotate(-impl_->pendingRotation_); // PDF Y-axis is inverted
+        painter.rotate(baseDeg + impl_->pendingRotation_);
         painter.translate(-center);
         painter.drawRect(bbox);
         painter.restore();
@@ -436,13 +515,19 @@ void ImageTool::paint(QPainter& painter, float scale) {
 QCursor ImageTool::cursorAt(QPointF pdfPos, float scale) const {
     if (impl_->selectedIndex_ >= 0 && impl_->selectedIndex_ < static_cast<int>(impl_->images_.size())) {
         const auto& selectedImg = impl_->images_[impl_->selectedIndex_];
-        HandlePosition handle = impl_->hitTestHandle(selectedImg.boundingBox, pdfPos, scale);
+        HandlePosition handle = impl_->hitTestHandle(
+            selectedImg.boundingBox, pdfPos, scale, selectedImg.rotationRadians);
 
         if (handle != HandlePosition::None) {
             return QCursor(impl_->getCursorForHandle(handle));
         }
 
-        if (selectedImg.boundingBox.contains(pdfPos)) {
+        QPointF bodyPos = pdfPos;
+        if (selectedImg.rotationRadians != 0.0f) {
+            bodyPos = rotateAbout(pdfPos, selectedImg.boundingBox.center(),
+                                  -selectedImg.rotationRadians);
+        }
+        if (selectedImg.boundingBox.contains(bodyPos)) {
             return QCursor(Qt::OpenHandCursor);
         }
     }
@@ -507,6 +592,27 @@ void ImageTool::deselect() {
         impl_->dragging_ = false;
         emit imageDeselected();
         emit repaintRequested();
+    }
+}
+
+HandlePosition ImageTool::hitTestHandleForTest(QPointF pdfPos, float scale) const {
+    if (impl_->selectedIndex_ < 0
+        || impl_->selectedIndex_ >= static_cast<int>(impl_->images_.size())) {
+        return HandlePosition::None;
+    }
+    const auto& selectedImg = impl_->images_[impl_->selectedIndex_];
+    return impl_->hitTestHandle(
+        selectedImg.boundingBox, pdfPos, scale, selectedImg.rotationRadians);
+}
+
+void ImageTool::setImagesForTest(std::vector<PageImageInfo> images, int selectIndex) {
+    impl_->images_ = std::move(images);
+    impl_->activeHandle_ = HandlePosition::None;
+    impl_->dragging_ = false;
+    if (selectIndex >= 0 && selectIndex < static_cast<int>(impl_->images_.size())) {
+        impl_->selectedIndex_ = selectIndex;
+    } else {
+        impl_->selectedIndex_ = -1;
     }
 }
 

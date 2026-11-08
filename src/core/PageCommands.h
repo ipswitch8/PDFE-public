@@ -36,6 +36,9 @@ public:
     void undo() override;
     void redo() override;
     [[nodiscard]] std::string description() const override;
+    // GitHub #347 — a rotate changes a page's orientation; undo/redo must
+    // rebuild the Pages-panel thumbnails even though the page count is unchanged.
+    [[nodiscard]] bool affectsPageStructure() const override { return true; }
 
 private:
     pdfe::core::Document* doc_;
@@ -68,6 +71,8 @@ public:
     void undo() override;
     void redo() override;
     [[nodiscard]] std::string description() const override;
+    // GitHub #347 — page-structure change: undo/redo must rebuild the panel.
+    [[nodiscard]] bool affectsPageStructure() const override { return true; }
 
 private:
     pdfe::core::Document* doc_;
@@ -104,6 +109,8 @@ public:
     void undo() override;
     void redo() override;
     [[nodiscard]] std::string description() const override;
+    // GitHub #347 — page-structure change: undo/redo must rebuild the panel.
+    [[nodiscard]] bool affectsPageStructure() const override { return true; }
 
 private:
     pdfe::core::Document* doc_;
@@ -140,6 +147,10 @@ public:
     void undo() override;
     void redo() override;
     [[nodiscard]] std::string description() const override;
+    // GitHub #347 — a move reorders pages; undo/redo must rebuild the Pages-panel
+    // thumbnails even though the page count is unchanged (the count-delta gate in
+    // onUndo/onRedo missed this, leaving reordered thumbnails stale).
+    [[nodiscard]] bool affectsPageStructure() const override { return true; }
 
 private:
     pdfe::core::Document* doc_;
@@ -180,6 +191,8 @@ public:
     void undo() override;
     void redo() override;
     [[nodiscard]] std::string description() const override;
+    // GitHub #347 — page-structure change: undo/redo must rebuild the panel.
+    [[nodiscard]] bool affectsPageStructure() const override { return true; }
 
 private:
     pdfe::core::Document* doc_;
@@ -226,6 +239,8 @@ public:
     void undo() override;
     void redo() override;
     [[nodiscard]] std::string description() const override;
+    // GitHub #347 — page-structure change: undo/redo must rebuild the panel.
+    [[nodiscard]] bool affectsPageStructure() const override { return true; }
 
 private:
     pdfe::core::Document* target_;
@@ -260,6 +275,8 @@ public:
     void undo() override;
     void redo() override;
     [[nodiscard]] std::string description() const override;
+    // GitHub #347 — page-structure change: undo/redo must rebuild the panel.
+    [[nodiscard]] bool affectsPageStructure() const override { return true; }
 
 private:
     pdfe::core::Document* doc_;
@@ -288,6 +305,8 @@ public:
     void execute() override;
     void undo() override;
     [[nodiscard]] std::string description() const override;
+    // GitHub #347 — page-structure change: undo/redo must rebuild the panel.
+    [[nodiscard]] bool affectsPageStructure() const override { return true; }
 
 private:
     pdfe::core::Document* doc_;

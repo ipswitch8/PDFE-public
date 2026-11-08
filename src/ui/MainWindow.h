@@ -175,6 +175,7 @@ class AboutDialog;
 class StickyNotePopup;
 class DefaultsLogPanel;
 class AttachmentPanel;
+class CombineFilesWizard; // GitHub #358 — connectCombineWizardForTesting()
 
 /// Build the application QIcon for the current OS color scheme.
 /// Returns the dark SVG variant if Qt::ColorScheme::Dark is reported
@@ -360,6 +361,18 @@ public:
     static QString reportIssueUrl();
     static QString reportIssueEmail();
     static QString reportIssueMailto();
+
+    // GitHub #364 / #365 — Help > Documentation (F1) and Help > Check for
+    // Updates used to open the PRIVATE dev repo (ipswitch8/PDFE), which
+    // external users cannot reach. These accessors return the PUBLIC-mirror
+    // (ipswitch8/PDFE-public) URLs and are read by both the Help actions
+    // (onDocumentation / onCheckUpdates, which route through the openReportUrl
+    // opener seam) and a headless GoogleTest — the string lives in one place.
+    //
+    //   documentationUrl() -> the PUBLIC mirror's documentation/README URL.
+    //   checkUpdatesUrl()  -> the PUBLIC mirror's releases page.
+    static QString documentationUrl();
+    static QString checkUpdatesUrl();
 
     // ------------------------------------------------------------------
     // GitHub #337 — graceful mailto fallback.
@@ -645,6 +658,28 @@ public:
     /// through this accessor, not by reopening the file on disk.
     pdfe::core::Document* documentForTesting() const { return document_.get(); }
 
+    /// GitHub #360 test seam — the Sign Document flow is modal (SignDialog and
+    /// the Save-As QFileDialog both block on exec()), which a headless
+    /// GoogleTest cannot answer. When these inputs are engaged,
+    /// signTargetField() SKIPS both modals and uses the injected values
+    /// instead, driving the real create / probe / save / sign / rollback logic
+    /// end-to-end. Inert in production: unset by default, and only
+    /// *ForTesting() mutates it.
+    struct SignFlowTestInputs {
+        bool dialogAccepted = false;   ///< false => simulate the user cancelling the Sign dialog
+        QString pfxPath;               ///< PFX for signing (only read when dialogAccepted)
+        QString pfxPassword;           ///< dummy test passphrase for the throwaway PFX
+        QString savePath;              ///< Save-As target; empty => simulate Save-As cancelled
+    };
+    void setSignFlowTestInputsForTesting(std::optional<SignFlowTestInputs> inputs) {
+        signFlowTestInputs_ = std::move(inputs);
+    }
+    /// Signature-field widget count on the current document (signed OR not) via
+    /// the real SignatureManager/AcroForm enumeration — the #360 oracle.
+    int signatureFieldCountForTesting() const;
+    /// Run the real Sign Document action against the current document.
+    void triggerSignDocumentForTesting() { onSignDocument(); }
+
     /// GitHub #334 test seams — the rotate-then-edit cache-invalidation path.
     /// onDocumentStructureChanged() invalidates the page-index-keyed text
     /// caches (CoordMapper transform, OcrPipeline HOCR) and rebuilds the live
@@ -656,6 +691,53 @@ public:
     pdfe::tre::CoordMapper* coordMapperForTesting() const { return coordMapper_.get(); }
     pdfe::tre::OcrPipeline* ocrPipelineForTesting() const { return ocrPipeline_.get(); }
     PdfCanvas* canvasForTesting() const { return canvas_; }
+
+    /// GitHub #344 test seams — the "measure tip box crash after deleting its
+    /// text box" path. They drive the REAL private slots (onCommentPanelDelete /
+    /// onAnnotationPropertiesChanged) and the live StickyNotePopup, so a
+    /// regression test can delete an annotation and then feed a now-stale
+    /// property change through the exact production path a popup edit takes.
+    pdfe::annotations::AnnotationManager* annotationManagerForTesting() const {
+        return annotationManager_.get();
+    }
+    void deleteAnnotationForTesting(int pageIndex, int annotIndex) {
+        onCommentPanelDelete(pageIndex, annotIndex);
+    }
+    void applyAnnotationPropertyChangeForTesting(
+        const pdfe::annotations::AnnotationData& data);
+    void openStickyNotePopupForTesting(
+        const pdfe::annotations::AnnotationData& data);
+    bool isStickyNotePopupVisibleForTesting() const;
+
+    // GitHub #366 test seams. The annotation-created slot used to force-switch
+    // to the Select tool after every creation, unchecking the originating tool
+    // in the exclusive annotToolGroup_ so toolbar tools behaved as one-shots.
+    // These let a headless test drive the real slot and observe which tool is
+    // checked afterwards, without a canvas pixel-click.
+    //   triggerAnnotationCreatedByToolForTesting() -> run the production slot
+    //       onAnnotationCreatedByTool() against an already-created annotation.
+    //   annotToolGroupCheckedActionForTesting()    -> the QAction currently
+    //       checked in annotToolGroup_ (nullptr if none / no group).
+    void triggerAnnotationCreatedByToolForTesting(
+        int pageIndex, pdfe::annotations::AnnotationData data);
+    QAction* annotToolGroupCheckedActionForTesting() const;
+
+    /// GitHub #359 — the Stamp action's image-stamp branch resolves a library
+    /// image by name and, on a null/corrupt image, warns loudly instead of
+    /// silently degrading. The resolve lives behind a modal QInputDialog in the
+    /// toolbar lambda, so these seams let a test drive the exact production
+    /// resolve path (resolveLibraryStampImage) headlessly: suppress only the
+    /// QMessageBox, count how often the warn path fired, and call the resolver.
+    void setSuppressStampWarningForTesting(bool v) {
+        suppressStampWarningForTesting_ = v;
+    }
+    int stampWarningCountForTesting() const { return stampWarningCountForTesting_; }
+    QImage resolveLibraryStampImageForTesting(const QString& libraryName) {
+        return resolveLibraryStampImage(libraryName);
+    }
+    pdfe::annotations::ImageStampLibrary* imageStampLibraryForTesting() const {
+        return imageStampLibrary_.get();
+    }
 
     /// GitHub #240 — the alignment pipeline, so a test can select which Save As
     /// branch runs.
@@ -837,6 +919,19 @@ public:
     /// unreachable host after flipping the setting and must not block on it.
     void setNetworkProbeTimeoutMsForTesting(int ms) {
         networkProbeTimeoutMsForTesting_ = ms;
+    }
+
+    /// GitHub #358 test seam: wire a CombineFilesWizard's combineFinished
+    /// signal to openFile() exactly as onCombineFiles() does. Lets a test
+    /// drive a real combine and verify the result opens automatically, without
+    /// entering the wizard's modal exec() loop.
+    void connectCombineWizardForTesting(pdfe::ui::CombineFilesWizard* wiz);
+
+    /// GitHub #358 test seam: observe every non-empty openFile() call. Inert
+    /// (unset) in production. The combine-auto-open test uses it to assert that
+    /// the combined output path reaches openFile() exactly once.
+    void setOpenFileObserverForTesting(std::function<void(const QString&)> obs) {
+        openFileObserverForTesting_ = std::move(obs);
     }
 
 signals:
@@ -1055,7 +1150,17 @@ private slots:
     /// GitHub #328 — the dialog/probe/save/sign sequence shared by
     /// onSignDocument and onSignatureFieldActivated. targetWidget is a
     /// signature-only index (see SignatureManager::signField).
-    void signTargetField(int targetPage, int targetWidget);
+    ///
+    /// GitHub #360 — returns true only once the flow has COMMITTED to signing
+    /// (the document has been saved under the new path and reopened, so any
+    /// speculatively-created signature field now belongs to the saved
+    /// document). Returns false when the flow aborts cleanly beforehand —
+    /// dialog cancelled, PFX probe failed, Save-As cancelled, or saveAs threw
+    /// before the reopen — i.e. with the in-memory document untouched. The
+    /// caller uses this to decide whether a field it created for this sign
+    /// must be rolled back (a cancelled Sign dialog previously left a stray
+    /// red "SIGN" widget on the page).
+    bool signTargetField(int targetPage, int targetWidget);
     void onVerifySignatures();
     /// Pipeline F phase-9: user-confirmed network fetch for OCSP+CRL
     /// followed by /DSS embedding. NEVER auto-runs; only triggered by
@@ -1327,6 +1432,12 @@ private:
 
     // Pipeline E phase-4: image stamp library (custom user stamps)
     std::unique_ptr<pdfe::annotations::ImageStampLibrary> imageStampLibrary_;
+    // GitHub #359: resolve a library image stamp by name; on a null/corrupt
+    // image warn loudly (unless suppressed for tests) and return a null QImage,
+    // instead of silently degrading. Used by the Stamp action's image branch.
+    QImage resolveLibraryStampImage(const QString& libraryName);
+    bool suppressStampWarningForTesting_ = false;
+    int stampWarningCountForTesting_ = 0;
 
     // Form support
     std::unique_ptr<pdfe::forms::FormManager> formManager_;
@@ -1560,6 +1671,10 @@ private:
     /// Test seam: shortens the network reachability budget so a test does not
     /// wait seconds for a deliberately unreachable host. Zero means production.
     int networkProbeTimeoutMsForTesting_ = 0;
+
+    /// GitHub #358 test seam: observes openFile() calls when set. Inert in
+    /// production. See setOpenFileObserverForTesting().
+    std::function<void(const QString&)> openFileObserverForTesting_;
 
     // Name shown to the USER for the open document (title bar, status bar,
     // dialog bodies) when it must differ from the basename of
@@ -2223,6 +2338,10 @@ private:
     std::unique_ptr<pdfe::signatures::SignatureManager> signatureManager_;
     QDockWidget* signaturePanelDock_ = nullptr;
     SignaturePanel* signaturePanel_ = nullptr;
+    /// GitHub #360 — when engaged, signTargetField() bypasses the modal Sign
+    /// and Save-As dialogs and uses these injected values. Test-only; unset in
+    /// production. See setSignFlowTestInputsForTesting().
+    std::optional<SignFlowTestInputs> signFlowTestInputs_;
 
     // Image manipulation
     std::unique_ptr<pdfe::image::ImageManager> imageManager_;

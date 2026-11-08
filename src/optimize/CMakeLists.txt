@@ -4,6 +4,8 @@ add_library(pdfe_optimize STATIC
     OptimizeEngine.cpp
     GrayscaleConverter.h
     GrayscaleConverter.cpp
+    GrayscaleCommand.h
+    GrayscaleCommand.cpp
 )
 
 target_include_directories(pdfe_optimize PUBLIC

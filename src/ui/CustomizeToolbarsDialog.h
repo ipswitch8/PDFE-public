@@ -3,6 +3,7 @@
 #include "ToolbarLayoutManager.h"
 
 #include <QDialog>
+#include <QStringList>
 
 #include <vector>
 
@@ -65,6 +66,14 @@ public:
     /// repopulate and list refresh use the same code path as the
     /// "Reset to Default" button.
     Q_INVOKABLE void resetToDefaults();
+
+    // GitHub #363 test seam. Read the objectNames currently in each list so a
+    // headless GoogleTest can assert that Available excludes everything in
+    // Current (the two lists are disjoint) and that the counts reconcile
+    // against the registry — without driving the two-list selection by clicks
+    // or the UIA pipes. These read the live models the UI itself populates.
+    QStringList availableObjectNamesForTesting() const;
+    QStringList currentObjectNamesForTesting() const;
 
 private slots:
     void onToolbarSelected(int index);

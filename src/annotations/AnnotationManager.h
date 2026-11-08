@@ -298,6 +298,19 @@ public:
         const QImage& image
     );
 
+    /// GitHub #359 test seam: true when the annotation's /AP/N normal
+    /// appearance references at least one Image XObject — the structural
+    /// signature of an image stamp written by setStampImageAppearance()
+    /// (a Form XObject whose /Resources/XObject holds an /Image). A text
+    /// stamp has no such XObject (its appearance is a /DA-driven text run),
+    /// so this returns false for it. Drives the real PDF objects via MuPDF;
+    /// no logic is reimplemented. Returns false if the annotation or its
+    /// appearance is absent.
+    bool stampAppearanceHasImageXObjectForTesting(
+        const pdfe::core::Page* page,
+        int annotIndex
+    ) const;
+
     /// Get all annotations on a page.
     std::vector<AnnotationData> getAnnotations(const pdfe::core::Page* page);
 

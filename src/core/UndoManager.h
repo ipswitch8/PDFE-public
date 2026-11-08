@@ -145,6 +145,26 @@ public:
      */
     void forEachCommand(const std::function<void(Command*)>& fn) const;
 
+    /**
+     * @brief Peek at the command that the next undo() would undo.
+     *
+     * GitHub #347/#348 — MainWindow::onUndo must know the UI effect of the
+     * command BEFORE undo() moves it to the redo stack, so it can refresh the
+     * Pages panel for a page-structure command (Move/Rotate) or invalidate a
+     * single page's thumbnail for a content command (image insert). Read-only;
+     * the returned pointer is owned by the stack.
+     *
+     * @return Top of the undo stack, or nullptr if canUndo() is false.
+     */
+    [[nodiscard]] const Command* peekUndoCommand() const;
+
+    /**
+     * @brief Peek at the command that the next redo() would redo.
+     *
+     * @return Top of the redo stack, or nullptr if canRedo() is false.
+     */
+    [[nodiscard]] const Command* peekRedoCommand() const;
+
 signals:
     /**
      * @brief Emitted when undo/redo availability changes.

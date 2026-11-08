@@ -235,12 +235,10 @@ protected:
         QListWidget::paintEvent(event);
         const QRect bar = dropIndicatorRect();
         if (bar.isNull()) return;
+        // A crisp filled horizontal line (the insertion marker). fillRect gives a
+        // solid bar with no surrounding pen border, so the 3px line stays 3px.
         QPainter p(viewport());
-        QPen pen(palette().highlight().color());
-        pen.setWidth(2);
-        p.setPen(pen);
-        p.setBrush(palette().highlight().color());
-        p.drawRect(bar);
+        p.fillRect(bar, palette().highlight().color());
     }
 
     // R3-15: Qt calls this to build the drag payload. We keep the base
@@ -357,21 +355,41 @@ private:
         }
     }
 
-    // A thin vertical bar at the left edge of the item we would insert before,
-    // or the right edge of the last item when appending. Null when no indicator
-    // is shown or geometry is unavailable.
+    // A thin HORIZONTAL line in the gap BETWEEN thumbnails, at the insertion
+    // boundary: centred in the gap ABOVE the item we would insert before, or in
+    // the gap BELOW the last item when appending. This shows the exact insert
+    // POSITION (the dragged page lands in that gap, pushing the page below it
+    // down) instead of the old full-height vertical bar, which highlighted a
+    // whole item edge and left it ambiguous whether the page would land above or
+    // below the existing one. Full item width, a few px tall. Null when no
+    // indicator is shown or geometry is unavailable.
     QRect dropIndicatorRect() const {
         const int idx = dropIndicatorIndex_;
         const int n = count();
         if (idx < 0 || n == 0) return QRect();
+        const int thickness = 3;
+        const int halfGap = qMax(spacing(), 2) / 2;
         if (idx < n) {
             const QRect r = visualItemRect(item(idx));
             if (r.isNull()) return QRect();
-            return QRect(r.left() - 2, r.top(), 3, r.height());
+            return QRect(r.left(), r.top() - halfGap - thickness / 2, r.width(), thickness);
         }
         const QRect r = visualItemRect(item(n - 1));
         if (r.isNull()) return QRect();
-        return QRect(r.right(), r.top(), 3, r.height());
+        return QRect(r.left(), r.bottom() + halfGap - thickness / 2, r.width(), thickness);
+    }
+
+public:
+    // GitHub drop-indicator fix test seam: set the drop indicator to @p insertIndex
+    // and return the rect it would paint, so a headless GoogleTest can assert the
+    // indicator geometry (now HORIZONTAL) without driving a live drag. Forces a
+    // deterministic single-column layout first so visualItemRect() is valid even
+    // when the panel was never shown.
+    QRect dropIndicatorRectForTesting(int insertIndex) {
+        if (width() < 10 || height() < 10) resize(180, 700);
+        doItemsLayout();
+        setDropIndicator(insertIndex);
+        return dropIndicatorRect();
     }
 };
 
@@ -616,6 +634,14 @@ int PagePanel::startDragInvocationCountForTesting()
     // GitHub #335 residual observability — see the header. Process-wide count of
     // PageListWidget::startDrag() entries.
     return g_pageStartDragCount.load(std::memory_order_acquire);
+}
+
+QRect PagePanel::dropIndicatorRectForTesting(int insertIndex)
+{
+    // GitHub drop-indicator fix: forward to the thumbnail list so a headless test
+    // can assert the (now horizontal) insertion-marker geometry. See the header.
+    if (!listWidget_) return QRect();
+    return static_cast<PageListWidget*>(listWidget_)->dropIndicatorRectForTesting(insertIndex);
 }
 
 void PagePanel::onThumbnailReady(int pageIndex, QImage thumbnail)

@@ -2890,7 +2890,7 @@ exact-equality invariant too strict for Qt6 high-DPI rounding in some
 environments. Resolution path: reproduce under a non-RDP console session at fixed
 display scaling to isolate environment vs. code.
 
-## CI-LIMITATION-FZTRY-RAII-COMPILE-DB (reaffirmed 2026-11-03)
+## CI-LIMITATION-FZTRY-RAII-COMPILE-DB (reaffirmed 2026-11-03; tracked as GitHub #368)
 
 The three `FzTryRaiiBoundary` static-analysis tests
 (`ScrubDocumentScopedSurfacesKeepsItsLocalsOutsideFzTry`,

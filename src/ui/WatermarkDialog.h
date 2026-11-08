@@ -14,6 +14,8 @@ class QDoubleSpinBox;
 class QComboBox;
 class QPushButton;
 class QLabel;
+class QFormLayout;
+class QHBoxLayout;
 
 namespace pdfe::ui {
 
@@ -38,10 +40,17 @@ private slots:
 
 private:
     void setupUi();
+    // GitHub #356: show the image-source row only in Image mode. Hiding (not
+    // merely disabling) the row keeps Text mode from prompting for an image.
+    // Also establishes the correct INITIAL state for the default (Text) mode,
+    // which the currentIndexChanged signal never fires for.
+    void updateModeVisibility();
 
     std::shared_ptr<pdfe::core::MuPdfContext> context_;
     pdfe::core::Document* document_;
 
+    QFormLayout* formLayout_ = nullptr;      // GitHub #356: for setRowVisible
+    QHBoxLayout* imageRow_ = nullptr;        // GitHub #356: the image-source row
     QComboBox* modeCombo_ = nullptr;         // Phase 4e: text / image
     QLineEdit* textEdit_ = nullptr;
     QLineEdit* imagePathEdit_ = nullptr;     // Phase 4e

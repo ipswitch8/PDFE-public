@@ -31,6 +31,10 @@ public:
     [[nodiscard]] std::string description() const override;
     [[nodiscard]] int pageIndex() const override;
     void rebindPage(pdfe::core::Page* page) override;
+    // GitHub #348 — inserting an image changes this page's appearance without
+    // changing the page set, so undo/redo must invalidate exactly this page's
+    // Pages-panel thumbnail (onInsertImage does the same on the forward path).
+    [[nodiscard]] int affectedThumbnailPage() const override { return pageIndex(); }
 
     [[nodiscard]] const ImageOperationResult& result() const { return result_; }
 

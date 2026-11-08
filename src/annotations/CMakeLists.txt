@@ -11,6 +11,7 @@ add_library(pdfe_annotations STATIC
     LinkTool.cpp
     StampTool.cpp
     ImageStampLibrary.cpp
+    SignatureImageLibrary.cpp
     FileAttachmentTool.cpp
     CropTool.cpp
 )

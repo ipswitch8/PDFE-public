@@ -533,6 +533,27 @@ void CropPageCommand::execute()
     if (!doc_) return;
     if (!executed_) {
         oldCropBox_ = pdfe::core::getPageCropBox(doc_, pageIndex_);
+
+        // GitHub #354: the rect captured by CropTool is in fitz/screen space
+        // (top-left origin, Y-DOWN), but /CropBox is PDF user space (Y-UP).
+        // Writing it unflipped cropped the vertically MIRRORED region — a
+        // top-half screen selection cropped the PDF bottom half. Flip Y about
+        // the MediaBox height here, at the single fitz->PDF boundary. This is
+        // the ONLY place the flip may happen: oldCropBox_ (from getPageCropBox)
+        // and the undo/redo setPageCropBox calls are already PDF-space, so
+        // flipping anywhere downstream (e.g. inside setPageCropBox) would
+        // double-flip the undo path. Guarded by !executed_ so redo() — which
+        // reuses the now-PDF-space newCropBox_ — never flips twice.
+        const QRectF mediaBox = pdfe::core::getPageMediaBox(doc_, pageIndex_);
+        if (!mediaBox.isEmpty() && !newCropBox_.isEmpty()) {
+            const double h = mediaBox.height();
+            // fitz top edge (small Y) maps to HIGH PDF-y (near MediaBox top);
+            // fitz bottom edge (large Y) maps to LOW PDF-y. Normalise so the
+            // result keeps y0 < y1 (positive height).
+            const double pdfYMin = h - newCropBox_.bottom();
+            newCropBox_ = QRectF(newCropBox_.left(), pdfYMin,
+                                 newCropBox_.width(), newCropBox_.height());
+        }
     }
     pdfe::core::setPageCropBox(doc_, pageIndex_, newCropBox_);
     executed_ = true;

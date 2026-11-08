@@ -579,6 +579,20 @@
       "ordinal": 0,
       "classification": "benign",
       "reason": "Benign shape match recorded for completeness: "
+    },
+    {
+      "file": "tests/test_measure_commit_affordance.cpp",
+      "condition": "!document_ || document_->pageCount() < 1",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Fixture-availability guard in SetUp: skips when the test PDF fails to open (pageCount()<1). A zero/one page-count availability check, not a measurement magnitude; it cannot become permanently false as hardware gets faster. The TEST_F bodies' assertions are unconditional. (many-bugs-2026-11 #349/#350)"
+    },
+    {
+      "file": "tests/test_measure_tip_box_stale_crash.cpp",
+      "condition": "!doc || doc->pageCount() < 1",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Fixture-availability guard in SetUp: skips when the test PDF fails to open (pageCount()<1). Availability check, not a measurement magnitude; cannot become permanently false as hardware gets faster. The TEST_F bodies' assertions are unconditional. (many-bugs-2026-11 #344)"
     }
   ],
   "_ownership": {

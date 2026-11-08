@@ -98,6 +98,35 @@ public:
      * @param page The freshly-resolved page for this command's pageIndex().
      */
     virtual void rebindPage([[maybe_unused]] pdfe::core::Page* page) {}
+
+    /**
+     * @brief Whether this command changes the PAGE SET, ORDER or ORIENTATION.
+     *
+     * GitHub #347. MainWindow::onUndo/onRedo used to rebuild the Pages-panel
+     * thumbnails only when the page COUNT changed. Count-preserving structural
+     * ops — Move (reorder) and Rotate — slipped through that gate, so undo/redo
+     * of a move or rotate left the panel thumbnails stale (right order/content
+     * on the canvas, wrong pictures in the panel). The slots now also rebuild
+     * the panel when the undone/redone command reports true here. Page-tree
+     * commands (rotate, move, delete, insert, import, replace) override this.
+     *
+     * @return true if undo/redo must trigger a full page-structure refresh.
+     */
+    [[nodiscard]] virtual bool affectsPageStructure() const { return false; }
+
+    /**
+     * @brief Index of the single page whose RENDERED CONTENT this command
+     *        changes (so its thumbnail must be re-rasterized), or -1.
+     *
+     * GitHub #348. Distinct from pageIndex() (the save-path rebind hook): a
+     * content edit such as inserting an image changes one page's appearance
+     * without changing the page set, so onUndo/onRedo invalidate exactly that
+     * page's thumbnail rather than rebuilding the whole panel. Structural
+     * commands leave this -1 and use affectsPageStructure() instead.
+     *
+     * @return Zero-based page index whose thumbnail is now stale, or -1.
+     */
+    [[nodiscard]] virtual int affectedThumbnailPage() const { return -1; }
 };
 
 class CompositeCommand : public Command {
@@ -125,6 +154,21 @@ public:
 
     [[nodiscard]] std::string description() const override { return description_; }
     [[nodiscard]] bool empty() const { return commands_.empty(); }
+
+    // GitHub #347/#348 — a composite inherits the UI effects of its children so
+    // a page op wrapped in a composite still triggers the right panel refresh.
+    [[nodiscard]] bool affectsPageStructure() const override {
+        for (const auto& cmd : commands_)
+            if (cmd->affectsPageStructure()) return true;
+        return false;
+    }
+    [[nodiscard]] int affectedThumbnailPage() const override {
+        for (const auto& cmd : commands_) {
+            const int p = cmd->affectedThumbnailPage();
+            if (p >= 0) return p;
+        }
+        return -1;
+    }
 
 private:
     std::vector<std::unique_ptr<Command>> commands_;

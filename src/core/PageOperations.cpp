@@ -66,6 +66,49 @@ QRectF getPageCropBox(Document* doc, int pageIndex)
     });
 }
 
+QRectF getPageMediaBox(Document* doc, int pageIndex)
+{
+    if (!doc || !doc->fzDocument()) return {};
+    if (pageIndex < 0 || pageIndex >= doc->pageCount()) return {};
+
+    auto ctx = doc->context();
+    fz_document* fzDoc = doc->fzDocument();
+
+    return ctx->executeReturn<QRectF>([&](fz_context* c) -> QRectF {
+        pdf_document* pdoc = pdf_document_from_fz_document(c, fzDoc);
+        if (!pdoc) return {};
+        pdf_page* page = safeLoadPdfPage(c, pdoc, pageIndex);
+        if (!page) return {};
+        QRectF result;
+        fz_try(c) {
+            // Read the raw /MediaBox dict entry in PDF user space (Y-up).
+            // GitHub #354: the crop rectangle arrives in fitz/screen space
+            // (Y-down) and must be flipped about this height exactly once.
+            pdf_obj* pageObj = page->obj;
+            pdf_obj* mediaArr = pageObj
+                ? pdf_dict_get_inheritable(c, pageObj, PDF_NAME(MediaBox))
+                : nullptr;
+            if (mediaArr && pdf_is_array(c, mediaArr) &&
+                pdf_array_len(c, mediaArr) == 4) {
+                const float x0 = pdf_to_real(c, pdf_array_get(c, mediaArr, 0));
+                const float y0 = pdf_to_real(c, pdf_array_get(c, mediaArr, 1));
+                const float x1 = pdf_to_real(c, pdf_array_get(c, mediaArr, 2));
+                const float y1 = pdf_to_real(c, pdf_array_get(c, mediaArr, 3));
+                const float left   = std::min(x0, x1);
+                const float bottom = std::min(y0, y1);
+                const float right  = std::max(x0, x1);
+                const float top    = std::max(y0, y1);
+                result = QRectF(left, bottom, right - left, top - bottom);
+            }
+        } fz_always(c) {
+            fz_drop_page(c, &page->super);
+        } fz_catch(c) {
+            // Swallow; caller treats empty as "unknown".
+        }
+        return result;
+    });
+}
+
 void setPageCropBox(Document* doc, int pageIndex, const QRectF& cropBox)
 {
     if (!doc || !doc->fzDocument()) return;

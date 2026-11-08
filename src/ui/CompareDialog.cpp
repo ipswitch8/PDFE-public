@@ -189,6 +189,30 @@ void CompareDialog::setupUi() {
             this, &CompareDialog::onPrevChangeButton);
     connect(nextChangeButton_, &QPushButton::clicked,
             this, &CompareDialog::onNextChangeButton);
+
+    // GitHub #351: the combo was never connected, so picking a colour did
+    // nothing — the diff was always drawn in the default red. Seed the
+    // effective colour from the combo's current item and wire the signal so
+    // a selection actually drives the highlight colour.
+    diffColor_ = diffColorCombo_->currentData().value<QColor>();
+    if (!diffColor_.isValid()) diffColor_ = QColor(255, 0, 0);
+    connect(diffColorCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &CompareDialog::onDiffColorChanged);
+}
+
+void CompareDialog::onDiffColorChanged(int /*index*/) {
+    // GitHub #351: update the effective colour from the selection and, if a
+    // diff is already on screen, re-run it so the highlight recolours
+    // immediately rather than remaining stuck on the previous colour.
+    QColor picked = diffColorCombo_->currentData().value<QColor>();
+    if (picked.isValid()) diffColor_ = picked;
+    if (lastDocA_ && lastDocB_) {
+        int cur = currentPageIndex();
+        runDiff(lastDocA_, lastDocB_);
+        if (diffResult_ && diffResult_->totalPages > 0) {
+            displayPage(std::min(cur, diffResult_->totalPages - 1));
+        }
+    }
 }
 
 void CompareDialog::onNextChangeButton() {
@@ -229,55 +253,40 @@ void CompareDialog::onCompare() {
     QApplication::setOverrideCursor(Qt::BusyCursor);
     QApplication::processEvents();
 
-    pdfe::diff::DiffEngine engine(context_);
-
-    QColor color = diffColorCombo_->currentData().value<QColor>();
-    engine.setDiffColor(color.red(), color.green(), color.blue());
-
-    diffResult_ = std::make_unique<pdfe::diff::DiffResult>(
-        engine.compare(docA_.get(), docB_.get()));
+    runDiff(docA_.get(), docB_.get());
 
     QApplication::restoreOverrideCursor();
 
-    int totalPages = diffResult_->totalPages;
-    pageSpinBox_->setMaximum(std::max(1, totalPages));
-    pageCountLabel_->setText(tr("/ %1").arg(totalPages));
-
-    similarityLabel_->setText(
-        tr("Overall: %1% similar").arg(
-            static_cast<int>(diffResult_->overallSimilarity * 100)));
-    changeCountLabel_->setText(
-        tr("%1 of %2 pages changed").arg(diffResult_->changedPages).arg(totalPages));
-
-    if (totalPages > 0) {
+    if (diffResult_ && diffResult_->totalPages > 0) {
         displayPage(0);
     }
 }
 
-void CompareDialog::onPageChanged(int page) {
-    displayPage(page - 1);
-}
-
-int CompareDialog::compareLoadedDocuments(pdfe::core::Document* docA,
-                                          pdfe::core::Document* docB) {
+// Shared diff driver. Applies the currently-selected highlight colour
+// (GitHub #351), records the documents and engine render scale (GitHub #352)
+// and refreshes the summary labels. Does NOT render a page — callers decide
+// which page to display so the colour re-run can stay on the current page.
+int CompareDialog::runDiff(pdfe::core::Document* docA,
+                           pdfe::core::Document* docB) {
     if (!docA || !docB) {
         diffResult_.reset();
+        lastDocA_ = nullptr;
+        lastDocB_ = nullptr;
         return 0;
     }
+    lastDocA_ = docA;
+    lastDocB_ = docB;
+
     pdfe::diff::DiffEngine engine(context_);
-    QColor color = diffColorCombo_ ? diffColorCombo_->currentData().value<QColor>()
-                                   : QColor(255, 0, 0);
-    engine.setDiffColor(color.red(), color.green(), color.blue());
+    engine.setDiffColor(diffColor_.red(), diffColor_.green(), diffColor_.blue());
+    lastEngineScale_ = engine.renderDpi() / 72.0f;
+
     diffResult_ = std::make_unique<pdfe::diff::DiffResult>(
         engine.compare(docA, docB));
 
     int totalPages = diffResult_->totalPages;
-    if (pageSpinBox_) {
-        pageSpinBox_->setMaximum(std::max(1, totalPages));
-    }
-    if (pageCountLabel_) {
-        pageCountLabel_->setText(tr("/ %1").arg(totalPages));
-    }
+    if (pageSpinBox_) pageSpinBox_->setMaximum(std::max(1, totalPages));
+    if (pageCountLabel_) pageCountLabel_->setText(tr("/ %1").arg(totalPages));
     if (similarityLabel_) {
         similarityLabel_->setText(
             tr("Overall: %1% similar").arg(
@@ -288,6 +297,39 @@ int CompareDialog::compareLoadedDocuments(pdfe::core::Document* docA,
             tr("%1 of %2 pages changed").arg(diffResult_->changedPages).arg(totalPages));
     }
     return diffResult_->changedPages;
+}
+
+void CompareDialog::onPageChanged(int page) {
+    displayPage(page - 1);
+}
+
+int CompareDialog::compareLoadedDocuments(pdfe::core::Document* docA,
+                                          pdfe::core::Document* docB) {
+    int changed = runDiff(docA, docB);
+    if (diffResult_ && diffResult_->totalPages > 0) {
+        // Show the first page so navigation has a current page and the
+        // overlay is composited (GitHub #352: display updates with content).
+        displayPage(0);
+    }
+    return changed;
+}
+
+bool CompareDialog::selectDiffColorForTesting(const QColor& color) {
+    if (!diffColorCombo_) return false;
+    for (int i = 0; i < diffColorCombo_->count(); ++i) {
+        if (diffColorCombo_->itemData(i).value<QColor>() == color) {
+            // Drive the real combo: this fires currentIndexChanged, which is
+            // the wiring GitHub #351 adds. If the index is already current
+            // (no signal), update the colour and re-run explicitly.
+            if (diffColorCombo_->currentIndex() == i) {
+                onDiffColorChanged(i);
+            } else {
+                diffColorCombo_->setCurrentIndex(i);
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 int CompareDialog::totalChangeRegions() const {
@@ -318,8 +360,9 @@ int CompareDialog::gotoNextChangedPage() {
     if (!diffResult_ || diffResult_->pages.empty()) return -1;
     int n = static_cast<int>(diffResult_->pages.size());
     int start = currentPageIndex();
-    for (int i = 1; i <= n; ++i) {
-        int idx = (start + i) % n;
+    // GitHub #353: clamp at the end — search only forward, no modular wrap
+    // back to the first change past the last one.
+    for (int idx = start + 1; idx < n; ++idx) {
         if (pageHasChange(diffResult_->pages[idx])) {
             if (pageSpinBox_) pageSpinBox_->setValue(idx + 1);
             return idx;
@@ -330,10 +373,10 @@ int CompareDialog::gotoNextChangedPage() {
 
 int CompareDialog::gotoPrevChangedPage() {
     if (!diffResult_ || diffResult_->pages.empty()) return -1;
-    int n = static_cast<int>(diffResult_->pages.size());
     int start = currentPageIndex();
-    for (int i = 1; i <= n; ++i) {
-        int idx = (start - i + n) % n;
+    // GitHub #353: clamp at the start — search only backward, no wrap to the
+    // last change before the first one.
+    for (int idx = start - 1; idx >= 0; --idx) {
         if (pageHasChange(diffResult_->pages[idx])) {
             if (pageSpinBox_) pageSpinBox_->setValue(idx + 1);
             return idx;
@@ -342,36 +385,60 @@ int CompareDialog::gotoPrevChangedPage() {
     return -1;
 }
 
+QImage CompareDialog::overlayForDisplay(const QImage& overlay,
+                                        const QSize& target) const {
+    // GitHub #352: map the engine-DPI overlay onto a page rendered at the
+    // display scale. Scaling to the page-image size registers the highlight
+    // to the same page-space region as the diffed content.
+    if (overlay.isNull()) return {};
+    if (target.isEmpty() || overlay.size() == target) return overlay;
+    return overlay.scaled(target, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+}
+
 void CompareDialog::displayPage(int pageIndex) {
     if (!diffResult_ || pageIndex < 0 ||
         pageIndex >= static_cast<int>(diffResult_->pages.size())) return;
 
     const auto& pageResult = diffResult_->pages[pageIndex];
-    float scale = 1.0f;
+    const float scale = displayScale_;
+    lastDisplayedPageIndex_ = pageIndex;
+    lastOverlay_ = QImage();
+    lastPageImageSize_ = QSize();
 
-    // Render page A
-    if (docA_ && pageIndex < docA_->pageCount()) {
-        auto pageA = docA_->page(pageIndex);
+    // Render page A (prefer the docs used by the most recent diff so both the
+    // file-picker flow and compareLoadedDocuments() render here).
+    pdfe::core::Document* srcA = lastDocA_ ? lastDocA_ : docA_.get();
+    pdfe::core::Document* srcB = lastDocB_ ? lastDocB_ : docB_.get();
+
+    if (srcA && pageIndex < srcA->pageCount()) {
+        auto pageA = srcA->page(pageIndex);
         if (pageA) {
             QImage imgA = pageA->render(pageA->boundingBox(), scale);
-            // Overlay diff regions
-            if (!pageResult.diffImage.isNull()) {
+            // GitHub #352: the engine renders the overlay at its own (higher)
+            // DPI; scale it to the display render size so the highlight
+            // registers to the same page-space region as the content instead
+            // of being blitted ~2x oversized at (0,0).
+            QImage overlay = overlayForDisplay(pageResult.diffImage, imgA.size());
+            if (!overlay.isNull()) {
                 QPainter painter(&imgA);
-                painter.drawImage(0, 0, pageResult.diffImage);
+                painter.drawImage(0, 0, overlay);
             }
+            lastOverlay_ = overlay;
+            lastPageImageSize_ = imgA.size();
             imageALabel_->setPixmap(QPixmap::fromImage(imgA));
             imageALabel_->resize(imgA.size());
         }
     }
 
     // Render page B
-    if (docB_ && pageIndex < docB_->pageCount()) {
-        auto pageB = docB_->page(pageIndex);
+    if (srcB && pageIndex < srcB->pageCount()) {
+        auto pageB = srcB->page(pageIndex);
         if (pageB) {
             QImage imgB = pageB->render(pageB->boundingBox(), scale);
-            if (!pageResult.diffImage.isNull()) {
+            QImage overlay = overlayForDisplay(pageResult.diffImage, imgB.size());
+            if (!overlay.isNull()) {
                 QPainter painter(&imgB);
-                painter.drawImage(0, 0, pageResult.diffImage);
+                painter.drawImage(0, 0, overlay);
             }
             imageBLabel_->setPixmap(QPixmap::fromImage(imgB));
             imageBLabel_->resize(imgB.size());

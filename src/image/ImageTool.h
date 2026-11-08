@@ -88,6 +88,22 @@ public:
     /// Deselect the current image.
     void deselect();
 
+    /// TEST SEAM (GitHub #342). Run the REAL selected-image handle hit-test and
+    /// return the handle hit at @p pdfPos (page-space), or HandlePosition::None.
+    /// This is the exact routine mousePressEvent/cursorAt use (including the
+    /// inverse-rotation about the image centre), exposed so a test can assert a
+    /// handle is grabbable at a VISUALLY-ROTATED corner. Returns None when there
+    /// is no selection.
+    HandlePosition hitTestHandleForTest(QPointF pdfPos, float scale) const;
+
+    /// TEST SEAM (GitHub #342). Replace the enumerated-image list with @p images
+    /// and select index @p selectIndex (clamped; -1 clears selection), WITHOUT
+    /// touching the page/document. Lets a test drive the tool against a known
+    /// placement — e.g. a rotated PageImageInfo whose rotationRadians is set —
+    /// so the rotated hit-test can be exercised deterministically without a full
+    /// rotate/save/re-enumerate round trip. Does not emit signals.
+    void setImagesForTest(std::vector<PageImageInfo> images, int selectIndex);
+
 signals:
     /// Emitted when an image is selected.
     void imageSelected(const pdfe::image::PageImageInfo& info);

@@ -2107,6 +2107,37 @@ void AnnotationManager::setStampImageAppearance(
     });
 }
 
+bool AnnotationManager::stampAppearanceHasImageXObjectForTesting(
+    const pdfe::core::Page* page,
+    int annotIndex
+) const {
+    if (!page) {
+        return false;
+    }
+    pdf_page* pdfPage = pImpl->getPdfPage(page);
+    return pImpl->context->executeReturn<bool>([&](fz_context* ctx) -> bool {
+        pdf_annot* annot = getNthAnnot(ctx, pdfPage, annotIndex);
+        if (!annot) return false;
+        pdf_obj* annotObj = pdf_annot_obj(ctx, annot);
+        // /AP /N — the normal appearance stream (a Form XObject when written
+        // by setStampImageAppearance). pdf_dict_get tolerates a null parent
+        // and returns null, so each step short-circuits a missing appearance.
+        pdf_obj* ap = pdf_dict_get(ctx, annotObj, PDF_NAME(AP));
+        pdf_obj* n = pdf_dict_get(ctx, ap, PDF_NAME(N));
+        pdf_obj* resources = pdf_dict_get(ctx, n, PDF_NAME(Resources));
+        pdf_obj* xobjects = pdf_dict_get(ctx, resources, PDF_NAME(XObject));
+        const int len = pdf_dict_len(ctx, xobjects);
+        for (int i = 0; i < len; ++i) {
+            pdf_obj* entry = pdf_dict_get_val(ctx, xobjects, i);
+            pdf_obj* subtype = pdf_dict_get(ctx, entry, PDF_NAME(Subtype));
+            if (pdf_name_eq(ctx, subtype, PDF_NAME(Image))) {
+                return true;
+            }
+        }
+        return false;
+    });
+}
+
 std::optional<int> AnnotationManager::getAnnotationAt(
     const pdfe::core::Page* page,
     QPointF pdfPoint

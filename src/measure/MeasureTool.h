@@ -70,6 +70,29 @@ public:
     void onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pdfPoint) override;
     void onMouseDoubleClick(QMouseEvent* event, int pageIndex, QPointF pdfPoint) override;
 
+    /// GitHub #350: a DISCOVERABLE keyboard affordance for the multi-point
+    /// modes. Enter/Return finishes the measurement (same seam as the
+    /// double-click), Escape cancels it. Distance is a two-click gesture with
+    /// no in-progress state to finish, so it ignores both. Consumes the key it
+    /// acts on so the canvas does not also scroll/paginate on it.
+    void onKeyPress(QKeyEvent* event) override;
+
+    /// GitHub #350: the explicit completion seam for Perimeter/Area, shared by
+    /// the double-click and the Enter/Return key. Commits the accumulated
+    /// points as a FreeText annotation whose VISIBLE contents is the
+    /// human-readable value and whose machine tag lives in the hidden
+    /// AnnotationData::measureTag field. Returns true if an annotation was
+    /// committed.
+    ///
+    /// DCA 0009 HAZARD: firing annotationCreated may synchronously destroy this
+    /// tool, so this is the LAST thing a caller may do — do not touch any
+    /// member (or `this`) after it returns.
+    bool finishMeasurement();
+
+    /// GitHub #350: discard an in-progress Perimeter/Area measurement without
+    /// committing anything. Safe to call with no points accumulated.
+    void cancelMeasurement();
+
     void onPaintOverlay(QPainter& painter, int pageIndex,
                         float zoom, QPointF pageOrigin, float pageHeightPt) override;
 
@@ -86,6 +109,12 @@ public:
                               std::string& outMode,
                               float& outValue,
                               std::string& outUnit);
+
+    /// GitHub #350: just the human-readable "<value> <unit>" summary, with NO
+    /// "[PDFE-MEASURE:...]" machine marker. This is what the user actually sees
+    /// in the measurement's text box; the marker is kept separately in
+    /// AnnotationData::measureTag.
+    static std::string humanReadableValue(const MeasureResult& r);
 
 private:
     pdfe::annotations::AnnotationManager* manager_ = nullptr;

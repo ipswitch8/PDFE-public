@@ -16,7 +16,15 @@ struct PageImageInfo {
     int pixelHeight = 0;
     int bitsPerComponent = 8;
     int components = 3;          ///< 1=gray, 3=RGB, 4=CMYK
-    QRectF boundingBox;          ///< Position on page in PDF coordinates
+    QRectF boundingBox;          ///< Un-rotated, axis-aligned local rect (size =
+                                 ///< displayWidth x displayHeight) centred on the
+                                 ///< image's page-space centre. When rotationRadians
+                                 ///< is non-zero this rect is NOT the on-page extent;
+                                 ///< apply rotationRadians about its centre to get the
+                                 ///< oriented placement (GitHub #342).
+    float rotationRadians = 0.0f;///< Rotation of the image placement on the page,
+                                 ///< atan2(ctm.b, ctm.a). CCW-positive in PDF space
+                                 ///< (y-up). 0 for an axis-aligned placement (GitHub #342).
     float displayWidth = 0;      ///< Rendered width in points
     float displayHeight = 0;     ///< Rendered height in points
     int xDpi = 0, yDpi = 0;

@@ -55,6 +55,24 @@ public:
     /// Current output path (post-edits).
     std::filesystem::path outputPath() const;
 
+    /// GitHub #357 test seam: direct access to the step-1 file list so a
+    /// test can assert its drag-drop mode and simulate an internal-move
+    /// reorder (take + insert), then read the result back via inputFiles().
+    QListWidget* fileListForTesting() const { return fileList_; }
+
+    /// Headless tests drive runCombine() directly; on the failure path it would
+    /// otherwise pop a modal QMessageBox::warning that blocks with no event loop
+    /// to dismiss it. This suppresses only that dialog (the status-label text
+    /// and returned Result are unchanged), so the failure path stays testable
+    /// while production still shows the warning.
+    void setSuppressDialogsForTesting(bool v) { suppressDialogsForTesting_ = v; }
+
+signals:
+    /// GitHub #358: emitted by runCombine() when the merge succeeds, carrying
+    /// the combined PDF's output path. MainWindow connects this to openFile()
+    /// so the combined document opens automatically after creation.
+    void combineFinished(const QString& outputPath);
+
 private slots:
     void onAddFiles();
     void onRemoveFile();
@@ -77,6 +95,7 @@ private:
 
     // Step 1
     QListWidget* fileList_ = nullptr;
+    bool suppressDialogsForTesting_ = false;
     QPushButton* addButton_ = nullptr;
     QPushButton* removeButton_ = nullptr;
     QPushButton* moveUpButton_ = nullptr;

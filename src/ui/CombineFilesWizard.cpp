@@ -57,6 +57,14 @@ void CombineFilesWizard::setupUi() {
     // BatchDialog.cpp.
     fileList_->setAccessibleName(tr("Files to combine"));
     fileList_->setSelectionMode(QAbstractItemView::SingleSelection);
+    // GitHub #357: the step-1 label promises "Drag to reorder", but the list
+    // had the default NoDragDrop mode, so only the Move Up/Down buttons worked
+    // and the hint was a lie. InternalMove makes the hint true: a drag takes
+    // the row and re-inserts it, carrying all item data roles (including the
+    // Qt::UserRole file path) with it, and inputFiles() reads the order back
+    // off the widget — so runCombine() consumes the dragged order, not a stale
+    // vector.
+    fileList_->setDragDropMode(QAbstractItemView::InternalMove);
     step1Layout->addWidget(fileList_, 1);
     auto* btnRow = new QHBoxLayout();
     addButton_ = new QPushButton(tr("Add..."), step1);
@@ -347,10 +355,17 @@ CombineFilesService::Result CombineFilesWizard::runCombine() {
         // words, which the old prefix duplicated ("Combine failed: Combine
         // failed: ...").
         statusLabel_->setText(shown);
-        QMessageBox::warning(this, tr("Combine Files"), shown);
+        if (!suppressDialogsForTesting_) {
+            QMessageBox::warning(this, tr("Combine Files"), shown);
+        }
     } else {
         statusLabel_->setText(
             tr("Done. Output has %1 pages.").arg(result.outputPageCount));
+        // GitHub #358: announce the combined file so the caller
+        // (MainWindow::onCombineFiles) can open it automatically. The wizard
+        // used to produce the file and say nothing, leaving the user to hunt
+        // for it on disk. Emitted only on success, with the real output path.
+        emit combineFinished(QString::fromStdString(out.string()));
     }
     return result;
 }

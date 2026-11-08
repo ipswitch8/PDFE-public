@@ -74,8 +74,21 @@ PageDiffResult DiffEngine::comparePage(
         return result;
     }
     if (imageA.isNull() || imageB.isNull()) {
+        // GitHub #353: a one-sided page (added or removed) is still a change,
+        // but the old code stored the ENTIRE opaque page render as the diff
+        // overlay. Composited over the page it produced a solid block that
+        // hid the actual content. Instead emit a TRANSPARENT marker overlay —
+        // a light translucent wash in the diff colour — sized to the present
+        // page, so the real page content shows through and the page is still
+        // visibly flagged as one-sided.
         result.similarityScore = 0.0;
-        result.diffImage = imageB.isNull() ? imageA : imageB;
+        const QImage& present = imageB.isNull() ? imageA : imageB;
+        QImage marker(present.width(), present.height(), QImage::Format_RGBA8888);
+        // Translucent fill (alpha 40) in the chosen highlight colour: a
+        // marker, not an opaque placeholder. Alpha < 255 everywhere so page
+        // content remains visible beneath it.
+        marker.fill(QColor(diffR_, diffG_, diffB_, 40));
+        result.diffImage = std::move(marker);
         return result;
     }
 

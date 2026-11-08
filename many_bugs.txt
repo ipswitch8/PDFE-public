@@ -1,0 +1,42 @@
+File menu:
+ - Combine Files dialog says to "Drag to reorder", which does nothing, (only the Move Up and Move Down buttons work)
+ - after creating a combined file PDF it should be opened
+ - an image can be imported to use as a Stamp, but choosing it in the actual Stamp function does not work (the text option is used instead)
+ 
+Pages menu:
+ - when a blank page is inserted and then pages from another file are inserted, moving the blank page causes it to duplicate instead (only on the first move), though if it is subsequently moved to a location adjacent to the original page they will merge
+ - many of the page function Undo and Redo actions fail to update the thumbnail display
+ 
+Security menu:
+ - Sign Document dialog should allow creating a PFX certificate if none is provided
+ - Sign Document dialog should allow saving signature images for future use
+ - when the Sign Dialog is Cancelled it still places a red "SIGN" marker
+ 
+Image menu:
+ - when an image is inserted the thumbnail is not updated
+ 
+Tools menu:
+ - Compare Documents highlight selection is not honored (always red regardless of choice)
+ - page contents are displayed misaligned vs how they appear in the regular view and highlights do not match the location of the content, nor are they updated correctly as pages are navigated via Prev Change and Next Change
+ - Prev Change and Next Change "wrap around" when reaching the end of the sequence, with the last item being displayed with a solid blue image instead of the page content
+ - Convert to Grayscale has no Undo
+ - when an image has been inserted and then Convert to Grayscale is chosen, it sometimes converts the original content to black (this is inconsistent and appears to vary depending on the image inserted, e.g. testing with 1p_test.pdf the function worked properly after inserting confused.png but replaced the original content with solid black after ChromeSquirrel.png was inserted)
+ - Crop Page does not use the coordinates of the selected region, with the result showing content from a similar size and shape area higher on the page, (a region chosen from the top half is simply blank)
+ - the Add Watermark dialog prompts for an image even when Text is selected
+ - the Measure Distance function function works but after Mouse Up the line is shifted up and left
+ - the Measure Perimeter and Measure Area functions have no way to stop or complete the action, and a double-click generates a large text box containing the total measure at that time, e.g. "[PDFE-MEASURE:mode=perimeter;value=679.563;unit=pt]679.563 pt"
+ - deleting the large text box does not remove the tip box, and attempting to manipulate it causes a crash
+  
+View menu:
+ - the Customize Toolbars dialog behaves as if the Current toolbar is empty (all of the displayed buttons are listed in the dialog as Available actions)
+ 
+Help menu:
+ - selecting Documentation (or pressing F1) does nothing
+ - selecting Check for Updates does nothing
+ 
+Toolbar:
+ - many buttons become deselected after use (and must be reselected)
+ - highlight only works on text
+ 
+Other:
+ - dragging an object (e.g. a Stamp) from one page to another causes a crash

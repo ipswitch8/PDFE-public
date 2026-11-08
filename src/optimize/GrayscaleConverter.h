@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace pdfe::core {
 class Document;
@@ -40,6 +41,33 @@ public:
     /// success. Useful for tests and for selective conversion.
     static bool convertPageToGrayscale(pdfe::core::Document* doc,
                                        int pageIndex);
+
+    // -------------------------------------------------------------------
+    // GitHub #355: undo support for "Convert to Grayscale".
+    //
+    // The conversion rewrites every page's /Contents and /Resources in place,
+    // so undo needs the originals. These three helpers snapshot, restore and
+    // release them. Each snapshot element is an OPAQUE holder (defined in the
+    // .cpp) that deep-copies the two objects into a standalone pdf_document
+    // pinning its own MuPdfContext — exactly the teardown-safe mechanism used
+    // by Document::retainPageObj and ImageManager's content-ref holders — so a
+    // holder survives a full-rewrite save AND the owning Document's
+    // destruction. GrayscaleCommand owns the snapshot and drives these.
+    // -------------------------------------------------------------------
+
+    /// Deep-copy every page's original /Contents and /Resources. Returns one
+    /// opaque holder per page (index-aligned); a null element means that page
+    /// could not be snapshotted. Call BEFORE converting.
+    static std::vector<void*> snapshotPageContent(pdfe::core::Document* doc);
+
+    /// Graft the snapshot back onto the live pages (non-consuming: the holders
+    /// stay owned by the caller). Restores the original colour content.
+    static void restorePageContent(pdfe::core::Document* doc,
+                                   const std::vector<void*>& snapshot);
+
+    /// Drop every holder. Safe even if the owning Document is already gone
+    /// (each holder carries its own pinned context). Clears the vector.
+    static void releaseSnapshot(std::vector<void*>& snapshot);
 };
 
 } // namespace pdfe::optimize

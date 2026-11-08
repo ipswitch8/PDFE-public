@@ -5,6 +5,7 @@
 #include "../core/CoordinateTransform.h"
 
 #include <QMouseEvent>
+#include <QKeyEvent>
 #include <QPainter>
 #include <QPen>
 #include <QBrush>
@@ -60,6 +61,13 @@ std::string MeasureTool::buildContents(const MeasureResult& r)
        << ";unit=" << r.unitSuffix
        << "]\n"
        << r.displayedValue << " " << r.unitSuffix;
+    return os.str();
+}
+
+std::string MeasureTool::humanReadableValue(const MeasureResult& r)
+{
+    std::ostringstream os;
+    os << r.displayedValue << " " << r.unitSuffix;
     return os.str();
 }
 
@@ -156,6 +164,8 @@ void MeasureTool::onMousePress(QMouseEvent* event, int pageIndex, QPointF pdfPoi
 
     // Distance is 2-click; on second click, commit.
     if (mode_ == MeasureMode::Distance && points_.size() == 2) {
+        const QPointF p0 = points_[0];
+        const QPointF p1 = points_[1];
         const MeasureResult r = MeasureCalc::format(
             MeasureMode::Distance,
             MeasureCalc::distance(points_[0], points_[1]),
@@ -172,8 +182,11 @@ void MeasureTool::onMousePress(QMouseEvent* event, int pageIndex, QPointF pdfPoi
             data.pageIndex = currentPageIndex_;
             data.color = color_;
             data.contents = buildContents(r);
+            data.lineStart = p0;
+            data.lineEnd = p1;
             manager_->setColor(page_, data.annotIndex, color_);
             manager_->setContents(page_, data.annotIndex, data.contents);
+            manager_->setLineEndpoints(page_, data.annotIndex, p0, p1);
             // CAUTION: annotationCreated runs SYNCHRONOUSLY and may DESTROY
             // this tool (PdfCanvas::annotationCreated ->
             // MainWindow::onAnnotationCreatedByTool -> onAnnotationToolSelected
@@ -208,11 +221,50 @@ void MeasureTool::onMouseRelease(QMouseEvent* /*event*/, int /*pageIndex*/, QPoi
 
 void MeasureTool::onMouseDoubleClick(QMouseEvent* /*event*/, int /*pageIndex*/, QPointF /*pdfPoint*/)
 {
-    // Perimeter and area commit on double-click.
+    // Perimeter and area commit on double-click. GitHub #350: the double-click
+    // is no longer the ONLY way to finish -- Enter/Return does it too -- but it
+    // stays supported. Both route through the one completion seam.
+    // finishMeasurement() may destroy this (DCA 0009); it is the last call.
+    finishMeasurement();
+}
+
+void MeasureTool::onKeyPress(QKeyEvent* event)
+{
+    // GitHub #350: give Perimeter/Area a discoverable complete/cancel. Distance
+    // has no in-progress multi-point state, so it leaves the keys to the canvas.
     if (mode_ == MeasureMode::Distance) return;
+
+    switch (event->key()) {
+        case Qt::Key_Return:
+        case Qt::Key_Enter:
+            event->accept();
+            // LAST action: finishMeasurement() may destroy this (DCA 0009).
+            finishMeasurement();
+            return;
+        case Qt::Key_Escape:
+            cancelMeasurement();
+            event->accept();
+            return;
+        default:
+            return;  // leave the event for the canvas (scroll/paginate/zoom)
+    }
+}
+
+void MeasureTool::cancelMeasurement()
+{
+    // GitHub #350: discard the in-progress measurement. No annotation, no
+    // callback, so `this` survives -- safe to touch members.
+    points_.clear();
+}
+
+bool MeasureTool::finishMeasurement()
+{
+    // GitHub #350: the one completion seam for Perimeter/Area, shared by the
+    // double-click and the Enter/Return key.
+    if (mode_ == MeasureMode::Distance) return false;
     if (points_.size() < (mode_ == MeasureMode::Area ? 3u : 2u)) {
         points_.clear();
-        return;
+        return false;
     }
     const MeasureResult r = currentReadout();
 
@@ -224,21 +276,28 @@ void MeasureTool::onMouseDoubleClick(QMouseEvent* /*event*/, int /*pageIndex*/, 
             page_, pdfe::annotations::AnnotationType::FreeText, rect);
         data.pageIndex = currentPageIndex_;
         data.color = color_;
-        data.contents = buildContents(r);
+        // GitHub #350: VISIBLE text box shows only the human-readable value --
+        // not the raw machine marker that a double-click used to dump into the
+        // box. The machine tag is kept in the hidden measureTag field so any
+        // code that parses it can still recover it.
+        data.contents = humanReadableValue(r);
+        data.measureTag = buildContents(r);
         manager_->setColor(page_, data.annotIndex, color_);
         manager_->setContents(page_, data.annotIndex, data.contents);
-        // Same hazard as the distance path above: reset before firing, and
-        // make the callback the last thing that happens (DCA 0009).
+        // Same hazard as the distance path: reset before firing, and make the
+        // callback the last thing that happens (DCA 0009).
         points_.clear();
         if (annotationCreated) {
             auto cb = annotationCreated;  // copy: the call may destroy this
             cb(currentPageIndex_, data);
         }
         // Do NOT access any member here -- `this` may already be destroyed.
-        return;
+        return true;
     }
     points_.clear();
+    return false;
 }
+
 
 // -------- Overlay --------
 

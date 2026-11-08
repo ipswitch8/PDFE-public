@@ -1124,6 +1124,7 @@ private:
         std::shared_ptr<MuPdfContext>, Document*,
         const std::vector<int>&, const std::filesystem::path&);
     friend QRectF getPageCropBox(Document*, int);
+    friend QRectF getPageMediaBox(Document*, int);
     friend void setPageCropBox(Document*, int, const QRectF&);
 
     Document(

@@ -11,6 +11,7 @@ extern "C" {
 
 #include <openssl/pkcs12.h>
 #include <openssl/pkcs7.h>
+#include <openssl/rsa.h>  // EVP_RSA_gen (#361 createSelfSignedPfx)
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
@@ -532,6 +533,126 @@ pdf_pkcs7_verifier* Pkcs7OpenSslBridge::createVerifier(fz_context* ctx)
     verifier->get_signatory = openssl_get_signatory;
 
     return verifier;
+}
+
+Pkcs7OpenSslBridge::SelfSignedCertResult Pkcs7OpenSslBridge::createSelfSignedPfx(
+    const std::string& outputPfxPath,
+    const std::string& passphrase,
+    const SelfSignedCertOptions& opts)
+{
+    // GitHub #361 — create a self-signed PFX for users who do not already own a
+    // certificate. Uses only the OpenSSL already linked into this bridge.
+    //
+    // SECURITY: every error below is a FIXED, secret-free string. The passphrase
+    // and the private key are never placed into errorMessage, never written to a
+    // log, and the private key leaves this function only inside the PKCS#12
+    // envelope at outputPfxPath (itself encrypted under the passphrase). This
+    // mirrors the deliberate e.what()-dropping in the sign path so nothing
+    // sensitive can leak through a status string.
+    SelfSignedCertResult result;
+
+    // Validate FIRST, before generating any key material, so a rejected request
+    // writes nothing to disk.
+    if (opts.commonName.empty()) {
+        result.errorMessage = "Common Name (CN) is required";
+        return result;
+    }
+    if (passphrase.empty()) {
+        result.errorMessage = "Passphrase is required";
+        return result;
+    }
+    if (outputPfxPath.empty()) {
+        result.errorMessage = "Output path is required";
+        return result;
+    }
+
+    const int days = opts.validityDays > 0 ? opts.validityDays : 365;
+    const int bits = opts.rsaBits >= 2048 ? opts.rsaBits : 2048;
+
+    EVP_PKEY* pkey = nullptr;
+    X509* x509 = nullptr;
+    PKCS12* p12 = nullptr;
+    BIO* out = nullptr;
+
+    // RSA keypair (EVP_RSA_gen is OpenSSL 3.x; this tree is 3.6.1).
+    pkey = EVP_RSA_gen(static_cast<unsigned int>(bits));
+    if (!pkey) {
+        result.errorMessage = "Key generation failed";
+        goto cleanup;
+    }
+
+    x509 = X509_new();
+    if (!x509) {
+        result.errorMessage = "Certificate allocation failed";
+        goto cleanup;
+    }
+    X509_set_version(x509, 2 /* X.509 v3 */);
+    ASN1_INTEGER_set(X509_get_serialNumber(x509), 1);
+    X509_gmtime_adj(X509_getm_notBefore(x509), 0);
+    X509_gmtime_adj(X509_getm_notAfter(x509),
+                    static_cast<long>(60) * 60 * 24 * days);
+    if (X509_set_pubkey(x509, pkey) != 1) {
+        result.errorMessage = "Public key assignment failed";
+        goto cleanup;
+    }
+
+    {
+        X509_NAME* name = X509_get_subject_name(x509);
+        if (X509_NAME_add_entry_by_txt(
+                name, "CN", MBSTRING_UTF8,
+                reinterpret_cast<const unsigned char*>(opts.commonName.c_str()),
+                -1, -1, 0) != 1) {
+            result.errorMessage = "Invalid Common Name";
+            goto cleanup;
+        }
+        if (!opts.organization.empty()) {
+            X509_NAME_add_entry_by_txt(
+                name, "O", MBSTRING_UTF8,
+                reinterpret_cast<const unsigned char*>(
+                    opts.organization.c_str()),
+                -1, -1, 0);
+        }
+        // Self-signed: issuer == subject.
+        if (X509_set_issuer_name(x509, name) != 1) {
+            result.errorMessage = "Issuer assignment failed";
+            goto cleanup;
+        }
+    }
+
+    if (!X509_sign(x509, pkey, EVP_sha256())) {
+        result.errorMessage = "Certificate signing failed";
+        goto cleanup;
+    }
+
+    // Package key + cert into a PKCS#12 protected by the passphrase. The CN is
+    // used as the friendly name (non-secret).
+    p12 = PKCS12_create(passphrase.c_str(), opts.commonName.c_str(),
+                        pkey, x509, /*ca chain*/ nullptr,
+                        0, 0, 0, 0, 0);
+    if (!p12) {
+        result.errorMessage = "PKCS#12 packaging failed";
+        goto cleanup;
+    }
+
+    out = BIO_new_file(outputPfxPath.c_str(), "wb");
+    if (!out) {
+        result.errorMessage = "Cannot open output path for writing";
+        goto cleanup;
+    }
+    if (i2d_PKCS12_bio(out, p12) != 1) {
+        result.errorMessage = "Failed to write PFX file";
+        goto cleanup;
+    }
+
+    result.success = true;
+    result.errorMessage.clear();
+
+cleanup:
+    if (out) BIO_free(out);
+    if (p12) PKCS12_free(p12);
+    if (x509) X509_free(x509);
+    if (pkey) EVP_PKEY_free(pkey);
+    return result;
 }
 
 void Pkcs7OpenSslBridge::dropSigner(fz_context* ctx, pdf_pkcs7_signer* signer)

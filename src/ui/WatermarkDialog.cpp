@@ -46,6 +46,7 @@ void WatermarkDialog::setupUi() {
 
     auto* mainLayout = new QVBoxLayout(this);
     auto* form = new QFormLayout();
+    formLayout_ = form;  // GitHub #356
 
     // Phase 4e: mode selector
     modeCombo_ = new QComboBox(this);
@@ -63,6 +64,7 @@ void WatermarkDialog::setupUi() {
 
     // Phase 4e: image source row
     auto* imageRow = new QHBoxLayout();
+    imageRow_ = imageRow;  // GitHub #356
     imagePathEdit_ = new QLineEdit(this);
     imagePathEdit_->setObjectName("watermarkDialogImagePath");
     imagePathEdit_->setAccessibleName("Watermark Image Path");
@@ -151,12 +153,7 @@ void WatermarkDialog::setupUi() {
 
     // Phase 4e wiring
     connect(modeCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
-        this, [this](int) {
-            const bool image = modeCombo_->currentData().toString() == "image";
-            imagePathEdit_->setEnabled(image);
-            imageBrowseButton_->setEnabled(image);
-            textEdit_->setEnabled(!image);
-        });
+        this, [this](int) { updateModeVisibility(); });
     connect(rangeCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
         this, [this](int) {
             rangeExplicitEdit_->setEnabled(
@@ -168,6 +165,27 @@ void WatermarkDialog::setupUi() {
             tr("Images (*.png *.jpg *.jpeg)"));
         if (!p.isEmpty()) imagePathEdit_->setText(p);
     });
+
+    // GitHub #356: establish the correct INITIAL visibility for the default
+    // mode. currentIndexChanged does not fire for the item already selected at
+    // construction (index 0 = Text), so the image row would otherwise start
+    // visible and prompt for an image in Text mode.
+    updateModeVisibility();
+}
+
+void WatermarkDialog::updateModeVisibility() {
+    // GitHub #356: the "Image:" row (path field + Browse button) is only
+    // meaningful in Image mode. Hide the whole form row in Text mode so the
+    // dialog does not prompt for an image; show it in Image mode. Keep the
+    // enabled-state in sync so a hidden control can never be the focus/validated
+    // target.
+    const bool image = modeCombo_->currentData().toString() == "image";
+    if (formLayout_ && imageRow_) {
+        formLayout_->setRowVisible(imageRow_, image);
+    }
+    imagePathEdit_->setEnabled(image);
+    imageBrowseButton_->setEnabled(image);
+    textEdit_->setEnabled(!image);
 }
 
 void WatermarkDialog::onApply() {

@@ -55,6 +55,13 @@ private:
 
     int currentPageIndex_ = -1;
     bool isSelecting_ = false;
+
+    // GitHub #367. The drag's start point (onMousePress) in PDF coordinates.
+    // When the TextSelector finds no text under the drag, onMouseRelease falls
+    // back to the rectangle between this and the release point, so a markup is
+    // still created over the dragged region on non-text content instead of
+    // doing nothing.
+    QPointF pressPoint_;
 };
 
 } // namespace pdfe::annotations

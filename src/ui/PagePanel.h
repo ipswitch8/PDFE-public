@@ -5,6 +5,7 @@
 #include <QList>
 #include <QString>
 #include <QPoint>
+#include <QRect>
 
 #include <utility>
 
@@ -139,6 +140,16 @@ public:
     /// driveable. Surfaced to the Python harness via MainWindow's view-state
     /// pipe (field ``pageDragStarts``). Process-wide; not reset between tests.
     static int startDragInvocationCountForTesting();
+
+    /// GitHub drop-indicator fix test seam: set the thumbnail list's drop
+    /// indicator to @p insertIndex (0..pageCount, where pageCount == append) and
+    /// return the rect the paint code would draw for it. The marker is now a
+    /// HORIZONTAL line in the gap between thumbnails (width >> height), replacing
+    /// the old full-height vertical bar that did not show whether the dragged
+    /// page would land above or below the existing page. Forces a deterministic
+    /// layout so the geometry is valid in a headless (never-shown) panel. Returns
+    /// a null QRect if the list/geometry is unavailable.
+    QRect dropIndicatorRectForTesting(int insertIndex);
 
     /// GitHub #339 test seam: run the REAL context-menu action dispatch for the
     /// member QAction with object name @p actionObjectName (e.g.

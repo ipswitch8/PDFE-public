@@ -171,6 +171,14 @@ void UndoManager::forEachCommand(const std::function<void(Command*)>& fn) const 
     }
 }
 
+const Command* UndoManager::peekUndoCommand() const {
+    return undoStack_.empty() ? nullptr : undoStack_.back().get();
+}
+
+const Command* UndoManager::peekRedoCommand() const {
+    return redoStack_.empty() ? nullptr : redoStack_.back().get();
+}
+
 void UndoManager::enforceMaxDepth() {
     while (static_cast<int>(undoStack_.size()) > maxDepth_) {
         // Remove oldest command from the front

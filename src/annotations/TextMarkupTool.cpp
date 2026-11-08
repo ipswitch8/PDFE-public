@@ -32,6 +32,8 @@ void TextMarkupTool::onMousePress(QMouseEvent* event, int pageIndex, QPointF pdf
     selector_->beginSelection(page_, pdfPoint);
     currentPageIndex_ = pageIndex;
     isSelecting_ = true;
+    // GitHub #367: remember the drag anchor for the no-text fallback rect.
+    pressPoint_ = pdfPoint;
 }
 
 void TextMarkupTool::onMouseMove(QMouseEvent* event, int pageIndex, QPointF pdfPoint)
@@ -59,24 +61,40 @@ void TextMarkupTool::onMouseRelease(QMouseEvent* event, int pageIndex, QPointF p
     TextSelection selection = selector_->endSelection();
     isSelecting_ = false;
 
-    // Only create annotation if text was actually selected
-    if (selection.quads.empty()) {
-        return;
-    }
-
-    // Calculate bounding rect from quads
+    // Build the quad list and bounding rect for the markup.
+    std::vector<QRectF> quads;
     QRectF boundingRect;
-    for (const auto& quad : selection.quads) {
-        if (boundingRect.isEmpty()) {
-            boundingRect = quad;
-        } else {
-            boundingRect = boundingRect.united(quad);
+
+    if (!selection.quads.empty()) {
+        // Text path (unchanged): mark the selected text's per-line quads.
+        quads.assign(selection.quads.begin(), selection.quads.end());
+        for (const auto& quad : quads) {
+            if (boundingRect.isEmpty()) {
+                boundingRect = quad;
+            } else {
+                boundingRect = boundingRect.united(quad);
+            }
         }
+    } else {
+        // GitHub #367. No text was under the drag. Highlight (and the other
+        // text-markup tools) used to return here and create nothing, so they
+        // "only worked on text". Fall back to the dragged RECT so a markup is
+        // still created over the dragged region on non-text content (scanned
+        // pages, images, blank areas). Per the phase-1 disposition.
+        const QRectF dragRect = QRectF(pressPoint_, pdfPoint).normalized();
+        // A click with no real drag marks nothing — guard the degenerate rect
+        // so a stray single click does not drop a zero-size annotation.
+        if (dragRect.width() < 1.0 && dragRect.height() < 1.0) {
+            currentPageIndex_ = -1;
+            return;
+        }
+        boundingRect = dragRect;
+        quads.push_back(dragRect);   // region markup: one quad == the region
     }
 
     // Create text markup annotation
     AnnotationData data = manager_->createAnnotation(page_, type_, boundingRect);
-    data.quadPoints = std::vector<QRectF>(selection.quads.begin(), selection.quads.end());
+    data.quadPoints = quads;
     data.contents = selection.selectedText.toStdString();
     data.color = color_;
     data.pageIndex = currentPageIndex_;
