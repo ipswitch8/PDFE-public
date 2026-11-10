@@ -228,15 +228,72 @@ TEST_F(ImageToolTest, CursorAt_NoSelection) {
 }
 
 // Test 9: Paint_NoSelection_DoesNotCrash
+//
+// GitHub #373: ImageTool::paint's contract is a painter ALREADY transformed
+// into fitz page space (translate(pageOrigin) + scale(zoom) — what PdfCanvas
+// now sets up before the call). Honour the contract here even though no
+// selection means nothing draws.
 TEST_F(ImageToolTest, Paint_NoSelection_DoesNotCrash) {
     QImage surface(100, 100, QImage::Format_ARGB32);
     QPainter painter(&surface);
+    painter.translate(QPointF(10.0, 10.0));  // page origin
+    painter.scale(1.0, 1.0);                 // zoom
 
     EXPECT_NO_THROW({
         tool_->paint(painter, 1.0f);
     });
 
     painter.end();
+}
+
+// Test 9b (GitHub #373): with a selection, the overlay must draw AT the
+// bbox's page-space location under the contract transform — i.e. at
+// pageOrigin + zoom * bbox, NOT at the raw bbox coordinates the pre-fix
+// widget-space painter produced (the "handles offset from the image" defect).
+TEST_F(ImageToolTest, Paint_WithSelection_DrawsAtTransformedBboxNotRawCoords) {
+    const float zoom = 2.0f;
+    const QPointF pageOrigin(20.0, 30.0);
+    PageImageInfo info;
+    info.xobjectName = "ImPaint";
+    info.pixelWidth = 100;
+    info.pixelHeight = 80;
+    info.displayWidth = 100.0f;
+    info.displayHeight = 80.0f;
+    info.boundingBox = QRectF(50.0, 50.0, 100.0, 80.0);  // fitz Y-down pts
+    tool_->setImagesForTest({info}, 0);
+    ASSERT_TRUE(tool_->hasSelection());
+
+    QImage surface(400, 400, QImage::Format_ARGB32);
+    surface.fill(Qt::white);
+    QPainter painter(&surface);
+    painter.translate(pageOrigin);
+    painter.scale(zoom, zoom);
+    tool_->paint(painter, zoom);
+    painter.end();
+
+    auto inkNear = [&](QPointF p, int radius) {
+        int n = 0;
+        for (int dy = -radius; dy <= radius; ++dy)
+            for (int dx = -radius; dx <= radius; ++dx) {
+                const int x = static_cast<int>(p.x()) + dx;
+                const int y = static_cast<int>(p.y()) + dy;
+                if (x < 0 || y < 0 || x >= surface.width() || y >= surface.height())
+                    continue;
+                if (surface.pixel(x, y) != qRgb(255, 255, 255)) ++n;
+            }
+        return n;
+    };
+
+    // Expected device-space corner: pageOrigin + zoom * bboxTopLeft.
+    const QPointF devTopLeft(pageOrigin.x() + zoom * 50.0,
+                             pageOrigin.y() + zoom * 50.0);
+    EXPECT_GT(inkNear(devTopLeft, 6), 0)
+        << "selection frame/handle did not draw at the transformed bbox corner";
+    // Discriminator: the PRE-fix raw-painter behaviour drew at the raw bbox
+    // coords (50, 50) on the surface; that spot must now stay clean. (It is
+    // far from any transformed overlay geometry for this setup.)
+    EXPECT_EQ(inkNear(QPointF(50.0, 50.0), 4), 0)
+        << "overlay drew at RAW bbox coordinates — painter contract violated";
 }
 
 // Test 10: SelectedImage_NoSelection_ReturnsInvalid

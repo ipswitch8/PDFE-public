@@ -782,9 +782,24 @@ void PdfCanvas::paintEvent(QPaintEvent* event)
             textEditTool_->onPaintOverlay(painter, layout.pageIndex, zoomLevel_, pageOrigin, pageHeightPt);
         }
 
-        // Draw image tool overlay for this page
+        // Draw image tool overlay for this page.
+        //
+        // GitHub #373: ImageTool::paint draws bbox/handle rects in fitz page
+        // space (Y-down points, origin at the page's top-left — the same
+        // space screenToPdf feeds its mouse handlers), so transform the
+        // painter to that space here: translate to the page origin, scale by
+        // the zoom. This mirrors what the annotation tools at
+        // onPaintOverlay() do internally; before this the tool drew into the
+        // RAW widget-space painter, so the handles rendered offset from the
+        // image (unscaled, un-translated). Deliberately NO scale(1,-1) — the
+        // bboxes are already Y-down, and a flip would mirror the rotation
+        // angle text the tool draws.
         if (imageTool_) {
+            painter.save();
+            painter.translate(tileOriginX, tileOriginY);
+            painter.scale(zoomLevel_, zoomLevel_);
             imageTool_->paint(painter, zoomLevel_);
+            painter.restore();
         }
 
         painter.restore();
@@ -907,7 +922,7 @@ void PdfCanvas::paintJpxPlaceholders(QPainter& painter, const PageLayout& layout
     if (!document_ || pdfe::core::isJpxDecodingEnabled())
         return;
 
-    // Lazily compute + cache the raw JPX image rects (PDF Y-up) for this page.
+    // Lazily compute + cache the raw JPX image rects (fitz Y-down, #373) for this page.
     // The cache is pref-independent; the enabled check above gates drawing.
     auto it = jpxRegions_.find(layout.pageIndex);
     if (it == jpxRegions_.end()) {
@@ -928,13 +943,6 @@ void PdfCanvas::paintJpxPlaceholders(QPainter& painter, const PageLayout& layout
     if (it->second.isEmpty())
         return;
 
-    float pageHeightPt = 0.0f;
-    try {
-        pageHeightPt = document_->pageInfo(layout.pageIndex).heightPt;
-    } catch (...) {
-        return;
-    }
-
     painter.save();
     const QColor fill(70, 70, 70, 45);
     const QColor border(170, 130, 0, 210);
@@ -942,10 +950,13 @@ void PdfCanvas::paintJpxPlaceholders(QPainter& painter, const PageLayout& layout
                            "Enable in Preferences → Security.");
 
     for (const QRectF& pdfRect : it->second) {
-        // PDF user space (Y-up, origin bottom-left) → screen (Y-down from page top).
+        // GitHub #373: enumerated image bboxes are now fitz device space
+        // (Y-down from the page top) — the flip this painter used to apply
+        // (top = pageHeightPt - (y + h)) moved into ImageManager's
+        // enumeration, the single flip site. Screen mapping is scale +
+        // translate only, like the search highlights above.
         const float sx  = static_cast<float>(pdfRect.x()) * zoomLevel_;
-        const float top = pageHeightPt - static_cast<float>(pdfRect.y() + pdfRect.height());
-        const float sy  = top * zoomLevel_;
+        const float sy  = static_cast<float>(pdfRect.y()) * zoomLevel_;
         const float sw  = static_cast<float>(pdfRect.width()) * zoomLevel_;
         const float sh  = static_cast<float>(pdfRect.height()) * zoomLevel_;
         const QRectF box(pageLeft + sx, pageTop + sy, sw, sh);
@@ -994,7 +1005,7 @@ void PdfCanvas::paintJbig2Placeholders(QPainter& painter, const PageLayout& layo
     if (!document_ || pdfe::core::isJbig2DecodingEnabled())
         return;
 
-    // Lazily compute + cache the raw JBIG2 image rects (PDF Y-up) for this page.
+    // Lazily compute + cache the raw JBIG2 image rects (fitz Y-down, #373) for this page.
     // The cache is pref-independent; the enabled check above gates drawing.
     auto it = jbig2Regions_.find(layout.pageIndex);
     if (it == jbig2Regions_.end()) {
@@ -1015,13 +1026,6 @@ void PdfCanvas::paintJbig2Placeholders(QPainter& painter, const PageLayout& layo
     if (it->second.isEmpty())
         return;
 
-    float pageHeightPt = 0.0f;
-    try {
-        pageHeightPt = document_->pageInfo(layout.pageIndex).heightPt;
-    } catch (...) {
-        return;
-    }
-
     painter.save();
     const QColor fill(70, 70, 70, 45);
     const QColor border(170, 130, 0, 210);
@@ -1029,10 +1033,10 @@ void PdfCanvas::paintJbig2Placeholders(QPainter& painter, const PageLayout& layo
                            "Enable in Preferences → Security.");
 
     for (const QRectF& pdfRect : it->second) {
-        // PDF user space (Y-up, origin bottom-left) → screen (Y-down from page top).
+        // GitHub #373: enumerated bboxes are fitz Y-down now — no flip here
+        // (same reasoning as paintJpxPlaceholders above).
         const float sx  = static_cast<float>(pdfRect.x()) * zoomLevel_;
-        const float top = pageHeightPt - static_cast<float>(pdfRect.y() + pdfRect.height());
-        const float sy  = top * zoomLevel_;
+        const float sy  = static_cast<float>(pdfRect.y()) * zoomLevel_;
         const float sw  = static_cast<float>(pdfRect.width()) * zoomLevel_;
         const float sh  = static_cast<float>(pdfRect.height()) * zoomLevel_;
         const QRectF box(pageLeft + sx, pageTop + sy, sw, sh);
@@ -2095,6 +2099,14 @@ QRectF PdfCanvas::pdfRectFromCanvas(int pageIndex, const QRectF& canvasRect) con
         canvasRect, zoomLevel_, pageOrigin, pageHeightPt);
 }
 
+// SPACE CONTRACT (GitHub #378, resolved by #373): @p pdfRect is fitz device
+// space — Y-down, origin at the page's TOP-left, points — the exact space
+// CoordinateTransform::screenToPdf produces for mouse dispatch and the space
+// ImageManager now enumerates bounding boxes in. There is deliberately NO
+// Y-flip here (pdfRectToScreen is scale+translate only): before #373 unified
+// the spaces, this absence exactly cancelled the Y-up bboxes the image path
+// produced, so seam-driven tests could not see the inversion. With Y-down
+// enumeration this seam is now CORRECT rather than self-cancelling.
 QRectF PdfCanvas::canvasRectFromPdf(int pageIndex, const QRectF& pdfRect) const
 {
     if (!document_) return QRectF();
@@ -2399,6 +2411,11 @@ bool PdfCanvas::sendInputMethodEventForTesting(const QString& preedit,
     return true;
 }
 
+// SPACE CONTRACT (GitHub #378): all four coordinates are fitz device space
+// (Y-down from the page's top-left, points) — see canvasRectFromPdf. A test
+// dragging toward LARGER Y therefore drags VISUALLY DOWN, and with the #373
+// unification the enumerated image bbox it reads back moves in that same
+// direction.
 bool PdfCanvas::dragByPdfCoord(int pageIndex,
                                 qreal fromX, qreal fromY,
                                 qreal toX, qreal toY)

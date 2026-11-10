@@ -2906,3 +2906,27 @@ affects all 221 TUs including files the ui-fixes-2026-11 batch never touched, so
 it is not a regression of that batch; excluded from its phase-5 full-suite gate on
 that basis. The other four `FzTryRaiiBoundary` tests (self-test, baseline
 population, CI-wiring, GitHub #196 ownership) run and pass.
+
+## BEHAVIOR-CHANGE-CLICK-PIPE-NO-FORMTOOL-RESET (2026-11-09; GitHub #377)
+
+`testClickByPdfCoordPipe` **no longer force-resets the FormTool to interaction
+mode** before dispatching a synthetic click (`MainWindow.cpp`, the pipe's
+textChanged handler). The reset made the pipe exercise a state no real user
+click could reach and masked #369-class defects (a Form tool stuck in creation
+mode still looked fine under test). Default now: the click lands in whatever
+mode the tool is REALLY in. A test that legitimately needs interaction mode
+opts in with an explicit 4th payload token: `"pageIndex,pdfX,pdfY,interaction"`.
+
+**Next full UI sweep:** any pywinauto test that activates `formToolAction`
+(which arms Text creation) and then clicks an EXISTING field through this pipe
+previously depended on the hidden reset. Candidates to re-check and either
+migrate to the real flow (arm the field type, drag-create, let the #369 natural
+creation-mode exit fire) or opt in with `,interaction`:
+`tests/ui_automation/test_canvas_phase4.py`, `test_canvas_coords_p2.py`,
+`test_precondition_panels_phase4.py`, `test_remaining_preconditions_phase5.py`,
+`test_ui_batch2_forms.py`, `test_ui_form_palette.py`,
+`test_forms_palette_phase_post.py`, `tests/test_ui_forms.py`,
+`tests/ui_harness/forms/helpers.py`.
+`tests/test_ui_sign_image_and_sigfield_click.py::test_click_signature_field_opens_sign_dialog_issue328`
+has already been migrated to the real flow (toolbar arm -> drag-create -> #369
+exit -> click) and now also covers the #369 regression shape.

@@ -32,9 +32,13 @@ QPointF centerOf(const QRectF& rect) {
     return QPointF(rect.center().x(), rect.center().y());
 }
 
-/// Rotate point @p p about @p center by @p radians (CCW-positive, PDF y-up
-/// convention). Used to map a page-space mouse point into an image's un-rotated
-/// local frame (pass -rotationRadians) for hit-testing (GitHub #342).
+/// Rotate point @p p about @p center by @p radians — plain math-convention
+/// rotation matrix. The tool operates in fitz Y-down page space (GitHub #373),
+/// where a POSITIVE math angle is visually CLOCKWISE. A placement whose
+/// enumerated rotationRadians is θ (CCW-positive in Y-up user space, i.e.
+/// visually CCW) maps local→page in this frame as a rotation by -θ, so the
+/// page→local inverse used for hit-testing is a rotation by +θ (GitHub
+/// #342/#376 — the sign here flipped when the bboxes moved to Y-down).
 QPointF rotateAbout(QPointF p, QPointF center, float radians) {
     const float c = std::cos(radians);
     const float s = std::sin(radians);
@@ -124,17 +128,20 @@ public:
 
     /// Hit-test for a handle at the given position.
     ///
-    /// @p bbox is the UN-rotated, axis-aligned local rect; @p rotationRadians is
-    /// the placement's rotation. The handle rects are defined in the un-rotated
-    /// local frame, so the page-space @p pos is inverse-rotated by -rotationRadians
-    /// about the rect centre before comparison (GitHub #342). With rotationRadians
-    /// == 0 this is a no-op and behaviour matches the former axis-aligned test.
+    /// @p bbox is the UN-rotated, axis-aligned local rect (fitz Y-down);
+    /// @p rotationRadians is the placement's rotation (CCW-positive in Y-up
+    /// user space). The handle rects are defined in the un-rotated local
+    /// frame; in this Y-down frame the placement is a math rotation by
+    /// -rotationRadians, so the page-space @p pos is inverse-rotated by
+    /// +rotationRadians about the rect centre before comparison (GitHub
+    /// #342/#373/#376). With rotationRadians == 0 this is a no-op and
+    /// behaviour matches the former axis-aligned test.
     HandlePosition hitTestHandle(const QRectF& bbox, QPointF pos, float scale,
                                  float rotationRadians) const {
         const float tolerance = handleTolerancePixels / scale;
 
         if (rotationRadians != 0.0f) {
-            pos = rotateAbout(pos, bbox.center(), -rotationRadians);
+            pos = rotateAbout(pos, bbox.center(), rotationRadians);
         }
 
         // Test all handles
@@ -155,16 +162,18 @@ public:
 
     /// Hit-test images at the given position (reverse order for z-order).
     ///
-    /// Each image's boundingBox is its un-rotated local rect; inverse-rotate the
-    /// page-space @p pos by the image's own -rotationRadians about its centre
-    /// before the contains() test so a rotated image is still hittable (GitHub
-    /// #342). Unchanged for axis-aligned images (rotationRadians == 0).
+    /// Each image's boundingBox is its un-rotated local rect (fitz Y-down);
+    /// inverse-rotate the page-space @p pos by the image's own
+    /// +rotationRadians about its centre (the Y-down inverse of the placement
+    /// rotation — see rotateAbout) before the contains() test so a rotated
+    /// image is still hittable (GitHub #342/#376). Unchanged for axis-aligned
+    /// images (rotationRadians == 0).
     int hitTestImage(QPointF pos) const {
         for (int i = static_cast<int>(images_.size()) - 1; i >= 0; --i) {
             const auto& img = images_[i];
             QPointF local = pos;
             if (img.rotationRadians != 0.0f) {
-                local = rotateAbout(pos, img.boundingBox.center(), -img.rotationRadians);
+                local = rotateAbout(pos, img.boundingBox.center(), img.rotationRadians);
             }
             if (img.boundingBox.contains(local)) {
                 return i;
@@ -339,10 +348,14 @@ void ImageTool::mouseMoveEvent(QMouseEvent* event, QPointF pdfPos, float scale) 
 
             float startAngle = std::atan2(start.y(), start.x()) * 180.0f / 3.14159265f;
             float endAngle = std::atan2(end.y(), end.x()) * 180.0f / 3.14159265f;
-            // GitHub #341: atan2 in PDF space is CCW-positive, but the rotate
-            // command and the toolbar both treat POSITIVE as clockwise. Negate
-            // the CCW delta so a visually-clockwise drag yields a positive angle.
-            float deltaAngle = startAngle - endAngle;
+            // GitHub #376 (re-derives the #341 sign for genuine Y-down input):
+            // pdfPos is fitz Y-down, where atan2 grows VISUALLY CLOCKWISE —
+            // already the positive-is-clockwise convention the rotate command
+            // and toolbar use. The raw delta (end - start) is therefore the
+            // committed angle with NO negation; the old (start - end) negation
+            // was derived from the Y-up seam coordinates the pre-#373 tests
+            // fed in, and inverted the direction for real mouse input.
+            float deltaAngle = endAngle - startAngle;
 
             // Snap to 90-degree increments for preview
             impl_->pendingRotation_ = std::round(deltaAngle / 90.0f) * 90.0f;
@@ -382,9 +395,10 @@ void ImageTool::mouseReleaseEvent(QMouseEvent* event, QPointF pdfPos, float scal
 
             float startAngle = std::atan2(start.y(), start.x()) * 180.0f / 3.14159265f;
             float endAngle = std::atan2(end.y(), end.x()) * 180.0f / 3.14159265f;
-            // GitHub #341: negate the CCW atan2 delta to the clockwise-positive
-            // convention the command and toolbar use (matches mouseMoveEvent).
-            float deltaAngle = startAngle - endAngle;
+            // GitHub #376: Y-down atan2 is already clockwise-positive, so the
+            // raw delta carries the command/toolbar convention directly
+            // (matches mouseMoveEvent; see the derivation there).
+            float deltaAngle = endAngle - startAngle;
 
             // Snap to 90-degree increments
             deltaAngle = std::round(deltaAngle / 90.0f) * 90.0f;
@@ -439,12 +453,20 @@ void ImageTool::paint(QPainter& painter, float scale) {
     const auto& img = impl_->images_[impl_->selectedIndex_];
     const QRectF& bbox = img.boundingBox;
 
+    // PAINTER CONTRACT (GitHub #373): the caller (PdfCanvas) hands this a
+    // painter already transformed into fitz page space — translated to the
+    // page's top-left and scaled by the zoom — so bbox/handle rects (fitz
+    // Y-down points) draw directly, exactly like the annotation-tool overlays.
+    // No scale(1,-1) flip is involved (it would mirror the angle text below).
+    //
     // GitHub #342: bbox is the UN-rotated local rect. Draw the selection frame
     // and handles in that local frame but under a painter rotation about the
     // image centre so they land on the visually-rotated corners — matching the
-    // inverse-rotation the hit-test applies. baseDeg maps the CCW-positive PDF
-    // rotation to this painter's degrees (same sign relationship the live-preview
-    // outline below uses). No-op when rotationRadians == 0.
+    // inverse-rotation the hit-test applies. QPainter::rotate is visually
+    // clockwise-positive in this Y-down frame, while rotationRadians is
+    // visually CCW-positive (Y-up user convention), hence baseDeg negates it
+    // (same sign relationship the live-preview outline below uses). No-op
+    // when rotationRadians == 0.
     const float baseDeg = -img.rotationRadians * 180.0f / 3.14159265f;
     const QPointF imgCenter = bbox.center();
 
@@ -496,11 +518,12 @@ void ImageTool::paint(QPainter& painter, float scale) {
         QString angleText = QString::fromLatin1("%1%2").arg(static_cast<int>(impl_->pendingRotation_)).arg(QChar(0x00B0));
         painter.drawText(rotationCenter + QPointF(rotationRadius * 2, 0), angleText);
 
-        // Draw a rotated outline preview. GitHub #341: pendingRotation_ now carries
-        // the clockwise-positive convention (same as the committed command), so the
-        // painter rotates by +pendingRotation_ here (the former -pendingRotation_
-        // negated the raw CCW delta). Composing with baseDeg previews base + pending
-        // so the dotted outline matches what the commit will produce.
+        // Draw a rotated outline preview. pendingRotation_ carries the
+        // clockwise-positive convention (same as the committed command — #341,
+        // re-derived for Y-down input in #376), and QPainter::rotate is also
+        // clockwise-positive, so the painter rotates by +pendingRotation_.
+        // Composing with baseDeg previews base + pending so the dotted outline
+        // matches what the commit will produce.
         QPen previewPen(Qt::blue, 1.0f / scale, Qt::DotLine);
         painter.setPen(previewPen);
         painter.setBrush(Qt::NoBrush);
@@ -524,8 +547,9 @@ QCursor ImageTool::cursorAt(QPointF pdfPos, float scale) const {
 
         QPointF bodyPos = pdfPos;
         if (selectedImg.rotationRadians != 0.0f) {
+            // Y-down inverse of the placement rotation (see rotateAbout).
             bodyPos = rotateAbout(pdfPos, selectedImg.boundingBox.center(),
-                                  -selectedImg.rotationRadians);
+                                  selectedImg.rotationRadians);
         }
         if (selectedImg.boundingBox.contains(bodyPos)) {
             return QCursor(Qt::OpenHandCursor);

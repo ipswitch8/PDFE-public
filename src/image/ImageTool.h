@@ -43,7 +43,12 @@ public:
     /// Clear the current page context.
     void clearPage();
 
-    /// Handle mouse events (called by PdfCanvas).
+    /// Handle mouse events (called by PdfCanvas). @p pdfPos is in fitz device
+    /// space — Y-down, origin at the page's TOP-left, points — the space
+    /// CoordinateTransform::screenToPdf produces and the enumerated
+    /// PageImageInfo::boundingBox lives in (GitHub #373). Drag deltas, bbox
+    /// arithmetic and the committed resize/rotate signals all stay in this
+    /// one space; the content-stream writers convert to Y-up user space.
     void mousePressEvent(QMouseEvent* event, QPointF pdfPos, float scale);
     void mouseMoveEvent(QMouseEvent* event, QPointF pdfPos, float scale);
     void mouseReleaseEvent(QMouseEvent* event, QPointF pdfPos, float scale);
@@ -52,6 +57,12 @@ public:
     void keyPressEvent(QKeyEvent* event);
 
     /// Paint selection handles and overlays.
+    ///
+    /// CONTRACT (GitHub #373): @p painter must already be transformed into
+    /// fitz page space — translate(pageTopLeft) then scale(zoom, zoom) — the
+    /// way PdfCanvas sets it up before calling (mirroring what the annotation
+    /// tools do internally). @p scale is that same zoom, used only to keep
+    /// pixel-sized furniture (pen widths, handle sizes, text) zoom-invariant.
     void paint(QPainter& painter, float scale);
 
     /// Get cursor for current position.

@@ -20,6 +20,14 @@ class ImageManager;
 /// via pdf_filter_page_contents with image_filter, then a new placement
 /// with the modified CTM is appended to the content stream.
 ///
+/// COORDINATE SPACE (GitHub #373): every geometry parameter below — x/y,
+/// centerX/centerY, cropRect — is in FITZ DEVICE SPACE: Y-down, origin at the
+/// page's TOP-left, in points. This is the space mouse input
+/// (CoordinateTransform::screenToPdf), the enumerated PageImageInfo
+/// boundingBox, and the canvas pdf-coord test seams all share. The writers
+/// convert ONCE to the Y-up, MediaBox-origin user space the `cm`/`re`
+/// operators require (flip-exactly-once at the content-stream boundary).
+///
 /// NOTE: Requires friend access to Page::fzPage() and Document::fzDocument().
 /// Add the following to Page.h and Document.h:
 ///   friend class pdfe::image::ImageContentEditor;
@@ -39,8 +47,8 @@ public:
     /// @param xobjectName The XObject name (e.g., "Im1")
     /// @param newWidth New width in points
     /// @param newHeight New height in points
-    /// @param x X position in points
-    /// @param y Y position in points
+    /// @param x X position of the placement's visual LEFT edge (fitz Y-down)
+    /// @param y Y position of the placement's visual TOP edge (fitz Y-down)
     /// @return true on success, false on error
     bool resizeImage(pdfe::core::Page* page, pdfe::core::Document* doc,
                      const std::string& xobjectName,
@@ -52,9 +60,11 @@ public:
     /// @param page The page containing the image
     /// @param doc The document containing the page
     /// @param xobjectName The XObject name (e.g., "Im1")
-    /// @param angleDegrees Rotation angle in degrees (clockwise)
-    /// @param centerX Center of rotation X coordinate in points
-    /// @param centerY Center of rotation Y coordinate in points
+    /// @param angleDegrees Rotation angle in degrees (VISUALLY clockwise
+    ///        positive — this convention is defined on-screen/on-page, not in
+    ///        the input coordinate frame; GitHub #376)
+    /// @param centerX Center of rotation X coordinate (fitz Y-down, points)
+    /// @param centerY Center of rotation Y coordinate (fitz Y-down, points)
     /// @param displayWidth Current display width in points
     /// @param displayHeight Current display height in points
     /// @return true on success, false on error
@@ -69,11 +79,12 @@ public:
     /// @param page The page containing the image
     /// @param doc The document containing the page
     /// @param xobjectName The XObject name (e.g., "Im1")
-    /// @param cropRect Crop rectangle in PDF coordinates
+    /// @param cropRect Crop rectangle (fitz Y-down: x/y are its visual
+    ///        top-left corner, in points)
     /// @param displayWidth Display width in points (after crop)
     /// @param displayHeight Display height in points (after crop)
-    /// @param x X position in points
-    /// @param y Y position in points
+    /// @param x X position of the placement's visual LEFT edge (fitz Y-down)
+    /// @param y Y position of the placement's visual TOP edge (fitz Y-down)
     /// @return true on success, false on error
     bool cropImage(pdfe::core::Page* page, pdfe::core::Document* doc,
                    const std::string& xobjectName,

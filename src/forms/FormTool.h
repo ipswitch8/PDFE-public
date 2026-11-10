@@ -199,6 +199,15 @@ public:
     /// uses std::function callbacks throughout, like fieldSelected above).
     std::function<void(int pageIndex, int widgetIndex)> signatureFieldActivated;
 
+    /// GitHub #369 — creation mode exited after a successful field placement.
+    /// Once a drag places a field, the tool drops back to INTERACTION mode
+    /// (creationFieldType_ reset to Unknown) so the next click can select /
+    /// activate the field just placed, instead of starting another rubber-band
+    /// forever. MainWindow wires this to uncheck the form-toolbar field-type
+    /// action so the UI reflects the mode change. Same std::function idiom as
+    /// the callbacks above (FormTool is not a QObject).
+    std::function<void()> creationModeExited;
+
 private:
     void commitEdit();
     void cancelEdit();

@@ -28,16 +28,24 @@ bool SignatureImageLibrary::importImage(const QString& name, const QString& file
     return addSignatureImage(name, img);
 }
 
-bool SignatureImageLibrary::addSignatureImage(const QString& name, const QImage& image)
+bool SignatureImageLibrary::addSignatureImage(const QString& name, const QImage& image,
+                                              const QString& pfxPath)
 {
     if (name.isEmpty() || image.isNull()) return false;
     int idx = indexOf(name);
     if (idx >= 0) {
         images_[idx].image = image;  // overwrite by name; no duplicate entry
+        images_[idx].pfxPath = pfxPath;
     } else {
-        images_.push_back(Entry{name, image});
+        images_.push_back(Entry{name, image, pfxPath});
     }
     return true;
+}
+
+QString SignatureImageLibrary::signaturePfxPath(const QString& name) const
+{
+    int idx = indexOf(name);
+    return idx < 0 ? QString() : images_[idx].pfxPath;
 }
 
 bool SignatureImageLibrary::removeSignatureImage(const QString& name)
@@ -87,6 +95,14 @@ void SignatureImageLibrary::saveToSettings() const
         // separator. Encode each entry under a sanitized key.
         QString key = QString::fromLatin1(e.name.toUtf8().toBase64());
         settings.setValue(key, bytes.toBase64());
+        // GitHub #371 — the PFX path persists as a SIBLING key so the image
+        // payload format is untouched (old readers simply never ask for it).
+        // "__pfx" contains '_', which is not in the base64 alphabet, so this
+        // key can never collide with another entry's image key. The
+        // PASSPHRASE is deliberately never written anywhere.
+        if (!e.pfxPath.isEmpty()) {
+            settings.setValue(key + QStringLiteral("__pfx"), e.pfxPath);
+        }
         names.push_back(key);
     }
     settings.setValue(QStringLiteral("__order"), names);
@@ -107,7 +123,12 @@ void SignatureImageLibrary::loadFromSettings()
         if (!img.loadFromData(pngBytes, "PNG")) continue;
         QString name = QString::fromUtf8(QByteArray::fromBase64(key.toLatin1()));
         if (name.isEmpty()) continue;
-        images_.push_back(Entry{name, img});
+        // GitHub #371 — backward compatible: a store written before pfx
+        // persistence has no "<key>__pfx" sibling, which reads back as an
+        // empty QString.
+        QString pfxPath =
+            settings.value(key + QStringLiteral("__pfx")).toString();
+        images_.push_back(Entry{name, img, pfxPath});
     }
     settings.endGroup();
 }

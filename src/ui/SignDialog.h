@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QDialog>
+#include <QRectF>
 #include <QString>
 #include <memory>
 #include <optional>
@@ -12,6 +13,9 @@ class QComboBox;
 class QPushButton;
 class QLabel;
 class QTemporaryFile;
+class QGroupBox;
+class QSpinBox;
+class QDoubleSpinBox;
 
 namespace pdfe::signatures {
 struct SigningOptions;
@@ -39,6 +43,23 @@ public:
 
     /// Get the signing options from the dialog.
     pdfe::signatures::SigningOptions signingOptions() const;
+
+    /// GitHub #370 — configure the field-placement group before exec().
+    ///
+    /// When `newField` is true the signing flow will CREATE a signature field
+    /// and the page/X/Y/Width/Height controls are editable; signingOptions()
+    /// then fills SigningOptions::hasFieldGeometry/fieldRect/fieldPageIndex
+    /// from them. When false (signing an EXISTING unsigned field) the group
+    /// shows the field's rect read-only (disabled) and signingOptions()
+    /// leaves hasFieldGeometry false. `rect` is in fitz space (page points,
+    /// Y-down) — the same space the created widget rect lives in. `pageIndex`
+    /// is 0-based; `pageCount` bounds the page spin.
+    void setFieldPlacement(bool newField, const QRectF& rect,
+                           int pageIndex, int pageCount);
+
+    /// GitHub #371 — the PFX path currently in the certificate field, so a
+    /// headless test can assert the library re-select path restored it.
+    QString pfxPathForTesting() const;
 
     /// GitHub #361 — headless seam for the "Create certificate..." flow.
     ///
@@ -146,6 +167,19 @@ private:
     QCheckBox* invisibleCheck_ = nullptr;
     QComboBox* certificationCombo_ = nullptr;
 
+    // GitHub #370 — field-placement controls (page + rect in PDF points,
+    // fitz space). Editable only when the flow will CREATE a new field; see
+    // setFieldPlacement().
+    QGroupBox* placementGroup_ = nullptr;
+    QSpinBox* fieldPageSpin_ = nullptr;
+    QDoubleSpinBox* fieldXSpin_ = nullptr;
+    QDoubleSpinBox* fieldYSpin_ = nullptr;
+    QDoubleSpinBox* fieldWidthSpin_ = nullptr;
+    QDoubleSpinBox* fieldHeightSpin_ = nullptr;
+    /// True once setFieldPlacement(newField=true, ...) armed the group; only
+    /// then does signingOptions() report geometry.
+    bool placementForNewField_ = false;
+
     QLabel* previewLabel_ = nullptr;
     QLabel* validationLabel_ = nullptr;
     QPushButton* okButton_ = nullptr;
@@ -165,8 +199,12 @@ private:
     std::optional<QString> saveImageNameForTesting_;
     // Backing temp file for a re-selected library image: the selected QImage
     // is materialised to a temp PNG so the existing imagePath signing path
-    // works unchanged. Kept alive for the dialog's lifetime.
-    std::unique_ptr<QTemporaryFile> selectedImageTempFile_;
+    // works unchanged. GitHub #374 — shared, not unique: signingOptions()
+    // copies this into SigningOptions::imageKeepalive, because the dialog is
+    // destroyed BEFORE SignatureManager::signField reads the path
+    // (promptSigningOptions returns by value); with autoRemove the file must
+    // outlive the dialog for exactly as long as the options do.
+    std::shared_ptr<QTemporaryFile> selectedImageTempFile_;
 
     // GitHub #362 — rebuild savedImageCombo_ from the library contents.
     void refreshSavedImageCombo();

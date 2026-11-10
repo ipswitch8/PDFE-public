@@ -38,6 +38,9 @@ public:
     void setCurrentPage(int pageIndex);
     void clearDocument();
     void refreshPages();
+    /// GitHub #379 test oracle — the Document* this panel is bound to, so a
+    /// regression test can assert every panel was rebound after a sign-reopen.
+    pdfe::core::Document* documentForTesting() const { return document_; }
 
     /// Drop the cached thumbnail for one page and re-render it if visible
     /// (fix-tre-writetarget phase-4). After an in-place page edit (e.g. a TRE

@@ -37,8 +37,16 @@ public:
 
     /// Add a signature image directly from a QImage. Useful for tests and
     /// for loading from QSettings. If `name` already exists it is replaced.
+    /// GitHub #371 — `pfxPath` optionally records the PFX certificate path
+    /// that was in use when the image was saved, so re-selecting the entry
+    /// can restore the certificate too. NEVER store the passphrase here.
     /// @return false if the name is empty or the image is null.
-    bool addSignatureImage(const QString& name, const QImage& image);
+    bool addSignatureImage(const QString& name, const QImage& image,
+                           const QString& pfxPath = QString());
+
+    /// GitHub #371 — the PFX path recorded with this entry (empty if none
+    /// was recorded, the entry predates pfx persistence, or not found).
+    QString signaturePfxPath(const QString& name) const;
 
     /// Remove the signature image with the given name.
     /// @return true if removed, false if not found.
@@ -70,6 +78,10 @@ private:
     struct Entry {
         QString name;
         QImage image;
+        /// GitHub #371 — PFX certificate path remembered with the image
+        /// (never the passphrase). Empty for entries saved before pfx
+        /// persistence existed (backward compatible: absent key -> empty).
+        QString pfxPath;
     };
     std::vector<Entry> images_;
 

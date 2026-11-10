@@ -358,3 +358,104 @@ TEST_F(FormToolTest, ClickSignatureFieldEmitsActivation_Issue328) {
     EXPECT_EQ(tool->selectedFieldIndex(), sigIdx)
         << "the clicked signature field should also become selected";
 }
+
+// GitHub #369 — the REAL toolbar flow: arm creation mode, drag-place a
+// signature field, then CLICK it. The defect had two gates:
+//   1. Nothing ever reset creationFieldType_ after a placement, so every
+//      later click re-entered the rubber-band branch and the #328 activation
+//      wiring was unreachable (a plain click died on the <10pt minimum).
+//   2. The `widgetIdx != selectedWidget_` gate made a re-click on the
+//      already-selected field inert.
+// Steps 3-5 below fail against the pre-fix code. The #328 test above bypasses
+// creation mode by creating the field via FormManager directly — this one
+// does NOT: the field is placed through the exact press/drag/release path the
+// toolbar flow takes, which is the coverage gap the root-cause audit named.
+TEST_F(FormToolTest, CreationModeExitsAfterPlacementAndClickActivates_Issue369) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+
+    // (1) Arm creation mode, exactly as MainWindow does when the toolbar's
+    // Signature field-type action triggers.
+    tool->setCreationFieldType(pdfe::forms::FormFieldType::Signature);
+
+    // Wire fieldCreated to the real creation path (what MainWindow::
+    // createFormField does at its core), so the placed field actually exists
+    // for the clicks below.
+    int createdWidget = -1;
+    pdfe::forms::FormFieldType createdType = pdfe::forms::FormFieldType::Unknown;
+    tool->fieldCreated = [&](int pageIndex, pdfe::forms::FormFieldType type,
+                             QRectF rect) {
+        (void)pageIndex;
+        createdType = type;
+        createdWidget = manager->createFormField(page.get(), type, rect,
+                                                 "Issue369SigField");
+    };
+    bool exitedCallbackFired = false;
+    tool->creationModeExited = [&]() { exitedCallbackFired = true; };
+
+    // (2) Press/drag/release to place the field. PREMISE: the press really
+    // went down the creation (rubber-band) branch — creation mode was armed.
+    ASSERT_TRUE(tool->isCreationMode())
+        << "premise: the tool must be in creation mode at press time";
+    // Same placement rect the #328 test proved click-hittable on this
+    // fixture (72,72,180,54): its center cannot land on one of the fixture's
+    // pre-existing fields, which would hijack the hit test below.
+    QMouseEvent press(QEvent::MouseButtonPress, QPointF(0, 0),
+                      Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMousePress(&press, 0, QPointF(72, 72));
+    QMouseEvent move(QEvent::MouseMove, QPointF(0, 0),
+                     Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMouseMove(&move, 0, QPointF(252, 126));
+    QMouseEvent release(QEvent::MouseButtonRelease, QPointF(0, 0),
+                        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMouseRelease(&release, 0, QPointF(252, 126));
+
+    ASSERT_GE(createdWidget, 0) << "the drag must have created the field";
+    ASSERT_EQ(createdType, pdfe::forms::FormFieldType::Signature);
+
+    // (3) THE FIX'S MECHANISM: the tool dropped back to interaction mode and
+    // told the UI. Pre-fix, creationFieldType_ stayed Signature forever.
+    EXPECT_FALSE(tool->isCreationMode())
+        << "GitHub #369: placing a field must exit creation mode";
+    EXPECT_TRUE(exitedCallbackFired)
+        << "GitHub #369: the UI must be notified so the toolbar action unchecks";
+
+    int activations = 0;
+    int gotPage = -1, gotWidget = -1;
+    tool->signatureFieldActivated = [&](int p, int w) {
+        gotPage = p;
+        gotWidget = w;
+        ++activations;
+    };
+
+    // Resolve the PAGE widget-list index the tool reports (same caveat as the
+    // #328 test above: createFormField's return is not that index space).
+    int sigIdx = -1;
+    for (const auto& f : manager->getFormFields(page.get())) {
+        if (f.type == pdfe::forms::FormFieldType::Signature) {
+            sigIdx = f.widgetIndex;
+            break;
+        }
+    }
+    ASSERT_GE(sigIdx, 0) << "placed field is not reported as a Signature field";
+    auto fieldData = manager->getFormField(page.get(), sigIdx);
+    ASSERT_EQ(fieldData.type, pdfe::forms::FormFieldType::Signature);
+    QPointF center = fieldData.rect.center();
+
+    // (4) First click on the placed field: must reach the #328 activation —
+    // pre-fix this press re-entered the rubber-band branch instead.
+    QMouseEvent click1(QEvent::MouseButtonPress, QPointF(0, 0),
+                       Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMousePress(&click1, 0, center);
+    EXPECT_EQ(activations, 1)
+        << "GitHub #369: a click on the just-placed signature field must activate signing";
+    EXPECT_EQ(gotPage, page->index());
+    EXPECT_EQ(gotWidget, sigIdx);
+
+    // (5) Re-click while the field is still selected: must fire AGAIN —
+    // pre-fix the widgetIdx != selectedWidget_ gate swallowed it.
+    QMouseEvent click2(QEvent::MouseButtonPress, QPointF(0, 0),
+                       Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMousePress(&click2, 0, center);
+    EXPECT_EQ(activations, 2)
+        << "GitHub #369: re-clicking the selected signature field must re-activate signing";
+}

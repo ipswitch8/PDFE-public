@@ -134,6 +134,7 @@ class EncryptionManager;
 
 namespace pdfe::signatures {
 class SignatureManager;
+struct SigningOptions;  // GitHub #370 — promptSigningOptions / signTargetFieldWithOptions
 }
 
 namespace pdfe::image {
@@ -670,6 +671,19 @@ public:
         QString pfxPath;               ///< PFX for signing (only read when dialogAccepted)
         QString pfxPassword;           ///< dummy test passphrase for the throwaway PFX
         QString savePath;              ///< Save-As target; empty => simulate Save-As cancelled
+        /// GitHub #372 — appearance image path handed to SigningOptions. A
+        /// nonexistent path makes signField throw AFTER the sign-reopen,
+        /// which is exactly the post-reopen failure shape #372/#374 crash on.
+        QString imagePath;
+        /// GitHub #370 — injected geometry for the field the flow creates
+        /// (stands in for the dialog's placement controls). Ignored unless
+        /// hasFieldGeometry; the flow then uses the pre-#370 default rect.
+        bool hasFieldGeometry = false;
+        QRectF fieldRect;
+        int fieldPageIndex = -1;
+        /// GitHub #372 — record signing errors via lastSigningErrorForTesting()
+        /// instead of showing the modal QMessageBox (headless runs block on it).
+        bool suppressErrorDialogs = false;
     };
     void setSignFlowTestInputsForTesting(std::optional<SignFlowTestInputs> inputs) {
         signFlowTestInputs_ = std::move(inputs);
@@ -679,6 +693,21 @@ public:
     int signatureFieldCountForTesting() const;
     /// Run the real Sign Document action against the current document.
     void triggerSignDocumentForTesting() { onSignDocument(); }
+    /// GitHub #372 — the last signing-error text recorded by
+    /// showSigningError() (empty when the most recent flow produced none).
+    /// Populated whether or not the dialog itself was suppressed, so a test
+    /// can premise-assert WHICH failure fired (e.g. the PFX probe).
+    QString lastSigningErrorForTesting() const { return lastSigningErrorForTesting_; }
+    /// GitHub #375 test seams — the live SignatureManager (so a test can
+    /// enumerate (pageIndex, widgetIndex, isSigned) through the REAL
+    /// AcroForm listing) and the SignaturePanel (so a test can emit the real
+    /// signRequested signal the panel's Sign button emits). Both are plain
+    /// member reads: race-free in a never-shown headless MainWindow, unlike
+    /// findChild on an unrealized widget tree.
+    pdfe::signatures::SignatureManager* signatureManagerForTesting() const {
+        return signatureManager_.get();
+    }
+    SignaturePanel* signaturePanelForTesting() const { return signaturePanel_; }
 
     /// GitHub #334 test seams — the rotate-then-edit cache-invalidation path.
     /// onDocumentStructureChanged() invalidates the page-index-keyed text
@@ -1161,6 +1190,38 @@ private slots:
     /// must be rolled back (a cancelled Sign dialog previously left a stray
     /// red "SIGN" widget on the page).
     bool signTargetField(int targetPage, int targetWidget);
+    /// GitHub #370 — show the Sign dialog (or consume the test seam) and fill
+    /// `opts`. `newField` arms the dialog's placement controls; `defaultRect`
+    /// / `defaultPageIndex` seed them (the pre-#370 hard-coded values for a
+    /// new field, the field's own rect read-only for an existing one).
+    /// Returns false when the dialog was cancelled.
+    bool promptSigningOptions(pdfe::signatures::SigningOptions& opts,
+                              bool newField, const QRectF& defaultRect,
+                              int defaultPageIndex);
+    /// GitHub #370/#372 — the probe/save/sign half of the flow, with the
+    /// options already gathered. Same return contract as signTargetField().
+    /// `removeFieldOnPostReopenFailure` is true only when THIS flow created
+    /// the target field: a failure after the sign-reopen has already cleared
+    /// the undo stack, so the stray unsigned field must be removed explicitly
+    /// to restore the pre-flow field-count baseline (#372 defect 3).
+    bool signTargetFieldWithOptions(int targetPage, int targetWidget,
+                                    const pdfe::signatures::SigningOptions& opts,
+                                    bool removeFieldOnPostReopenFailure);
+    /// GitHub #379 — rebind every panel that stores a raw Document* to the
+    /// CURRENT document_ after a sign-reopen (success path AND the #372
+    /// catch-path recovery). openFile() was the only place that bound them,
+    /// so after any signed save all six panels kept the freed pre-sign
+    /// pointer and the next panel refresh was a use-after-free (measured
+    /// under cdb in sign-bugs-2026-11 phase-2). With document_ null (the
+    /// catastrophic-recovery path) the panels are cleared instead, matching
+    /// canvas_->clearDocument().
+    void rebindPanelsToCurrentDocument();
+    /// GitHub #372 — record + surface a signing error. Routes to
+    /// QMessageBox::critical in production; under the test seam's
+    /// suppressErrorDialogs it records the text (lastSigningErrorForTesting)
+    /// and posts a status-bar message instead, so headless runs never block
+    /// on a modal.
+    void showSigningError(const QString& text);
     void onVerifySignatures();
     /// Pipeline F phase-9: user-confirmed network fetch for OCSP+CRL
     /// followed by /DSS embedding. NEVER auto-runs; only triggered by
@@ -2342,6 +2403,10 @@ private:
     /// and Save-As dialogs and uses these injected values. Test-only; unset in
     /// production. See setSignFlowTestInputsForTesting().
     std::optional<SignFlowTestInputs> signFlowTestInputs_;
+    /// GitHub #372 — last error recorded by showSigningError(); cleared at
+    /// the start of each sign flow. Test oracle for the suppressed-dialog
+    /// error paths.
+    QString lastSigningErrorForTesting_;
 
     // Image manipulation
     std::unique_ptr<pdfe::image::ImageManager> imageManager_;

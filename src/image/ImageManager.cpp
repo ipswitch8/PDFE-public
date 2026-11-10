@@ -21,6 +21,16 @@ struct ImageFilterState {
     bool removeTarget = false;       // If true, return NULL for targetName
     std::vector<PageImageInfo> found; // Images found during enumeration
     int pageIndex = -1;
+    // GitHub #373: page box used to express enumerated bounding boxes in fitz
+    // device space (Y-down, origin at the page's TOP-left). The content-stream
+    // CTM the callback receives is PDF user space (Y-up, MediaBox origin);
+    // fitz space is user space mapped through [1 0 0 -1 -x0 y1]:
+    //   x_fitz = x_user - mediaBoxX0
+    //   y_fitz = mediaBoxY1 - y_user
+    // MediaBox-origin-aware (nonzero x0/y0 pages), matching the space
+    // CoordinateTransform::screenToPdf and the canvas test seams operate in.
+    float mediaBoxX0 = 0.0f;
+    float mediaBoxY1 = 0.0f;
 };
 
 static fz_image* imageFilterCallback(
@@ -50,7 +60,12 @@ static fz_image* imageFilterCallback(
         info.displayWidth = std::sqrt(ctm.a * ctm.a + ctm.b * ctm.b);
         info.displayHeight = std::sqrt(ctm.c * ctm.c + ctm.d * ctm.d);
 
-        // Rotation of the placement, CCW-positive in PDF space (GitHub #342).
+        // Rotation of the placement, CCW-positive in PDF USER space (GitHub
+        // #342). NOTE (GitHub #373/#376): the bounding box below is now stored
+        // in fitz Y-down space, where this same placement corresponds to a
+        // math-convention rotation of MINUS rotationRadians (mirroring a
+        // rotation flips its chirality). Consumers working in fitz space
+        // (ImageTool hit-test/paint) must account for that sign.
         info.rotationRadians = std::atan2(ctm.b, ctm.a);
 
         // GitHub #342: a PDF image is drawn by mapping the unit square through the
@@ -65,10 +80,19 @@ static fz_image* imageFilterCallback(
         // is where the unit square's centre (0.5,0.5) maps through the CTM:
         //   cx = a*0.5 + c*0.5 + e,  cy = b*0.5 + d*0.5 + f
         // The tool reconstructs the oriented rect from this rect + rotationRadians.
-        // For an axis-aligned placement ([w 0 0 h x y]) this reduces to the former
-        // QRectF(x, y, w, h), so behaviour is unchanged when rotationRadians == 0.
-        float cx = ctm.a * 0.5f + ctm.c * 0.5f + ctm.e;
-        float cy = ctm.b * 0.5f + ctm.d * 0.5f + ctm.f;
+        //
+        // GitHub #373: the centre is computed in PDF user space (Y-up) from the
+        // CTM, then flipped ONCE here to fitz device space (Y-down, top-left
+        // origin, MediaBox-origin-aware) so the stored boundingBox lives in the
+        // SAME space as mouse input (CoordinateTransform::screenToPdf), the
+        // ImageTool overlay painter, and the canvas pdf-coord test seams.
+        // This is the single enumeration-side flip of the flip-exactly-once
+        // house rule; the writers (insertImage / ImageContentEditor) apply the
+        // inverse when composing the Y-up `cm` matrix.
+        float cxUser = ctm.a * 0.5f + ctm.c * 0.5f + ctm.e;
+        float cyUser = ctm.b * 0.5f + ctm.d * 0.5f + ctm.f;
+        float cx = cxUser - state->mediaBoxX0;
+        float cy = state->mediaBoxY1 - cyUser;
         info.boundingBox = QRectF(
             cx - info.displayWidth / 2.0f,
             cy - info.displayHeight / 2.0f,
@@ -140,6 +164,15 @@ public:
         state.pageIndex = pageIndex;
         state.removeTarget = false;
 
+        // GitHub #373: page box for the user→fitz flip in the callback.
+        {
+            fz_rect mb;
+            fz_matrix pageT;
+            pdf_page_transform(ctx, pdfPage, &mb, &pageT);
+            state.mediaBoxX0 = mb.x0;
+            state.mediaBoxY1 = mb.y1;
+        }
+
         pdf_sanitize_filter_options sopts;
         std::memset(&sopts, 0, sizeof(sopts));
         sopts.opaque = &state;
@@ -203,6 +236,16 @@ public:
         ImageFilterState state;
         state.targetName = xobjectName;
         state.removeTarget = true;
+
+        // GitHub #373: keep the incidental enumeration this filter performs in
+        // the same fitz Y-down space as enumerateViaFilter.
+        {
+            fz_rect mb;
+            fz_matrix pageT;
+            pdf_page_transform(ctx, pdfPage, &mb, &pageT);
+            state.mediaBoxX0 = mb.x0;
+            state.mediaBoxY1 = mb.y1;
+        }
 
         pdf_sanitize_filter_options sopts;
         std::memset(&sopts, 0, sizeof(sopts));
@@ -377,14 +420,27 @@ ImageOperationResult ImageManager::insertImage(
             }
         }
 
+        // GitHub #373: opts.targetRect is fitz Y-down (top-left origin, like
+        // the enumerated bounding boxes and mouse input). The `cm` matrix is
+        // PDF USER space (Y-up, MediaBox origin), where f is the image's
+        // BOTTOM edge — convert once at this content-stream boundary:
+        //   e = mediaBoxX0 + x_fitz
+        //   f = mediaBoxY1 - y_fitz - height
+        fz_rect mbIns;
+        fz_matrix pageTIns;
+        pdf_page_transform(ctx, pdfPage, &mbIns, &pageTIns);
+        const float cmE = mbIns.x0 + static_cast<float>(rect.left());
+        const float cmF = mbIns.y1 - static_cast<float>(rect.top())
+                          - static_cast<float>(rect.height());
+
         // Append content stream: q [w 0 0 h x y] cm /ImN Do Q
         char ops[256];
         std::snprintf(ops, sizeof(ops),
             "q %.4f 0 0 %.4f %.4f %.4f cm /%s Do Q\n",
             static_cast<float>(rect.width()),
             static_cast<float>(rect.height()),
-            static_cast<float>(rect.left()),
-            static_cast<float>(rect.top()),
+            cmE,
+            cmF,
             xobjName.c_str());
 
         // Append so the absolute `cm` runs at identity CTM even if the page
@@ -401,7 +457,8 @@ ImageOperationResult ImageManager::insertImage(
         result.imageInfo.components = n;
         result.imageInfo.displayWidth = static_cast<float>(rect.width());
         result.imageInfo.displayHeight = static_cast<float>(rect.height());
-        result.imageInfo.boundingBox = rect;
+        result.imageInfo.boundingBox = rect;  // fitz Y-down, same space a
+                                              // re-enumeration reports (#373)
     });
 
     return result;

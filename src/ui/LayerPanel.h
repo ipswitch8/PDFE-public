@@ -35,6 +35,9 @@ public:
     void setDocument(pdfe::core::Document* doc);
     void clearDocument();
     void refresh();
+    /// GitHub #379 test oracle — the Document* this panel is bound to, so a
+    /// regression test can assert every panel was rebound after a sign-reopen.
+    pdfe::core::Document* documentForTesting() const { return document_; }
 
 signals:
     void layerVisibilityChanged();

@@ -27,7 +27,9 @@ public:
     ImageManager(const ImageManager&) = delete;
     ImageManager& operator=(const ImageManager&) = delete;
 
-    /// Enumerate all images on a page.
+    /// Enumerate all images on a page. Bounding boxes are reported in fitz
+    /// device space — Y-down, origin at the page's TOP-left, MediaBox-origin
+    /// aware (GitHub #373); see PageImageInfo::boundingBox.
     std::vector<PageImageInfo> enumerateImages(
         const pdfe::core::Page* page, const pdfe::core::Document* doc);
 
@@ -38,7 +40,9 @@ public:
     /// Count images on a page.
     int imageCount(const pdfe::core::Page* page, const pdfe::core::Document* doc);
 
-    /// Insert an image from a file onto a page.
+    /// Insert an image from a file onto a page. opts.targetRect is fitz
+    /// Y-down (y = distance of the image's visual top edge from the page
+    /// top); the writer converts once to the Y-up `cm` matrix (GitHub #373).
     ImageOperationResult insertImage(
         const pdfe::core::Page* page, const pdfe::core::Document* doc,
         const InsertImageOptions& opts);

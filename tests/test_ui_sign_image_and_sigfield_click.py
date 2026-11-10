@@ -206,40 +206,61 @@ def test_sign_dialog_has_drivable_image_picker_issue327():
 
 @REQUIRES_LIVE_UI
 def test_click_signature_field_opens_sign_dialog_issue328():
-    """Place a signature field at a known fitz rect, activate the Form tool,
-    click the field's exact centre via clickByPdfCoord, and confirm the Sign
-    dialog modal opens — proving the canvas click now routes into signing
-    (the missing FormTool switch arm that #328 fixes).
+    """Create a signature field through the REAL Form-tool creation path
+    (arm the Signature field type, drag it out on the canvas), let GitHub
+    #369's natural creation-mode exit fire, then click the field's exact
+    centre via clickByPdfCoord and confirm the Sign dialog modal opens —
+    proving the canvas click routes into signing (#328) from the state a
+    real user actually reaches.
+
+    GitHub #377: this test previously placed the field via the
+    ``testFieldCreatePipe`` bypass and relied on ``testClickByPdfCoordPipe``
+    FORCE-resetting the Form tool to interaction mode before dispatching —
+    a state no real user click could reach, which masked #369 (a tool stuck
+    in creation mode still passed). The pipe no longer resets by default
+    (an explicit 4th token ``interaction`` opts back in); this test now
+    drives the real flow end-to-end: toolbar arm -> drag-create -> #369
+    exits creation mode -> plain click -> Sign dialog.
     """
     _require_fixture(FIX_SINGLE)
     with PDFESession(pdf_path=str(FIX_SINGLE)) as s:
         assert s.wait_for_window_title(FIX_SINGLE.name, timeout=15)
         _settle(1.0)
 
-        # Place a Signature field at fitz rect (100,100,200,60) on page 0 via
-        # the deterministic create seam ("type,page,x,y,w,h").
-        if not _write_to_pipe(s, "testFieldCreatePipe", "Signature,0,100,100,200,60"):
-            pytest.fail("testFieldCreatePipe not reachable — cannot place field.")
-        _settle(1.0)
-
-        # Activate the Form tool so the synthesised click dispatches through
-        # FormTool's hit-test pipeline.
+        # Activate the Form tool (arms Text creation by default), then arm
+        # the Signature field type — the toolbar flow a user performs.
         if not activate_tool_by_name(s, "formToolAction"):
             pytest.fail("formToolAction not reachable.")
         _settle(0.5)
+        if not activate_tool_by_name(s, "formSignatureAction"):
+            pytest.fail("formSignatureAction not reachable.")
+        _settle(0.5)
 
-        # Click the field centre: fitz (100+100, 100+30) = (200, 130). The
-        # create pipe used fitz-space coords, and clickByPdfCoord is fitz-space
-        # too, so no Y-flip is needed.
+        # Drag the field out at fitz rect (100,100)-(300,160) on page 0 via
+        # the canvas drag pipe ("pageIdx,fromX,fromY,toX,toY") — real mouse
+        # press/move/release through FormTool's creation path. On release,
+        # #369 drops the tool back to interaction mode.
+        if not _write_to_pipe(s, "testCanvasDragPipe", "0,100,100,300,160"):
+            pytest.fail("testCanvasDragPipe not reachable — cannot place field.")
+        _settle(1.2)
+
+        # Click the field centre: fitz (200, 130). No 4th token: the click
+        # dispatches into whatever mode the tool is REALLY in (#377). If
+        # #369 regressed (creation mode never exited), this click starts a
+        # zero-size rubber-band instead of hit-testing the field and the
+        # Sign dialog never opens — which is exactly the failure this test
+        # must now report.
         if not click_by_pdf_coord(s, 0, 200.0, 130.0, settle=0.8):
             pytest.fail("clickByPdfCoord dispatch failed (pipe absent).")
 
         hwnd = modal_dialog.wait_for_window(s.pid, "Sign Document", timeout=20)
         if hwnd is None:
             pytest.fail(
-                "Clicking the placed signature field did not open the Sign "
-                "dialog. The canvas click did not reach the signing flow "
-                "(GitHub #328 regression).")
+                "Clicking the signature field did not open the Sign dialog. "
+                "Either the canvas click did not reach the signing flow "
+                "(GitHub #328 regression) or the Form tool never left "
+                "creation mode after placement (GitHub #369 regression, "
+                "previously masked by the #377 pipe reset).")
 
         # Clean up: close the modal.
         modal_dialog.close_window(hwnd)

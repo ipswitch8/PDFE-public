@@ -18,13 +18,23 @@ struct PageImageInfo {
     int components = 3;          ///< 1=gray, 3=RGB, 4=CMYK
     QRectF boundingBox;          ///< Un-rotated, axis-aligned local rect (size =
                                  ///< displayWidth x displayHeight) centred on the
-                                 ///< image's page-space centre. When rotationRadians
-                                 ///< is non-zero this rect is NOT the on-page extent;
-                                 ///< apply rotationRadians about its centre to get the
-                                 ///< oriented placement (GitHub #342).
+                                 ///< image's page-space centre, in FITZ DEVICE SPACE:
+                                 ///< Y-down, origin at the page's TOP-left,
+                                 ///< MediaBox-origin-aware (GitHub #373). This is the
+                                 ///< same space as mouse input (screenToPdf), the
+                                 ///< ImageTool overlay painter and the canvas pdf-coord
+                                 ///< test seams. When rotationRadians is non-zero this
+                                 ///< rect is NOT the on-page extent; rotate it about its
+                                 ///< centre by MINUS rotationRadians (math convention in
+                                 ///< this Y-down frame) to get the oriented placement
+                                 ///< (GitHub #342/#376).
     float rotationRadians = 0.0f;///< Rotation of the image placement on the page,
-                                 ///< atan2(ctm.b, ctm.a). CCW-positive in PDF space
-                                 ///< (y-up). 0 for an axis-aligned placement (GitHub #342).
+                                 ///< atan2(ctm.b, ctm.a). CCW-positive in PDF USER space
+                                 ///< (Y-up) — i.e. positive = visually counter-clockwise.
+                                 ///< In the Y-down fitz frame boundingBox lives in, the
+                                 ///< placement corresponds to a math rotation of
+                                 ///< -rotationRadians (GitHub #342/#373/#376). 0 for an
+                                 ///< axis-aligned placement.
     float displayWidth = 0;      ///< Rendered width in points
     float displayHeight = 0;     ///< Rendered height in points
     int xDpi = 0, yDpi = 0;
@@ -89,7 +99,10 @@ struct ImageTransform {
 /// Options for inserting an image.
 struct InsertImageOptions {
     std::string filePath;
-    QRectF targetRect;           ///< Placement in PDF coordinates
+    QRectF targetRect;           ///< Placement in fitz device space (Y-down,
+                                 ///< origin at the page's TOP-left, points):
+                                 ///< y is the distance of the image's visual
+                                 ///< top edge from the page top (GitHub #373)
     int jpegQuality = 85;        ///< JPEG compression quality (0-100)
     bool stripExif = true;       ///< Strip metadata on insert
     bool maintainAspectRatio = true;

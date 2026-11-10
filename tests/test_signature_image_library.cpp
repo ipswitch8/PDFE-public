@@ -151,6 +151,53 @@ TEST(SignatureImageLibrary, PersistsAcrossFreshInstanceSameSettingsStore)
     }
 }
 
+// GitHub #371 — the PFX path recorded with an entry round-trips to a FRESH
+// instance on the same store, and an entry written WITHOUT a pfx key (the
+// pre-#371 on-disk shape) loads back with an empty pfxPath instead of
+// failing — backward compatibility with existing libraries.
+TEST(SignatureImageLibrary, PfxPathRoundTripsAndLegacyEntriesLoadEmpty)
+{
+    pdfe_test::SettingsScope settingsScope(
+        QStringLiteral("PDFE-Test"),
+        QStringLiteral("SignatureImageLibraryPfxTest"),
+        /*purgeOnExit=*/true);
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    {
+        QSettings cleanup;
+        cleanup.clear();
+    }
+
+    const QString pfx = QStringLiteral("C:/certs/jane.pfx");
+    {
+        SignatureImageLibrary writer;
+        // Entry WITH a pfx path (the #371 fix) …
+        ASSERT_TRUE(writer.addSignatureImage(QStringLiteral("with-pfx"),
+                                             makeImage(6, 6, qRgb(1, 2, 3)),
+                                             pfx));
+        // … and an entry saved the pre-#371 way (no pfx argument), which is
+        // byte-identical on disk to a legacy store: no "<key>__pfx" sibling.
+        ASSERT_TRUE(writer.addSignatureImage(QStringLiteral("legacy"),
+                                             makeImage(6, 6, qRgb(4, 5, 6))));
+        writer.saveToSettings();
+    }
+
+    SignatureImageLibrary reader;
+    reader.loadFromSettings();
+    ASSERT_EQ(reader.count(), 2);
+    EXPECT_EQ(reader.signaturePfxPath(QStringLiteral("with-pfx")), pfx)
+        << "GitHub #371: the PFX path must survive to a fresh instance";
+    EXPECT_TRUE(reader.signaturePfxPath(QStringLiteral("legacy")).isEmpty())
+        << "an entry without a pfx key must load with an EMPTY pfxPath";
+    // The image payloads are untouched by the sibling-key addition.
+    EXPECT_FALSE(reader.signatureImage(QStringLiteral("with-pfx")).isNull());
+    EXPECT_FALSE(reader.signatureImage(QStringLiteral("legacy")).isNull());
+
+    {
+        QSettings cleanup;
+        cleanup.clear();
+    }
+}
+
 // Overwriting then re-loading a fresh instance yields the UPDATED payload and
 // still a single entry — the overwrite semantics persist, not just hold
 // in-memory.

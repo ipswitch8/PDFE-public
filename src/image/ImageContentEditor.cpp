@@ -120,6 +120,23 @@ public:
         }
     }
 
+    // GitHub #373: the editor's public API takes geometry in fitz device space
+    // (Y-down, origin at the page's TOP-left — the space mouse input, the
+    // enumerated bounding boxes and the canvas test seams share). The `cm`
+    // matrices written below are PDF USER space (Y-up, MediaBox origin), so
+    // each writer converts ONCE at this content-stream boundary via the
+    // page box fetched here:
+    //   x_user = mb.x0 + x_fitz
+    //   y_user(bottom of a box) = mb.y1 - y_fitz_top - height
+    void pageBox(pdf_page* pdfPage, float& x0, float& y1)
+    {
+        fz_rect mb;
+        fz_matrix pageT;
+        pdf_page_transform(context->get(), pdfPage, &mb, &pageT);
+        x0 = mb.x0;
+        y1 = mb.y1;
+    }
+
     // Append a new content stream to the page, isolating the fragment's
     // absolute `cm` from any ambient CTM the page left active (image
     // insert/resize/rotate/crop all place via absolute matrices).
@@ -169,12 +186,19 @@ bool ImageContentEditor::resizeImage(
         // Remove the old image placement
         impl_->removeFromContentStream(pdfDoc, pdfPage, xobjectName);
 
+        // GitHub #373: (x, y) arrive in fitz Y-down (top-left of the new
+        // placement); convert once to the Y-up cm translation (bottom-left).
+        float mbX0 = 0.0f, mbY1 = 0.0f;
+        impl_->pageBox(pdfPage, mbX0, mbY1);
+        const float cmE = mbX0 + x;
+        const float cmF = mbY1 - y - newHeight;
+
         // Build new content stream with resized CTM
         // Format: q [newW 0 0 newH x y] cm /ImN Do Q\n
         std::ostringstream oss;
         oss << std::fixed << std::setprecision(4);
         oss << "q ";
-        oss << newWidth << " 0 0 " << newHeight << " " << x << " " << y << " cm ";
+        oss << newWidth << " 0 0 " << newHeight << " " << cmE << " " << cmF << " cm ";
         oss << "/" << xobjectName << " Do ";
         oss << "Q\n";
 
@@ -218,7 +242,19 @@ bool ImageContentEditor::rotateImage(
         // Remove the old image placement
         impl_->removeFromContentStream(pdfDoc, pdfPage, xobjectName);
 
-        // Convert to radians (negative for clockwise rotation in PDF coordinates)
+        // GitHub #373: the rotation centre arrives in fitz Y-down; convert
+        // once to user space for the cm translations below.
+        float mbX0 = 0.0f, mbY1 = 0.0f;
+        impl_->pageBox(pdfPage, mbX0, mbY1);
+        const float userCx = mbX0 + centerX;
+        const float userCy = mbY1 - centerY;
+
+        // Convert to radians (negative for clockwise rotation in PDF coordinates).
+        // angleDegrees stays clockwise-positive VISUALLY (toolbar/command
+        // convention); a visually-clockwise turn is a NEGATIVE math angle in
+        // Y-up user space, hence the negation. The Y-down→Y-up conversion of
+        // the centre above does not alter this: the angle convention is
+        // defined visually, not in the input coordinate frame (GitHub #376).
         float radians = -angleDegrees * static_cast<float>(M_PI) / 180.0f;
         float cosTheta = std::cos(radians);
         float sinTheta = std::sin(radians);
@@ -230,18 +266,18 @@ bool ImageContentEditor::rotateImage(
         oss << std::fixed << std::setprecision(4);
         oss << "q ";
 
-        // Translate to center
-        oss << "1 0 0 1 " << centerX << " " << centerY << " cm ";
+        // Translate to center (user space)
+        oss << "1 0 0 1 " << userCx << " " << userCy << " cm ";
 
         // Rotate
         oss << cosTheta << " " << sinTheta << " " << (-sinTheta) << " " << cosTheta << " 0 0 cm ";
 
         // Translate back
-        oss << "1 0 0 1 " << (-centerX) << " " << (-centerY) << " cm ";
+        oss << "1 0 0 1 " << (-userCx) << " " << (-userCy) << " cm ";
 
         // Apply size and position (position relative to rotation center)
-        float offsetX = centerX - displayWidth / 2.0f;
-        float offsetY = centerY - displayHeight / 2.0f;
+        float offsetX = userCx - displayWidth / 2.0f;
+        float offsetY = userCy - displayHeight / 2.0f;
         oss << displayWidth << " 0 0 " << displayHeight << " " << offsetX << " " << offsetY << " cm ";
 
         // Draw image
@@ -288,21 +324,31 @@ bool ImageContentEditor::cropImage(
         // Remove the old image placement
         impl_->removeFromContentStream(pdfDoc, pdfPage, xobjectName);
 
+        // GitHub #373: cropRect and (x, y) arrive in fitz Y-down (rect given
+        // by its visual top-left); the `re` operator and the cm translation
+        // are user space (Y-up, box given by its bottom-left). Convert once.
+        float mbX0 = 0.0f, mbY1 = 0.0f;
+        impl_->pageBox(pdfPage, mbX0, mbY1);
+        const double clipX = mbX0 + cropRect.x();
+        const double clipY = mbY1 - cropRect.y() - cropRect.height();
+        const float cmE = mbX0 + x;
+        const float cmF = mbY1 - y - displayHeight;
+
         // Build new content stream with clipping path
         // Format: q [cropX cropY cropW cropH] re W n [w 0 0 h x y] cm /ImN Do Q\n
         std::ostringstream oss;
         oss << std::fixed << std::setprecision(4);
         oss << "q ";
 
-        // Define clipping rectangle
-        oss << cropRect.x() << " " << cropRect.y() << " ";
+        // Define clipping rectangle (user space)
+        oss << clipX << " " << clipY << " ";
         oss << cropRect.width() << " " << cropRect.height() << " re ";
 
         // Set clipping path (W = clip, n = end path without fill/stroke)
         oss << "W n ";
 
         // Apply image transformation
-        oss << displayWidth << " 0 0 " << displayHeight << " " << x << " " << y << " cm ";
+        oss << displayWidth << " 0 0 " << displayHeight << " " << cmE << " " << cmF << " cm ";
 
         // Draw image
         oss << "/" << xobjectName << " Do ";

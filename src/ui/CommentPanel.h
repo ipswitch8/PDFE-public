@@ -36,6 +36,9 @@ public:
                      pdfe::annotations::AnnotationManager* manager);
     void clearDocument();
     void refresh();
+    /// GitHub #379 test oracle — the Document* this panel is bound to, so a
+    /// regression test can assert every panel was rebound after a sign-reopen.
+    pdfe::core::Document* documentForTesting() const { return document_; }
 
     /// Test seam: populate the comment context menu with the Reply
     /// and Delete actions (objectNames "commentReplyAction" and

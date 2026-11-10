@@ -872,25 +872,34 @@ MainWindow::MainWindow(QWidget* parent)
         connect(testClickByPdfCoordPipe_, &QLineEdit::textChanged,
                 this, [this](const QString& payload) {
             if (!payload.isEmpty()) {
-                // Parse "pageIndex,pdfX,pdfY".
+                // Parse "pageIndex,pdfX,pdfY[,interaction]".
                 const QStringList parts = payload.split(',');
-                if (parts.size() == 3) {
+                if (parts.size() == 3 || parts.size() == 4) {
                     bool ok1 = false, ok2 = false, ok3 = false;
                     const int   pageIndex = parts[0].trimmed().toInt(&ok1);
                     const qreal pdfX      = parts[1].trimmed().toDouble(&ok2);
                     const qreal pdfY      = parts[2].trimmed().toDouble(&ok3);
                     if (ok1 && ok2 && ok3 && canvas_) {
-                        // Pipeline b3f19d72 phase-12: the pipe is used for
-                        // test-automation field-selection (interaction mode),
-                        // not field creation.  FormTool starts in creation mode
-                        // by default (creationFieldType_ == Text), which makes
-                        // onMousePress start drawing a new field instead of
-                        // hit-testing existing ones.  Force interaction mode
-                        // before dispatching the synthetic click.
-                        if (auto* ft = dynamic_cast<pdfe::forms::FormTool*>(
-                                canvas_->currentTool())) {
-                            ft->setCreationFieldType(
-                                pdfe::forms::FormFieldType::Unknown);
+                        // GitHub #377 — this pipe used to FORCE the FormTool
+                        // back to interaction mode (creationFieldType_ =
+                        // Unknown) before every synthetic click, which made
+                        // the pipe exercise a state no real user click could
+                        // reach and MASKED #369-class defects (a tool stuck
+                        // in creation mode looked fine under test). The
+                        // default now dispatches the click into whatever mode
+                        // the tool is REALLY in. A test that legitimately
+                        // wants interaction mode (e.g. selecting an existing
+                        // field without re-deriving how the tool got there)
+                        // opts in with an explicit 4th token "interaction".
+                        if (parts.size() == 4 &&
+                            parts[3].trimmed() ==
+                                QStringLiteral("interaction")) {
+                            if (auto* ft =
+                                    dynamic_cast<pdfe::forms::FormTool*>(
+                                        canvas_->currentTool())) {
+                                ft->setCreationFieldType(
+                                    pdfe::forms::FormFieldType::Unknown);
+                            }
                         }
                         canvas_->clickByPdfCoord(pageIndex, pdfX, pdfY);
                     }
@@ -6926,11 +6935,41 @@ void MainWindow::createDockPanels()
     addDockWidget(Qt::RightDockWidgetArea, signaturePanelDock_);
     signaturePanelDock_->hide();
 
+    // GitHub #375 — sign the CLICKED field, not whichever unsigned field
+    // listSignatures() happens to return first (the old handler Q_UNUSED both
+    // indices and called onSignDocument()). The panel row carries the
+    // (pageIndex, widgetIndex) pair SignatureManager reported through
+    // setSignatures(), so route it straight into the specific-field path:
+    // signTargetField() prompts with the EXISTING field's rect read-only and
+    // signs exactly that widget.
     connect(signaturePanel_, &SignaturePanel::signRequested,
             this, [this](int pageIndex, int widgetIndex) {
-                Q_UNUSED(pageIndex);
-                Q_UNUSED(widgetIndex);
-                onSignDocument();
+                if (!document_ || !signatureManager_) return;
+                // Same clean error-oracle start as onSignDocument (#372).
+                lastSigningErrorForTesting_.clear();
+                // A row for an ALREADY-SIGNED field must not be re-signed.
+                try {
+                    for (const auto& s :
+                         signatureManager_->listSignatures(document_.get())) {
+                        if (s.pageIndex != pageIndex ||
+                            s.widgetIndex != widgetIndex) {
+                            continue;
+                        }
+                        if (s.isSigned) {
+                            if (statusBar_) {
+                                statusBar_->showMessage(
+                                    tr("This signature field is already "
+                                       "signed."),
+                                    5000);
+                            }
+                            return;
+                        }
+                        break;
+                    }
+                } catch (const std::exception&) {
+                    return;  // enumeration failed; nothing safe to sign
+                }
+                signTargetField(pageIndex, widgetIndex);
             });
     connect(signaturePanel_, &SignaturePanel::verifyAllRequested,
             this, &MainWindow::onVerifySignatures);
@@ -11681,6 +11720,22 @@ void MainWindow::onAnnotationToolSelected(QAction* action)
                 onSignatureFieldActivated(pageIndex, widgetIndex);
             });
         };
+        // GitHub #369 — the tool drops back to interaction mode after a field
+        // is placed (see FormTool::onMouseRelease); uncheck the armed
+        // field-type action so the toolbar reflects it. Programmatic
+        // setChecked(false) is allowed even inside the exclusive QActionGroup
+        // (exclusivity constrains user toggles, not code).
+        formTool->creationModeExited = [this]() {
+            for (QAction* act :
+                 {formTextFieldAction_, formCheckboxAction_,
+                  formRadioButtonAction_, formComboBoxAction_,
+                  formListBoxAction_, formPushButtonAction_,
+                  formSignatureAction_}) {
+                if (act && act->isChecked()) {
+                    act->setChecked(false);
+                }
+            }
+        };
 
         // Show the form toolbar. The field-type actions are connected ONCE in
         // setupToolBars() and resolve the live tool through canvas_ at trigger
@@ -14432,6 +14487,8 @@ void MainWindow::onRemovePassword()
 void MainWindow::onSignDocument()
 {
     if (!document_ || !signatureManager_) return;
+    // GitHub #372 — each flow starts with a clean error oracle.
+    lastSigningErrorForTesting_.clear();
 
     // Check if there are unsigned signature fields
     auto sigs = signatureManager_->listSignatures(document_.get());
@@ -14447,58 +14504,101 @@ void MainWindow::onSignDocument()
         }
     }
 
-    // GitHub #360 — did WE create the signature field for this sign? Only a
-    // field created speculatively here (because the document had no unsigned
-    // field to target) may be rolled back on cancel; a pre-existing field the
-    // user placed earlier must survive a cancelled Sign dialog untouched.
-    bool createdNewField = false;
-    int createdFieldPage = -1;
-    if (!hasUnsignedField) {
-        // Create a new signature field first
-        if (document_->pageCount() == 0) return;
-
-        createdFieldPage = canvas_ ? canvas_->currentPage() : 0;
-        auto page = document_->page(createdFieldPage);
-        auto cmd = std::make_unique<pdfe::signatures::CreateSignatureFieldCommand>(
-            signatureManager_.get(), page.get(), "Signature",
-            QRectF(50, 50, 200, 60));
-        undoManager_->execute(std::move(cmd));
-        commandPages_.push_back(std::move(page));
-        createdNewField = true;
-
-        // Re-list to get the new field
-        sigs = signatureManager_->listSignatures(document_.get());
-        for (const auto& sig : sigs) {
-            if (!sig.isSigned) {
-                targetPage = sig.pageIndex;
-                targetWidget = sig.widgetIndex;
-                break;
-            }
-        }
-    }
-
-    if (targetPage < 0 || targetWidget < 0) {
-        // GitHub #360 — created a field but then failed to resolve it: undo so
-        // no stray SIGN marker is left behind.
-        if (createdNewField && undoManager_->canUndo()) {
-            undoManager_->undo();
-            if (canvas_ && createdFieldPage >= 0)
-                canvas_->refreshPage(createdFieldPage);
-        }
+    if (hasUnsignedField) {
+        // Pre-existing unsigned field: sign THAT field. No speculative
+        // creation here, so there is nothing to roll back (#360).
+        signTargetField(targetPage, targetWidget);
         return;
     }
 
-    // GitHub #360 — before: the field above was created AND committed, then
-    // signTargetField() showed the modal Sign dialog and simply returned on
-    // Cancel, leaving the red "SIGN" widget annotation on the page. Now, if we
-    // created the field for this sign and the flow aborted before committing to
-    // the signed save, roll the field back so the signature-field count returns
-    // to its pre-sign baseline.
-    const bool committed = signTargetField(targetPage, targetWidget);
-    if (createdNewField && !committed && undoManager_->canUndo()) {
-        undoManager_->undo();
-        if (canvas_ && createdFieldPage >= 0)
-            canvas_->refreshPage(createdFieldPage);
+    // No unsigned field — this flow will CREATE one.
+    if (document_->pageCount() == 0) return;
+
+    // GitHub #370 — show the Sign dialog BEFORE creating the field, so its
+    // placement controls (page / X / Y / Width / Height) decide where the
+    // field — and therefore the rasterised appearance — lands. The rect was
+    // previously hard-coded QRectF(50,50,200,60) on the current page with no
+    // way to influence it. Dialog-cancel now aborts before anything is
+    // created, which still satisfies the #360 "no stray SIGN marker"
+    // contract (there is simply nothing to roll back).
+    const int defaultPage = canvas_ ? canvas_->currentPage() : 0;
+    const QRectF defaultRect(50, 50, 200, 60);
+    pdfe::signatures::SigningOptions opts;
+    if (!promptSigningOptions(opts, /*newField=*/true, defaultRect,
+                              defaultPage)) {
+        return;
+    }
+
+    int fieldPage = opts.hasFieldGeometry ? opts.fieldPageIndex : defaultPage;
+    if (fieldPage < 0 || fieldPage >= document_->pageCount()) {
+        fieldPage = defaultPage;
+    }
+    QRectF fieldRect = defaultRect;
+    if (opts.hasFieldGeometry && opts.fieldRect.width() > 0 &&
+        opts.fieldRect.height() > 0) {
+        fieldRect = opts.fieldRect;
+    }
+
+    // GitHub #360 — the field created here is speculative until the flow
+    // commits to the signed save; every abort below rolls it back so the
+    // signature-field count returns to its pre-sign baseline.
+    {
+        auto page = document_->page(fieldPage);
+        if (!page) return;
+        auto cmd = std::make_unique<pdfe::signatures::CreateSignatureFieldCommand>(
+            signatureManager_.get(), page.get(), "Signature", fieldRect);
+        undoManager_->execute(std::move(cmd));
+        commandPages_.push_back(std::move(page));
+    }
+
+    // Re-list to get the new field
+    sigs = signatureManager_->listSignatures(document_.get());
+    for (const auto& sig : sigs) {
+        if (!sig.isSigned) {
+            targetPage = sig.pageIndex;
+            targetWidget = sig.widgetIndex;
+            break;
+        }
+    }
+
+    // GitHub #372 (defect 2) — the rollback undo() runs
+    // removeSignatureField(), whose fz_throw surfaces as a C++ exception; an
+    // escape from this Qt slot is std::terminate. Guard it like onUndo's
+    // path, and use onUndo's refresh breadth (all pages + panel) so the UI
+    // cannot keep painting a widget the undo just removed.
+    const auto rollbackCreatedField = [this]() {
+        bool undone = false;
+        try {
+            if (undoManager_ && undoManager_->canUndo()) {
+                undoManager_->undo();
+                undone = true;
+            }
+        } catch (const std::exception& e) {
+            qWarning("Sign-flow rollback failed: %s", e.what());
+        }
+        // Refresh ONLY when the undo actually ran. When the flow failed
+        // AFTER the sign-reopen, the undo stack is empty (nothing undone)
+        // and the catch-path recovery has already rebuilt/refreshed the
+        // canvas — while commentPanel_ still holds the PRE-SIGN Document*,
+        // so a refresh() here would be the very UAF class #372 fixes.
+        if (!undone) return;
+        if (canvas_) canvas_->refreshAllPages();
+        if (commentPanel_) commentPanel_->refresh();
+    };
+
+    if (targetPage < 0 || targetWidget < 0) {
+        // GitHub #360 — created a field but then failed to resolve it: undo
+        // so no stray SIGN marker is left behind.
+        rollbackCreatedField();
+        return;
+    }
+
+    // GitHub #360 — if the flow aborts before committing to the signed save,
+    // roll the speculatively-created field back.
+    const bool committed = signTargetFieldWithOptions(
+        targetPage, targetWidget, opts, /*removeFieldOnPostReopenFailure=*/true);
+    if (!committed) {
+        rollbackCreatedField();
     }
 }
 
@@ -14508,36 +14608,119 @@ void MainWindow::onSignDocument()
 // SignatureManager's signature-only widget list (the index signField and
 // listSignatures use), NOT the page-wide widget index FormTool reports —
 // onSignatureFieldActivated() does that translation before calling here.
+// GitHub #370 — gather SigningOptions via the modal SignDialog, or from the
+// headless test seam when engaged (the modal exec() cannot be answered by a
+// headless test — GitHub #360). Returns false on cancel.
+bool MainWindow::promptSigningOptions(pdfe::signatures::SigningOptions& opts,
+                                      bool newField, const QRectF& defaultRect,
+                                      int defaultPageIndex)
+{
+    if (signFlowTestInputs_) {
+        if (!signFlowTestInputs_->dialogAccepted) return false;
+        opts.pfxPath = signFlowTestInputs_->pfxPath.toStdString();
+        opts.pfxPassword = signFlowTestInputs_->pfxPassword.toStdString();
+        // GitHub #372 — appearance image (a nonexistent path is the
+        // injectable post-reopen failure).
+        opts.imagePath = signFlowTestInputs_->imagePath.toStdString();
+        if (newField) {
+            // GitHub #370 — injected geometry stands in for the dialog's
+            // placement controls; absent, the defaults the dialog would show.
+            opts.hasFieldGeometry = true;
+            if (signFlowTestInputs_->hasFieldGeometry) {
+                opts.fieldRect = signFlowTestInputs_->fieldRect;
+                opts.fieldPageIndex = signFlowTestInputs_->fieldPageIndex;
+            } else {
+                opts.fieldRect = defaultRect;
+                opts.fieldPageIndex = defaultPageIndex;
+            }
+        }
+        return true;
+    }
+
+    SignDialog dialog(this);
+    dialog.setFieldPlacement(newField, defaultRect, defaultPageIndex,
+                             document_ ? document_->pageCount() : 1);
+    if (dialog.exec() != QDialog::Accepted) return false;
+    opts = dialog.signingOptions();
+    return true;
+}
+
 bool MainWindow::signTargetField(int targetPage, int targetWidget)
 {
     if (!document_ || !signatureManager_) return false;
     if (targetPage < 0 || targetWidget < 0) return false;
 
-    // Show sign dialog.
-    //
-    // GitHub #360 — the modal exec() cannot be answered by a headless test, so
-    // when the Sign-flow test seam is engaged we take the injected result and
-    // options instead of showing the dialog. Inert in production (the optional
-    // is only ever set by setSignFlowTestInputsForTesting()).
-    pdfe::signatures::SigningOptions opts;
-    {
-        SignDialog dialog(this);
-        bool accepted;
-        if (signFlowTestInputs_) {
-            accepted = signFlowTestInputs_->dialogAccepted;
-            if (accepted) {
-                opts.pfxPath = signFlowTestInputs_->pfxPath.toStdString();
-                opts.pfxPassword = signFlowTestInputs_->pfxPassword.toStdString();
+    // Existing-field flow: the field already has its geometry; the dialog
+    // shows it read-only (GitHub #370). Look the rect up so the user sees
+    // where the appearance will land.
+    QRectF fieldRect(50, 50, 200, 60);
+    try {
+        for (const auto& s : signatureManager_->listSignatures(document_.get())) {
+            if (s.pageIndex == targetPage && s.widgetIndex == targetWidget) {
+                fieldRect = s.rect;
+                break;
             }
-        } else {
-            accepted = (dialog.exec() == QDialog::Accepted);
-            if (accepted) opts = dialog.signingOptions();
         }
-        // GitHub #360 — Cancel returns false WITHOUT signing. The caller
-        // (onSignDocument) rolls back any field it created for this sign, so
-        // the cancelled flow leaves no stray "SIGN" marker on the page.
-        if (!accepted) return false;
+    } catch (const std::exception&) {
+        // Lookup is cosmetic here; the defaults suffice.
     }
+
+    pdfe::signatures::SigningOptions opts;
+    // GitHub #360 — Cancel returns false WITHOUT signing; a pre-existing
+    // field is never rolled back (nothing was created for this sign).
+    if (!promptSigningOptions(opts, /*newField=*/false, fieldRect, targetPage)) {
+        return false;
+    }
+    return signTargetFieldWithOptions(targetPage, targetWidget, opts,
+                                      /*removeFieldOnPostReopenFailure=*/false);
+}
+
+// GitHub #372 — record + surface a signing error without blocking headless
+// runs (the QMessageBox::critical modals at the two signing error sites made
+// the error paths untestable, which is how the #372 UAF went unobserved).
+void MainWindow::showSigningError(const QString& text)
+{
+    lastSigningErrorForTesting_ = text;
+    if (signFlowTestInputs_ && signFlowTestInputs_->suppressErrorDialogs) {
+        if (statusBar_) statusBar_->showMessage(text, 5000);
+        return;
+    }
+    QMessageBox::critical(this, tr("Signing Error"), text);
+}
+
+// GitHub #379 — see the header. The binding list mirrors openFile()'s
+// panel-setup block exactly; keep the two in lockstep.
+void MainWindow::rebindPanelsToCurrentDocument()
+{
+    pdfe::core::Document* doc = document_.get();
+    if (doc) {
+        if (pagePanel_) pagePanel_->setDocument(doc);
+        if (searchPanel_) searchPanel_->setDocument(doc);
+        if (bookmarkPanel_) bookmarkPanel_->setDocument(doc);
+        if (layerPanel_) layerPanel_->setDocument(doc);
+        if (commentPanel_) {
+            commentPanel_->setDocument(doc, annotationManager_.get());
+        }
+        if (attachmentPanel_) {
+            attachmentPanel_->setDocument(muPdfContext_, doc);
+        }
+    } else {
+        if (pagePanel_) pagePanel_->setDocument(nullptr);
+        if (searchPanel_) searchPanel_->clearDocument();
+        if (bookmarkPanel_) bookmarkPanel_->clearDocument();
+        if (layerPanel_) layerPanel_->clearDocument();
+        if (commentPanel_) commentPanel_->clearDocument();
+        if (attachmentPanel_) attachmentPanel_->clearDocument();
+    }
+}
+
+bool MainWindow::signTargetFieldWithOptions(
+    int targetPage, int targetWidget,
+    const pdfe::signatures::SigningOptions& opts,
+    bool removeFieldOnPostReopenFailure)
+{
+    if (!document_ || !signatureManager_) return false;
+    if (targetPage < 0 || targetWidget < 0) return false;
 
     // P12-INFRA-1 sub-issue 3: validate the PFX credentials BEFORE
     // the Save As dialog opens so a wrong-password attempt surfaces
@@ -14569,7 +14752,10 @@ bool MainWindow::signTargetField(int targetPage, int targetWidget)
             pfxOk = false;
         }
         if (!pfxOk) {
-            QMessageBox::critical(this, tr("Signing Error"),
+            // GitHub #372 — routed through showSigningError so headless
+            // tests can exercise this path (and the caller's rollback)
+            // without a modal.
+            showSigningError(
                 tr("Failed to sign document: PFX could not be loaded "
                    "with the provided credentials (wrong password or "
                    "corrupt PFX)."));
@@ -14581,11 +14767,13 @@ bool MainWindow::signTargetField(int targetPage, int targetWidget)
     // and reopened; past that point any field created for this sign belongs to
     // the saved document and must NOT be rolled back by the caller.
     bool documentReplaced = false;
+    // Hoisted out of the try so the GitHub #372 catch-path recovery below can
+    // reopen from the same path the success path would have.
+    QString savePath;
     try {
         // Need to save document first so signing can do incremental write.
         // GitHub #360 — honor the injected Save-As path under the test seam
         // (empty => simulate the user cancelling the Save-As dialog).
-        QString savePath;
         if (signFlowTestInputs_) {
             savePath = signFlowTestInputs_->savePath;
         } else {
@@ -14662,6 +14850,13 @@ bool MainWindow::signTargetField(int targetPage, int targetWidget)
         signaturePanel_->setSignatures(updatedSigs);
         signaturePanelDock_->show();
 
+        // GitHub #379 — the panels bind a raw Document* in openFile() and
+        // nowhere else, so after the reopen above every one of them still
+        // held the freed pre-sign document; the next panel refresh (comment
+        // tree rebuild, thumbnail regeneration, search, …) was a UAF.
+        // Rebind them here, alongside the tileRenderer_/canvas rebuild.
+        rebindPanelsToCurrentDocument();
+
         statusBar_->showMessage(tr("Document signed successfully"), 5000);
         return true;
 
@@ -14670,15 +14865,89 @@ bool MainWindow::signTargetField(int targetPage, int targetWidget)
         // from the signing stack can include the PFX file path or
         // internal OpenSSL detail. Match the probe-catch design above:
         // user gets a generic message, full diagnostic stays in logs.
-        QMessageBox::critical(this, tr("Signing Error"),
+        //
+        // GitHub #372 (defect 1) — if the failure happened AFTER the reopen
+        // at `document_ = Document::open(...)` above, the pre-sign Document
+        // is already freed while tileCache_/tileRenderer_/canvas_ still bind
+        // to it by raw pointer; returning without the success path's rebuild
+        // left the very next repaint dereferencing freed memory (0xC0000005
+        // once the error dialog was dismissed). Perform the SAME
+        // reopen + rebuild + rebind here, BEFORE surfacing the error.
+        if (documentReplaced) {
+            try {
+                document_ = pdfe::core::Document::open(muPdfContext_,
+                                                       qStringToPath(savePath));
+
+                // GitHub #372 (defect 3) — the undo stack was invalidated
+                // before the reopen, so the caller's canUndo() rollback is a
+                // silent no-op. When THIS flow created the field, remove the
+                // stray unsigned field explicitly so the signature-field
+                // count returns to its pre-flow baseline. (The flow only
+                // creates a field when the document had NO unsigned field,
+                // so the one unsigned field here is ours.)
+                if (removeFieldOnPostReopenFailure) {
+                    try {
+                        auto strays =
+                            signatureManager_->listSignatures(document_.get());
+                        for (const auto& s : strays) {
+                            if (s.isSigned) continue;
+                            auto strayPage = document_->page(s.pageIndex);
+                            if (strayPage) {
+                                signatureManager_->removeSignatureField(
+                                    strayPage.get(), s.widgetIndex);
+                            }
+                            break;
+                        }
+                    } catch (const std::exception& e2) {
+                        // Degraded but consistent: the document keeps an
+                        // unsigned field, nothing dangles.
+                        qWarning("Stray signature-field cleanup failed: %s",
+                                 e2.what());
+                    }
+                }
+
+                tileCache_ = std::make_unique<pdfe::rendering::TileCache>();
+                tileRenderer_ = std::make_unique<pdfe::rendering::TileRenderer>(
+                    document_.get());
+                canvas_->setDocument(document_.get(), tileCache_.get(),
+                                     tileRenderer_.get());
+                currentFileName_ = savePath;
+                documentDisplayName_.clear();
+                updateWindowTitle();
+                if (signaturePanel_) {
+                    signaturePanel_->setSignatures(
+                        signatureManager_->listSignatures(document_.get()));
+                }
+                // GitHub #379 — same rebind as the success path: the
+                // recovery reopen above replaced document_ too, so the
+                // panels' pre-sign pointers are just as freed here.
+                rebindPanelsToCurrentDocument();
+            } catch (const std::exception& e3) {
+                // Even the recovery reopen failed. Unbind the rendering
+                // stack entirely so nothing can repaint through the freed
+                // Document* — a blank canvas beats a UAF.
+                qWarning("Sign-failure recovery reopen failed: %s", e3.what());
+                if (canvas_) canvas_->clearDocument();
+                tileRenderer_.reset();
+                tileCache_.reset();
+                document_.reset();
+                // GitHub #379 — with no live document left, clear the
+                // panels too; their pre-sign pointers are freed memory.
+                rebindPanelsToCurrentDocument();
+            }
+        }
+
+        showSigningError(
             tr("Failed to sign the document. Check that the certificate "
                "and password are correct, then try again."));
-        // GitHub #360 — if the reopen already happened, document_ now points at
-        // the saved copy and the create-command's page is gone, so the caller
-        // must not roll back (report committed). If saveAs threw BEFORE the
-        // reopen, the in-memory document is untouched and a speculatively
-        // created field can still be safely rolled back (report not committed).
-        return documentReplaced;
+        // GitHub #360 — if saveAs threw BEFORE the reopen, the in-memory
+        // document is untouched and the caller may roll a speculatively
+        // created field back (report not committed). GitHub #372 — after the
+        // reopen the undo stack is already cleared, so the caller's guarded
+        // canUndo() rollback is a safe no-op either way, and the stray field
+        // was handled above; reporting "not committed" is now accurate in
+        // both cases (the sign did NOT complete).
+        return false;
     }
 }
 
@@ -14740,7 +15009,16 @@ void MainWindow::onSignatureFieldActivated(int pageIndex, int pageWidgetIndex)
         return;
     }
 
-    signTargetField(pageIndex, targetWidget);
+    // GitHub #369 — the result used to be discarded, so an aborted or failed
+    // sign gave no feedback at all from the canvas click path. A status-bar
+    // message is headless-safe (the hard failures inside the flow surface
+    // their own error through showSigningError).
+    lastSigningErrorForTesting_.clear();
+    const bool committed = signTargetField(pageIndex, targetWidget);
+    if (!committed && statusBar_) {
+        statusBar_->showMessage(
+            tr("The document was not signed."), 5000);
+    }
 }
 
 void MainWindow::onVerifySignatures()

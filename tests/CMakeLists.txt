@@ -571,6 +571,25 @@ add_executable(pdfe_tests
     # MainWindow sign flow through a headless seam that injects the dialog
     # result / Save-As path in place of the modal exec()s.
     test_ui_sign_cancel_rollback.cpp
+    # GitHub #370 — the signature field a sign flow creates must land at the
+    # user-chosen page/rect (was hard-coded QRectF(50,50,200,60)). Drives the
+    # real flow through the geometry-extended sign seam.
+    test_ui_sign_field_geometry.cpp
+    # GitHub #372 — signing error paths: wrong-passphrase rollback is guarded,
+    # and a post-reopen failure rebuilds the TileRenderer/canvas binding and
+    # removes the stray field instead of leaving a UAF + SIGN marker.
+    test_ui_sign_error_recovery.cpp
+    # GitHub #374 — a library-selected signature image is materialised to an
+    # autoRemove temp file that must outlive the SignDialog (destroyed before
+    # signField reads the path). SigningOptions::imageKeepalive carries it.
+    test_sign_library_image_lifetime.cpp
+    # GitHub #375 — the SignaturePanel's signRequested(page, widget) must sign
+    # THAT field, not whichever unsigned field listSignatures returns first.
+    test_signature_panel_sign_target.cpp
+    # GitHub #379 — every panel holding a raw Document* must be rebound after
+    # a sign-reopen (success AND the #372 recovery path); they were bound only
+    # in openFile(), so a post-sign panel refresh was a use-after-free.
+    test_sign_panel_rebind.cpp
     test_pdfa_roundtrip.cpp
     test_pkcs7_roundtrip.cpp
     test_redaction_roundtrip.cpp
@@ -649,6 +668,10 @@ add_executable(pdfe_tests
     # GitHub #340/#341/#342 — interactive image move, rotate-direction, and
     # rotated-handle hit-test (see docs/audit/ui-image-stamp-interaction-investigation.md).
     test_image_tool_interaction.cpp
+    # GitHub #373/#376/#378 — image coordinate-space unification: cross-space
+    # render oracle (seam bbox vs rendered pixels), committed-move direction,
+    # and committed rotation direction (cm matrix + visual).
+    test_image_coordspace.cpp
     test_image_properties_panel.cpp
     test_metadata_manager.cpp
     test_metadata_commands.cpp

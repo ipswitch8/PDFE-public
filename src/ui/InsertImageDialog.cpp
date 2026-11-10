@@ -94,6 +94,10 @@ InsertImageDialog::InsertImageDialog(const QString& imagePath,
     const double maxDim = std::max(pageSize.width(), pageSize.height()) * 4.0;
     x_ = makeSpin("insertImageXSpin", tr("X position"), def.x(), maxDim);
     y_ = makeSpin("insertImageYSpin", tr("Y position"), def.y(), maxDim);
+    // GitHub #373: placement travels in fitz Y-down space, so Y is measured
+    // FROM THE TOP of the page — say so instead of leaving it ambiguous.
+    x_->setToolTip(tr("Distance from the left edge of the page, in points."));
+    y_->setToolTip(tr("Distance from the top of the page, in points."));
     width_ = makeSpin("insertImageWidthSpin", tr("Width"), def.width(), maxDim);
     height_ = makeSpin("insertImageHeightSpin", tr("Height"), def.height(), maxDim);
 

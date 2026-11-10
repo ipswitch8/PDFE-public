@@ -56,9 +56,12 @@ void ensureQApplication() {
     }
 }
 
-// Forward CCW-positive rotation of a point about a centre — mirrors the
-// production rotateAbout() so a test can place a point at an image's VISUALLY
-// rotated handle location (then let the tool inverse-rotate it back).
+// Plain math-convention rotation of a point about a centre — mirrors the
+// production rotateAbout(). All tool coordinates are fitz Y-down (GitHub
+// #373), where a POSITIVE math angle is visually CLOCKWISE; a placement whose
+// rotationRadians is θ (CCW-positive Y-up user convention) therefore maps
+// local -> page by a rotation of MINUS θ in this frame. Tests pass
+// -rotationRadians here to place a point at a VISUALLY rotated location.
 QPointF rotateAbout(QPointF p, QPointF c, float radians) {
     const float cs = std::cos(radians);
     const float sn = std::sin(radians);
@@ -206,15 +209,21 @@ TEST_F(ImageToolInteractionTest, RotateDrag_ClockwiseEmitsPositiveNinety) {
         [&](const std::string&, float angle) { ++fires; gotAngle = angle; });
     QSignalSpy rotateSpy(tool_.get(), &ImageTool::rotateRequested);
 
-    // Press the rotation handle (top-centre, 20px above the top edge at scale 1).
+    // Press the rotation handle. Coordinates are fitz Y-down (GitHub #373):
+    // bbox.top() is the image's VISUAL top, so top - 20 sits visually ABOVE
+    // the image — the press vector from the centre points visually up
+    // (startAngle = -90 deg in Y-down atan2).
     const QPointF rotHandle(center.x(), bbox.top() - 20.0);
     press(rotHandle);
 
-    // Drag a quarter turn. The press vector points straight "down" from centre
-    // (startAngle = -90 deg). Releasing to the left with a slight negative y lands
-    // near endAngle = -180 deg, so the clockwise-positive delta (startAngle -
-    // endAngle) snaps to +90. Pre-fix (endAngle - startAngle) this was -90.
-    const QPointF releasePt(center.x() - 100.0, center.y() - 1.0);
+    // Drag a quarter turn CLOCKWISE on screen: from above the centre to the
+    // RIGHT of the centre (up -> right is visually clockwise). In Y-down
+    // coordinates atan2 grows clockwise, so endAngle ~ 0 deg and the raw
+    // delta (endAngle - startAngle) snaps to +90 — the clockwise-positive
+    // command convention with NO negation (GitHub #376). Pre-fix the #341
+    // negation (startAngle - endAngle), derived from Y-up seam coords, made
+    // this same visually-clockwise drag emit -90.
+    const QPointF releasePt(center.x() + 100.0, center.y() - 1.0);
     moveTo(releasePt);
     release(releasePt);
 
@@ -244,13 +253,16 @@ TEST_F(ImageToolInteractionTest, RotatedImage_HandleHittableAtRotatedPosition) {
     ASSERT_TRUE(tool_->hasSelection());
     ASSERT_NEAR(tool_->selectedImage().rotationRadians, kPi / 2.0f, 1e-4f);
 
-    // Local (un-rotated) handle positions.
+    // Local (un-rotated) handle positions, fitz Y-down.
     const QPointF localTR = info.boundingBox.topRight();
     const QPointF localRot(center.x(), info.boundingBox.top() - 20.0);
 
-    // Page-space positions after the placement's +90 rotation.
-    const QPointF pageTR = rotateAbout(localTR, center, info.rotationRadians);
-    const QPointF pageRot = rotateAbout(localRot, center, info.rotationRadians);
+    // Page-space positions after the placement's rotation. rotationRadians is
+    // CCW-positive in the Y-up user convention, so in this Y-down frame the
+    // placement rotates local -> page by MINUS rotationRadians (GitHub
+    // #373/#376 — this sign flipped together with the production inverse).
+    const QPointF pageTR = rotateAbout(localTR, center, -info.rotationRadians);
+    const QPointF pageRot = rotateAbout(localRot, center, -info.rotationRadians);
 
     // Post-fix: the handles live at the rotated positions.
     EXPECT_EQ(tool_->hitTestHandleForTest(pageTR, 1.0f), HandlePosition::TopRight)

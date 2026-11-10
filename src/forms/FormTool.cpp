@@ -214,6 +214,24 @@ void FormTool::onMousePress(QMouseEvent* event, int pageIndex, QPointF pdfPoint)
                     selectField(widgetIdx);
                     break;
             }
+        } else {
+            // GitHub #369 — re-click on the ALREADY-SELECTED widget. The
+            // `widgetIdx != selectedWidget_` gate above made a second click on
+            // a selected Signature field completely inert, so a user who
+            // selected the field (or had just placed it) could never reach the
+            // signing flow by clicking it again. Re-fire the activation for
+            // Signature fields only; other field types keep their established
+            // re-click behavior (text edit stays in progress, checkbox
+            // toggling already runs through the first-click path, etc.).
+            try {
+                auto fieldData = manager_->getFormField(page_, widgetIdx);
+                if (fieldData.type == FormFieldType::Signature &&
+                    !fieldData.isReadOnly && signatureFieldActivated) {
+                    signatureFieldActivated(page_->index(), widgetIdx);
+                }
+            } catch (const std::exception&) {
+                // Stale index — treat as a no-op, like the paint guard does.
+            }
         }
     } else {
         // Clicked outside any field
@@ -252,6 +270,19 @@ void FormTool::onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pdfPoin
         if (rect.width() >= 10.0 && rect.height() >= 10.0) {
             if (fieldCreated) {
                 fieldCreated(drawPageIndex_, creationFieldType_, rect);
+
+                // GitHub #369 — the field is placed; drop back to interaction
+                // mode. Before this, NOTHING ever reset creationFieldType_, so
+                // every subsequent click re-entered the rubber-band branch in
+                // onMousePress and a plain click on the just-placed field died
+                // on the <10pt minimum above — the #328 signature-activation
+                // wiring was unreachable from the real toolbar flow. Reset
+                // AFTER fieldCreated so the callback still sees the type, and
+                // notify the UI so the checked field-type action follows.
+                creationFieldType_ = FormFieldType::Unknown;
+                if (creationModeExited) {
+                    creationModeExited();
+                }
             }
         }
     }

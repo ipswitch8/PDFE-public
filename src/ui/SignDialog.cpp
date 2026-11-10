@@ -13,6 +13,8 @@
 #include <QPushButton>
 #include <QDialogButtonBox>
 #include <QSpinBox>
+#include <QDoubleSpinBox>
+#include <QFile>
 #include <QLabel>
 #include <QFileDialog>
 #include <QInputDialog>
@@ -251,6 +253,50 @@ SignDialog::SignDialog(QWidget* parent)
 
     mainLayout->addWidget(advGroup);
 
+    // GitHub #370 — field placement (page + rect, PDF points in fitz space).
+    // Hard-coded QRectF(50,50,200,60) used to be the ONLY geometry a new
+    // signature field could have; these controls let the user choose where
+    // the appearance lands. Editable only in the new-field flow — see
+    // setFieldPlacement(); constructed disabled so a caller that never
+    // configures placement gets the pre-#370 behavior unchanged.
+    placementGroup_ = new QGroupBox(tr("Field Placement"), this);
+    placementGroup_->setObjectName("fieldPlacementGroup");
+    placementGroup_->setAccessibleName(tr("Field Placement"));
+    auto* placementLayout = new QFormLayout(placementGroup_);
+
+    fieldPageSpin_ = new QSpinBox(this);
+    fieldPageSpin_->setObjectName("fieldPageSpin");
+    fieldPageSpin_->setAccessibleName(tr("Signature field page index"));
+    fieldPageSpin_->setRange(0, 0);
+    fieldPageSpin_->setValue(0);
+    fieldPageSpin_->setToolTip(tr("0-based page index the field is placed on"));
+    placementLayout->addRow(tr("Page (0-based):"), fieldPageSpin_);
+
+    auto makePtSpin = [this](const char* objectName, const QString& accessible,
+                             double minimum, double value) {
+        auto* spin = new QDoubleSpinBox(this);
+        spin->setObjectName(objectName);
+        spin->setAccessibleName(accessible);
+        spin->setRange(minimum, 14400.0);  // PDF implementation limit, points
+        spin->setDecimals(2);
+        spin->setSuffix(tr(" pt"));
+        spin->setValue(value);
+        return spin;
+    };
+    fieldXSpin_ = makePtSpin("fieldXSpin", tr("Signature field X"), 0.0, 50.0);
+    fieldYSpin_ = makePtSpin("fieldYSpin", tr("Signature field Y"), 0.0, 50.0);
+    fieldWidthSpin_ =
+        makePtSpin("fieldWidthSpin", tr("Signature field width"), 1.0, 200.0);
+    fieldHeightSpin_ =
+        makePtSpin("fieldHeightSpin", tr("Signature field height"), 1.0, 60.0);
+    placementLayout->addRow(tr("X:"), fieldXSpin_);
+    placementLayout->addRow(tr("Y:"), fieldYSpin_);
+    placementLayout->addRow(tr("Width:"), fieldWidthSpin_);
+    placementLayout->addRow(tr("Height:"), fieldHeightSpin_);
+
+    placementGroup_->setEnabled(false);  // armed by setFieldPlacement()
+    mainLayout->addWidget(placementGroup_);
+
     // Preview
     previewLabel_ = new QLabel(this);
     previewLabel_->setObjectName("previewLabel");
@@ -345,8 +391,57 @@ pdfe::signatures::SigningOptions SignDialog::signingOptions() const
 
     // GitHub #327 — image-of-signature graphic path (empty = text-only).
     opts.imagePath = imagePathEdit_->text().toStdString();
+    // GitHub #374 — if that path is a library image materialised to a temp
+    // file, hand its ownership along: the dialog is destroyed before
+    // signField reads the path, and autoRemove would otherwise delete the
+    // file with the dialog. Harmless when the path is a user-browsed file
+    // (the keepalive then just holds an unrelated temp PNG until the options
+    // are dropped, exactly as the dialog itself would have).
+    opts.imageKeepalive = selectedImageTempFile_;
+
+    // GitHub #370 — new-field placement. Only reported when
+    // setFieldPlacement() armed the group for the new-field flow; an
+    // existing-field sign never carries geometry (the field already has its
+    // rect).
+    if (placementForNewField_) {
+        opts.hasFieldGeometry = true;
+        opts.fieldPageIndex = fieldPageSpin_->value();
+        opts.fieldRect = QRectF(fieldXSpin_->value(), fieldYSpin_->value(),
+                                fieldWidthSpin_->value(),
+                                fieldHeightSpin_->value());
+    }
 
     return opts;
+}
+
+// GitHub #370 — see the header. `newField` arms editable placement; an
+// existing field shows its rect read-only (disabled group) so the user sees
+// where the appearance will land without being able to move a field that
+// already exists.
+void SignDialog::setFieldPlacement(bool newField, const QRectF& rect,
+                                   int pageIndex, int pageCount)
+{
+    placementForNewField_ = newField;
+    if (!placementGroup_) return;
+
+    const int maxPage = pageCount > 0 ? pageCount - 1 : 0;
+    fieldPageSpin_->setRange(0, maxPage);
+    fieldPageSpin_->setValue(qBound(0, pageIndex, maxPage));
+    fieldXSpin_->setValue(rect.x());
+    fieldYSpin_->setValue(rect.y());
+    fieldWidthSpin_->setValue(rect.width());
+    fieldHeightSpin_->setValue(rect.height());
+
+    placementGroup_->setEnabled(newField);
+    placementGroup_->setTitle(newField
+                                  ? tr("Field Placement (new signature field)")
+                                  : tr("Field Placement (existing field)"));
+}
+
+// GitHub #371 — headless read accessor for the certificate path field.
+QString SignDialog::pfxPathForTesting() const
+{
+    return pfxPathEdit_ ? pfxPathEdit_->text() : QString();
 }
 
 void SignDialog::onBrowsePfx()
@@ -443,7 +538,11 @@ void SignDialog::onSaveImageToLibrary()
     }
     // Same name overwrites in place (no duplicate); then persist immediately so
     // the image survives to the next session.
-    signatureImages_->addSignatureImage(name, img);
+    //
+    // GitHub #371 — record the PFX path currently in the certificate field
+    // alongside the image, so re-selecting this entry later can restore the
+    // certificate too. ONLY the path: the passphrase is never persisted.
+    signatureImages_->addSignatureImage(name, img, pfxPathEdit_->text());
     signatureImages_->saveToSettings();
     refreshSavedImageCombo();
 
@@ -464,7 +563,7 @@ void SignDialog::onSelectSavedImage(int index)
     const QImage img = signatureImages_->signatureImage(name);
     if (img.isNull()) return;
 
-    auto tmp = std::make_unique<QTemporaryFile>(
+    auto tmp = std::make_shared<QTemporaryFile>(
         QDir(QDir::tempPath()).filePath(
             QStringLiteral("pdfe_sigimg_XXXXXX.png")));
     tmp->setAutoRemove(true);
@@ -474,11 +573,25 @@ void SignDialog::onSelectSavedImage(int index)
         return;
     }
     const QString tmpPath = tmp->fileName();
-    // Keep the temp file alive for the dialog's lifetime (autoRemove deletes it
-    // on destruction).
+    // GitHub #374 — keep the temp file alive for the dialog's lifetime AND
+    // beyond it: signingOptions() copies this shared_ptr into
+    // SigningOptions::imageKeepalive, so the PNG survives until the signing
+    // flow (which runs AFTER the dialog is destroyed) has read it. autoRemove
+    // still deletes it once the last holder releases it.
     selectedImageTempFile_ = std::move(tmp);
 
     imagePathEdit_->setText(tmpPath);
+
+    // GitHub #371 — restore the PFX path saved with this entry, but ONLY when
+    // one was recorded AND the file still exists. A stale path (certificate
+    // moved/deleted since the save) leaves the field untouched rather than
+    // populating it with a path the probe is guaranteed to reject. The
+    // passphrase was never persisted, so the user still types that.
+    const QString savedPfx = signatureImages_->signaturePfxPath(name);
+    if (!savedPfx.isEmpty() && QFile::exists(savedPfx)) {
+        pfxPathEdit_->setText(savedPfx);
+    }
+
     QPixmap pix = QPixmap::fromImage(img);
     if (!pix.isNull()) {
         imagePreviewLabel_->setPixmap(

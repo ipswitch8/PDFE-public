@@ -40,6 +40,9 @@ public:
 
     /// Clear the current document.
     void clearDocument();
+    /// GitHub #379 test oracle — the Document* this panel is bound to, so a
+    /// regression test can assert every panel was rebound after a sign-reopen.
+    pdfe::core::Document* documentForTesting() const { return document_; }
 
     void focusSearchBox();
     void setReplaceStatus(const QString& text);

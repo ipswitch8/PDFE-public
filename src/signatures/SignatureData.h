@@ -3,9 +3,17 @@
 #include "DocMdpTypes.h"
 
 #include <QRectF>
+#include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
-#include <cstdint>
+
+// GitHub #374 — forward declaration only: SigningOptions carries a
+// shared_ptr<QTemporaryFile> keepalive, and a shared_ptr member is complete
+// without the pointee's definition (the deleter is captured where the file is
+// actually constructed, in SignDialog.cpp). Keeps <QTemporaryFile> out of the
+// pure signing engines that include this header.
+class QTemporaryFile;
 
 namespace pdfe::signatures {
 
@@ -131,6 +139,18 @@ struct SigningOptions {
     /// (name/date/reason/DN per `appearanceFlags`) still compose on top.
     /// Empty means the text-only appearance PDFE produced before #327.
     std::string imagePath;
+
+    /// GitHub #374 — when `imagePath` points at a temp file materialised from
+    /// the SignatureImageLibrary (SignDialog::onSelectSavedImage), this keeps
+    /// that file alive for as long as the options object itself lives. The
+    /// dialog is destroyed BEFORE SignatureManager::signField reads
+    /// `imagePath` (promptSigningOptions returns the options by value and the
+    /// dialog leaves scope), and the QTemporaryFile's autoRemove used to
+    /// delete the PNG with it — so signing with a library image always threw
+    /// post-reopen. autoRemove semantics are preserved: when the last
+    /// SigningOptions copy goes away, the temp file is deleted (no litter).
+    /// Empty for a browsed on-disk image; the signing engines never read it.
+    std::shared_ptr<QTemporaryFile> imageKeepalive;
     int appearanceFlags = 0x3F; // PDF_SIGNATURE_DEFAULT_APPEARANCE
     bool useTimestamp = false;
     std::string tsaUrl;
@@ -158,6 +178,18 @@ struct SigningOptions {
     /// Field names for `/Lock /Fields`. Ignored when `fieldLockAction` is
     /// `None` or `All`.
     std::vector<std::string> lockedFields;
+
+    /// GitHub #370 — placement for a signature field CREATED by this signing
+    /// flow. Before this, the field rect was hard-coded QRectF(50,50,200,60)
+    /// at the MainWindow call site and neither SignDialog nor SigningOptions
+    /// carried any geometry. `fieldRect` is in fitz space (Y-down page
+    /// points), the same space the hard-coded rect used and the space MuPDF
+    /// rasterises the appearance into (the widget rect IS the appearance
+    /// geometry). Ignored when signing an existing field —
+    /// `hasFieldGeometry` stays false there.
+    bool hasFieldGeometry = false;
+    QRectF fieldRect;
+    int fieldPageIndex = -1;
 };
 
 /// Summary of all signatures in a document.

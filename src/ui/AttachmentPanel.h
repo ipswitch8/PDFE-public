@@ -35,6 +35,9 @@ public:
     void setDocument(std::shared_ptr<pdfe::core::MuPdfContext> context,
                      pdfe::core::Document* document);
     void clearDocument();
+    /// GitHub #379 test oracle — the Document* this panel is bound to, so a
+    /// regression test can assert every panel was rebound after a sign-reopen.
+    pdfe::core::Document* documentForTesting() const { return document_; }
 
     /// Rebuild the tree from the current document's attachment list.
     void refresh();
