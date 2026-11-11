@@ -67,6 +67,7 @@
 #include "PageLabelsDialog.h"
 
 #include <QInputDialog>
+#include <QPointer>
 #include "../annotations/SelectTool.h"
 #include "../forms/FormManager.h"
 #include "../forms/FormTool.h"
@@ -800,6 +801,19 @@ MainWindow::MainWindow(QWidget* parent)
         testToolActivateResultPipe_->setFocusPolicy(Qt::NoFocus);
         testToolActivateResultPipe_->setMaximumSize(0, 0);
         testToolActivateResultPipe_->setReadOnly(true);
+
+        // GitHub #382(b) — mirror the StatusBar formFieldCount into a
+        // UIA-readable pipe. The status-bar QLabel itself is not
+        // UIA-discoverable (a permanent widget in a QStatusBar exposes no
+        // AutomationId), so the pywinauto oracle reads the wired count here.
+        // Written by the open path right after setFormFieldCount().
+        testFormFieldCountResultPipe_ = new QLineEdit(this);
+        testFormFieldCountResultPipe_->setObjectName("testFormFieldCountResultPipe");
+        testFormFieldCountResultPipe_->setAccessibleName("Test Form Field Count Result Pipe");
+        testFormFieldCountResultPipe_->resize(0, 0);
+        testFormFieldCountResultPipe_->setFocusPolicy(Qt::NoFocus);
+        testFormFieldCountResultPipe_->setMaximumSize(0, 0);
+        testFormFieldCountResultPipe_->setReadOnly(true);
 
         // GitHub #271, second half. Measured 2026-10-09: the 1000-annotation
         // stress test's undo loop fires Ctrl+Z 1010 times through real
@@ -6403,7 +6417,15 @@ void MainWindow::createAnnotationToolBar()
         stampAct->setStatusTip(tr("Place a stamp (Draft/Approved/Confidential)"));
         annotToolGroup_->addAction(stampAct);
         annotationToolBar_->addAction(stampAct);
-        connect(stampAct, &QAction::triggered, this, [this, stampAct](bool checked) {
+        // GitHub #381 Part B: capture the action as a QPointer, not a raw
+        // QAction*. This slot relinquishes control to modal loops
+        // (QInputDialog::getItem/getText) before calling setChecked(false) on
+        // cancel; if the window is torn down while a modal is open (the UI
+        // harness closing the app, measured as the attachment-create UAF),
+        // the raw pointer dangles and the resume faults. A QPointer auto-nulls
+        // on destruction, so the guarded resume becomes a safe no-op.
+        connect(stampAct, &QAction::triggered, this,
+                [this, stampAct = QPointer<QAction>(stampAct)](bool checked) {
             if (!checked) { if (canvas_) canvas_->clearCurrentTool(); return; }
             if (!document_ || !annotationManager_ || !canvas_) return;
             auto page = document_->page(canvas_->currentPage());
@@ -6429,7 +6451,7 @@ void MainWindow::createAnnotationToolBar()
             bool ok = false;
             const QString pick = QInputDialog::getItem(this, tr("Stamp Type"),
                 tr("Choose a stamp:"), choices, 0, false, &ok);
-            if (!ok) { stampAct->setChecked(false); return; }
+            if (!ok) { if (stampAct) stampAct->setChecked(false); return; }
 
             QString stampName;
             QImage stampImage;
@@ -6446,7 +6468,7 @@ void MainWindow::createAnnotationToolBar()
                     tr("Stamp label (supports {date} and {author} tokens):"),
                     QLineEdit::Normal, tr("Draft"), &ok);
                 if (!ok || stampName.isEmpty()) {
-                    stampAct->setChecked(false); return;
+                    if (stampAct) stampAct->setChecked(false); return;
                 }
             } else if (pickIdx >= firstImageIdx && imageStampLibrary_) {
                 // GitHub #359: resolve the picked entry by its LIBRARY NAME, not
@@ -6464,7 +6486,7 @@ void MainWindow::createAnnotationToolBar()
                     stampImage = resolveLibraryStampImage(stampName);
                 }
                 if (stampImage.isNull()) {
-                    stampAct->setChecked(false);
+                    if (stampAct) stampAct->setChecked(false);
                     return;
                 }
             }
@@ -6545,8 +6567,11 @@ void MainWindow::createAnnotationToolBar()
             "Attach a file as an on-page icon (PDF /FileAttachment)"));
         annotToolGroup_->addAction(attachAct);
         annotationToolBar_->addAction(attachAct);
+        // GitHub #381 Part B: capture a QPointer, not a raw QAction* — see the
+        // stamp tool above. This was the faulting slot in the attachment-create
+        // UAF (deref of a freed QAction after QInputDialog::getItem returned).
         connect(attachAct, &QAction::triggered, this,
-                [this, attachAct](bool checked) {
+                [this, attachAct = QPointer<QAction>(attachAct)](bool checked) {
             if (!checked) { if (canvas_) canvas_->clearCurrentTool(); return; }
             if (!document_ || !annotationManager_ || !canvas_) return;
             auto page = document_->page(canvas_->currentPage());
@@ -6556,7 +6581,7 @@ void MainWindow::createAnnotationToolBar()
                 this, tr("Attach File"), QString(),
                 tr("All Files (*)"));
             if (filePath.isEmpty()) {
-                attachAct->setChecked(false); return;
+                if (attachAct) attachAct->setChecked(false); return;
             }
 
             const QStringList iconChoices = {
@@ -6570,7 +6595,7 @@ void MainWindow::createAnnotationToolBar()
                 tr("Attachment Icon"),
                 tr("Choose an icon style:"),
                 iconChoices, 0, false, &ok);
-            if (!ok) { attachAct->setChecked(false); return; }
+            if (!ok) { if (attachAct) attachAct->setChecked(false); return; }
 
             auto tool = std::make_unique<pdfe::annotations::FileAttachmentTool>(
                 annotationManager_.get());
@@ -7199,7 +7224,14 @@ void MainWindow::openFile(const QString& filePath)
         if (decision == NetworkOpenDecision::Unreachable) {
             reportOpenFailure(
                 tr("Cannot Open Document"),
-                tr("“%1” is on a network location that did not respond.")
+                // GitHub #382(c): name the UNC nature in the MAIN text, for
+                // consistency with the Refused branch below ("network (UNC)
+                // location") and to restore the #91 guarantee that the user is
+                // told PDFE is refusing a network/UNC location. The
+                // Unreachable/Refused split (d085ae2b, #240) had dropped "(UNC)"
+                // from this branch, leaving it only in the informative text the
+                // error oracle does not read.
+                tr("“%1” is on a network (UNC) location that did not respond.")
                     .arg(displayName),
                 tr("PDFE waited for the network location to answer and it did "
                    "not, so this file was not opened:\n%1\n\nIf the share is "
@@ -7692,6 +7724,11 @@ void MainWindow::openFile(const QString& filePath)
                 totalFields = 0;
             }
             statusBar_->setFormFieldCount(totalFields);
+            // GitHub #382(b): mirror the wired count into the UIA-readable pipe
+            // (the status-bar QLabel is not UIA-discoverable). Inert unless the
+            // test pipes are enabled.
+            if (testFormFieldCountResultPipe_)
+                testFormFieldCountResultPipe_->setText(QString::number(totalFields));
         }
 
         // Select first page in PagePanel and trigger Fit Page
@@ -15962,6 +15999,19 @@ std::vector<QAction*> MainWindow::buildToolbarActionRegistry() const
     // findChild rather than a new QAction* member: the action's parent is
     // `this`, so this resolves it, and MainWindow's layout is left alone.
     add(findChild<QAction*>(QStringLiteral("linkToolAction")));
+
+    // GitHub #381 — the Stamp and File-Attachment tools, resolved by objectName
+    // for exactly the same reason as the Link tool above. Both are created as
+    // local-scope QActions in createAnnotationToolBar() (not MainWindow
+    // members), are added to annotationToolBar_, and were MISSING from this
+    // registry. On any machine with a saved toolbar layout,
+    // applyLayoutToToolbar() rebuilds each bar from (saved layout ∩ registry),
+    // so these two were silently DROPPED from the toolbar and emitted
+    // "ToolbarLayoutManager: unknown action id" every launch. (The link line
+    // got its findChild rescue; these two never did.) Their parent is `this`,
+    // so findChild resolves them without touching MainWindow's layout.
+    add(findChild<QAction*>(QStringLiteral("stampToolAction")));
+    add(findChild<QAction*>(QStringLiteral("fileAttachmentToolAction")));
 
     return reg;
 }

@@ -857,6 +857,15 @@ add_executable(pdfe_tests
     test_compare_documents_view.cpp
     test_document_js_events.cpp
     test_toolbar_customization.cpp
+    # ui-bugs-381-383 phase-2: GitHub #381 — every on-toolbar action id must
+    # resolve in buildToolbarActionRegistry() (else dropped under a saved
+    # layout; stamp/attach were missing), plus the source guard for the
+    # attachment-create QPointer-capture UAF fix.
+    test_toolbar_registry_completeness.cpp
+    # ui-bugs-381-383 phase-3: GitHub #382 non-UIA oracles — undo-of-delete
+    # dirty-state, status-bar form-field-count wiring, UNC-unreachable Open
+    # error text.
+    test_ui_bugs_382.cpp
     test_combine_files_wizard.cpp
     # many-bugs-2026-11 phase-7: GitHub #357 (Combine "Drag to reorder" must
     # actually reorder) and #358 (the combined PDF opens automatically).

@@ -356,22 +356,42 @@ def _op_annot_select_delete(fx: PdfeAppFixture, tmp: Path) -> Tuple[str, str]:
     if "*" not in title_after_delete:
         return "red", "Document not dirty after delete (annotation not removed)"
 
-    # Undo the delete — the annotation returns (document stays dirty).
+    # Undo the delete. Undoing the ONLY change back to the as-opened baseline
+    # returns the document to CLEAN (the undo-stack clean index) — the previous
+    # assertion that it "stays dirty" was wrong and only passed when the Ctrl+Z
+    # was not actually landing (GitHub #382a; see
+    # docs/audit/ui-bugs-381-383-findings.md and the gtest
+    # UiBugs382Test.UndoOfDeleteReturnsDocumentToClean which locks the same
+    # invariant headlessly).
     # Guarded: a stray Ctrl+Z must not fire into another app if focus escaped.
     # recover=True: this is the DOCUMENT-level undo, which wants the PDFE main
-    # window focused anyway — so if a stray popup stole the foreground we bring
-    # PDFE back and undo for real instead of failing the test. (No field caret
-    # is involved, so re-asserting focus cannot misdirect the chord.)
+    # window focused anyway.
     hotkey_assuming_foreground(_pdfe_hwnd(fx), "ctrl", "z", recover=True)
     time.sleep(0.6)
     title_after_undo = fx.main_window.window_text()
-    if "*" not in title_after_undo:
-        return "red", "Document not dirty after undo-delete (undo stack broken?)"
+    if "*" in title_after_undo:
+        return "red", (
+            "Document still dirty after undoing the only change back to the "
+            "saved baseline; expected CLEAN (GitHub #382a)"
+        )
+
+    # Restoration is real, not merely a cleared flag: re-select and re-delete —
+    # that only dirties again if the annotation actually came back.
+    if not _create_and_select_annotation(fx):
+        return "red", "Annotation not re-selectable after undo (not restored)"
+    if not write_pipe(fx.main_window, "testAnnotDeletePipe", "1"):
+        return "red", "testAnnotDeletePipe unavailable on restoration re-check"
+    time.sleep(0.6)
+    if "*" not in fx.main_window.window_text():
+        return "red", (
+            "Re-delete after undo did not dirty the document — the annotation "
+            "was not restored by undo (GitHub #382a)"
+        )
 
     return "green", (
-        "Annotation delete verified: pre-existing annot selected via "
-        "testAnnotSelectPipe, deleted via testAnnotDeletePipe (doc dirty), "
-        "undo restored it"
+        "Annotation delete verified: delete dirties; undo returns the document "
+        "to CLEAN and restores the annotation (re-selectable and re-deletable) "
+        "— GitHub #382a corrected oracle"
     )
 
 

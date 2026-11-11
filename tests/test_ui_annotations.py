@@ -2915,18 +2915,34 @@ def test_stamp_can_be_deleted():
 
 @REQUIRES_LIVE_UI
 def test_file_attachment_create(tmp_workdir):
-    """Activate File Attachment tool, click canvas; the action opens a
-    file picker — we drive it with the file_dialog helper and pick a
-    small fixture file.  Assert attachment annotation visible AND
-    attachmentTree row count grows.
+    """Drive the File Attachment create flow end to end and assert the
+    attachment icon is placed (canvas changes) without crashing.
 
-    Catalog: ``fileAttachmentToolAction`` (MainWindow.cpp:2846), lambda
-    slot.  ``attachmentTree`` (AttachmentPanel.cpp:35).
+    The real flow (measured against the built pdfe.exe):
+      1. Activating ``fileAttachmentToolAction`` opens the native "Attach File"
+         picker IMMEDIATELY (the triggered slot calls
+         ``QFileDialog::getOpenFileName``) — NOT on a later canvas click.
+      2. Selecting a file opens a Qt ``QInputDialog`` titled "Attachment Icon".
+      3. Accepting an icon makes ``FileAttachmentTool`` the active canvas tool,
+         which is click-to-place: a canvas press drops the icon.
 
-    VISUAL: yes (canvas changed) AND attachment-tree-row-count growth.
+    GitHub #381: the action must be registered in
+    ``MainWindow::buildToolbarActionRegistry()`` (else it is dropped from the
+    toolbar under a saved layout and unreachable — the reported symptom), and
+    the slot must capture a ``QPointer<QAction>`` (else cancelling/tearing down
+    mid-modal is a use-after-free — the reported crash). This test exercises the
+    whole flow so both regressions would surface.
+
+    Catalog: ``fileAttachmentToolAction`` lambda slot (``MainWindow.cpp`` in
+    ``createAnnotationToolBar``).
+
+    VISUAL: yes — the placed attachment icon changes the canvas.
     """
     _supported_dpi_or_skip()
     _require_fixture(FIX_SINGLE)
+    from tests.helpers.canvas_geometry import point_on_page
+    from tests.helpers.win32_input import send_click
+    from tests.helpers.file_dialog import set_open_dialog_filename
     # Use a tiny throwaway file as the attachment payload.
     attach_src = tmp_workdir / "attach_payload.txt"
     attach_src.write_text("phase8 attachment payload\n", encoding="utf-8")
@@ -2934,46 +2950,47 @@ def test_file_attachment_create(tmp_workdir):
         assert s.wait_for_window_title(FIX_SINGLE.name, timeout=10)
         _settle(1.0)
         before = _capture_canvas(s)
+
+        # Activation opens the native "Attach File" picker right away; the modal
+        # is already up when _activate returns.
         if not _activate_file_attachment_tool(s):
             # WIN-45 / F25: unreachable -> recorded 'blocked', then FAIL.
-            _reach = (
-                "fileAttachmentToolAction not reachable."
-            )
+            _reach = "fileAttachmentToolAction not reachable."
             record_matrix_result(current_test_id(), "blocked", _reach)
             pytest.fail(
                 f"WIN-45 reachability blocked (recorded non-pass, not skipped): {_reach}")
-        # Click on the canvas — many implementations open the picker
-        # only on click after the tool is active.
-        if _click_canvas_at_fraction(s, 0.5, 0.4) is None:
-            # WIN-45 / F25: unreachable -> recorded 'blocked', then FAIL.
-            _reach = (
-                "pdfCanvas not reachable."
-            )
-            record_matrix_result(current_test_id(), "blocked", _reach)
-            pytest.fail(
-                f"WIN-45 reachability blocked (recorded non-pass, not skipped): {_reach}")
+
+        # 1) Native file picker titled "Attach File" — pick the payload file.
+        file_dlg = s.wait_for_top_level_window("Attach File", timeout=8)
+        assert file_dlg, (
+            "File Attachment tool did not open its 'Attach File' picker on "
+            "activation (GitHub #381 create-flow).")
+        set_open_dialog_filename(file_dlg, str(attach_src), button_label="Open")
         _settle(1.0)
-        # If a file picker appeared, drive it.
-        dlg_hwnd = s.wait_for_top_level_window("Open", timeout=4)
-        if dlg_hwnd == 0:
-            dlg_hwnd = s.wait_for_top_level_window("Attach", timeout=2)
-        if dlg_hwnd == 0:
-            # Some implementations open the picker immediately on tool
-            # activation rather than on click.
-            dlg_hwnd = s.wait_for_top_level_window("File", timeout=2)
-        if dlg_hwnd:
-            try:
-                from tests.helpers.file_dialog import set_open_dialog_filename
-                set_open_dialog_filename(dlg_hwnd, str(attach_src),
-                                         button_label="Open")
-            except Exception as exc:  # noqa: BLE001
-                pytest.skip(f"Could not drive attachment picker: {exc}")
-            _settle(1.5)
-        else:
-            pytest.skip(
-                "File-attachment picker did not appear — "
-                "fileAttachmentToolAction lambda may not have opened it."
-            )
+
+        # 2) Qt QInputDialog titled "Attachment Icon" — accept the default
+        #    (PushPin) with Enter. UIA cannot see a Qt modal, so this is driven
+        #    via the Win32 hwnd from wait_for_top_level_window (EnumWindows).
+        icon_dlg = s.wait_for_top_level_window("Attachment Icon", timeout=6)
+        assert icon_dlg, (
+            "Attachment-icon chooser did not appear after selecting the file "
+            "(GitHub #381 create-flow).")
+        _press(icon_dlg, "enter")
+        _settle(1.0)
+
+        # 3) FileAttachmentTool is now active and click-to-place; click a point
+        #    ON THE PAGE (via the page-rect seam, not a canvas-rect guess —
+        #    docs/audit/ui-test-observability-audit.md) to drop the icon.
+        pt = point_on_page(s, 0, 0.5, 0.4)
+        assert pt is not None, "page-rect seam unavailable; refusing to guess"
+        send_click(pt[0], pt[1])
+        _settle(1.5)
+
+        # 4) The attachment icon was drawn -> canvas changed; and the flow ran
+        #    to completion without the #381 use-after-free crash.
+        assert s.proc.poll() is None, (
+            "PDFE crashed during the file-attachment create flow (GitHub #381 "
+            "use-after-free).")
         after = _capture_canvas(s)
         _assert_canvas_changed(before, after, "file_attachment_create")
 

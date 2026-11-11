@@ -723,13 +723,22 @@ def _drive_sign_dialog(session: PDFESession,
         return "SignDialog Sign/OK button not reachable"
     _click_widget_safely(ok)
     time.sleep(0.4)
-    # Fallback: send Enter so default button accept fires even if
-    # the click_input path missed.
-    try:
-        from pywinauto import keyboard as _kb
-        _kb.send_keys("{ENTER}")
-    except Exception:  # noqa: BLE001
-        pass
+    # Fallback: send Enter so the default (Sign) button's accept fires even if
+    # the click_input path missed on this Qt6 build — but ONLY if the Sign
+    # dialog is STILL open. A BLIND Enter here used to fire unconditionally and
+    # would dismiss whatever opened next; on the wrong-passphrase path that is
+    # the modal "Signing Error" box, dismissed before the caller could assert
+    # on it (GitHub #383). pfxPasswordEdit is unique to the Sign dialog, so its
+    # continued presence means the click did not accept and the fallback is
+    # warranted; its absence means the dialog already closed and a stray Enter
+    # must not be sent.
+    still_open = session.find_optional(auto_id="pfxPasswordEdit", timeout=0.8)
+    if still_open is not None:
+        try:
+            from pywinauto import keyboard as _kb
+            _kb.send_keys("{ENTER}")
+        except Exception:  # noqa: BLE001
+            pass
     time.sleep(1.2)
     return None
 

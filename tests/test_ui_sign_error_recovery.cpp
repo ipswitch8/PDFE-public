@@ -36,7 +36,9 @@
 #include "signatures/SignatureData.h"
 
 #include <QApplication>
+#include <QMessageBox>
 #include <QTemporaryDir>
+#include <QTimer>
 
 #include <filesystem>
 #include <memory>
@@ -141,6 +143,71 @@ TEST_F(SignErrorRecoveryTest, WrongPassphraseRollsBackAndSurvives)
     canvas->refreshAllPages();
     QApplication::processEvents();
     EXPECT_NE(mw_->documentForTesting(), nullptr);
+}
+
+// (C) GitHub #383 — the INTERACTIVE (non-suppressed) path. Tests (A)/(B) prove
+// the probe/catch/record chain but suppress the dialog, so the one thing the
+// #383 report was about — "a wrong passphrase shows NO error on screen" — went
+// unobserved. In the real app signFlowTestInputs_ is null, so showSigningError
+// takes its QMessageBox::critical branch; here we drive that branch directly
+// (suppressErrorDialogs = FALSE) and assert a VISIBLE "Signing Error" box with
+// a specific message. A modal watcher captures + closes the box so the static
+// QMessageBox::critical() nested loop returns. Also locks the security
+// contract: the displayed text must not leak the passphrase or the PFX path.
+TEST_F(SignErrorRecoveryTest, WrongPassphraseShowsVisibleSigningErrorDialog)
+{
+    const auto outPdf = std::filesystem::path(tempDir_->path().toStdString())
+                        / "sign_error_interactive.pdf";
+    const QString wrongPass = QStringLiteral("definitely-not-the-passphrase");
+
+    pdfe::ui::MainWindow::SignFlowTestInputs inputs;
+    inputs.dialogAccepted = true;
+    inputs.pfxPath = QString::fromStdString(pfx_.string());
+    inputs.pfxPassword = wrongPass;
+    inputs.savePath = QString::fromStdString(outPdf.string());
+    inputs.suppressErrorDialogs = false;   // the INTERACTIVE path (GitHub #383)
+    mw_->setSignFlowTestInputsForTesting(inputs);
+
+    // Capture the modal "Signing Error" box and close it so the nested
+    // QMessageBox::critical() event loop returns.
+    QString capturedTitle;
+    QString capturedText;
+    QTimer watcher;
+    QObject::connect(&watcher, &QTimer::timeout, [&]() {
+        if (auto* mb =
+                qobject_cast<QMessageBox*>(QApplication::activeModalWidget())) {
+            if (capturedText.isEmpty()) {
+                capturedTitle = mb->windowTitle();
+                capturedText = mb->text();
+            }
+            mb->close();
+        }
+    });
+    watcher.start(10);
+
+    mw_->triggerSignDocumentForTesting();
+    QApplication::processEvents();
+    watcher.stop();
+
+    // A visible error WAS shown on the interactive path (#383 regression).
+    EXPECT_FALSE(capturedText.isEmpty())
+        << "a wrong PFX passphrase showed NO visible error dialog on the "
+           "interactive path (GitHub #383)";
+    EXPECT_EQ(capturedTitle, QStringLiteral("Signing Error"));
+    EXPECT_TRUE(capturedText.contains(QStringLiteral("PFX")))
+        << "the error text was not the PFX-probe failure: "
+        << capturedText.toStdString();
+
+    // lastSigningErrorForTesting() is populated even on the non-suppressed path
+    // (showSigningError records it before branching).
+    EXPECT_FALSE(mw_->lastSigningErrorForTesting().isEmpty());
+
+    // SECURITY (#383): the displayed error must NOT leak the passphrase or the
+    // PFX file path.
+    EXPECT_FALSE(capturedText.contains(wrongPass))
+        << "the error dialog leaked the passphrase";
+    EXPECT_FALSE(capturedText.contains(QString::fromStdString(pfx_.string())))
+        << "the error dialog leaked the PFX file path";
 }
 
 // (B) Failure AFTER the sign-reopen (nonexistent appearance image makes

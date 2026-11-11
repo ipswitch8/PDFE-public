@@ -639,6 +639,19 @@ public:
     bool setAnnotationAltTextForTesting(int pageIndex, int annotIndex,
                                         const QString& altText);
 
+    /// GitHub #381: expose the curated toolbar-action registry for the
+    /// completeness guard (test_toolbar_registry_completeness).
+    /// buildToolbarActionRegistry() is private and the registry only resolves
+    /// after createAnnotationToolBar() has run (stamp/attach/link are
+    /// findChild-resolved children of `this`), so a test constructs a
+    /// MainWindow and compares this against each live toolbar's captured action
+    /// ids. Returns the same vector the real applyToolbarLayoutsList() path
+    /// consumes, so any on-toolbar id missing here is one that would be dropped
+    /// on a machine with a saved layout.
+    std::vector<QAction*> toolbarActionRegistryForTesting() const {
+        return buildToolbarActionRegistry();
+    }
+
     /// c82a1f37 hardening: return the zoom combo directly for tests. The
     /// ZoomComboExists integration test previously resolved it by walking the
     /// main toolbar's QWidgetActions and via findChild<QComboBox> — BOTH
@@ -1951,6 +1964,13 @@ private:
     /// (CI-LIMITATION-WINDOWS-VALIDATION-UI-E2E-FLAKES item #1).
     class QLineEdit* testToolbarVisibleQueryPipe_ = nullptr;
     class QLineEdit* testToolbarVisibleResultPipe_ = nullptr;
+
+    /// GitHub #382(b): mirrors the StatusBar formFieldCount into a
+    /// UIA-readable pipe. A permanent QLabel in a QStatusBar exposes no
+    /// AutomationId, so the pywinauto oracle reads the wired count here
+    /// instead of off the label. Written by the open path after
+    /// setFormFieldCount(); inert unless PDFE_TEST_PIPES is set.
+    class QLineEdit* testFormFieldCountResultPipe_ = nullptr;
 
     /// Pipeline e7d3c2a1 phase-2: hidden two-pipe readback seam for
     /// activeToolDiag() — confirms the per-region tool routing decision.
