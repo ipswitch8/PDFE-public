@@ -37,7 +37,13 @@
 #include <gtest/gtest.h>
 
 // GetCurrentProcessId, for the per-process temp directory in SetUp.
+#if defined(_WIN32)
 #include <windows.h>
+#else
+#include <unistd.h>
+// POSIX: getpid() stands in for the Win32 call used to name per-process temp paths.
+static inline unsigned long GetCurrentProcessId() { return static_cast<unsigned long>(::getpid()); }
+#endif
 
 #include "core/Document.h"
 #include "core/Page.h"

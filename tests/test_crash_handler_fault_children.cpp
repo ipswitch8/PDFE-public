@@ -59,7 +59,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#ifdef _WIN32
 #include <crtdbg.h>
+#endif
 #include <exception>
 #include <filesystem>
 #include <fstream>

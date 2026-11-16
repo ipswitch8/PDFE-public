@@ -187,13 +187,25 @@ TEST_F(ImageToolInteractionTest, BodyClickWithoutDrag_EmitsNoMove) {
 }
 
 // ---------------------------------------------------------------------------
-// GitHub #341 — a visually-clockwise rotate drag must emit +90 (pre-fix: -90).
+// GitHub #341 / #391(a) — a visually-clockwise rotate drag from UPRIGHT must
+// emit the REAL unsnapped drag angle with the clockwise-positive sign.
+//
+// This test was `RotateDrag_ClockwiseEmitsPositiveNinety`, built around the
+// 90-degree snap: it dragged near-90 and asserted exactly 90.0f, so it could
+// not tell a correct angle from a snapped one (#391 BUG 2a). Reworked to drive
+// a drag whose geometry yields a deliberately NON-multiple-of-90 angle and
+// assert the actual atan2-derived value — a genuine arbitrary-angle oracle.
+// It stays a first-drag-from-upright case (rotationRadians == 0, so the
+// emitted ABSOLUTE equals the bare delta) so it still pins the sign/convention
+// that #341/#376 established.
 // ---------------------------------------------------------------------------
-TEST_F(ImageToolInteractionTest, RotateDrag_ClockwiseEmitsPositiveNinety) {
+TEST_F(ImageToolInteractionTest, RotateDrag_FirstDragFromUpright_EmitsUnsnappedClockwiseAngle) {
     std::unique_ptr<Document> doc;
     std::unique_ptr<Page> page;
     const PageImageInfo first = openFixtureAndSelectFirst(doc, page);
     ASSERT_FALSE(first.xobjectName.empty());
+    ASSERT_NEAR(first.rotationRadians, 0.0f, 1e-3f)
+        << "Fixture image must start upright for a first-drag-from-upright oracle";
 
     const QRectF bbox = first.boundingBox;
     const QPointF center = bbox.center();
@@ -216,21 +228,34 @@ TEST_F(ImageToolInteractionTest, RotateDrag_ClockwiseEmitsPositiveNinety) {
     const QPointF rotHandle(center.x(), bbox.top() - 20.0);
     press(rotHandle);
 
-    // Drag a quarter turn CLOCKWISE on screen: from above the centre to the
-    // RIGHT of the centre (up -> right is visually clockwise). In Y-down
-    // coordinates atan2 grows clockwise, so endAngle ~ 0 deg and the raw
-    // delta (endAngle - startAngle) snaps to +90 — the clockwise-positive
-    // command convention with NO negation (GitHub #376). Pre-fix the #341
-    // negation (startAngle - endAngle), derived from Y-up seam coords, made
-    // this same visually-clockwise drag emit -90.
-    const QPointF releasePt(center.x() + 100.0, center.y() - 1.0);
+    // Drag clockwise but NOT a quarter turn: from above the centre to a point
+    // up-and-to-the-right. up -> up-right is visually clockwise (atan2 grows
+    // clockwise in this Y-down frame), so the raw delta is a positive angle
+    // that is clearly NOT a multiple of 90.
+    const QPointF releasePt(center.x() + 60.0, center.y() - 80.0);
     moveTo(releasePt);
     release(releasePt);
 
+    // Oracle: the emitted angle is the true atan2 delta about the centre, with
+    // NO 90-degree snap. Compute the expected delta from the same points.
+    auto angleDeg = [center](QPointF p) {
+        const QPointF d = p - center;
+        return std::atan2(static_cast<double>(d.y()), static_cast<double>(d.x()))
+               * 180.0 / 3.14159265358979323846;
+    };
+    const double startDeg = angleDeg(rotHandle);
+    const double endDeg = angleDeg(releasePt);
+    const float expected = static_cast<float>(endDeg - startDeg);  // ~ +36.87 deg
+
     ASSERT_EQ(rotateSpy.count(), 1) << "Rotation drag must emit exactly one rotate command";
     ASSERT_EQ(fires, 1);
-    EXPECT_NEAR(gotAngle, 90.0f, 0.001f)
-        << "Clockwise drag must emit +90 (toolbar/command convention), not -90";
+    EXPECT_NEAR(gotAngle, expected, 0.5f)
+        << "Handle must emit the real (unsnapped) drag angle, clockwise-positive; got "
+        << gotAngle << " expected " << expected;
+    // Discriminators against a re-introduced 90-snap (which would force ~90 or 0).
+    EXPECT_GT(std::abs(gotAngle - 90.0f), 5.0f) << "Must not snap to 90";
+    EXPECT_GT(std::abs(gotAngle - 0.0f), 5.0f) << "Must not snap to 0";
+    EXPECT_GT(gotAngle, 0.0f) << "A clockwise drag must emit a positive angle (#341/#376)";
 }
 
 // ---------------------------------------------------------------------------

@@ -42,6 +42,11 @@
 #endif
 #include <windows.h>
 #include <io.h>
+#else
+#include <unistd.h>
+// POSIX stand-ins for the MSVC CRT descriptor calls used below.
+static inline int _write(int fd, const void* buf, unsigned n) { return static_cast<int>(::write(fd, buf, n)); }
+static inline int _close(int fd) { return ::close(fd); }
 #endif
 
 namespace fs = std::filesystem;

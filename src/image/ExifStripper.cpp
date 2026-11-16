@@ -61,32 +61,40 @@ fz_pixmap* qImageToPixmap(fz_context* ctx, const QImage& image) {
     int hasAlpha = 0;
     int components = 0;
 
-    switch (image.format()) {
-        case QImage::Format_Grayscale8:
-            convertedImage = image;
-            cs = fz_device_gray(ctx);
-            hasAlpha = 0;
-            components = 1;
-            break;
-        case QImage::Format_RGB888:
-            convertedImage = image;
-            cs = fz_device_rgb(ctx);
-            hasAlpha = 0;
-            components = 3;
-            break;
-        case QImage::Format_RGBA8888:
-            convertedImage = image;
-            cs = fz_device_rgb(ctx);
-            hasAlpha = 1;
-            components = 4;
-            break;
-        default:
-            // Convert to RGBA for other formats
-            convertedImage = image.convertToFormat(QImage::Format_RGBA8888);
-            cs = fz_device_rgb(ctx);
-            hasAlpha = 1;
-            components = 4;
-            break;
+    if (image.hasAlphaChannel()) {
+        // Premultiply alpha so pdf_add_image's un-premultiply on save
+        // (source/pdf/pdf-image.c `inva = a ? 255*256/a : 0`) reproduces the
+        // original colour instead of blowing out anti-aliased semi-transparent
+        // pixels. Format_RGBA8888_Premultiplied keeps RGBA byte order, so the
+        // straight memcpy below stays correct.
+        convertedImage = image.format() == QImage::Format_RGBA8888_Premultiplied
+            ? image
+            : image.convertToFormat(QImage::Format_RGBA8888_Premultiplied);
+        cs = fz_device_rgb(ctx);
+        hasAlpha = 1;
+        components = 4;
+    } else {
+        switch (image.format()) {
+            case QImage::Format_Grayscale8:
+                convertedImage = image;
+                cs = fz_device_gray(ctx);
+                hasAlpha = 0;
+                components = 1;
+                break;
+            case QImage::Format_RGB888:
+                convertedImage = image;
+                cs = fz_device_rgb(ctx);
+                hasAlpha = 0;
+                components = 3;
+                break;
+            default:
+                // Convert opaque inputs to RGB (no alpha to preserve).
+                convertedImage = image.convertToFormat(QImage::Format_RGB888);
+                cs = fz_device_rgb(ctx);
+                hasAlpha = 0;
+                components = 3;
+                break;
+        }
     }
 
     fz_pixmap* pix = fz_new_pixmap(ctx, cs, width, height, nullptr, hasAlpha);

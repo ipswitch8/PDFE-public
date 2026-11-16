@@ -10,7 +10,11 @@
 #include <QFile>
 #include <QIODevice>
 
+#if defined(_WIN32)
 #include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 #include <algorithm>
 #include <cctype>
@@ -163,7 +167,11 @@ CombineFilesService::combine(
                 wrote = ImageToPdfWizard::writePdf(one, &out);
                 out.close();
             } else {
+#if defined(_WIN32)
                 ::_close(fd);
+#else
+                ::close(fd);
+#endif
             }
         }
         if (!wrote) {

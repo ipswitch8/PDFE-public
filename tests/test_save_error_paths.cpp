@@ -6,14 +6,20 @@
 // "succeed" and lose the user's changes. This is the failure class behind the
 // file-lock lost-changes defect in project memory.
 #include <gtest/gtest.h>
+#include "core/AtomicFileReplace.h"
 #include "core/Document.h"
 #include "core/MuPdfContext.h"
 
+#include <chrono>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iterator>
 #include <memory>
+#include <set>
 #include <string>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -137,3 +143,192 @@ TEST(SaveErrorPaths, ExternallyLockedTargetThrows) {
     std::error_code ec; std::filesystem::remove(target, ec);
 }
 #endif
+
+// ---------------------------------------------------------------------------
+// CLASS-LEVEL (DCA 0118, GitHub #385). The two instance tests above each
+// pinned ONE destination shape against ONE entry point (Document::saveAs).
+// On POSIX the same defect family lived one layer down: the publish
+// primitives themselves replaced a destination they had no business
+// replacing, because rename() ignores the destination's mode and MuPDF's
+// open path remove()s an empty directory. So this sweeps the public publish
+// entry points listed in entryPoints() across the unsavable destination shapes
+// in DestShape, and asserts the same two-part contract for each cell: the
+// publish reports failure, and the destination is byte-for-byte /
+// entry-for-entry what it was before. A new entry point is one row in
+// entryPoints(); a new shape is a DestShape value plus its shapeName() and
+// makeDestination() cases and an entry in kShapes. Shrinking either table is
+// caught: the entry-point count has an asserted floor and kShapes' size is a
+// static_assert, so dropping a row is a visible, reviewed edit.
+// ---------------------------------------------------------------------------
+namespace {
+
+enum class DestShape { EmptyDirectory, NonEmptyDirectory, ReadOnlyFile };
+constexpr DestShape kShapes[] = {DestShape::EmptyDirectory,
+                                 DestShape::NonEmptyDirectory,
+                                 DestShape::ReadOnlyFile};
+static_assert(std::size(kShapes) >= 3, "a destination shape was dropped from the sweep");
+
+const char* shapeName(DestShape s) {
+    switch (s) {
+    case DestShape::EmptyDirectory:    return "empty directory";
+    case DestShape::NonEmptyDirectory: return "non-empty directory";
+    case DestShape::ReadOnlyFile:      return "read-only file";
+    }
+    return "?";
+}
+
+void makeWritable(const std::filesystem::path& p) {
+    std::error_code ec;
+#ifdef _WIN32
+    ::SetFileAttributesW(p.wstring().c_str(), FILE_ATTRIBUTE_NORMAL);
+#else
+    std::filesystem::permissions(p, std::filesystem::perms::owner_all, ec);
+#endif
+}
+
+void makeReadOnly(const std::filesystem::path& p) {
+#ifdef _WIN32
+    ::SetFileAttributesW(p.wstring().c_str(), FILE_ATTRIBUTE_READONLY);
+#else
+    std::filesystem::permissions(p, std::filesystem::perms::owner_read);
+#endif
+}
+
+std::string readAll(const std::filesystem::path& p) {
+    std::ifstream in(p, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in),
+                       std::istreambuf_iterator<char>());
+}
+
+// What the destination looked like, so "left intact" is an equality check
+// rather than a type check (a directory emptied in place is still a directory).
+struct Snapshot {
+    bool isDirectory = false;
+    bool isRegularFile = false;
+    std::set<std::string> entries;
+    std::string bytes;
+    bool operator==(const Snapshot& o) const {
+        return isDirectory == o.isDirectory && isRegularFile == o.isRegularFile
+            && entries == o.entries && bytes == o.bytes;
+    }
+};
+
+Snapshot snapshot(const std::filesystem::path& p) {
+    Snapshot s;
+    std::error_code ec;
+    s.isDirectory = std::filesystem::is_directory(p, ec);
+    s.isRegularFile = std::filesystem::is_regular_file(p, ec);
+    if (s.isDirectory) {
+        for (const auto& e : std::filesystem::directory_iterator(p, ec))
+            s.entries.insert(e.path().filename().string() + "=" + readAll(e.path()));
+    } else if (s.isRegularFile) {
+        s.bytes = readAll(p);
+    }
+    return s;
+}
+
+std::filesystem::path makeDestination(const std::filesystem::path& root, DestShape shape) {
+    const auto dest = root / "dest.pdf";
+    switch (shape) {
+    case DestShape::EmptyDirectory:
+        std::filesystem::create_directories(dest);
+        break;
+    case DestShape::NonEmptyDirectory:
+        std::filesystem::create_directories(dest);
+        { std::ofstream f(dest / "keep.txt", std::ios::binary); f << "user data"; }
+        break;
+    case DestShape::ReadOnlyFile:
+        { std::ofstream f(dest, std::ios::binary); f << "%PDF-1.7\nEXISTING-CONTENT\n"; }
+        makeReadOnly(dest);
+        break;
+    }
+    return dest;
+}
+
+struct EntryPoint {
+    const char* name;
+    // Returns true when the publish REPORTED success (throwing counts as failure).
+    std::function<bool(const std::filesystem::path& root,
+                       const std::filesystem::path& dest)> publish;
+};
+
+std::vector<EntryPoint> entryPoints() {
+    return {
+        {"Document::saveAs",
+         [](const std::filesystem::path&, const std::filesystem::path& dest) {
+             auto c = ctx();
+             auto doc = openClean(c);
+             if (!doc) return true;  // fails the cell loudly: nothing was tested
+             try { doc->saveAs(dest); return true; } catch (...) { return false; }
+         }},
+        {"atomicReplaceFile",
+         [](const std::filesystem::path& root, const std::filesystem::path& dest) {
+             const auto from = root / "incoming.pdf";
+             { std::ofstream f(from, std::ios::binary); f << "%PDF-1.7\nNEW\n"; }
+             std::error_code ec;
+             return pdfe::core::atomicReplaceFile(from, dest, ec);
+         }},
+        {"StagingFile::commitOver",
+         [](const std::filesystem::path&, const std::filesystem::path& dest) {
+             std::error_code ec;
+             auto s = pdfe::core::StagingFile::createBeside(dest, ec);
+             if (!s) return false;
+             std::FILE* fp = s->openDuplicateStream(ec);
+             if (fp) {
+                 static const char body[] = "%PDF-1.7\nNEW\n";
+                 std::fwrite(body, 1, sizeof(body) - 1, fp);
+                 std::fclose(fp);
+             }
+             return s->commitOver(dest, ec);
+         }},
+        {"StagingFile::commitOverWithRetry",
+         [](const std::filesystem::path&, const std::filesystem::path& dest) {
+             std::error_code ec;
+             auto s = pdfe::core::StagingFile::createBeside(dest, ec);
+             if (!s) return false;
+             std::FILE* fp = s->openDuplicateStream(ec);
+             if (fp) {
+                 static const char body[] = "%PDF-1.7\nNEW\n";
+                 std::fwrite(body, 1, sizeof(body) - 1, fp);
+                 std::fclose(fp);
+             }
+             // Short retry: the destination is permanently unsavable, so every
+             // attempt must fail the same way; this only bounds the test's time.
+             return s->commitOverWithRetry(dest, ec, 2,
+                                           std::chrono::milliseconds(1));
+         }},
+    };
+}
+
+} // namespace
+
+TEST(SaveErrorPaths, NoPublishEntryPointReplacesAnUnsavableDestination) {
+    const auto eps = entryPoints();
+    ASSERT_GE(eps.size(), 4u) << "an entry point was dropped from the sweep";
+    int cells = 0;
+    for (const auto& ep : eps) {
+        for (DestShape shape : kShapes) {
+            SCOPED_TRACE(std::string(ep.name) + " -> " + shapeName(shape));
+            const auto root = std::filesystem::temp_directory_path()
+                / ("pdfe_dca0118_" + std::to_string(cells));
+            std::error_code ec;
+            std::filesystem::remove_all(root, ec);
+            std::filesystem::create_directories(root);
+            const auto dest = makeDestination(root, shape);
+            const Snapshot before = snapshot(dest);
+
+            const bool reportedSuccess = ep.publish(root, dest);
+
+            EXPECT_FALSE(reportedSuccess)
+                << "the publish reported success onto an unsavable destination";
+            EXPECT_TRUE(snapshot(dest) == before)
+                << "the destination was replaced or altered by the publish";
+
+            if (shape == DestShape::ReadOnlyFile) makeWritable(dest);
+            std::filesystem::remove_all(root, ec);
+            ++cells;
+        }
+    }
+    EXPECT_EQ(cells, static_cast<int>(eps.size() * std::size(kShapes)))
+        << "the sweep did not cover every listed entry point x shape";
+}

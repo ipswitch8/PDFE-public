@@ -364,6 +364,46 @@ bool clearStaleStagingName(const std::filesystem::path& p,
 
 #endif  // _WIN32
 
+#if !defined(_WIN32)
+/// POSIX publish precondition: an EXISTING destination must be writable by the
+/// caller, or the publish is refused with `ec` set and the destination is not
+/// touched.
+///
+/// WHY THIS IS NEEDED ON POSIX ONLY. On Windows the read-only attribute makes
+/// the replacing rename itself fail (ERROR_ACCESS_DENIED), so a read-only
+/// document can never be silently replaced by a save. POSIX rename() consults
+/// only the CONTAINING DIRECTORY's permissions and ignores the target's own
+/// mode entirely, so without this a `chmod a-w` document was atomically
+/// replaced — and its contents lost — by any save whose staging file sat beside
+/// it (SaveErrorPaths.ReadOnlyTargetThrows). Both POSIX stage-and-rename arms
+/// (atomicReplaceFile and StagingFile::commitOver) call this, so every publish
+/// site in the product inherits it, including save() over the document's own
+/// file — which is refused for a read-only document exactly as on Windows.
+///
+/// WHAT IT DOES NOT GUARANTEE. It is a check-then-act on a NAME: a mode change
+/// or a substitution of the target between this call and the rename is not
+/// seen. It uses the EFFECTIVE ids (AT_EACCESS), so for a caller with
+/// CAP_DAC_OVERRIDE (root) a mode-0444 file still reads as writable and is
+/// replaced — the same answer open(O_WRONLY) would give that caller. It follows
+/// a symlink, so a link to a read-only file is refused even though rename()
+/// would replace only the link; that errs toward refusing. A name that does
+/// not exist (ENOENT, which includes a dangling symlink) has nothing to protect
+/// and is allowed.
+bool existingTargetIsWritable(const std::filesystem::path& target,
+                              std::error_code& ec) noexcept
+{
+    if (::faccessat(AT_FDCWD, target.c_str(), W_OK, AT_EACCESS) == 0) {
+        return true;
+    }
+    const int e = errno;
+    if (e == ENOENT) {
+        return true;
+    }
+    ec = std::error_code(e, std::generic_category());
+    return false;
+}
+#endif  // !_WIN32
+
 }  // namespace
 
 bool preserveDestinationDacl(const std::filesystem::path& from,
@@ -425,7 +465,11 @@ bool atomicReplaceFile(const std::filesystem::path& from,
     return false;
 #else
     // POSIX rename() atomically replaces an existing destination on the same
-    // filesystem — there is never a window in which `to` is absent.
+    // filesystem — there is never a window in which `to` is absent. It does
+    // NOT honour the destination's own mode, hence the explicit check first.
+    if (!existingTargetIsWritable(to, ec)) {
+        return false;
+    }
     std::filesystem::rename(from, to, ec);
     return !ec;
 #endif
@@ -451,12 +495,27 @@ std::filesystem::path StagingFile::unpredictableSiblingPath(
     p += std::filesystem::path(kSuffixMarker).native() + hex;
     return p;
 #else
-    // POSIX: no mandatory share mode anywhere in this file, so the WIN-87
-    // property does not hold on this arm either way. Refuse rather than hand
-    // back a name that reads as hardened.
-    (void)target;
-    ec = std::make_error_code(std::errc::function_not_supported);
-    return {};
+    // POSIX: the property this function promises is UNPREDICTABILITY, and that
+    // half holds here exactly as on Windows — the same 128 bits from the
+    // product's single CSPRNG (csprngHex128, the source createBeside's POSIX arm
+    // already uses), and the same fail-closed answer when it is unavailable:
+    // never a counter, a pid or a timestamp.
+    //
+    // What does NOT carry over is anything about the INTERVAL in which the
+    // named file is unheld. Nothing here creates or holds the file (by design,
+    // see the header), and POSIX has no mandatory share mode, so even the
+    // exclusivity the Windows CALLERS later obtain by opening it through a
+    // share-denying handle is not available on this platform: another process
+    // of the same user that learns the name can open it. The name being
+    // unaimable in advance is the whole guarantee on this arm.
+    std::string hex;
+    if (!csprngHex128(hex)) {
+        ec = std::make_error_code(std::errc::resource_unavailable_try_again);
+        return {};
+    }
+    std::filesystem::path p = target;
+    p += std::string(kSuffixMarker) + hex;
+    return p;
 #endif
 }
 
@@ -684,26 +743,12 @@ std::unique_ptr<StagingFile> StagingFile::createBeside(
     return nullptr;
 #else
     for (int attempt = 0; attempt < 8; ++attempt) {
-        unsigned char bytes[16];
-        {
-            int rf = ::open("/dev/urandom", O_RDONLY);
-            if (rf < 0) {
-                ec = std::error_code(errno, std::generic_category());
-                return nullptr;
-            }
-            ssize_t got = ::read(rf, bytes, sizeof(bytes));
-            ::close(rf);
-            if (got != static_cast<ssize_t>(sizeof(bytes))) {
-                ec = std::make_error_code(std::errc::io_error);
-                return nullptr;
-            }
-        }
-        static const char kHex[] = "0123456789abcdef";
+        // The product's single CSPRNG (TempFileSafety.cpp), not a private
+        // /dev/urandom read: one implementation, one place to review.
         std::string hex;
-        hex.reserve(32);
-        for (unsigned char b : bytes) {
-            hex.push_back(kHex[(b >> 4) & 0x0F]);
-            hex.push_back(kHex[b & 0x0F]);
+        if (!csprngHex128(hex)) {
+            ec = std::make_error_code(std::errc::resource_unavailable_try_again);
+            return nullptr;
         }
         std::filesystem::path candidate = target;
         candidate += (".pdfe_part." + hex);
@@ -1170,6 +1215,12 @@ bool StagingFile::commitOver(const std::filesystem::path& target,
     }
     return false;
 #else
+    // Refuse a read-only destination BEFORE anything else: POSIX rename() would
+    // replace it regardless of its mode (see existingTargetIsWritable). The
+    // staging file is untouched on refusal and ~StagingFile unlinks it.
+    if (!existingTargetIsWritable(target, ec)) {
+        return false;
+    }
     if (!preserveDestinationDacl(path_, target, ec)) {
         return false;
     }

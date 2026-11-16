@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <regex>

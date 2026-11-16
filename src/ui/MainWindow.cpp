@@ -231,7 +231,11 @@
 #include <QSessionManager>
 #include <QWindow>
 #include <filesystem>
+#if defined(_WIN32)
 #include <io.h>
+#else
+#include <unistd.h>
+#endif
 #include <cstdint>
 #include <string_view>
 
@@ -15274,6 +15278,23 @@ void MainWindow::onImageToolSelected()
             commandPages_.push_back(std::move(page));
             undoManager_->execute(std::move(cmd));
             canvas_->refreshPage(pageIdx);
+
+            // GitHub #391(c): refreshPage() repaints the canvas tiles but does
+            // NOT re-enumerate the ImageTool overlay, so ImageTool::paint()
+            // keeps drawing the selection frame at the STALE pre-rotation
+            // orientation (baseDeg reads the cached rotationRadians) and the
+            // control box no longer follows the rotated image. Re-enumerate the
+            // page and reselect the image by its XObject identity — the same
+            // resync onInsertImage performs after an insert — so paint() picks
+            // up the committed orientation. Keep the page alive via toolPage_,
+            // exactly as onImageToolSelected does for the tool's page pointer
+            // (the command above already owns its own page in commandPages_).
+            auto refreshed = document_->page(pageIdx);
+            if (refreshed) {
+                toolPage_ = std::move(refreshed);
+                imageTool_->setPage(toolPage_.get(), document_.get());
+                imageTool_->selectImage(xobjectName);
+            }
         });
 
         connect(imageTool_.get(), &pdfe::image::ImageTool::cropRequested,
@@ -15379,6 +15400,20 @@ void MainWindow::onInsertImage()
     auto* insertCmd = cmd.get();
     commandPages_.push_back(std::move(page));
     undoManager_->execute(std::move(cmd));
+
+    // GitHub #392 — the insert path now reports recoverable MuPDF faults
+    // (OOM/limit on a large document, a non-PDF target, ...) as a graceful
+    // failure instead of crashing. Surface it to the user and stop before the
+    // post-insert steps below, which all assume a successful insert (thumbnail
+    // refresh, tool activation, selecting the just-inserted XObject). The
+    // message carries only what() from the boundary — no path/host/account.
+    if (!insertCmd->result().success) {
+        QMessageBox::warning(
+            this, tr("Insert Image Failed"),
+            QString::fromStdString(insertCmd->result().errorMessage));
+        return;
+    }
+
     canvas_->refreshPage(pageIdx);
 
     // GitHub #348 — the Pages-panel thumbnail for this page is keyed by page
@@ -15779,7 +15814,11 @@ bool MainWindow::pasteImageFromClipboard()
             saved = img.save(&out, "PNG");
             out.close();
         } else {
+#if defined(_WIN32)
             ::_close(fd);
+#else
+            ::close(fd);
+#endif
         }
     }
     if (!saved) return false;

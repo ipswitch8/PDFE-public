@@ -71,8 +71,8 @@ public:
     ///
     /// Enabling it is narrower than "allow network access": the resource must be
     /// on the same `\server\share` as the document itself
-    /// (path_security::same_network_share). A PDF on `\financeeports`
-    /// reaching `\financeeports\logo.png` is the case this serves; the
+    /// (path_security::same_network_share). A PDF on `\finance\reports`
+    /// reaching `\finance\reports\logo.png` is the case this serves; the
     /// same PDF reaching `\dc01\sysvol` or `\attacker\payload` stays
     /// refused with the setting ON.
     bool allowDocumentSameShareResources() const;

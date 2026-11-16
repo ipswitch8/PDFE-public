@@ -4,6 +4,9 @@
 #include "core/Document.h"
 #include "core/Page.h"
 
+#include <exception>  // std::exception (GitHub #392 defensive boundary)
+#include <string>
+
 namespace pdfe::image {
 
 // -----------------------------------------------------------------------
@@ -35,12 +38,27 @@ void InsertImageCommand::execute()
         manager_->releaseRef(savedContentsRef_);
         savedContentsRef_ = nullptr;
     }
-    // Save current content stream for undo
-    savedContentsRef_ = manager_->saveContentsRef(page_, doc_);
+    // GitHub #392 — defensive exception boundary. insertImage() already catches
+    // MuPDF faults internally and returns success=false, but saveContentsRef()
+    // also goes through MuPDF and can throw a MuPdfException/std::exception. A
+    // throw here would unwind uncaught through UndoManager::execute() and the Qt
+    // slot -> std::terminate. Catch it and leave the command in a safe state
+    // (result_.success=false, savedContentsRef_ possibly null). The UndoManager
+    // still pushes the command, which is acceptable: undo() is guarded by
+    // executed_ and savedContentsRef_, so an un-executed / ref-less command is a
+    // safe no-op.
+    try {
+        // Save current content stream for undo
+        savedContentsRef_ = manager_->saveContentsRef(page_, doc_);
 
-    result_ = manager_->insertImage(page_, doc_, options_);
-    doc_->markPageDirty(page_->index());
-    executed_ = true;
+        result_ = manager_->insertImage(page_, doc_, options_);
+        doc_->markPageDirty(page_->index());
+        executed_ = true;
+    } catch (const std::exception& e) {
+        result_.success = false;
+        result_.errorMessage =
+            std::string("Failed to insert image: ") + e.what();
+    }
 }
 
 void InsertImageCommand::undo()

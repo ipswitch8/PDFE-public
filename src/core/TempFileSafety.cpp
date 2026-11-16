@@ -15,9 +15,14 @@
 #include <fcntl.h>
 #include <io.h>
 #else
+#include <cerrno>
+#include <cstdint>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#if defined(__linux__)
+#include <sys/random.h>
+#endif
 #endif
 
 #include <cstdlib>
@@ -39,6 +44,28 @@ std::error_code lastWinError() noexcept
 std::error_code notSupportedHere() noexcept
 {
     return std::make_error_code(std::errc::function_not_supported);
+}
+
+std::error_code lastErrno() noexcept
+{
+    const int e = errno;
+    return std::error_code(e ? e : EIO, std::generic_category());
+}
+
+// PinnedTempFile keeps its OS object in a `void* handle_` so the header is the
+// same on every platform. On POSIX that object is a file descriptor, stored as
+// fd + 1 so that descriptor 0 is still distinguishable from "not held"
+// (nullptr) — which is what the platform-neutral isPinned() tests.
+void* encodeFd(int fd) noexcept
+{
+    return reinterpret_cast<void*>(static_cast<std::intptr_t>(fd) + 1);
+}
+
+int decodeFd(void* h) noexcept
+{
+    return h == nullptr
+        ? -1
+        : static_cast<int>(reinterpret_cast<std::intptr_t>(h) - 1);
 }
 #endif
 
@@ -66,10 +93,52 @@ bool csprngHex128(std::wstring& out) noexcept
     }
     return true;
 #else
+    // The kernel CSPRNG — getrandom(2) on Linux, /dev/urandom elsewhere. This
+    // is still the ONE CSPRNG implementation in the product; every POSIX
+    // caller that needs an unpredictable name comes through here.
+    //
     // No fallback PRNG on purpose. A predictable name is the defect; a caller
     // that gets `false` must abandon the operation, not pick a weaker name.
-    (void)out;
-    return false;
+    unsigned char bytes[16];
+    std::size_t got = 0;
+#if defined(__linux__)
+    while (got < sizeof(bytes)) {
+        const ssize_t n = ::getrandom(bytes + got, sizeof(bytes) - got, 0);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            return false;
+        }
+        got += static_cast<std::size_t>(n);
+    }
+#else
+    const int rf = ::open("/dev/urandom", O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+    if (rf < 0) {
+        return false;
+    }
+    struct stat rst{};
+    if (::fstat(rf, &rst) != 0 || !S_ISCHR(rst.st_mode)) {
+        ::close(rf);
+        return false;
+    }
+    while (got < sizeof(bytes)) {
+        const ssize_t n = ::read(rf, bytes + got, sizeof(bytes) - got);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) {
+            ::close(rf);
+            return false;
+        }
+        got += static_cast<std::size_t>(n);
+    }
+    ::close(rf);
+#endif
+    static const wchar_t kHex[] = L"0123456789abcdef";
+    out.clear();
+    out.reserve(32);
+    for (unsigned char b : bytes) {
+        out.push_back(kHex[(b >> 4) & 0x0F]);
+        out.push_back(kHex[b & 0x0F]);
+    }
+    return true;
 #endif
 }
 
@@ -120,6 +189,49 @@ const std::filesystem::path& diagnosticsDir() noexcept
             if (::GetLastError() != ERROR_ALREADY_EXISTS) {
                 return result;
             }
+        }
+#else
+        std::error_code ec;
+        const std::filesystem::path base = std::filesystem::temp_directory_path(ec);
+        if (ec) {
+            return result;
+        }
+        // Same shape as the Windows arm: a fresh 128-bit name, created with
+        // mkdir(2), which fails with EEXIST on ANY pre-existing object at that
+        // name — directory, file or symlink — so nothing planted is ever
+        // adopted. Mode 0700: in a shared, sticky /tmp no other user can list,
+        // enter, or (because of the sticky bit) remove or rename it.
+        for (int attempt = 0; attempt < 8; ++attempt) {
+            std::string hex;
+            if (!csprngHex128(hex)) {
+                return result;  // fail closed: no diagnostics rather than a fixed name
+            }
+            const std::filesystem::path candidate = base / ("pdfe_diag." + hex);
+            if (::mkdir(candidate.c_str(), 0700) != 0) {
+                if (errno == EEXIST) {
+                    continue;
+                }
+                return result;
+            }
+            // Verify the object we just created, through a no-follow
+            // descriptor: a real directory, owned by us, owner-only. The umask
+            // can only have narrowed 0700, so it is re-asserted with fchmod on
+            // the descriptor rather than by path.
+            const int dfd = ::open(candidate.c_str(),
+                                   O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+            if (dfd < 0) {
+                return result;
+            }
+            struct stat st{};
+            const bool ok = ::fstat(dfd, &st) == 0
+                            && S_ISDIR(st.st_mode)
+                            && st.st_uid == ::geteuid()
+                            && ::fchmod(dfd, 0700) == 0;
+            ::close(dfd);
+            if (ok) {
+                result = candidate;
+            }
+            return result;
         }
 #endif
         return result;
@@ -320,10 +432,51 @@ std::unique_ptr<PinnedTempFile> PinnedTempFile::reserve(
     ec = std::make_error_code(std::errc::file_exists);
     return nullptr;
 #else
-    (void)dir;
-    (void)prefix;
-    (void)extension;
-    ec = notSupportedHere();
+    // POSIX. Properties 1 and 2 of the class comment hold as on Windows:
+    //   1. UNPREDICTABLE — 128 bits from csprngHex128;
+    //   2. CREATED BY US — O_CREAT|O_EXCL fails on ANY existing object at the
+    //      name, and O_NOFOLLOW means a planted symlink is never followed
+    //      (O_EXCL already refuses it; O_NOFOLLOW states the intent).
+    // The file is 0600, so no OTHER user can open it; and in a sticky temp
+    // directory (/tmp is 1777) no other user can unlink or rename over it.
+    //
+    // WHAT DOES NOT HOLD ON POSIX — property 3, "HELD". POSIX has no share
+    // modes and no mandatory locking, so holding the descriptor does NOT stop a
+    // process running as THIS SAME USER (or root) from opening the path for
+    // writing, unlinking it, or renaming another file over it. The held
+    // descriptor only guarantees that writes made through openWriteFd() land in
+    // the object we created; a by-path consumer re-reading later has no such
+    // guarantee against a same-user attacker. That residual is not closed here.
+    const std::string sPrefix(prefix);
+    const std::string sExt(extension);
+
+    for (int attempt = 0; attempt < 8; ++attempt) {
+        std::string hex;
+        if (!csprngHex128(hex)) {
+            // FAIL CLOSED. There is no weaker name worth falling back to --
+            // a guessable name is the whole defect.
+            ec = std::make_error_code(std::errc::no_such_device);
+            return nullptr;
+        }
+        const std::filesystem::path candidate = dir / (sPrefix + "." + hex + sExt);
+        const int fd = ::open(candidate.c_str(),
+                              O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC | O_RDWR,
+                              0600);
+        if (fd < 0) {
+            const int err = errno;  // captured once, before anything clobbers it
+            if (err == EEXIST) {
+                continue;
+            }
+            ec = std::error_code(err, std::generic_category());
+            return nullptr;
+        }
+
+        std::unique_ptr<PinnedTempFile> out(new PinnedTempFile());
+        out->path_ = candidate;
+        out->handle_ = encodeFd(fd);
+        return out;
+    }
+    ec = std::make_error_code(std::errc::file_exists);
     return nullptr;
 #endif
 }
@@ -356,8 +509,23 @@ int PinnedTempFile::openWriteFd(std::error_code& ec) noexcept
     ::_lseek(fd, 0, SEEK_SET);
     return fd;
 #else
-    ec = notSupportedHere();
-    return -1;
+    const int held = decodeFd(handle_);
+    if (held < 0) {
+        ec = std::make_error_code(std::errc::invalid_argument);
+        return -1;
+    }
+    // A DUPLICATE descriptor of the held one, for the same reason as the
+    // Windows arm: the caller closes what it is given, and this object's own
+    // descriptor must outlive the write. dup() resolves no name, so it cannot
+    // be redirected the way a re-open by path could.
+    const int fd = ::fcntl(held, F_DUPFD_CLOEXEC, 0);
+    if (fd < 0) {
+        ec = lastErrno();
+        return -1;
+    }
+    // The duplicate shares the file offset with the held descriptor.
+    ::lseek(fd, 0, SEEK_SET);
+    return fd;
 #endif
 }
 
@@ -375,6 +543,28 @@ PinnedTempFile::~PinnedTempFile()
     }
     if (!path_.empty()) {
         ::DeleteFileW(path_.wstring().c_str());
+    }
+#else
+    const int held = decodeFd(handle_);
+    if (held >= 0) {
+        // POSIX has no delete-by-descriptor, so the name is removed by path.
+        // Only unlink it if the name STILL refers to the object we created:
+        // a same-user process may have renamed something else over it (see the
+        // reserve() comment — that is not prevented on POSIX), and deleting
+        // that would be deleting a file that is not ours. A residual
+        // check-then-unlink window remains; it can only affect an entry at this
+        // unpredictable name in this directory.
+        struct stat mine{};
+        struct stat named{};
+        if (!path_.empty()
+            && ::fstat(held, &mine) == 0
+            && ::lstat(path_.c_str(), &named) == 0
+            && mine.st_dev == named.st_dev
+            && mine.st_ino == named.st_ino) {
+            ::unlink(path_.c_str());
+        }
+        ::close(held);
+        handle_ = nullptr;
     }
 #endif
 }
@@ -946,25 +1136,58 @@ bool writeNewFileExclusive(const std::filesystem::path& path,
     }
     return ok;
 #else
-    // POSIX: O_CREAT|O_EXCL is the same atomic create-or-fail, and O_NOFOLLOW
-    // keeps a planted symlink from being followed.
-    if (std::filesystem::exists(path)) {
-        ec = std::make_error_code(std::errc::file_exists);
+    // POSIX: O_CREAT|O_EXCL is the same atomic create-or-fail as CREATE_NEW --
+    // the create IS the existence test, so there is no exists()-then-open race.
+    // O_NOFOLLOW refuses a planted symlink at the final component (with O_EXCL
+    // a symlink there already fails with EEXIST; the flag states the intent).
+    // Mode 0666 filtered by umask: an ordinary user file, matching the Windows
+    // arm, which applies the default DACL rather than an owner-only one.
+    const int fd = ::open(path.c_str(),
+                          O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,
+                          0666);
+    if (fd < 0) {
+        const int err = errno;
+        ec = (err == EEXIST) ? std::make_error_code(std::errc::file_exists)
+                             : std::error_code(err, std::generic_category());
         return false;
     }
-    std::ofstream out(path, std::ios::binary);
-    if (!out) {
-        ec = std::make_error_code(std::errc::io_error);
-        return false;
+
+    // Belt-and-braces, mirroring the Windows arm: we just created this object,
+    // so a non-regular file or a second hard link should be unreachable.
+    struct stat st {};
+    bool ok = true;
+    if (::fstat(fd, &st) != 0) {
+        ec = std::error_code(errno, std::generic_category());
+        ok = false;
+    } else if (!S_ISREG(st.st_mode) || st.st_nlink > 1) {
+        ec = std::make_error_code(std::errc::operation_not_permitted);
+        ok = false;
     }
-    if (len > 0) out.write(static_cast<const char*>(data),
-                           static_cast<std::streamsize>(len));
-    const bool ok = static_cast<bool>(out);
-    out.close();
+
+    const char* p = static_cast<const char*>(data);
+    std::size_t remaining = ok ? len : 0;
+    while (remaining > 0) {
+        const ssize_t wrote = ::write(fd, p, remaining);
+        if (wrote < 0 && errno == EINTR) continue;
+        if (wrote <= 0) {
+            ec = (wrote < 0) ? std::error_code(errno, std::generic_category())
+                             : std::make_error_code(std::errc::io_error);
+            ok = false;
+            break;
+        }
+        p += wrote;
+        remaining -= static_cast<std::size_t>(wrote);
+    }
+    if (::close(fd) != 0 && ok) {
+        ec = std::error_code(errno, std::generic_category());
+        ok = false;
+    }
+
     if (!ok) {
+        // Leave nothing behind, as on Windows: a partial file at the target
+        // name looks like a successful extraction to everything downstream.
         std::error_code rm;
         std::filesystem::remove(path, rm);
-        ec = std::make_error_code(std::errc::io_error);
     }
     return ok;
 #endif

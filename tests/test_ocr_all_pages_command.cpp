@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include "tre/OcrAllPagesCommand.h"
 
+#include <algorithm>
 #include <set>
 #include <vector>
 

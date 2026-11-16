@@ -661,6 +661,10 @@ add_executable(pdfe_tests
     test_uncovered_dialogs.cpp
     test_image_data.cpp
     test_image_manager.cpp
+    test_image_insert_scale_repro.cpp
+    test_image_insert_crash_guard.cpp
+    test_image_insert_rgba_repro.cpp
+    test_image_premultiply_alpha.cpp
     test_image_commands.cpp
     test_image_content_editor.cpp
     test_exif_stripper.cpp
@@ -668,6 +672,10 @@ add_executable(pdfe_tests
     # GitHub #340/#341/#342 — interactive image move, rotate-direction, and
     # rotated-handle hit-test (see docs/audit/ui-image-stamp-interaction-investigation.md).
     test_image_tool_interaction.cpp
+    # GitHub #391 (BUG 2) — placed-image rotation handle: arbitrary (unsnapped)
+    # angle, additive second-drag (absolute = base + delta, not ~180), and the
+    # selection-outline re-sync after a committed rotate.
+    test_image_rotation_handle.cpp
     # GitHub #373/#376/#378 — image coordinate-space unification: cross-space
     # render oracle (seam bbox vs rendered pixels), committed-move direction,
     # and committed rotation direction (cm matrix + visual).
@@ -739,6 +747,10 @@ add_executable(pdfe_tests
     test_coordinate_diagnostic.cpp
     test_text_edit_pipeline.cpp
     test_select_tool_enhanced.cpp
+    # GitHub #394 (weak-oracle-hardening) — SelectTool rotate-handle drag:
+    # arbitrary (unsnapped) angle additive from a non-zero base, and additive
+    # accumulation across a second consecutive drag.
+    test_select_tool_rotation_handle.cpp
     test_pdfcanvas_setdocument_tool_release.cpp
     test_substitution_info_model.cpp
     test_content_stream_per_run_emission.cpp
@@ -1491,6 +1503,19 @@ if(WIN32)
     target_link_libraries(pdfe_tests PRIVATE iphlpapi ws2_32 psapi crypt32)
 endif()
 
+# Non-Windows with a STATIC Qt (vcpkg x64-linux): Qt auto-imports only the
+# default platform plugin (xcb). Import the offscreen platform (headless runs:
+# QT_QPA_PLATFORM=offscreen) and the OpenSSL TLS backend (QNetworkAccessManager
+# HTTPS) explicitly. A dynamic Qt loads these from its plugin dir instead.
+if(NOT WIN32)
+    get_target_property(_pdfe_qt_core_type Qt6::Core TYPE)
+    if(_pdfe_qt_core_type STREQUAL "STATIC_LIBRARY")
+        qt_import_plugins(pdfe_tests
+            INCLUDE Qt6::QOffscreenIntegrationPlugin Qt6::QTlsBackendOpenSSLPlugin
+        )
+    endif()
+endif()
+
 # Allow tests to include shared test-support headers, e.g.
 # "support/PdfContentOracle.h" and "support/VisualOracle.h" (Phase 3 oracle
 # repair: reusable truth-oracle helpers instead of per-test copies).
@@ -1851,7 +1876,7 @@ target_compile_features(phase40_save_scaling_bench PUBLIC cxx_std_20)
 #
 # Labelled `supply-chain` so it can be selected or excluded deliberately:
 #     ctest -R pin_pe_normalised --output-on-failure
-if(Python3_Interpreter_FOUND)
+if(WIN32 AND Python3_Interpreter_FOUND)  # PE-format (Windows .exe) pins only
     add_test(
         NAME pin_pe_normalised
         COMMAND
@@ -1896,7 +1921,7 @@ endif()
 # without it: without /INCREMENTAL:NO the image cannot be reproducible (measured,
 # 6,164 differing bytes versus 69), and reporting that as a failure would blame
 # the code for the configuration.
-if(Python3_Interpreter_FOUND)
+if(WIN32 AND Python3_Interpreter_FOUND)  # PE-format (Windows .exe) pins only
     add_test(
         NAME pin_pe_rebuild_determinism
         COMMAND

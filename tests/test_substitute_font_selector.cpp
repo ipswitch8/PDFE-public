@@ -6,6 +6,7 @@
 #include "fonts/EmbeddedFontAnalyzer.h"
 #include "fonts/FontAnalysisCache.h"
 #include "fonts/FontMetricProfile.h"
+#include <algorithm>
 #include <filesystem>
 #include <memory>
 #include <string>

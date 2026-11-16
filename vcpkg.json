@@ -27,6 +27,7 @@
     "sqlite3",
     "tesseract",
     "pugixml",
+    "openssl",
     {
       "name": "curl",
       "platform": "!windows",

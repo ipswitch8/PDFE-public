@@ -71,6 +71,19 @@ if(WIN32)
     set_target_properties(pdfe PROPERTIES WIN32_EXECUTABLE $<CONFIG:Release>)
 endif()
 
+# Non-Windows with a STATIC Qt (vcpkg x64-linux): Qt auto-imports only the
+# default platform plugin (xcb). Import the offscreen platform (headless runs:
+# QT_QPA_PLATFORM=offscreen) and the OpenSSL TLS backend (QNetworkAccessManager
+# HTTPS) explicitly. A dynamic Qt loads these from its plugin dir instead.
+if(NOT WIN32)
+    get_target_property(_pdfe_qt_core_type Qt6::Core TYPE)
+    if(_pdfe_qt_core_type STREQUAL "STATIC_LIBRARY")
+        qt_import_plugins(pdfe
+            INCLUDE Qt6::QOffscreenIntegrationPlugin Qt6::QTlsBackendOpenSSLPlugin
+        )
+    endif()
+endif()
+
 # ---------------------------------------------------------------------------
 # GitHub #298 -- make PDFE's OWN linked output deterministic, so it can be
 # pinned the way the 7,364 vcpkg files already are.

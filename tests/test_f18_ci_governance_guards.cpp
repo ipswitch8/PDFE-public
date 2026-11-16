@@ -21,6 +21,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -116,5 +117,39 @@ TEST(F18CiGovernance, ParitySelectionIsSubstantialAndShared) {
         EXPECT_TRUE(contains(readFile(wf), "parity_filter.py"))
             << lane << " does not use the shared parity filter, so the three "
                        "lanes are not running the same selection";
+    }
+}
+
+// Suites that a DCA record names as a standing control BECAUSE they are in the
+// parity selection. ParitySelectionIsSubstantialAndShared only floors the
+// pattern count, so deleting one of these lines would leave every other guard
+// green while the cited control silently stopped running on macOS/Linux.
+TEST(F18CiGovernance, ParitySelectionKeepsDcaCitedSuites) {
+    const fs::path sel = repoRoot() / "tools" / "gate" / "parity_suite.txt";
+    ASSERT_TRUE(fs::exists(sel)) << "shared parity selection missing: " << sel;
+
+    std::set<std::string> patterns;
+    std::ifstream in(sel);
+    std::string line;
+    while (std::getline(in, line)) {
+        const size_t b = line.find_first_not_of(" \t\r\n");
+        if (b == std::string::npos) continue;
+        const size_t e = line.find_last_not_of(" \t\r\n");
+        const std::string t = line.substr(b, e - b + 1);
+        if (t.empty() || t[0] == '#') continue;
+        patterns.insert(t);
+    }
+
+    struct Pinned { const char* suite; const char* citedBy; };
+    for (const Pinned& p : {
+             // DCA 0118 (GitHub #385): the POSIX publish arms are only
+             // exercised where this suite runs on a non-Windows lane.
+             Pinned{"SaveErrorPaths",
+                    "docs/audit/dca/0118-posix-publish-replaced-destinations-"
+                    "windows-would-refuse.md"},
+         }) {
+        EXPECT_TRUE(patterns.count(p.suite) == 1)
+            << "tools/gate/parity_suite.txt no longer selects " << p.suite
+            << ", which " << p.citedBy << " cites as a standing control";
     }
 }

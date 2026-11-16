@@ -30,6 +30,8 @@
 #include <windows.h>
 #include <psapi.h>
 #pragma comment(lib, "psapi.lib")
+#elif defined(__linux__)
+#include <unistd.h>
 #endif
 
 using namespace pdfe::core;
@@ -56,6 +58,26 @@ size_t getWorkingSetMB()
     if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
         return pmc.WorkingSetSize / (1024 * 1024);
     return 0;
+}
+#elif defined(__linux__)
+// Linux: resident set size from /proc/self/statm (second field, in pages) --
+// the closest analogue of the Windows working set. 0 on any read failure, so
+// the caller's "measurement not available" skip still covers a missing /proc.
+size_t getWorkingSetMB()
+{
+    std::FILE* f = std::fopen("/proc/self/statm", "r");
+    if (!f)
+        return 0;
+    unsigned long sizePages = 0, residentPages = 0;
+    const int n = std::fscanf(f, "%lu %lu", &sizePages, &residentPages);
+    std::fclose(f);
+    if (n != 2)
+        return 0;
+    const long pageBytes = ::sysconf(_SC_PAGESIZE);
+    if (pageBytes <= 0)
+        return 0;
+    return static_cast<size_t>(residentPages) * static_cast<size_t>(pageBytes)
+           / (1024 * 1024);
 }
 #else
 size_t getWorkingSetMB() { return 0; }

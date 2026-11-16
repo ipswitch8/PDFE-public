@@ -4189,6 +4189,33 @@ void Document::saveAs(const std::filesystem::path& path) {
         !destinationIsCurrentlyOpenFile
         && (!destinationExists || destinationIsRegularFile);
 
+#if !defined(_WIN32)
+    // POSIX ONLY — THE "PRECISE ERROR" ABOVE DOES NOT EXIST ON THIS PLATFORM.
+    // The comment above keeps the direct write for an existing non-regular
+    // destination on the strength of its immediate error. On POSIX there is no
+    // such error: MuPDF's fz_new_output_with_path (fitz/output.c, non-append)
+    // calls fz_remove_utf8 — plain remove() — on the target BEFORE its fopen, and
+    // remove() unlinks an EMPTY DIRECTORY, a FIFO, a socket or a device node just
+    // as readily as a file. So a Save As onto an empty directory deleted the
+    // directory and published a PDF in its place (SaveErrorPaths.Target-
+    // IsADirectoryThrows); _wremove on Windows never removes a directory, which
+    // is why that arm never needed this.
+    //
+    // Refuse here, before anything touches the filesystem, so the destination
+    // is left exactly as it was. Scoped to Document::saveAs: the other engines
+    // that hand MuPDF a path of their own (BatchEngine, HeaderFooterEngine,
+    // OptimizeEngine, PageOperations, EncryptionManager, SignatureManager) are
+    // NOT covered by this and inherit the same remove()-first behaviour.
+    // This is a check-then-act on a name, not an atomic guarantee: something
+    // that replaces `path` with a directory between here and MuPDF's remove()
+    // is not stopped by it.
+    if (destinationExists && !destinationIsRegularFile) {
+        throw PdfeException(
+            "Refusing to save: " + path.string()
+            + " exists and is not a regular file (target left intact)");
+    }
+#endif
+
     std::unique_ptr<StagingFile> staging;
     if (staged) {
         std::error_code stageEc;

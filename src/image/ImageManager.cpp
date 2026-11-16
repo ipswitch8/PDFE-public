@@ -1,4 +1,5 @@
 #include "image/ImageManager.h"
+#include "image/ImageSampleIndex.h"
 #include "core/MuPdfContext.h"
 #include "core/Document.h"
 #include "core/Page.h"
@@ -10,6 +11,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <exception>  // std::exception (GitHub #392 insert exception boundary)
+#include <new>        // std::bad_alloc
 
 namespace pdfe::image {
 
@@ -347,14 +350,48 @@ ImageOperationResult ImageManager::insertImage(
         return result;
     }
 
-    // Convert to RGB32 for consistent pixel format
-    if (qimg.format() != QImage::Format_RGB32 && qimg.format() != QImage::Format_ARGB32) {
+    // Normalize pixel format. Transparent inputs (e.g. Format_RGBA8888,
+    // Format_Indexed8 with a transparent palette entry) MUST keep their alpha,
+    // so convert alpha-bearing images to Format_ARGB32_Premultiplied rather than
+    // dropping to RGB32. Premultiplied is also the format MuPDF's pdf_add_image
+    // expects: it un-premultiplies colour on save and splits alpha into an
+    // /SMask (source/pdf/pdf-image.c `inva = a ? 255*256/a : 0`). Writing the
+    // straight (non-premultiplied) samples blows out anti-aliased coloured
+    // pixels; premultiplying here makes the BGRA copy loop below correct. The
+    // byte order stays BGRA, so the existing b/g/r/a extraction is unchanged.
+    if (qimg.hasAlphaChannel()) {
+        if (qimg.format() != QImage::Format_ARGB32_Premultiplied) {
+            qimg = qimg.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+        }
+    } else if (qimg.format() != QImage::Format_RGB32 &&
+               qimg.format() != QImage::Format_ARGB32) {
         qimg = qimg.convertToFormat(QImage::Format_RGB32);
     }
 
-    impl_->context->execute([&](fz_context* ctx) {
+    // GitHub #392 — exception boundary. MuPdfContext::execute() converts any
+    // MuPDF fault inside the lambda (OOM/limit on a large document, or the
+    // NULL pdf_document/pdf_page of a non-PDF target below) into a thrown
+    // MuPdfException AT ITS OWN BOUNDARY, after the fz frame is popped. Before
+    // this try/catch that exception unwound uncaught through the Qt slot ->
+    // std::terminate -> immediate process death. Catch it here and report a
+    // graceful failure instead; never let it escape. The C++ try/catch MUST
+    // wrap the execute() CALL (outside the lambda) — a C++ throw unwinding
+    // through fz_try/fz_catch's setjmp/longjmp would corrupt the error stack.
+    try {
+        impl_->context->execute([&](fz_context* ctx) {
         pdf_page* pdfPage = impl_->getPdfPage(page);
         pdf_document* pdfDoc = impl_->getPdfDoc(doc);
+
+        // GitHub #392 — a non-PDF document (e.g. an image/SVG opened as an
+        // fz_document) has no pdf_document/pdf_page, so these are NULL and the
+        // MuPDF calls below (pdf_add_image, pdf_page_resources, ...) would
+        // dereference NULL / fault. fz_throw is correct INSIDE the lambda
+        // (setjmp/longjmp, no C++ RAII on the stack); execute() converts it to
+        // a MuPdfException that the try/catch around this call turns into a
+        // graceful success=false.
+        if (!pdfPage || !pdfDoc) {
+            fz_throw(ctx, FZ_ERROR_ARGUMENT, "target is not a PDF document");
+        }
 
         int width = qimg.width();
         int height = qimg.height();
@@ -380,7 +417,12 @@ ImageOperationResult ImageManager::insertImage(
                 uint8_t r = (pixel >> 16) & 0xFF;
                 uint8_t a = (pixel >> 24) & 0xFF;
 
-                int idx = (y * width + x) * n;
+                // GitHub #392 — 64-bit indexing via the shared helper (single
+                // source of truth with AnnotationManager::setStampImageAppearance).
+                // `int` arithmetic overflowed for an inserted image above
+                // ~2^31/n pixels (~46k^2 for n=3), making this a wild
+                // out-of-bounds write (heap corruption/AV).
+                const size_t idx = imageSampleIndex(y, width, x, n);
                 samples[idx] = r;
                 samples[idx + 1] = g;
                 samples[idx + 2] = b;
@@ -459,7 +501,21 @@ ImageOperationResult ImageManager::insertImage(
         result.imageInfo.displayHeight = static_cast<float>(rect.height());
         result.imageInfo.boundingBox = rect;  // fitz Y-down, same space a
                                               // re-enumeration reports (#373)
-    });
+        });
+    } catch (const pdfe::core::MuPdfException& e) {
+        // Recoverable MuPDF fault (OOM/limit, non-PDF target, ...). Report it
+        // as a graceful failure rather than letting it escape (GitHub #392).
+        result.success = false;
+        result.errorMessage =
+            std::string("Failed to insert image: ") + e.what();
+    } catch (const std::bad_alloc&) {
+        result.success = false;
+        result.errorMessage = "Failed to insert image: out of memory";
+    } catch (const std::exception& e) {
+        result.success = false;
+        result.errorMessage =
+            std::string("Failed to insert image: ") + e.what();
+    }
 
     return result;
 }
@@ -651,6 +707,10 @@ void* ImageManager::saveContentsRef(
 
     impl_->context->execute([&](fz_context* ctx) {
         pdf_page* pdfPage = impl_->getPdfPage(page);
+        // GitHub #392 — a non-PDF document has no pdf_page; dereferencing
+        // pdfPage->obj here was a NULL-deref AV on the insert/undo path. Leave
+        // ref null (nothing to save) rather than crash.
+        if (!pdfPage) return;
         pdf_obj* contents = pdf_dict_get(ctx, pdfPage->obj, PDF_NAME(Contents));
         if (contents) {
             ref = makeRetainedObjHolder(ctx, contents);

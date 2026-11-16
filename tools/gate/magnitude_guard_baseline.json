@@ -511,20 +511,6 @@
       "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (two text spans on page 0), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
     },
     {
-      "file": "tests/test_text_edit_width_scaling.cpp",
-      "condition": "newLen > 0",
-      "ordinal": 0,
-      "classification": "benign",
-      "reason": "Zero-threshold division-by-zero guard, so not PERF-02's class. SEE THE F37 DISPOSITIONS -- newLen is hard-coded to 0 four lines above, so the guarded EXPECT_GT is unreachable and the test only ever takes the SUCCEED() else path. Inert, but inert by a literal constant rather than by hardware speed: a different defect, recorded rather than fixed under a sweep-mechanisation phase."
-    },
-    {
-      "file": "tests/test_text_edit_width_scaling.cpp",
-      "condition": "oldText.size() <= 1",
-      "ordinal": 0,
-      "classification": "suspect-accepted",
-      "reason": "Fixture-shape availability guard (#274): gates a GTEST_SKIP on the SHAPE of a committed fixture (an original string longer than one character), not on a measurement magnitude. It cannot become permanently false as hardware gets faster -- the only thing that could silence it is a change to the fixture itself, which is a reviewable change to the repo. Recorded as checked, not fixed: under SKIP=FAIL this still disables the test if that fixture ever shrinks."
-    },
-    {
       "file": "tests/test_text_extraction.cpp",
       "condition": "ch.codepoint > 32",
       "ordinal": 0,

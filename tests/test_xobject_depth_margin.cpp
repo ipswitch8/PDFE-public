@@ -37,6 +37,16 @@
 #include <sstream>
 #include <string>
 
+#if !defined(_WIN32)
+// POSIX stand-in for the MSVC CRT call these tests use: an empty value
+// removes the variable, matching _putenv_s semantics on Windows.
+static int _putenv_s(const char* name, const char* value)
+{
+    return (value == nullptr || *value == '\0') ? ::unsetenv(name)
+                                                 : ::setenv(name, value, 1);
+}
+#endif
+
 #include <mupdf/fitz.h>
 #include <mupdf/pdf.h>
 

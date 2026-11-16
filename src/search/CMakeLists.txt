@@ -111,6 +111,12 @@ if(WIN32)
         propsys    # property system
         kernel32
     )
+else()
+    # Linux: the system libraries `cargo rustc -- --print native-static-libs`
+    # reports for this staticlib (-lgcc_s -lutil -lrt -lpthread -lm -ldl -lc;
+    # gcc_s and c are linked by default).
+    find_package(Threads REQUIRED)
+    target_link_libraries(pdfe_search PUBLIC Threads::Threads ${CMAKE_DL_LIBS} m rt util)
 endif()
 
 target_compile_features(pdfe_search PUBLIC cxx_std_20)

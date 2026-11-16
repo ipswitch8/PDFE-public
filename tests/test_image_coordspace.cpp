@@ -421,9 +421,24 @@ TEST_F(ImageCoordSpaceTest, ClockwiseRotateDragCommitsClockwiseRotation) {
     release(releasePt);
 
     ASSERT_EQ(rotateFires, 1) << "rotation drag must commit exactly once";
-    EXPECT_NEAR(gotAngle, 90.0f, 0.001f)
-        << "#376: a visually-clockwise drag must emit +90 (CW-positive "
-           "convention); the pre-fix negation emitted -90 for this input";
+    // GitHub #391(a): the handle no longer snaps to 90, so this near-quarter
+    // drag emits its REAL atan2 angle (~89.43 deg, not exactly 90). Assert the
+    // true value computed from the drag points. This is a first drag from an
+    // upright image (rotationRadians == 0), so the emitted ABSOLUTE equals the
+    // bare delta — which still pins the #341/#376 clockwise-positive sign (a
+    // CCW commit from the pre-fix negation would be strongly negative).
+    const auto angleDeg = [center](QPointF p) {
+        const QPointF d = p - center;
+        return static_cast<float>(
+            std::atan2(static_cast<double>(d.y()), static_cast<double>(d.x()))
+            * 180.0 / 3.14159265358979323846);
+    };
+    const float expectedAngle = angleDeg(releasePt) - angleDeg(rotHandle);  // ~ +89.43
+    EXPECT_NEAR(gotAngle, expectedAngle, 0.5f)
+        << "#391/#376: a visually-clockwise drag must emit the real unsnapped "
+           "positive angle; got " << gotAngle << " expected " << expectedAngle;
+    EXPECT_GT(gotAngle, 0.0f)
+        << "#376: clockwise drag must be positive; the pre-fix negation emitted -90";
 
     // The committed file: cm matrix direction + visual orientation.
     std::vector<PageImageInfo> afterImages;

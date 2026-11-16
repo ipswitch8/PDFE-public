@@ -8,7 +8,13 @@
 #include "compliance/FontComplianceChecker.h"
 #include "compliance/ComplianceTypes.h"
 #include "compliance/ProhibitedFeatureScanner.h"
+#if defined(_WIN32)
 #include <windows.h>
+#else
+#include <unistd.h>
+// POSIX: getpid() stands in for the Win32 call used to name per-process temp paths.
+static inline unsigned long GetCurrentProcessId() { return static_cast<unsigned long>(::getpid()); }
+#endif
 #include <filesystem>
 #include <set>
 #include <memory>

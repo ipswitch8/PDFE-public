@@ -397,10 +397,26 @@ TEST_F(TextEditToolTest, CancelEditRestoresText) {
     // (The tool doesn't modify the model we have externally)
 }
 
+// GitHub #394 (weak-oracle-hardening, phase-2): formerly this test asserted
+// ONLY EXPECT_NO_THROW on onPaintOverlay — it would pass even if the overlay
+// painted the caret in the wrong place (or nowhere). It now asserts the painted
+// caret GEOMETRY via TextEditTool's existing caretScreenRect() seam (the rect
+// the overlay actually recorded in the last paint — not a recomputation):
+//   * no caret is recorded before any edit session,
+//   * after a click the caret lands inside the clicked span's bounds, and
+//   * after typing, the caret RE-SYNCS to the new cursor position (it moves)
+//     rather than reporting a stale post-click rect.
+// With zoom=1.0 and pageOrigin=(0,0) the overlay's PDF->screen map is identity
+// (both Y-down, no flip — see onPaintOverlay::pdfToScreen), so the screen caret
+// rect is directly comparable to the span's PDF-space bbox.
+//
+// Mutation proof (phase-2 closeout): making noteCaretAndDrawPreedit leave
+// lastCaretScreenRect_ stale/zero reds the geometry assertions below.
 TEST_F(TextEditToolTest, PaintOverlayNoCrash) {
-    if (!tool) {
+    if (!tool || !model) {
         GTEST_SKIP() << "Test fixture not available: " << testPdf;
     }
+    ASSERT_GT(model->spanCount(), 0) << "fixture must yield a hit-testable span";
 
     tool->activate();
     tool->setPage(0);
@@ -411,12 +427,16 @@ TEST_F(TextEditToolTest, PaintOverlayNoCrash) {
 
     QPainter painter(&image);
 
-    // Paint overlay should not crash (even when not editing)
+    // Paint overlay should not crash (even when not editing)...
     EXPECT_NO_THROW({
         tool->onPaintOverlay(painter, 0, 1.0f, QPointF(0, 0), 792.0f);
     });
+    // ...and must record NO caret while there is no active edit session.
+    QRectF caret;
+    EXPECT_FALSE(tool->caretScreenRect(caret))
+        << "a caret rect was reported before any span was clicked";
 
-    // Paint overlay while editing
+    // Click a span to establish an edit.
     QPointF textPoint = getSpanCenterPoint(0);
     QMouseEvent press(
         QEvent::MouseButtonPress,
@@ -426,10 +446,44 @@ TEST_F(TextEditToolTest, PaintOverlayNoCrash) {
         Qt::NoModifier
     );
     tool->onMousePress(&press, 0, textPoint);
+    ASSERT_TRUE(tool->isEditing());
 
+    // Paint must not crash AND must record a caret inside the active span.
     EXPECT_NO_THROW({
         tool->onPaintOverlay(painter, 0, 1.0f, QPointF(0, 0), 792.0f);
     });
+
+    const int activeIdx = tool->activeSpanIndexForTesting();
+    ASSERT_GE(activeIdx, 0);
+    const QRectF spanBbox = tool->spanBboxForTesting(activeIdx);  // zoom=1 => screen==pdf
+    ASSERT_FALSE(spanBbox.isNull()) << "active span has no bbox";
+
+    ASSERT_TRUE(tool->caretScreenRect(caret))
+        << "onPaintOverlay did not record the painted caret (caretScreenRect seam)";
+    const double tol = 2.0;
+    EXPECT_TRUE(spanBbox.adjusted(-tol, -tol, tol, tol).contains(caret.center()))
+        << "painted caret center (" << caret.center().x() << ',' << caret.center().y()
+        << ") is not inside the clicked span bbox [" << spanBbox.left() << ','
+        << spanBbox.top() << ' ' << spanBbox.width() << 'x' << spanBbox.height() << ']';
+    EXPECT_GT(caret.height(), spanBbox.height() * 0.3)
+        << "caret vertical extent collapsed — a stale/zero caret rect";
+    const QRectF caretAfterClick = caret;
+
+    // Typing must re-sync the caret to the new cursor position: it must move
+    // (not report the stale post-click rect) and stay within the span's row.
+    tool->onTextInput("Z");
+    EXPECT_NO_THROW({
+        tool->onPaintOverlay(painter, 0, 1.0f, QPointF(0, 0), 792.0f);
+    });
+    ASSERT_TRUE(tool->caretScreenRect(caret))
+        << "caret rect lost after typing";
+    EXPECT_NE(caret, caretAfterClick)
+        << "caret did not move after typing — overlay reported a stale caret rect";
+    EXPECT_GE(caret.center().x(), spanBbox.left() - tol)
+        << "post-type caret jumped left of the span";
+    EXPECT_GE(caret.center().y(), spanBbox.top() - tol);
+    EXPECT_LE(caret.center().y(), spanBbox.bottom() + tol)
+        << "post-type caret left the span's vertical row — stale/zero rect";
 
     painter.end();
 }

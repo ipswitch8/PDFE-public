@@ -1,5 +1,6 @@
 #include "AnnotationManager.h"
 #include "attachments/AttachmentManager.h"  // sanitizeFilename
+#include "image/ImageSampleIndex.h"  // GitHub #392 — shared 64-bit sample index
 #include "core/MuPdfContext.h"
 #include "core/Page.h"
 #include "core/Error.h"
@@ -1983,9 +1984,17 @@ void AnnotationManager::setStampImageAppearance(
     }
 
     QImage img = imageIn;
-    if (img.format() != QImage::Format_RGB32 && img.format() != QImage::Format_ARGB32) {
-        img = img.convertToFormat(
-            img.hasAlphaChannel() ? QImage::Format_ARGB32 : QImage::Format_RGB32);
+    // Match ImageManager::insertImage: premultiply alpha so pdf_add_image's
+    // un-premultiply on save (source/pdf/pdf-image.c `inva = a ? 255*256/a : 0`)
+    // reproduces the original colour instead of blowing out anti-aliased
+    // semi-transparent pixels. Byte order stays BGRA for the copy loop below.
+    if (img.hasAlphaChannel()) {
+        if (img.format() != QImage::Format_ARGB32_Premultiplied) {
+            img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+        }
+    } else if (img.format() != QImage::Format_RGB32 &&
+               img.format() != QImage::Format_ARGB32) {
+        img = img.convertToFormat(QImage::Format_RGB32);
     }
     const int width = img.width();
     const int height = img.height();
@@ -2029,7 +2038,11 @@ void AnnotationManager::setStampImageAppearance(
                 const std::uint8_t g = (pixel >> 8) & 0xFF;
                 const std::uint8_t r = (pixel >> 16) & 0xFF;
                 const std::uint8_t a = (pixel >> 24) & 0xFF;
-                const int idx = (y * width + x) * n;
+                // GitHub #392 — 64-bit indexing via the shared helper (single
+                // source of truth with ImageManager::insertImage). `int`
+                // arithmetic overflows for a stamp image above ~2^31/n pixels,
+                // making this a wild out-of-bounds write.
+                const size_t idx = pdfe::image::imageSampleIndex(y, width, x, n);
                 samples[idx]     = r;
                 samples[idx + 1] = g;
                 samples[idx + 2] = b;

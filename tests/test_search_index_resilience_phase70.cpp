@@ -85,6 +85,17 @@ bool plantJunction(const std::filesystem::path& link,
     return attrs != INVALID_FILE_ATTRIBUTES &&
            (attrs & FILE_ATTRIBUTE_REPARSE_POINT);
 }
+#else
+// POSIX analogue of an NTFS directory junction: a directory symlink. The
+// search index's POSIX redirection check (symlink_status) is what these
+// tests exercise on this platform.
+bool plantJunction(const std::filesystem::path& link,
+                   const std::filesystem::path& target)
+{
+    std::error_code ec;
+    std::filesystem::create_directory_symlink(target, link, ec);
+    return !ec && std::filesystem::is_symlink(std::filesystem::symlink_status(link, ec));
+}
 #endif
 
 } // namespace

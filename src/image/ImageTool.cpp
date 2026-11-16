@@ -357,8 +357,10 @@ void ImageTool::mouseMoveEvent(QMouseEvent* event, QPointF pdfPos, float scale) 
             // fed in, and inverted the direction for real mouse input.
             float deltaAngle = endAngle - startAngle;
 
-            // Snap to 90-degree increments for preview
-            impl_->pendingRotation_ = std::round(deltaAngle / 90.0f) * 90.0f;
+            // GitHub #391(a): carry the REAL (arbitrary) drag delta — no
+            // 90-degree snap. paint() previews baseDeg + pendingRotation_, so
+            // the dotted outline follows the true pointer angle.
+            impl_->pendingRotation_ = deltaAngle;
             emit repaintRequested();
         } else {
             // Moving the image
@@ -400,11 +402,24 @@ void ImageTool::mouseReleaseEvent(QMouseEvent* event, QPointF pdfPos, float scal
             // (matches mouseMoveEvent; see the derivation there).
             float deltaAngle = endAngle - startAngle;
 
-            // Snap to 90-degree increments
-            deltaAngle = std::round(deltaAngle / 90.0f) * 90.0f;
-
+            // GitHub #391(a): no 90-degree snap — the handle must emit the
+            // real arbitrary drag angle.
+            //
+            // GitHub #391(b): ImageContentEditor::rotateImage treats its angle
+            // argument as an ABSOLUTE orientation from upright (it removes the
+            // old placement and rebuilds at exactly that angle; it never reads
+            // the current rotation). The drag only produces a DELTA about the
+            // handle, so emit the new absolute orientation = current + delta.
+            // The current visual-clockwise angle is what paint() uses as its
+            // base: baseDeg = -rotationRadians (deg). On the first drag from
+            // upright rotationRadians == 0, so absolute == delta — preserving
+            // the clockwise-positive convention #341/#376 established. The
+            // guard is on the raw DELTA so a near-zero drag (a click-select on
+            // the handle) still commits nothing.
             if (std::abs(deltaAngle) > 1.0f) {
-                emit rotateRequested(img.xobjectName, deltaAngle);
+                const float currentDeg = -img.rotationRadians * 180.0f / 3.14159265f;
+                const float absoluteAngle = currentDeg + deltaAngle;
+                emit rotateRequested(img.xobjectName, absoluteAngle);
             }
         } else {
             // GitHub #340: body drag (no handle). mouseMoveEvent has already
@@ -515,7 +530,11 @@ void ImageTool::paint(QPainter& painter, float scale) {
         font.setPointSizeF(10.0 / scale);
         painter.setFont(font);
         painter.setPen(QPen(Qt::blue, 1.0f / scale));
-        QString angleText = QString::fromLatin1("%1%2").arg(static_cast<int>(impl_->pendingRotation_)).arg(QChar(0x00B0));
+        // GitHub #391: show the RESULTING absolute orientation (base + the live
+        // unsnapped delta), the angle the commit will apply — not the bare
+        // per-drag delta, and never a 90-only value.
+        const int shownAngle = static_cast<int>(baseDeg + impl_->pendingRotation_);
+        QString angleText = QString::fromLatin1("%1%2").arg(shownAngle).arg(QChar(0x00B0));
         painter.drawText(rotationCenter + QPointF(rotationRadius * 2, 0), angleText);
 
         // Draw a rotated outline preview. pendingRotation_ carries the

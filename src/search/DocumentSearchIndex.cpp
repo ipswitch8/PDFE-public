@@ -21,6 +21,9 @@
 #  include <windows.h>
 #else
 #  include <csignal>
+#  include <dirent.h>
+#  include <fcntl.h>
+#  include <sys/stat.h>
 #  include <unistd.h>
 #endif
 
@@ -409,6 +412,184 @@ bool removeTreeByHandle(const std::wstring& path, int depth)
 }
 
 } // namespace
+#else  // !_WIN32
+namespace {
+
+// ---------------------------------------------------------------------------
+// DESCRIPTOR-BASED RECURSIVE DELETE — the POSIX counterpart of
+// removeTreeByHandle above.
+//
+// Every name is resolved RELATIVE TO A DIRECTORY DESCRIPTOR we already hold
+// (openat / fstatat / unlinkat), never as a full path, and never through a
+// symlink:
+//
+//   * the walk root is opened with O_DIRECTORY|O_NOFOLLOW, so a symlink handed
+//     in as the root fails the open (ELOOP / ENOTDIR) and is refused — nothing
+//     behind it is touched;
+//   * each child is classified with fstatat(AT_SYMLINK_NOFOLLOW), i.e. the
+//     NAME, not what it points at;
+//   * a child directory is opened with O_DIRECTORY|O_NOFOLLOW and its
+//     (st_dev, st_ino) compared against the classification. If the name was
+//     swapped in between, the identities differ and we refuse — the analogue
+//     of the FILE ID check on Windows;
+//   * everything that is not a real directory (file, symlink, fifo, ...) is
+//     removed with unlinkat(dirfd, name, 0), which removes the directory ENTRY
+//     and never follows a symlink, so a link is unlinked, never descended;
+//   * directories are removed with unlinkat(AT_REMOVEDIR), which only removes
+//     an EMPTY directory and fails on a symlink.
+//
+// Because every operation is relative to a descriptor for a directory we
+// verified, a rename of an ancestor while we work cannot redirect the delete
+// outside the tree we opened.
+//
+// WHAT IS NOT CLAIMED: path components ABOVE the walk root (the parent of
+// `dir`) are resolved normally and may traverse a symlink, exactly as
+// FILE_FLAG_OPEN_REPARSE_POINT on Windows governs only the final component.
+//
+// Returns false on the first thing it cannot verify, leaving the rest in
+// place — refusing is the safe direction.
+
+constexpr int kMaxDeleteDepth = 8;
+
+struct ScopedFd {
+    int fd = -1;
+    ScopedFd() = default;
+    explicit ScopedFd(int v) : fd(v) {}
+    ~ScopedFd() { if (fd >= 0) ::close(fd); }
+    ScopedFd(const ScopedFd&) = delete;
+    ScopedFd& operator=(const ScopedFd&) = delete;
+    bool valid() const { return fd >= 0; }
+};
+
+constexpr int kDirOpenFlags =
+    O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC;
+
+bool sameObject(const struct stat& a, const struct stat& b)
+{
+    return a.st_dev == b.st_dev && a.st_ino == b.st_ino;
+}
+
+/// Snapshot the entry names of an open directory. Collected up front so the
+/// deletes below do not mutate the directory under an active readdir().
+bool listNames(int dirFd, std::vector<std::string>& names)
+{
+    // fdopendir takes ownership of its descriptor, so hand it a duplicate and
+    // keep `dirFd` for the *at() calls.
+    const int dupFd = ::fcntl(dirFd, F_DUPFD_CLOEXEC, 0);
+    if (dupFd < 0) return false;
+    DIR* d = ::fdopendir(dupFd);
+    if (d == nullptr) {
+        ::close(dupFd);
+        return false;
+    }
+    bool ok = true;
+    for (;;) {
+        errno = 0;
+        const dirent* e = ::readdir(d);
+        if (e == nullptr) {
+            // errno distinguishes end-of-directory from a failed enumeration;
+            // a partial listing must not be treated as an empty directory.
+            ok = (errno == 0);
+            break;
+        }
+        const std::string name(e->d_name);
+        if (name == "." || name == "..") continue;
+        names.push_back(name);
+    }
+    ::closedir(d);
+    return ok;
+}
+
+/// Delete the children of an already-open, already-verified directory.
+bool removeChildrenAt(int dirFd, int depth)
+{
+    if (depth > kMaxDeleteDepth) return false;
+
+    std::vector<std::string> names;
+    if (!listNames(dirFd, names)) return false;
+
+    for (const std::string& name : names) {
+        struct stat lst{};
+        if (::fstatat(dirFd, name.c_str(), &lst, AT_SYMLINK_NOFOLLOW) != 0) {
+            return false;
+        }
+
+        if (S_ISDIR(lst.st_mode)) {
+            ScopedFd child(::openat(dirFd, name.c_str(), kDirOpenFlags));
+            if (!child.valid()) return false;   // includes ELOOP: swapped to a link
+
+            // THE RACE CHECK. If the name now refers to a different object
+            // than the one just classified, something swapped it underneath us.
+            struct stat cst{};
+            if (::fstat(child.fd, &cst) != 0) return false;
+            if (!S_ISDIR(cst.st_mode) || !sameObject(cst, lst)) return false;
+
+            if (!removeChildrenAt(child.fd, depth + 1)) return false;
+
+            // AT_REMOVEDIR removes only an EMPTY directory and refuses a
+            // symlink (ENOTDIR), so a swap at this point cannot widen the
+            // delete beyond this one entry.
+            if (::unlinkat(dirFd, name.c_str(), AT_REMOVEDIR) != 0) return false;
+        } else {
+            // A file, a symlink, or anything else that is not a real
+            // directory. unlinkat without AT_REMOVEDIR removes THIS directory
+            // entry — for a symlink that is the link itself, never its
+            // target — and fails (EISDIR) if the name was swapped to a
+            // directory since the fstatat above.
+            if (::unlinkat(dirFd, name.c_str(), 0) != 0) return false;
+        }
+    }
+    return true;
+}
+
+bool removeTreeByFd(const std::filesystem::path& dir)
+{
+    std::filesystem::path p = dir.lexically_normal();
+    if (!p.has_filename()) p = p.parent_path();   // tolerate a trailing '/'
+    const std::string leaf = p.filename().string();
+    if (leaf.empty() || leaf == "." || leaf == "..") return false;
+
+    std::filesystem::path parent = p.parent_path();
+    if (parent.empty()) parent = ".";
+
+    ScopedFd parentFd(::open(parent.c_str(),
+                             O_RDONLY | O_DIRECTORY | O_CLOEXEC));
+    if (!parentFd.valid()) return false;
+
+    // Classify the ROOT by name first. A symlink handed in as the walk root is
+    // refused outright rather than unlinked: the caller enumerated it as a
+    // candidate index directory, and one that is really a link is a finding,
+    // not routine cleanup. (O_NOFOLLOW on the open below enforces the same
+    // thing independently; this check is what makes the refusal explicit
+    // instead of an incidental open failure.)
+    struct stat rootLst{};
+    if (::fstatat(parentFd.fd, leaf.c_str(), &rootLst, AT_SYMLINK_NOFOLLOW) != 0) {
+        return false;
+    }
+    if (S_ISLNK(rootLst.st_mode) || !S_ISDIR(rootLst.st_mode)) return false;
+
+    ScopedFd root(::openat(parentFd.fd, leaf.c_str(), kDirOpenFlags));
+    if (!root.valid()) return false;
+
+    struct stat rootSt{};
+    if (::fstat(root.fd, &rootSt) != 0) return false;
+    if (!S_ISDIR(rootSt.st_mode) || !sameObject(rootSt, rootLst)) return false;
+
+    if (!removeChildrenAt(root.fd, 0)) return false;
+
+    // Re-verify the name still refers to the directory we emptied before
+    // removing it. AT_REMOVEDIR would refuse a symlink or a non-empty
+    // directory anyway; this makes a swapped root a refusal rather than a
+    // deletion of some other empty directory.
+    struct stat again{};
+    if (::fstatat(parentFd.fd, leaf.c_str(), &again, AT_SYMLINK_NOFOLLOW) != 0) {
+        return false;
+    }
+    if (!sameObject(again, rootSt)) return false;
+    return ::unlinkat(parentFd.fd, leaf.c_str(), AT_REMOVEDIR) == 0;
+}
+
+} // namespace
 #endif // _WIN32
 
 bool DocumentSearchIndex::removeTreeUnraceable(const std::filesystem::path& dir)
@@ -416,9 +597,7 @@ bool DocumentSearchIndex::removeTreeUnraceable(const std::filesystem::path& dir)
 #ifdef _WIN32
     return removeTreeByHandle(dir.wstring(), 0);
 #else
-    std::error_code ec;
-    std::filesystem::remove_all(dir, ec);
-    return !ec;
+    return removeTreeByFd(dir);
 #endif
 }
 
@@ -609,10 +788,11 @@ StaleIndexSweepReport DocumentSearchIndex::sweepStaleIndexes(
             continue;
         }
 #else
-        std::filesystem::remove_all(dir, ec);
-        if (ec) {
+        // Same descriptor-based, no-follow delete as the Windows arm uses (see
+        // removeTreeByFd). A failure to verify leaves the directory in place
+        // and it is reported as kept.
+        if (!removeTreeUnraceable(dir)) {
             report.kept.push_back(dir);
-            ec.clear();
             continue;
         }
 #endif

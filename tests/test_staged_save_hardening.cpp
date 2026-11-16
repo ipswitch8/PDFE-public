@@ -924,6 +924,7 @@ TEST(StagedIncrementalXfaBenchmark, MeasureUnstagedVersusStagedAppend)
 // KILLS: reverting either factory to create-then-DACL-at-publish. The published
 // file would still be correct and the two cases above would still pass.
 // ---------------------------------------------------------------------------
+#if defined(_WIN32)
 TEST(StagedSaveDacl, StagingFileCarriesTheDestinationDaclBeforeAnyBytesAreWritten)
 {
     const auto src = sourceFixture();
@@ -986,6 +987,7 @@ TEST(StagedSaveDacl, StagingFileCarriesTheDestinationDaclBeforeAnyBytesAreWritte
 
     std::filesystem::remove_all(dir, ec);
 }
+#endif  // _WIN32 -- DACL inspection is a Windows-only surface
 
 // ---------------------------------------------------------------------------
 // F71, CLASS LEVEL. The case above proves the two factories that exist TODAY
