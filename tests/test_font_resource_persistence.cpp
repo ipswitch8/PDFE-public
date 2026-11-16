@@ -134,9 +134,6 @@ protected:
 // ─────────────────────────────────────────────────────────────────────
 TEST_F(FontResourcePersistenceTest,
        TwoRunsBothFontsSurviveFilterAndGarbageCollection) {
-#ifndef _WIN32
-    GTEST_SKIP() << "Embed pipeline depends on SystemFontDiscovery Linux impl";
-#endif
     auto origDoc = Document::open(ctx_, fixtureSrc_);
     auto origPage = origDoc->page(0);
     TextExtractor extractor(ctx_);
@@ -206,11 +203,6 @@ TEST_F(FontResourcePersistenceTest,
 //    re-insertion code path as the two-run case.)
 // ─────────────────────────────────────────────────────────────────────
 TEST_F(FontResourcePersistenceTest, SingleRunFontSurvivesSave) {
-#ifndef _WIN32
-    GTEST_SKIP() << "Embed pipeline (Fsub re-insertion) depends on "
-                    "SubstituteFontSelector finding a system font via "
-                    "SystemFontDiscovery, which has no Linux enumerator.";
-#endif
     auto origDoc = Document::open(ctx_, fixtureSrc_);
     auto origPage = origDoc->page(0);
     TextExtractor extractor(ctx_);
@@ -370,9 +362,6 @@ TEST_F(FontResourcePersistenceTest, EmbedderRegistersInPageResourceDict) {
 // ─────────────────────────────────────────────────────────────────────
 TEST_F(FontResourcePersistenceTest,
        TwoRunsProduceTwoDistinctFontNamesOnReopen) {
-#ifndef _WIN32
-    GTEST_SKIP() << "Embed pipeline depends on SystemFontDiscovery Linux impl";
-#endif
     auto origDoc = Document::open(ctx_, fixtureSrc_);
     auto origPage = origDoc->page(0);
     TextExtractor extractor(ctx_);

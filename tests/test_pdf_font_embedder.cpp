@@ -1,3 +1,4 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 #include "fonts/PdfFontEmbedder.h"
 #include "core/MuPdfContext.h"
@@ -40,7 +41,7 @@ TEST_F(PdfFontEmbedderTest, EmbedArialReturnsResourceName) {
         GTEST_SKIP() << "No test PDF available";
     }
 
-    std::filesystem::path arialPath = "C:\\Windows\\Fonts\\arial.ttf";
+    std::filesystem::path arialPath = pdfe_test::systemFontPath("arial.ttf");
     if (!std::filesystem::exists(arialPath)) {
         GTEST_SKIP() << "Arial font not available on system";
     }
@@ -59,8 +60,8 @@ TEST_F(PdfFontEmbedderTest, EmbedMultipleFontsGetsDifferentNames) {
         GTEST_SKIP() << "No test PDF available";
     }
 
-    std::filesystem::path arialPath = "C:\\Windows\\Fonts\\arial.ttf";
-    std::filesystem::path timesPath = "C:\\Windows\\Fonts\\times.ttf";
+    std::filesystem::path arialPath = pdfe_test::systemFontPath("arial.ttf");
+    std::filesystem::path timesPath = pdfe_test::systemFontPath("times.ttf");
 
     if (!std::filesystem::exists(arialPath)) {
         GTEST_SKIP() << "Arial font not available on system";
@@ -96,7 +97,7 @@ TEST_F(PdfFontEmbedderTest, NullPageReturnsNullopt) {
         GTEST_SKIP() << "No test PDF available";
     }
 
-    std::filesystem::path arialPath = "C:\\Windows\\Fonts\\arial.ttf";
+    std::filesystem::path arialPath = pdfe_test::systemFontPath("arial.ttf");
     if (!std::filesystem::exists(arialPath)) {
         GTEST_SKIP() << "Arial font not available on system";
     }
@@ -112,7 +113,7 @@ TEST_F(PdfFontEmbedderTest, NullDocReturnsNullopt) {
         GTEST_SKIP() << "No test PDF available";
     }
 
-    std::filesystem::path arialPath = "C:\\Windows\\Fonts\\arial.ttf";
+    std::filesystem::path arialPath = pdfe_test::systemFontPath("arial.ttf");
     if (!std::filesystem::exists(arialPath)) {
         GTEST_SKIP() << "Arial font not available on system";
     }

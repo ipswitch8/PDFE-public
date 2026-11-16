@@ -503,6 +503,20 @@ tools/perf/*.env
 tools/audit/__pycache__/
 tools/audit/.env
 tools/audit/*.env
+# GitHub #390 phase 7: KEEP the Linux release tooling. build-appimage.sh is
+# named by docs/releasing-linux.md and by tests/packaging/test_install_sh.py
+# (the glibc-floor test reads it); without this re-include the blanket
+# `tools/*` above left it on the author's disk only. Build output never lands
+# here (the script works in a scratch dir and writes to dist/).
+!tools/packaging/
+!tools/packaging/**
+
+# --- re-ignores for tools/packaging/ --------------------------------------
+# Same reason as the other re-ignore blocks: the negation voids blanket rules.
+tools/packaging/__pycache__/
+tools/packaging/.env
+tools/packaging/*.env
+tools/packaging/*.AppImage
 tests/security/reports/*
 # Exception: phase 1 opt-in verification report is committed as the
 # canonical proof that the opt-in invariant was checked at scaffold time.

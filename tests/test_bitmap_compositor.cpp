@@ -1,3 +1,4 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 #include "tre/BitmapCompositor.h"
 #include "tre/TreTypes.h"
@@ -8,7 +9,7 @@
 
 using namespace pdfe::tre;
 
-static const std::string kArialPath = "C:/Windows/Fonts/arial.ttf";
+static const std::string kArialPath = pdfe_test::systemFontPath("arial.ttf");
 
 static bool hasArialFont() {
     return std::filesystem::exists(kArialPath);
@@ -253,9 +254,9 @@ TEST_F(BitmapCompositorTest, FontMatchOverload) {
 // Multi-font rendering tests (Phase G)
 // ---------------------------------------------------------------------------
 
-static const std::string kArialBoldPath = "C:/Windows/Fonts/arialbd.ttf";
-static const std::string kCourierNewPath = "C:/Windows/Fonts/cour.ttf";
-static const std::string kTimesNewRomanPath = "C:/Windows/Fonts/times.ttf";
+static const std::string kArialBoldPath = pdfe_test::systemFontPath("arialbd.ttf");
+static const std::string kCourierNewPath = pdfe_test::systemFontPath("cour.ttf");
+static const std::string kTimesNewRomanPath = pdfe_test::systemFontPath("times.ttf");
 
 static bool hasMultipleFonts() {
     return std::filesystem::exists(kArialPath)

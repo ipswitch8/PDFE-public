@@ -16,6 +16,7 @@
 // font-name allowlist — and are guarded only on font availability (same pattern
 // as the existing ScriptFontAnalysisTest suite).
 
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 
 #include "fonts/EmbeddedFontAnalyzer.h"
@@ -65,8 +66,16 @@ FontMetricProfile makeTextQuery(FontScript script)
 
 FontMetricProfile makeArabicQuery() { return makeTextQuery(FontScript::Arabic); }
 
-const char* kArial = "C:\\Windows\\Fonts\\arial.ttf";
-const char* kTimes = "C:\\Windows\\Fonts\\times.ttf";
+static const std::string kArial = pdfe_test::systemFontPath("arial.ttf");
+// The real multi-script Latin-primary face for (d) below. Windows: Arial
+// itself, which carries Arabic. Elsewhere Arial's substitute (Liberation Sans)
+// has no Arabic, so the same property is asserted of DejaVu Sans.
+#if defined(_WIN32)
+static const std::string kMultiscriptSans = kArial;
+#else
+static const std::string kMultiscriptSans = pdfe_test::systemFontPath("dejavusans.ttf");
+#endif
+static const std::string kTimes = pdfe_test::systemFontPath("times.ttf");
 
 } // namespace
 
@@ -139,10 +148,10 @@ TEST_F(EmbeddedFontMultiscriptTest, DistanceTo_MultiScriptCoversArabic_NoPenalty
 // ---------------------------------------------------------------------------
 TEST_F(EmbeddedFontMultiscriptTest, RealArial_SupportedScriptsDerivedFromGlyphRanges)
 {
-    if (!std::filesystem::exists(kArial))
-        GTEST_SKIP() << "arial.ttf not present on this host";
+    if (!std::filesystem::exists(kMultiscriptSans))
+        GTEST_SKIP() << "no multi-script sans (Arial / DejaVu Sans) on this host";
 
-    auto profile = analyzer_->analyzeFromFile(kArial);
+    auto profile = analyzer_->analyzeFromFile(kMultiscriptSans);
     ASSERT_TRUE(profile.has_value());
 
     // Dominant script stays Latin (the plurality) ...

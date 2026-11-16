@@ -39,6 +39,10 @@
 #include <memory>
 #include <system_error>
 
+#ifndef _WIN32
+#include <sys/stat.h>
+#endif
+
 namespace {
 
 class DocumentSaveFileLockTest : public ::testing::Test {
@@ -129,6 +133,7 @@ TEST_F(DocumentSaveFileLockTest, HeldDisplayListDoesNotLockSave) {
     });
 }
 
+#ifdef _WIN32
 // A held Page (fz_load_page → fz_keep_document) IS a file-lock holder: the
 // source handle stays open, remove() fails all its retries, and save() throws.
 // This is the true mechanism behind the redaction path's Page-holder drop.
@@ -161,6 +166,50 @@ TEST_F(DocumentSaveFileLockTest, HeldPageLocksFullRewriteSave) {
         EXPECT_EQ(reopened->pageCount(), 3);
     }
 }
+#else
+// GitHub #387 -- the POSIX half of the same contract. POSIX has no mandatory
+// share modes: an open descriptor does not stop the original from being
+// replaced, so a held Page is NOT a save lock here. The full-rewrite save
+// publishes a new inode over the path while the Page keeps the old inode
+// alive. The user-visible contract both platforms share is "no lost changes
+// and no half-written file". On Windows that means refusing; here it means the
+// save SUCCEEDS, the path holds the newly written document, and the held Page
+// stays usable because it reads the old inode it already has open.
+TEST_F(DocumentSaveFileLockTest, HeldPageLocksFullRewriteSave) {
+    auto ctx = std::make_shared<pdfe::core::MuPdfContext>();
+    auto doc = pdfe::core::Document::open(ctx, tempPdf);
+    ASSERT_NE(doc, nullptr);
+    doc->markRequiresFullRewrite();
+
+    struct stat before{};
+    ASSERT_EQ(::stat(tempPdf.c_str(), &before), 0);
+
+    std::unique_ptr<pdfe::core::Page> page = doc->page(0);
+    ASSERT_NE(page, nullptr);
+
+    EXPECT_NO_THROW(doc->save(tempPdf))
+        << "on POSIX a held Page cannot block replacing the path, so a "
+           "full-rewrite save must succeed rather than report a lock that does "
+           "not exist";
+
+    // The save really published a NEW file. Without this, a save that quietly
+    // did nothing would pass the reopen check below just as well.
+    struct stat after{};
+    ASSERT_EQ(::stat(tempPdf.c_str(), &after), 0);
+    EXPECT_NE(before.st_ino, after.st_ino)
+        << "the full-rewrite save did not replace the file at the path";
+
+    // The held Page still works: it reads the old inode it kept open.
+    EXPECT_FALSE(page->boundingBox().isEmpty())
+        << "the Page held across the save no longer reads its document";
+    page.reset();
+
+    auto verifyCtx = std::make_shared<pdfe::core::MuPdfContext>();
+    auto reopened = pdfe::core::Document::open(verifyCtx, tempPdf);
+    ASSERT_NE(reopened, nullptr) << "the saved file does not re-open";
+    EXPECT_EQ(reopened->pageCount(), 3);
+}
+#endif
 
 // Dropping the Page before saving removes the only holder, so the save
 // succeeds — the remedy the fix for the ordinary save path must achieve.

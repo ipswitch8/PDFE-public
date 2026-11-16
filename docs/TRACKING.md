@@ -126,8 +126,34 @@ Two unrelated numbering schemes use bare `#nn`:
 
 These overlap in range and nothing distinguishes them in prose. When writing a
 new reference, always write `GitHub #nn` or `ipswitch8/PDFE#nn` for the former,
-and `Defect #nn` for the latter. The historical ones are ambiguous and will stay
-that way; do not add more.
+and **`Defect-nn`** (hyphen, no `#`) for the latter. The historical ones are
+ambiguous and will stay that way; do not add more.
+
+**Why not `Defect #nn`.** That was the convention until 2026-11-14
+([GitHub #389](https://github.com/ipswitch8/PDFE/issues/389)). It
+disambiguates for a human, but not for GitHub. GitHub autolinks any `#nn` in a
+commit message, PR title, PR body or issue comment, whatever word precedes
+it. The Linux port followed the old convention and wrote its internal number
+as `Defect #42` in commit subjects. Every one of those commits, and the PR, is
+now permanently listed as a cross-reference on GitHub #42, which is SEC-104,
+closed and unrelated. Pushed history cannot be rewritten to remove them.
+`Defect-42` is not autolinked.
+
+Inside a rendered repository file GitHub does not autolink `#nn`, so the
+damage is done by commit messages and PR text. The docs follow the same form
+anyway, because commit messages copy them.
+
+**Enforced.** `tools/gate/check_defect_ref_autolink.py` runs in
+`fast-checks.yml` over:
+- the commit messages of the pushed or PR range;
+- the PR title and body, as they stand when the PR is opened or pushed to.
+  `fast-checks.yml` does not re-run on a title or body edit alone;
+- the live docs (`README.md`, `CLAUDE.md`, this file,
+  `docs/building-linux.md`, `docs/linux-parity-status.md`).
+
+It fails on `Defect #nn` outside a code span, so the old form can still be
+quoted, as here. Its self-tests are
+`tools/gate/test_check_defect_ref_autolink.py`.
 
 ## Counts in prose go stale — this file included
 

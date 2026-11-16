@@ -49,6 +49,9 @@
 #include <windows.h>
 #include <aclapi.h>
 #include <sddl.h>
+#else
+#include <sys/stat.h>
+#include <unistd.h>
 #endif
 
 using pdfe::core::createOwnerOnlyDirectory;
@@ -165,9 +168,26 @@ TEST(SearchIndexAcl, ChildDirectoriesInheritTheOwnerOnlyAcl)
 
     const auto child = root / "some_document_key";
     ASSERT_TRUE(std::filesystem::create_directory(child, ec)) << ec.message();
+#if defined(_WIN32)
     EXPECT_TRUE(isOwnerOnlyAccessible(child))
         << "a child created under the secured root is reachable by others; the "
            "root's ACE is not marked inheritable";
+#else
+    // POSIX has no ACL inheritance: an ordinary create_directory gives the
+    // child the umask's mode. What keeps it private is the ROOT. Reaching any
+    // path below a directory needs search (x) permission on that directory,
+    // and the root grants none to group or others, so the child is unreachable
+    // to them whatever its own mode. The root, not the child, is the property
+    // to assert. The per-document directories the index actually writes are
+    // created owner-only in their own right (DocumentSearchIndex.cpp).
+    using std::filesystem::perms;
+    const auto rootPerms = std::filesystem::status(root, ec).permissions();
+    ASSERT_FALSE(ec) << ec.message();
+    EXPECT_EQ(rootPerms & (perms::group_exec | perms::others_exec), perms::none)
+        << "the secured root grants search permission to group/others, so a "
+           "child under it is reachable";
+    EXPECT_TRUE(isOwnerOnlyAccessible(root));
+#endif
 
     // AND USABLE BY US. Without this the case is vacuous, which mutation
     // proved: setting NO_INHERITANCE leaves the child with an EMPTY DACL, and
@@ -341,6 +361,117 @@ TEST(SearchIndexAcl, TheInspectorClassifiesEveryRefusalReasonDistinctly)
     ASSERT_TRUE(std::filesystem::create_directories(dir, ec)) << ec.message();
     EXPECT_EQ(pdfe::core::inspectDirectoryForAdoption(dir),
               pdfe::core::DirAdoptionVerdict::Ok);
+}
+
+#else // !_WIN32
+
+// The POSIX arm of the same refusals (GitHub #390). The arm these replace was
+// create_directories + chmod. Mutation-tested against it (2026-11-15): only
+// ASymlinkAtTheDirectoryNameIsRefused goes red. The old arm followed the link
+// and chmod-ed its target, which is the defect. The other cases pin contract
+// the old arm happened to meet as well (repair to 0700, refuse a file, refuse
+// a foreign owner, which the kernel enforced through chmod), so a rewrite
+// cannot lose them. Modes are read with lstat/stat, not isOwnerOnlyAccessible,
+// so the assertion is the exact mode rather than the helper's opinion of it.
+
+namespace {
+mode_t modeOf(const std::filesystem::path& p)
+{
+    struct stat st {};
+    return ::lstat(p.c_str(), &st) == 0 ? (st.st_mode & 07777) : mode_t(07777);
+}
+}  // namespace
+
+TEST(SearchIndexAcl, AFreshDirectoryIsCreatedExactly0700)
+{
+    const auto dir = scratchDir("fresh_0700");
+    std::error_code ec;
+    ASSERT_TRUE(createOwnerOnlyDirectory(dir, ec)) << ec.message();
+    // The final mode only: the window in which the old arm's directory
+    // carried the umask's mode is not observable from here.
+    EXPECT_EQ(modeOf(dir), mode_t(0700))
+        << "a new owner-only directory must end up exactly 0700";
+}
+
+TEST(SearchIndexAcl, APermissiveDirectoryWeOwnIsRepairedNotAccepted)
+{
+    // The upgrade case: an older build left the index root at the umask's
+    // mode. Adopting it as-is would mean the fix never reaches the machines
+    // that already have page text on disk.
+    const auto dir = scratchDir("permissive");
+    std::error_code ec;
+    ASSERT_TRUE(std::filesystem::create_directory(dir, ec)) << ec.message();
+    ASSERT_EQ(::chmod(dir.c_str(), 0775), 0);
+    ASSERT_EQ(modeOf(dir), mode_t(0775))
+        << "could not make the directory permissive; the repair below would "
+           "pass vacuously";
+
+    ASSERT_TRUE(createOwnerOnlyDirectory(dir, ec)) << ec.message();
+    EXPECT_EQ(modeOf(dir), mode_t(0700))
+        << "an existing 0775 directory we own was adopted without being "
+           "narrowed to 0700";
+}
+
+TEST(SearchIndexAcl, AFileAtTheDirectoryNameIsRefused)
+{
+    const auto p = scratchDir("is_a_file");
+    { std::ofstream f(p); f << "not a directory"; }
+    ASSERT_TRUE(std::filesystem::is_regular_file(p));
+
+    std::error_code ec;
+    EXPECT_FALSE(createOwnerOnlyDirectory(p, ec))
+        << "a regular file sitting at the index-directory name was accepted";
+    EXPECT_TRUE(std::filesystem::is_regular_file(p))
+        << "the refusal deleted the file it refused";
+}
+
+TEST(SearchIndexAcl, ASymlinkAtTheDirectoryNameIsRefused)
+{
+    // The temp root is writable by anything running as this user, so a
+    // symlink can be planted at a predictable index path. Following it would
+    // secure (and then fill with page text) whatever it points at.
+    const auto link = scratchDir("symlink");
+    const auto target = scratchDir("symlink_target");
+    std::error_code ec;
+    ASSERT_TRUE(std::filesystem::create_directory(target, ec)) << ec.message();
+    ASSERT_EQ(::chmod(target.c_str(), 0755), 0);
+    std::filesystem::create_directory_symlink(target, link, ec);
+    ASSERT_FALSE(ec) << "could not plant the symlink: " << ec.message();
+    ASSERT_TRUE(std::filesystem::is_symlink(link));
+
+    EXPECT_FALSE(createOwnerOnlyDirectory(link, ec))
+        << "a symlink at the index-directory name was followed and adopted";
+    EXPECT_TRUE(std::filesystem::is_symlink(link))
+        << "the refusal replaced the link it refused";
+    EXPECT_EQ(modeOf(target), mode_t(0755))
+        << "the symlink's TARGET was chmod-ed; the refusal must not act "
+           "through the link";
+}
+
+TEST(SearchIndexAcl, AForeignOwnedDirectoryIsRefused)
+{
+    // An owner can always chmod its own directory back, so narrowing the
+    // mode of a directory somebody else owns protects nothing; it must be
+    // refused. The root directory is owned by root on every POSIX system.
+    // What this proves is the CONTRACT (refused, mode untouched), not which
+    // line refuses: as a non-root user the owner check refuses first, and
+    // without it the kernel would still refuse the fchmod with EPERM. The
+    // owner check is the explicit statement of the rule; this case fails if
+    // the function ever adopts a foreign directory by either route.
+    const std::filesystem::path foreign("/");
+    struct stat st {};
+    ASSERT_EQ(::stat(foreign.c_str(), &st), 0);
+    ASSERT_NE(st.st_uid, ::geteuid())
+        << "this test runs as the owner of the root directory (root), so it "
+           "has no foreign-owned directory to offer. Do NOT relax this into a "
+           "skip; run the suite as an ordinary user.";
+    const mode_t before = st.st_mode & 07777;
+
+    std::error_code ec;
+    EXPECT_FALSE(createOwnerOnlyDirectory(foreign, ec))
+        << "a directory owned by another user was adopted";
+    ASSERT_EQ(::stat(foreign.c_str(), &st), 0);
+    EXPECT_EQ(st.st_mode & 07777, before);
 }
 
 #endif // _WIN32

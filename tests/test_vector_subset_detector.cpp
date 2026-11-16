@@ -1,3 +1,4 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 
 #include "fonts/VectorSubsetDetector.h"
@@ -190,7 +191,7 @@ TEST_F(VectorSubsetDetectorTest, FindMissingGlyphsReportsUncoveredCodepoints) {
     // declares this is a Windows-only build target. If the file is missing
     // the test should skip rather than fail (defensive against test runners
     // on stripped CI VMs).
-    const std::string segoeUi = "C:/Windows/Fonts/segoeui.ttf";
+    const std::string segoeUi = pdfe_test::systemFontPath("segoeui.ttf");
     if (!std::filesystem::exists(segoeUi)) {
         GTEST_SKIP() << "Windows system font segoeui.ttf not available";
     }

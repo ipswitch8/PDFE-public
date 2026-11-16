@@ -25,6 +25,7 @@
   "check_crl_chain_fixture.py",
   "check_dca.py",
   "check_dca_presence.py",
+  "check_defect_ref_autolink.py",
   "check_duplicate_test_definitions.py",
   "check_engine_wiring.py",
   "check_ensure_build_tree.py",

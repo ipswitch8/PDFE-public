@@ -123,7 +123,10 @@ enum class TempWriteBlockMode {
     /// fails at the OS level. Survives a stray remove() by the code under test.
     DirectoryOnTempPath,
     /// A real file at "<target>.pdfe_tmp" held by a CreateFileW handle with
-    /// dwShareMode == 0 — the state a scanner mid-scan produces.
+    /// dwShareMode == 0 — the state a scanner mid-scan produces. POSIX has no
+    /// such handle; there this mode makes the target's DIRECTORY read-only
+    /// (see SaveFailureInjection.cpp), the "target directory became
+    /// unwritable" class.
     ExclusiveHandleOnTempPath
 };
 
@@ -153,6 +156,8 @@ private:
     TempWriteBlockMode mode_;
     bool armed_ = false;
     void* handle_ = nullptr;  // HANDLE on Windows; unused elsewhere
+    std::filesystem::path dirPath_;      // POSIX: directory made read-only
+    std::filesystem::perms dirPerms_{};  // POSIX: its mode before, restored on release
 };
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,9 @@
 #include "SystemFontDiscovery.h"
 
+#if !defined(_WIN32)
+#include "FontconfigSupport.h"
+#endif
+
 #include <algorithm>
 #include <cstdint>
 #include <mutex>
@@ -144,8 +148,9 @@ public:
 #ifdef _WIN32
         enumerateWindows();
 #else
-        // Linux/macOS: placeholder for fontconfig enumeration
-        // Will be implemented when we target those platforms
+        // GitHub #390: fontconfig. Until this existed the list was simply
+        // empty on Linux, so every lookup through this class failed there.
+        fonts = pdfe::core::fontconfig::listFonts();
 #endif
 
         enumerated = true;

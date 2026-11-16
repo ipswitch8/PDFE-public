@@ -38,6 +38,7 @@
 //       .claude/pipelines/content-stream-continuity/gate-artifacts/phase-1/gap-register.json
 //   (c) RecordProperty(...) per cell (visible in the JUnit XML).
 
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 
 #include "core/Document.h"
@@ -547,7 +548,7 @@ TEST(AdversarialAmbient, WatermarkText) {
 // Needs a real TTF; if Arial is unavailable the cell is recorded not-probed.
 // ═════════════════════════════════════════════════════════════════════════════
 TEST(AdversarialAmbient, TreWriteTextBlock) {
-    const fs::path arial = "C:\\Windows\\Fonts\\arial.ttf";
+    const fs::path arial = pdfe_test::systemFontPath("arial.ttf");
     for (const auto& op : ops()) {
         Cell c; c.injector = "TreWriteTextBlock"; c.hostile_op = op;
         fs::path src = textFixture(op);

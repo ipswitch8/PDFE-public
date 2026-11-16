@@ -32,6 +32,29 @@ find_package(Qt6 REQUIRED COMPONENTS LinguistTools)
 find_package(unofficial-libmupdf CONFIG REQUIRED)
 find_package(unofficial-mujs CONFIG REQUIRED)
 find_package(qpdf REQUIRED)
+# GitHub #388 (the macOS half of internal Defect-42). vcpkg's STATIC qpdf
+# exports INTERFACE_LINK_LIBRARIES "z;jpeg" -- bare names, so CMake emits
+# `-lz -ljpeg` with no -L into vcpkg_installed. On macOS nothing named libjpeg
+# is expected on the default linker path, which fits the historical "-ljpeg"
+# link failure (inferred from the link line; see GitHub #388 for whether a
+# macOS run has confirmed it). On Linux the same `-ljpeg` resolved only because the host happened
+# to carry libjpeg-turbo8-dev: a hidden host dependency, never documented.
+# Point both names at vcpkg's own imported targets, the ones MuPDF and
+# Leptonica already link, so every platform links vcpkg's libjpeg and zlib.
+# Guarded off on Windows, which links qpdf as a DLL (qpdf30.dll) and has
+# never shown the failure, so the Windows link line is left exactly as it was.
+if(NOT WIN32 AND TARGET qpdf::libqpdf)
+    get_target_property(_pdfe_qpdf_iface qpdf::libqpdf INTERFACE_LINK_LIBRARIES)
+    if(_pdfe_qpdf_iface)
+        find_package(JPEG REQUIRED)
+        find_package(ZLIB REQUIRED)
+        list(TRANSFORM _pdfe_qpdf_iface REPLACE "^jpeg$" "JPEG::JPEG")
+        list(TRANSFORM _pdfe_qpdf_iface REPLACE "^z$" "ZLIB::ZLIB")
+        set_target_properties(qpdf::libqpdf PROPERTIES
+            INTERFACE_LINK_LIBRARIES "${_pdfe_qpdf_iface}")
+    endif()
+    unset(_pdfe_qpdf_iface)
+endif()
 find_package(freetype CONFIG REQUIRED)
 find_package(harfbuzz CONFIG REQUIRED)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)

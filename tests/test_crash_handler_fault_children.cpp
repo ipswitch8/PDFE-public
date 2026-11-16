@@ -55,6 +55,7 @@
 #include <QString>
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -545,8 +546,388 @@ TEST(CrashHandlerFaultChildren, InvalidCrtParameterProducesMinidump) {
 
 #else   // !_WIN32
 
-TEST(CrashHandlerFaultChildren, WindowsOnly) {
-    GTEST_SKIP() << "minidump/crash-handler faults are a Windows-only surface";
+// ===========================================================================
+// POSIX ARM (Linux port, phase 6) — the same property, the same discipline:
+// force a real fault in a CHILD PROCESS and prove CrashHandler's signal
+// handler wrote a report before the process died with the original signal.
+//
+// THE CHILD IS A RE-EXEC OF THIS BINARY, not a bare fork(). fork() of the
+// multithreaded gtest/Qt process copies only the calling thread and any lock
+// another thread held, which makes the child's behaviour depend on what the
+// rest of the suite was doing. Re-executing gives the child a fresh process.
+//
+// THE CHILD ROLE RUNS FROM A STATIC INITIALISER, not from a gtest test. The
+// Windows harness dispatches from a TEST that skips itself in an ordinary run;
+// on POSIX the role is picked up before main() instead, so no skipping test is
+// registered at all. The child is launched with a --gtest_filter that matches
+// nothing, so a child that somehow survives its fault exits 0 and the parent's
+// WIFSIGNALED assertion fails — it cannot pass by accident.
+//
+// REPORTS NEVER TOUCH THE REPO OR THE USER'S DATA DIR. Each child gets
+// PDFE_CRASH_DUMP_DIR pointed at a fresh, not-yet-existing directory under the
+// system temp path (so the child's createOwnerOnlyDirectory call is the one
+// that creates it), and the parent removes it on exit, pass or fail.
+// ===========================================================================
+
+#include <csignal>
+#include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <spawn.h>
+#include <unistd.h>
+#if defined(__APPLE__)
+#include <climits>
+#include <cstdint>
+#include <cstdlib>
+#include <mach-o/dyld.h>  // _NSGetExecutablePath
+#endif
+
+extern char** environ;
+
+namespace {
+
+constexpr const char* kPosixRoleVar = "PDFE_CRASH_POSIX_FAULT_ROLE";
+
+volatile int g_neverTrue = 0;
+
+// Unbounded recursion that the optimiser cannot turn into a loop: each frame
+// keeps a live volatile buffer and uses the callee's result.
+int recurseForever(int depth) {
+    volatile char frame[512];
+    frame[0] = static_cast<char>(depth);
+    if (g_neverTrue) return frame[0];
+    return recurseForever(depth + 1) + frame[0];
+}
+
+void writePosixMarker(const char* path, const CrashHandler::InstalledHandlers& h) {
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    out << "terminate=" << (h.terminate ? 1 : 0) << "\n"
+        << "fatal_signals=" << (h.fatalSignals ? 1 : 0) << "\n"
+        << "alt_stack=" << (h.altStack ? 1 : 0) << "\n";
+}
+
+[[noreturn]] void runPosixFaultRole(const std::string& kind) {
+    // No core files from deliberate faults (and nothing for apport to collect).
+    struct rlimit noCore{0, 0};
+    ::setrlimit(RLIMIT_CORE, &noCore);
+    // A bounded main-thread stack so the overflow is quick and deterministic
+    // even if the runner was started with `ulimit -s unlimited`.
+    struct rlimit stack{8u << 20, 8u << 20};
+    ::setrlimit(RLIMIT_STACK, &stack);
+
+    CrashHandler::instance().install();
+    const CrashHandler::InstalledHandlers installed = CrashHandler::installedHandlers();
+    if (const char* marker = std::getenv(kMarkerVar)) writePosixMarker(marker, installed);
+
+    if (kind == "null_write_worker") {
+        // The handler is process-wide: a worker-thread fault must be reported.
+        std::thread worker([] {
+            volatile int* p = reinterpret_cast<volatile int*>(
+                static_cast<std::uintptr_t>(0x10u));
+            *p = 0xBADF00D;
+        });
+        worker.join();
+    } else if (kind == "stack_overflow") {
+        // Only reportable because the handler runs on the alternate stack:
+        // the faulting stack has no room left for even one more frame.
+        (void)recurseForever(0);
+    } else if (kind == "abort") {
+        std::abort();
+    } else if (kind == "terminate") {
+        // std::terminate -> CrashHandler::terminateHandler -> previous handler
+        // -> abort() -> SIGABRT -> the signal handler writes the report.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wterminate"   // the deliberate construct
+        auto thrower = []() noexcept {
+            throw std::runtime_error("phase-6 child: deliberate unhandled exception");
+        };
+#pragma GCC diagnostic pop
+        thrower();
+    } else if (kind == "int_divide_by_zero") {
+        volatile int zero = 0;
+        volatile int x = 7 / zero;
+        (void)x;
+    }
+    // Not reached for a known role. Exit with a distinctive code so the
+    // parent's WIFSIGNALED assertion reports exactly this.
+    std::_Exit(42);
+}
+
+struct PosixFaultChildHook {
+    PosixFaultChildHook() {
+        const char* role = std::getenv(kPosixRoleVar);
+        if (role != nullptr && *role != '\0') runPosixFaultRole(role);
+    }
+};
+// Runs during static initialisation of the test binary; inert unless the
+// role variable is set (it is only ever set in a child's environment).
+const PosixFaultChildHook g_posixFaultChildHook;
+
+std::filesystem::path selfExePosix() {
+#if defined(__APPLE__)
+    // macOS has no procfs (GitHub #388).
+    char raw[PATH_MAX];
+    std::uint32_t size = sizeof(raw);
+    if (::_NSGetExecutablePath(raw, &size) != 0) return {};
+    char resolved[PATH_MAX];
+    if (::realpath(raw, resolved) == nullptr) return {};
+    return std::filesystem::path(resolved);
+#else
+    std::error_code ec;
+    auto p = std::filesystem::read_symlink("/proc/self/exe", ec);
+    return ec ? std::filesystem::path{} : p;
+#endif
+}
+
+struct PosixChildOutcome {
+    bool spawned = false;
+    bool exited = false;   // false => timed out and was killed
+    int status = 0;
+    std::string marker;
+    std::vector<std::filesystem::path> reports;
+    std::vector<std::filesystem::path> others;  // anything else in the dir
+};
+
+PosixChildOutcome runPosixFaultChild(const std::string& role,
+                                     const std::filesystem::path& base) {
+    PosixChildOutcome r;
+    const auto exe = selfExePosix();
+    if (exe.empty()) return r;
+    const auto dumpDir = base / "crashes";
+    const auto markerPath = base / "handlers.marker";
+
+    // The child's environment: ours plus the four role variables. Built as a
+    // copy so this process's own environment is never modified.
+    std::vector<std::string> envStore;
+    for (char** e = environ; e && *e; ++e) {
+        const std::string kv(*e);
+        if (kv.rfind(std::string(kPosixRoleVar) + "=", 0) == 0) continue;
+        if (kv.rfind("PDFE_CRASH_DUMP_DIR=", 0) == 0) continue;
+        if (kv.rfind(std::string(kMarkerVar) + "=", 0) == 0) continue;
+        envStore.push_back(kv);
+    }
+    envStore.push_back(std::string(kPosixRoleVar) + "=" + role);
+    envStore.push_back("PDFE_CRASH_DUMP_DIR=" + dumpDir.string());
+    envStore.push_back(std::string(kMarkerVar) + "=" + markerPath.string());
+    envStore.push_back("PDFE_HEADLESS=1");  // terminate path: no modal dialog
+    std::vector<char*> envp;
+    for (auto& s : envStore) envp.push_back(s.data());
+    envp.push_back(nullptr);
+
+    std::string a0 = exe.string();
+    std::string a1 = "--gtest_filter=CrashHandlerPosixChildFilterMatchesNothing.None";
+    char* argv[] = {a0.data(), a1.data(), nullptr};
+
+    pid_t pid = 0;
+    if (::posix_spawn(&pid, a0.c_str(), nullptr, nullptr, argv, envp.data()) != 0) {
+        return r;
+    }
+    r.spawned = true;
+
+    for (int waited = 0; waited < 120000; waited += 20) {
+        const pid_t w = ::waitpid(pid, &r.status, WNOHANG);
+        if (w == pid) { r.exited = true; break; }
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    if (!r.exited) {
+        ::kill(pid, SIGKILL);
+        ::waitpid(pid, &r.status, 0);
+    }
+
+    {
+        std::ifstream in(markerPath, std::ios::binary);
+        if (in) r.marker.assign(std::istreambuf_iterator<char>(in),
+                                std::istreambuf_iterator<char>());
+    }
+    std::error_code ec;
+    for (const auto& e : std::filesystem::directory_iterator(dumpDir, ec)) {
+        const std::string n = e.path().filename().string();
+        if (n.rfind("pdfe_crash_", 0) == 0 && e.path().extension() == ".crash")
+            r.reports.push_back(e.path());
+        else
+            r.others.push_back(e.path());
+    }
+    return r;
+}
+
+std::filesystem::path makePosixBaseDir(const std::string& tag) {
+    static std::atomic<unsigned> counter{0};
+    std::error_code ec;
+    auto d = std::filesystem::temp_directory_path(ec)
+             / ("pdfe_p6_crash_" + tag + "_" + std::to_string(::getpid()) + "_"
+                + std::to_string(counter.fetch_add(1)));
+    std::filesystem::remove_all(d, ec);
+    std::filesystem::create_directories(d, ec);
+    return ec ? std::filesystem::path{} : d;
+}
+
+struct PosixDirCleaner {
+    std::filesystem::path dir;
+    ~PosixDirCleaner() {
+        if (dir.empty()) return;
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);
+    }
+};
+
+std::string slurp(const std::filesystem::path& p) {
+    std::ifstream in(p, std::ios::binary);
+    return std::string((std::istreambuf_iterator<char>(in)),
+                       std::istreambuf_iterator<char>());
+}
+
+unsigned modeOf(const std::filesystem::path& p) {
+    struct stat st{};
+    if (::lstat(p.c_str(), &st) != 0) return 0xFFFFu;
+    return static_cast<unsigned>(st.st_mode & 07777);
+}
+
+/// The shared assertions: died of `sig`, handlers were ours before the fault,
+/// exactly one owner-only report naming the signal with a backtrace section.
+void expectSignalProducesReport(const std::string& role, int sig, const char* sigName,
+                                const std::filesystem::path& base,
+                                const PosixChildOutcome& r, std::string* reportOut) {
+    ASSERT_TRUE(r.spawned) << "posix_spawn failed for role " << role;
+    ASSERT_TRUE(r.exited) << role << " child was killed at the timeout";
+    ASSERT_FALSE(r.marker.empty())
+        << role << " child never wrote its handler marker — it died before "
+                   "install() completed, so the handler was not exercised";
+    EXPECT_NE(r.marker.find("fatal_signals=1"), std::string::npos) << r.marker;
+    EXPECT_NE(r.marker.find("alt_stack=1"), std::string::npos) << r.marker;
+    EXPECT_NE(r.marker.find("terminate=1"), std::string::npos) << r.marker;
+
+    ASSERT_TRUE(WIFSIGNALED(r.status))
+        << role << " child did not die of a signal (exit "
+        << (WIFEXITED(r.status) ? WEXITSTATUS(r.status) : -1)
+        << ") — the handler swallowed the fault or the fault never happened";
+    EXPECT_EQ(WTERMSIG(r.status), sig)
+        << role << " child died of signal " << WTERMSIG(r.status)
+        << ", not the original " << sigName << " — the handler did not re-raise";
+
+    const auto dumpDir = base / "crashes";
+    EXPECT_EQ(modeOf(dumpDir), 0700u) << "crash directory is not owner-only";
+    ASSERT_EQ(r.reports.size(), 1u)
+        << "expected exactly one crash report from " << role << " in " << dumpDir;
+    EXPECT_TRUE(r.others.empty()) << "unexpected extra entries in the crash dir";
+    const auto& rep = r.reports.front();
+    EXPECT_EQ(rep.parent_path(), dumpDir) << "PDFE_CRASH_DUMP_DIR was ignored";
+    EXPECT_EQ(modeOf(rep), 0600u) << "crash report is not 0600";
+
+    const std::string text = slurp(rep);
+    EXPECT_EQ(text.rfind("=== PDFE CRASH REPORT ===\n", 0), 0u) << text;
+    EXPECT_NE(text.find(std::string("signal: ") + sigName + " (" + std::to_string(sig) + ")"),
+              std::string::npos) << text;
+    EXPECT_NE(text.find("\nsi_code: "), std::string::npos) << text;
+    EXPECT_NE(text.find("\nfault address: 0x"), std::string::npos) << text;
+    EXPECT_NE(text.find("\npid: "), std::string::npos) << text;
+    EXPECT_NE(text.find("\nversion: PDFE "), std::string::npos) << text;
+    const size_t bt = text.find("\nbacktrace:\n");
+    ASSERT_NE(bt, std::string::npos) << "no backtrace section:\n" << text;
+    const size_t frames = text.find("\nbacktrace frames: ");
+    ASSERT_NE(frames, std::string::npos) << "backtrace did not complete:\n" << text;
+    EXPECT_GT(frames, bt + 12) << "backtrace section is empty:\n" << text;
+    EXPECT_GT(std::atoi(text.c_str() + frames + 19), 1) << text;
+    EXPECT_NE(text.find("=== END OF REPORT ==="), std::string::npos) << text;
+    if (reportOut) *reportOut = text;
+}
+
+}  // namespace
+
+TEST(CrashHandlerFaultChildren, InstallAndUninstallReportTheSignalHandlersPosix) {
+    CrashHandler::instance().uninstall();
+    const auto before = CrashHandler::installedHandlers();
+    EXPECT_FALSE(before.fatalSignals) << "signal handlers were ours before install()";
+
+    const auto base = makePosixBaseDir("seam");
+    ASSERT_FALSE(base.empty());
+    PosixDirCleaner cleaner{base};
+    ::setenv("PDFE_CRASH_DUMP_DIR", (base / "crashes").c_str(), 1);
+    CrashHandler::instance().install();
+    ::unsetenv("PDFE_CRASH_DUMP_DIR");
+    const auto after = CrashHandler::installedHandlers();
+    CrashHandler::instance().uninstall();
+    const auto restored = CrashHandler::installedHandlers();
+
+    EXPECT_TRUE(after.terminate);
+    EXPECT_TRUE(after.fatalSignals)
+        << "install() did not leave every fatal signal dispatching to our handler";
+    EXPECT_TRUE(after.altStack) << "install() did not set the alternate stack";
+    EXPECT_TRUE(after.all());
+    // The Windows-only fields stay false on POSIX: there is nothing to own.
+    EXPECT_FALSE(after.unhandledExceptionFilter);
+    EXPECT_FALSE(after.purecall);
+    EXPECT_FALSE(after.invalidParameter);
+
+    EXPECT_FALSE(restored.fatalSignals)
+        << "uninstall() left our signal handlers in place";
+    EXPECT_FALSE(restored.altStack) << "uninstall() left our alternate stack in place";
+    EXPECT_FALSE(restored.all());
+
+    // Displacement is visible: a later sigaction elsewhere makes it false.
+    CrashHandler::instance().install();
+    struct sigaction other{};
+    other.sa_handler = SIG_DFL;
+    sigemptyset(&other.sa_mask);
+    struct sigaction saved{};
+    ::sigaction(SIGBUS, &other, &saved);
+    EXPECT_FALSE(CrashHandler::installedHandlers().fatalSignals)
+        << "a displaced SIGBUS handler was still reported as ours";
+    ::sigaction(SIGBUS, &saved, nullptr);
+    CrashHandler::instance().uninstall();
+}
+
+TEST(CrashHandlerFaultChildren, NullPointerWriteOnWorkerThreadProducesReport) {
+    const auto base = makePosixBaseDir("segv");
+    ASSERT_FALSE(base.empty());
+    PosixDirCleaner cleaner{base};
+    const auto r = runPosixFaultChild("null_write_worker", base);
+    std::string text;
+    ASSERT_NO_FATAL_FAILURE(
+        expectSignalProducesReport("null_write_worker", SIGSEGV, "SIGSEGV", base, r, &text));
+    EXPECT_NE(text.find("fault address: 0x0000000000000010"), std::string::npos)
+        << "the report does not name the faulting address 0x10:\n" << text;
+    EXPECT_NE(text.find("SEGV_MAPERR"), std::string::npos) << text;
+}
+
+TEST(CrashHandlerFaultChildren, StackOverflowProducesReportViaTheAlternateStack) {
+    const auto base = makePosixBaseDir("overflow");
+    ASSERT_FALSE(base.empty());
+    PosixDirCleaner cleaner{base};
+    const auto r = runPosixFaultChild("stack_overflow", base);
+    ASSERT_NO_FATAL_FAILURE(
+        expectSignalProducesReport("stack_overflow", SIGSEGV, "SIGSEGV", base, r, nullptr));
+}
+
+TEST(CrashHandlerFaultChildren, AbortProducesReport) {
+    const auto base = makePosixBaseDir("abort");
+    ASSERT_FALSE(base.empty());
+    PosixDirCleaner cleaner{base};
+    const auto r = runPosixFaultChild("abort", base);
+    std::string text;
+    ASSERT_NO_FATAL_FAILURE(
+        expectSignalProducesReport("abort", SIGABRT, "SIGABRT", base, r, &text));
+    EXPECT_NE(text.find("sender pid: "), std::string::npos)
+        << "an abort() is a self-sent signal; the report should say who sent it";
+}
+
+TEST(CrashHandlerFaultChildren, StdTerminateProducesReport) {
+    const auto base = makePosixBaseDir("terminate");
+    ASSERT_FALSE(base.empty());
+    PosixDirCleaner cleaner{base};
+    const auto r = runPosixFaultChild("terminate", base);
+    ASSERT_NO_FATAL_FAILURE(
+        expectSignalProducesReport("terminate", SIGABRT, "SIGABRT", base, r, nullptr));
+}
+
+TEST(CrashHandlerFaultChildren, IntegerDivideByZeroProducesReport) {
+    const auto base = makePosixBaseDir("fpe");
+    ASSERT_FALSE(base.empty());
+    PosixDirCleaner cleaner{base};
+    const auto r = runPosixFaultChild("int_divide_by_zero", base);
+    std::string text;
+    ASSERT_NO_FATAL_FAILURE(
+        expectSignalProducesReport("int_divide_by_zero", SIGFPE, "SIGFPE", base, r, &text));
+    EXPECT_NE(text.find("FPE_INTDIV"), std::string::npos) << text;
 }
 
 #endif  // _WIN32

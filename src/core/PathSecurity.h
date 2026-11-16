@@ -45,8 +45,9 @@ namespace pdfe::core::path_security {
 /// `X:` — plus `WNetGetConnectionW`/`QueryDosDeviceW` only when that first
 /// call is inconclusive. Deliberately NOT cached: a drive mapped mid-session
 /// would leave a cached "local" verdict standing, and a stale verdict here
-/// fails open. On non-Windows the resolution step compiles out and the
-/// result is the lexical answer.
+/// fails open. On POSIX the resolution step is `path_is_on_network_filesystem`
+/// (GitHub #390): a path on an NFS, SMB or network FUSE mount is remote
+/// whatever its spelling.
 ///
 /// Pass either a UTF-8 std::string_view or a wide std::wstring_view;
 /// both overloads canonicalize to the same check. To check a
@@ -86,6 +87,65 @@ bool is_lexically_unc_or_remote(std::wstring_view path) noexcept;
 /// unreadable drive answers "not remote", so this function widens the
 /// refusal set and never narrows it.
 bool drive_letter_resolves_to_remote(char driveLetter) noexcept;
+
+/// True if @p path lives on a network filesystem. POSIX only; always false on
+/// Windows, where `drive_letter_resolves_to_remote` is the analogue
+/// (GitHub #390).
+///
+/// The POSIX analogue of a mapped drive is a mount: `/home` on NFS, a CIFS
+/// share under `/mnt`, an sshfs or rclone FUSE mount. Nothing about the path's
+/// spelling says so, which is why `is_unc_or_remote` asks this too.
+///
+///   * Linux: `statfs(2)` `f_type` against the kernel's network-filesystem
+///     magic numbers (NFS, SMB/CIFS/SMB2, AFS, Coda, NCP, 9P, Ceph, Lustre,
+///     GPFS, PanFS). A FUSE mount has one magic for every subtype, so for FUSE
+///     the subtype is read from /proc/self/mountinfo (`fuse.sshfs`,
+///     `fuse.rclone`, ...) and classified by name.
+///   * macOS: `statfs(2)` `MNT_LOCAL` clear.
+///
+/// A path that does not exist yet (a save target) is classified by its
+/// nearest existing ancestor. An empty path, a path with an embedded NUL, or
+/// one where no ancestor can be examined answers false, the same asymmetry as
+/// the drive-letter probe: unknown is "not remote".
+///
+/// Cost: one statfs per existing-ancestor probe, plus a mountinfo read for
+/// FUSE only. Not cached, for the reason given above. Unlike the Windows
+/// concern (canonicalising a UNC name broadcasts NetBIOS/LLMNR lookups),
+/// statfs names no new host: it goes to a mount the administrator already
+/// made. It is still I/O. The NFS client may ask its server, and on a
+/// hard-mounted export whose server has gone it can block, as does every
+/// other access to that path, including the file dialog that produced it.
+bool path_is_on_network_filesystem(std::string_view path) noexcept;
+
+namespace detail {
+/// The Linux classification, split out so it is testable without a real
+/// network mount. @p fsMagic is `statfs.f_type`.
+bool linux_fs_magic_is_network(unsigned long long fsMagic) noexcept;
+/// The FUSE half: @p fstype is a mountinfo filesystem type such as
+/// `fuse.sshfs`. `fuseblk` (ntfs-3g, exfat) and the desktop's local FUSE
+/// mounts (`fuse.portal`, an AppImage) are local.
+bool fuse_fstype_is_network(std::string_view fstype) noexcept;
+/// The filesystem type of the mount that contains @p absPath, by longest
+/// mount-point match over /proc/self/mountinfo text @p mountinfo (mount
+/// points decoded from the kernel's octal escapes). Empty if none matches.
+std::string mountinfo_fstype_for(std::string_view mountinfo,
+                                 std::string_view absPath);
+}  // namespace detail
+
+namespace testseam {
+/// Test-only override for the statfs probe behind
+/// `path_is_on_network_filesystem`: when set, it is asked for the
+/// filesystem magic of each path probed instead of the kernel, and returns
+/// false for "no such path". Same posture as src/core/PrintDeviceSeam.h:
+/// consulted only when PDFE_TESTING is defined, so a release-configured tree
+/// always asks the kernel.
+using FsMagicProbe = bool (*)(const char* path, unsigned long long* magic);
+void setFsMagicProbe(FsMagicProbe probe) noexcept;
+/// Same posture: when set, supplies the /proc/self/mountinfo text the FUSE
+/// subtype lookup reads, so a network FUSE mount can be tested end to end.
+using MountinfoReader = std::string (*)();
+void setMountinfoReader(MountinfoReader reader) noexcept;
+}  // namespace testseam
 
 /// Narrower variant for /URI link follow-ups in PDFs.
 ///

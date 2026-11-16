@@ -13,13 +13,6 @@ using namespace pdfe::core;
 class SystemFontDiscoveryTest : public ::testing::Test {
 protected:
     void SetUp() override {
-#ifndef _WIN32
-        // SystemFontDiscovery uses Windows DirectWrite — the Linux/
-        // macOS path is currently a no-op placeholder. Skip until
-        // fontconfig enumeration is implemented.
-        GTEST_SKIP() << "SystemFontDiscovery is Windows-only (DirectWrite); "
-                        "Linux fontconfig enumeration not yet implemented";
-#endif
     }
     SystemFontDiscovery discovery;
 };
@@ -58,7 +51,15 @@ TEST_F(SystemFontDiscoveryTest, FindByPostScriptName) {
     auto noResult = discovery.findByPostScriptName("NonexistentFont12345xyz");
     EXPECT_FALSE(noResult.has_value());
 #else
-    GTEST_SKIP() << "Windows-specific test";
+    // fontconfig enumeration (GitHub #390). Arial's metric twin is the
+    // installed face; its PostScript name is LiberationSans. The lookup is
+    // case-insensitive, so the lower-case spelling must find it too.
+    auto result = discovery.findByPostScriptName("LiberationSans");
+    ASSERT_TRUE(result.has_value())
+        << "LiberationSans (fonts-liberation) was not found by PostScript name";
+    EXPECT_EQ(result->familyName, "Liberation Sans");
+    EXPECT_TRUE(discovery.findByPostScriptName("liberationsans").has_value());
+    EXPECT_FALSE(discovery.findByPostScriptName("NonexistentFont12345xyz").has_value());
 #endif
 }
 
@@ -76,7 +77,21 @@ TEST_F(SystemFontDiscoveryTest, FindByFamilyStyle) {
         EXPECT_EQ(boldResult->familyName, "Arial");
     }
 #else
-    GTEST_SKIP() << "Windows-specific test";
+    // fontconfig enumeration (GitHub #390), against an installed family.
+    auto result = discovery.findByFamilyStyle("Liberation Sans", FontWeight::Normal,
+                                              FontStyle::Normal);
+    ASSERT_TRUE(result.has_value()) << "Liberation Sans (fonts-liberation) not found";
+    EXPECT_EQ(result->familyName, "Liberation Sans");
+    EXPECT_EQ(result->style, FontStyle::Normal);
+    EXPECT_EQ(result->weight, FontWeight::Normal);
+
+    auto boldResult = discovery.findByFamilyStyle("Liberation Sans", FontWeight::Bold,
+                                                  FontStyle::Normal);
+    ASSERT_TRUE(boldResult.has_value()) << "Liberation Sans Bold not found";
+    EXPECT_EQ(boldResult->familyName, "Liberation Sans");
+    EXPECT_EQ(boldResult->weight, FontWeight::Bold);
+    EXPECT_NE(boldResult->filePath, result->filePath)
+        << "the bold lookup returned the regular face's file";
 #endif
 }
 

@@ -9,7 +9,10 @@
     {
       "name": "qtbase",
       "default-features": true,
-      "features": ["widgets"]
+      "features": [
+        "widgets",
+        { "name": "cups", "platform": "linux" }
+      ]
     },
     "qtsvg",
     "qttools",

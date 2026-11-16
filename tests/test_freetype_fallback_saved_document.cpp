@@ -37,6 +37,7 @@
 // fallback-sourced glyph all the way through compose -> embed -> SAVE -> reopen
 // -> render, and assert against the pixels of the reopened document.
 
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 
 #include <QImage>
@@ -90,9 +91,9 @@ constexpr char32_t kFallbackChar = U'w';
 
 std::string systemFont()
 {
-    for (const char* p : {"C:/Windows/Fonts/arial.ttf",
-                          "C:/Windows/Fonts/times.ttf",
-                          "C:/Windows/Fonts/calibri.ttf"}) {
+    for (const std::string& p : {pdfe_test::systemFontPath("arial.ttf"),
+                          pdfe_test::systemFontPath("times.ttf"),
+                          pdfe_test::systemFontPath("calibri.ttf")}) {
         if (std::filesystem::exists(p)) return p;
     }
     return {};
@@ -483,9 +484,17 @@ TEST_F(FreeTypeFallbackSavedDocTest, A4xRasterisationDpiErrorIsVISIBLEInTheSaved
     // smaller fraction of the canvas. #268's point was sharpness at the output
     // grid, never size. The claim worth defending is that a 4x error CHANGES
     // the rasterisation, not which way it moves.
+    //
+    // HOW MUCH it moves depends on the face. Measured 2026-11-14 (GitHub
+    // #390): Arial on Windows 34px -> 9px (3.8x); Liberation Sans, the
+    // metric-compatible face Linux supplies for arial.ttf, 36px -> 19px
+    // (1.9x). The precondition exists to reject "the 4x was never injected",
+    // which reads as a ratio near 1.0; 1.5 still rejects that on both faces
+    // without demanding Arial's particular hinting. The saved-document
+    // assertion below is unchanged and is what carries the test.
     const double hi = std::max(inkOk, inkBad);
     const double lo = std::max(1, std::min(inkOk, inkBad));
-    ASSERT_GT(hi / lo, 2.0)
+    ASSERT_GT(hi / lo, 1.5)
         << "the 4x output scale did NOT materially change the rasterisation in "
            "memory (" << inkOk << "px vs " << inkBad << "px), so the defect "
            "was never injected and the saved-document comparison below would "

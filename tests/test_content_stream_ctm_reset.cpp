@@ -34,6 +34,7 @@
 // This is a correctness suite: a corrupt cell is a RED test, never data. Do NOT
 // weaken an oracle or skip a cell to reach green.
 
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 
 #include "core/Document.h"
@@ -423,7 +424,7 @@ TEST(CtmReset, HeaderFooterEngineFullSizeUnderAmbientCm) {
 // TRE PdfContentWriter::writeTextBlock x ambient cm — was CORRUPT (half) phase 1.
 // ═════════════════════════════════════════════════════════════════════════════
 TEST(CtmReset, TreWriteTextBlockFullSizeUnderAmbientCm) {
-    const fs::path arial = "C:\\Windows\\Fonts\\arial.ttf";
+    const fs::path arial = pdfe_test::systemFontPath("arial.ttf");
     ASSERT_TRUE(fs::exists(cmFixture())) << "fixture missing: " << cmFixture();
     // A real TTF is required to embed + shape the reconstructed block. On the
     // Windows targets this is always present; treat absence as a hard failure
@@ -494,7 +495,7 @@ TEST(CtmReset, HeaderFooterEngineUprightUnshearedUnderAmbientShear) {
 }
 
 TEST(CtmReset, TreWriteTextBlockUprightUnshearedUnderAmbientShear) {
-    const fs::path arial = "C:\\Windows\\Fonts\\arial.ttf";
+    const fs::path arial = pdfe_test::systemFontPath("arial.ttf");
     ASSERT_TRUE(fs::exists(shearFixture())) << "fixture missing: " << shearFixture();
     ASSERT_TRUE(fs::exists(arial)) << "arial.ttf unavailable: " << arial;
 
@@ -563,7 +564,7 @@ TEST(CtmReset, HeaderFooterEngineUprightUnrotatedUnderAmbientRotate) {
 }
 
 TEST(CtmReset, TreWriteTextBlockUprightUnrotatedUnderAmbientRotate) {
-    const fs::path arial = "C:\\Windows\\Fonts\\arial.ttf";
+    const fs::path arial = pdfe_test::systemFontPath("arial.ttf");
     ASSERT_TRUE(fs::exists(rotateFixture())) << "fixture missing: " << rotateFixture();
     ASSERT_TRUE(fs::exists(arial)) << "arial.ttf unavailable: " << arial;
 

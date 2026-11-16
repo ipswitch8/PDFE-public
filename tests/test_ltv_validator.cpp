@@ -418,8 +418,12 @@ TEST_F(LtvValidatorTest, VerifiesLtvDocumentWithDss)
     // reach LtvValidated. Without TrustAnchorManager, the verdict would
     // be UntrustedChain — which is the correct behaviour for a doc whose
     // signer chain doesn't terminate at a known root.
-    auto pfxDer = std::filesystem::path(fixturesDir())
-                  / "test_signer_root.der";
+    // A TEMP file, not one beside the tracked fixtures: written here it was
+    // created and deleted under tests/fixtures on every run, which the fixture
+    // immutability guard (GitHub #386) reported -- and, in a parallel run,
+    // reported against whichever suite happened to be running beside it.
+    auto pfxDer = std::filesystem::temp_directory_path()
+                  / "pdfe_ltv_test_signer_root.der";
     {
         // Write the test signer cert to a temp .der file so addTrust()
         // can ingest it.

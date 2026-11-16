@@ -37,6 +37,11 @@ static bool isDecorativeFont(const std::string& familyName)
         "parchment", "playbill", "poor richard", "ravie",
         "showcard", "snap", "tempus", "blackadder",
         "curlz", "gigi", "kunstler",
+        // Linux console/pixel faces (GitHub #390). TrueType wrappers around
+        // bitmap terminal fonts: they claim Latin coverage and survive every
+        // structural filter, so a scanned Arial document matched
+        // "gallant12x22". Never body text.
+        "gallant", "classic console", "terminus", "unifont", "fixedsys",
         // Monotype/Microsoft decorative
         "algerian", "bauhaus", "broadway", "chiller",
         "colonna", "cooper black", "footlight", "forte",
@@ -359,7 +364,7 @@ std::vector<SubstituteResult> SubstituteFontSelector::findTopCandidates(
             continue;
         if (isDecorativeFont(fm.familyName))
             continue;  // Hard filter: exclude decorative/script/symbol fonts
-        if (latinSource && isNonLatinPrimaryFamily(fm.familyName))
+        if (latinSource && (isNonLatinPrimaryFamily(fm.familyName) || !fm.designedForLatin))
             continue;  // Hard filter: keep multi-script families away from
                        // Latin-only source text. Cached profiles may have
                        // stale primaryScript=Unknown.
@@ -493,7 +498,7 @@ std::vector<SubstituteResult> SubstituteFontSelector::findAllNonDecorativeCandid
             continue;
         if (isDecorativeFont(fm.familyName))
             continue;
-        if (latinSource && isNonLatinPrimaryFamily(fm.familyName))
+        if (latinSource && (isNonLatinPrimaryFamily(fm.familyName) || !fm.designedForLatin))
             continue;
 
         // Deduplicate by file path (TTC collections enumerate same file many times)
@@ -559,7 +564,7 @@ std::optional<SubstituteResult> SubstituteFontSelector::scoreSystemFonts(
             continue;
         if (isDecorativeFont(fm.familyName))
             continue;  // Hard filter: exclude decorative/script/symbol fonts
-        if (latinSource && isNonLatinPrimaryFamily(fm.familyName))
+        if (latinSource && (isNonLatinPrimaryFamily(fm.familyName) || !fm.designedForLatin))
             continue;  // Hard filter: keep multi-script families away from
                        // Latin-only source text (Lean Startup p2 repro:
                        // Nirmala UI Ascent=1079 vs CharisSIL Ascent=731
@@ -599,13 +604,29 @@ std::optional<SubstituteResult> SubstituteFontSelector::scoreSystemFonts(
             return a.quickScore > b.quickScore;
         });
 
-    size_t limit = std::min(candidates.size(), static_cast<size_t>(20));
+    // Deep-score the top 20 by quick score. If NONE of them covers the text,
+    // keep walking down the ranked list, deep-scoring the next covering fonts
+    // until 20 have been examined (GitHub #390 full-suite triage).
+    //
+    // The cut used to be a hard 20. That only worked where the top 20 happened
+    // to include a font covering the run's script. On Windows Arial covers
+    // Arabic, Hebrew and Cyrillic and is always near the top. A Linux desktop
+    // ships ~2,400 faces, and the Latin-only ones fill all 20 slots by
+    // structural score, so an Arabic run found NOTHING and fell back to a font
+    // without a single Arabic glyph. Where the top 20 already yield a covering
+    // font, the result is exactly what it was.
+    constexpr size_t kDeepScored = 20;
+    size_t coveringExamined = 0;
 
     // Deep scoring
     SubstituteResult bestResult;
     bool foundAny = false;
 
-    for (size_t i = 0; i < limit; ++i) {
+    bool topTwentyCovered = false;
+    for (size_t i = 0; i < candidates.size(); ++i) {
+        if (i == kDeepScored) topTwentyCovered = foundAny;
+        if (i >= kDeepScored && (topTwentyCovered || coveringExamined >= kDeepScored))
+            break;
         const auto& candidate = candidates[i];
         const std::string& filePath = candidate.metrics->filePath;
 
@@ -613,6 +634,7 @@ std::optional<SubstituteResult> SubstituteFontSelector::scoreSystemFonts(
         auto missing = analyzer_->findMissingGlyphs(filePath, textNeeded);
         if (!missing.empty())
             continue;  // Doesn't cover needed text
+        ++coveringExamined;
 
         // Get or compute full profile
         FontMetricProfile candidateProfile;

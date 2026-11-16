@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <QApplication>
 
+#include "fixture_immutability_guard.h"  // GitHub #386
 #include "security_oracles.h"  // pdfe_test::testProcessJob() — ProcessSpawnGuard scoping
 
 #ifdef _WIN32
@@ -104,5 +105,7 @@ int main(int argc, char** argv) {
     QCoreApplication::setApplicationVersion(QString::fromLatin1(PDFE_VERSION_STRING));
 
     ::testing::InitGoogleTest(&argc, argv);
+    // GitHub #386: fail the test that rewrites a tracked fixture, by name.
+    pdfe_test::installFixtureImmutabilityGuard(TEST_FIXTURES_DIR);
     return RUN_ALL_TESTS();
 }

@@ -1152,7 +1152,26 @@ TEST_F(PerfStressTest, DeleteAndSaveScalingCurveIsNearLinear)
     //      all-pairs dedup dominates. A bound of 1.40 here would have had 5%
     //      headroom over an unchanged measurement, i.e. a flake generator
     //      wearing the costume of a regression guard.
+    //
+    //      THAT 1.50 IS A DEBUG NUMBER, and an optimised build cannot meet it
+    //      without anything having regressed. The save is a*n + b*n^2: the n^2
+    //      term is MuPDF's all-pairs removeduplicateobjs, the rest is linear.
+    //      Fitted from the 50p and 400p points (GitHub #390, 2026-11-14):
+    //        Windows Debug   a = 2.35e-4  b = 7.0e-7   exponent 1.29-1.31
+    //                        (docs/audit/evidence/ui-followups-337-335-*.xml)
+    //        Linux Release   a = 6.4e-5   b = 5.9e-7   exponent 1.48-1.58
+    //                        (eight serial runs: five full-suite, three alone)
+    //      The quadratic coefficient is the same in both. Release only makes
+    //      the LINEAR part 3.7x cheaper, so the n^2 term shows more over the
+    //      same 50->400 span. The optimised bound sits between the measurement
+    //      (1.58 worst of eight) and a dedup that got twice as costly (b doubled
+    //      with a unchanged reads 1.71), so it keeps catching the regression
+    //      the Debug bound is for.
+#ifdef NDEBUG
+    constexpr double kSaveExponentBound = 1.65;
+#else
     constexpr double kSaveExponentBound = 1.50;
+#endif
     EXPECT_LT(delEditExp, kExponentBound)
         << "page deletion costs pages^" << delEditExp << " across "
         << kScales[0] << "->" << kScales[kN - 1] << " pages ("

@@ -14,6 +14,7 @@
 // RED-first note: each oracle is defended by a one-line mutation (documented in
 // the handoff report) that re-reds it against the implementation.
 
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 
 #include "fonts/TextShaper.h"
@@ -40,13 +41,13 @@ namespace {
 // Try a list of font paths; return the first FT_Face that loads AND covers the
 // probe text. Returns nullptr only if none work (SKIP=FAIL: callers ASSERT).
 FT_Face loadFirstCovering(FT_Library lib,
-                          const std::vector<const char*>& paths,
+                          const std::vector<std::string>& paths,
                           const std::u32string& probe)
 {
     TextShaper probeShaper;
-    for (const char* p : paths) {
+    for (const std::string& p : paths) {
         FT_Face face = nullptr;
-        if (FT_New_Face(lib, p, 0, &face) != 0 || !face)
+        if (FT_New_Face(lib, p.c_str(), 0, &face) != 0 || !face)
             continue;
         if (probe.empty() || probeShaper.canRender(face, probe))
             return face;
@@ -113,9 +114,9 @@ protected:
         // "marhaba": meem(0645) reh(0631) hah(062D) beh(0628) alef(0627).
         arabic = U"\u0645\u0631\u062D\u0628\u0627";
         face = loadFirstCovering(lib, {
-            "C:\\Windows\\Fonts\\NotoNaskhArabic-Regular.ttf",
-            "C:\\Windows\\Fonts\\arial.ttf",
-            "C:\\Windows\\Fonts\\tahoma.ttf",
+            pdfe_test::systemFontPath("notonaskharabic-regular.ttf"),
+            pdfe_test::systemFontPath("arial.ttf"),
+            pdfe_test::systemFontPath("tahoma.ttf"),
         }, arabic);
         ASSERT_NE(face, nullptr)
             << "No Arabic-covering font found; required for R2-20 shaping test";
@@ -183,9 +184,9 @@ TEST(HebrewShaping, RtlClustersDescend) {
     // "shalom": shin(05E9) lamed(05DC) vav(05D5) final-mem(05DD).
     const std::u32string hebrew = U"\u05E9\u05DC\u05D5\u05DD";
     FT_Face face = loadFirstCovering(lib, {
-        "C:\\Windows\\Fonts\\DavidLibre-Regular.ttf",
-        "C:\\Windows\\Fonts\\arial.ttf",
-        "C:\\Windows\\Fonts\\times.ttf",
+        pdfe_test::systemFontPath("davidlibre-regular.ttf"),
+        pdfe_test::systemFontPath("arial.ttf"),
+        pdfe_test::systemFontPath("times.ttf"),
     }, hebrew);
     ASSERT_NE(face, nullptr) << "No Hebrew-covering font found (R2-21)";
 
@@ -214,11 +215,11 @@ protected:
         // "Nihon" (Japan): 65E5 672C.
         cjk = U"\u65E5\u672C";
         face = loadFirstCovering(lib, {
-            "C:\\Windows\\Fonts\\msgothic.ttc",
-            "C:\\Windows\\Fonts\\simsun.ttc",
-            "C:\\Windows\\Fonts\\YuGothM.ttc",
-            "C:\\Windows\\Fonts\\msjh.ttc",
-            "C:\\Windows\\Fonts\\malgun.ttf",
+            pdfe_test::systemFontPath("msgothic.ttc"),
+            pdfe_test::systemFontPath("simsun.ttc"),
+            pdfe_test::systemFontPath("yugothm.ttc"),
+            pdfe_test::systemFontPath("msjh.ttc"),
+            pdfe_test::systemFontPath("malgun.ttf"),
         }, cjk);
         ASSERT_NE(face, nullptr) << "No CJK-covering font found (R2-21 vertical)";
     }
@@ -295,8 +296,8 @@ TEST(ShapeParamsMapping, LegacyShapeStillLtrLatin) {
     FT_Library lib = nullptr;
     ASSERT_EQ(FT_Init_FreeType(&lib), 0);
     FT_Face face = loadFirstCovering(lib, {
-        "C:\\Windows\\Fonts\\arial.ttf",
-        "C:\\Windows\\Fonts\\times.ttf",
+        pdfe_test::systemFontPath("arial.ttf"),
+        pdfe_test::systemFontPath("times.ttf"),
     }, U"Hi");
     ASSERT_NE(face, nullptr);
 
@@ -327,7 +328,7 @@ namespace {
 
 // First path in @p paths that both loads AND covers @p probe (SKIP=FAIL:
 // callers ASSERT non-empty). Returns "" only if none qualify.
-std::string firstCoveringPath(const std::vector<const char*>& paths,
+std::string firstCoveringPath(const std::vector<std::string>& paths,
                               const std::u32string& probe)
 {
     FT_Library lib = nullptr;
@@ -335,9 +336,9 @@ std::string firstCoveringPath(const std::vector<const char*>& paths,
         return {};
     TextShaper probeShaper;
     std::string result;
-    for (const char* p : paths) {
+    for (const std::string& p : paths) {
         FT_Face face = nullptr;
-        if (FT_New_Face(lib, p, 0, &face) != 0 || !face)
+        if (FT_New_Face(lib, p.c_str(), 0, &face) != 0 || !face)
             continue;
         const bool ok = probe.empty() || probeShaper.canRender(face, probe);
         FT_Done_Face(face);
@@ -391,9 +392,9 @@ TEST(BitmapCompositorI18n, ArabicJoiningChangesShapedWidth) {
     // "marhaba": meem(0645) reh(0631) hah(062D) beh(0628) alef(0627).
     const std::u32string word = U"\u0645\u0631\u062D\u0628\u0627";
     const std::string font = firstCoveringPath({
-        "C:\\Windows\\Fonts\\NotoNaskhArabic-Regular.ttf",
-        "C:\\Windows\\Fonts\\arial.ttf",
-        "C:\\Windows\\Fonts\\tahoma.ttf",
+        pdfe_test::systemFontPath("notonaskharabic-regular.ttf"),
+        pdfe_test::systemFontPath("arial.ttf"),
+        pdfe_test::systemFontPath("tahoma.ttf"),
     }, word);
     ASSERT_FALSE(font.empty()) << "No Arabic-covering font found (R2-20)";
 
@@ -428,11 +429,11 @@ TEST(BitmapCompositorI18n, ArabicJoiningChangesShapedWidth) {
 TEST(BitmapCompositorI18n, VerticalWritingModeStacksCjkGlyphs) {
     const std::u32string cjk = U"\u65E5\u672C"; // "Nihon" (Japan)
     const std::string font = firstCoveringPath({
-        "C:\\Windows\\Fonts\\msgothic.ttc",
-        "C:\\Windows\\Fonts\\simsun.ttc",
-        "C:\\Windows\\Fonts\\YuGothM.ttc",
-        "C:\\Windows\\Fonts\\msjh.ttc",
-        "C:\\Windows\\Fonts\\malgun.ttf",
+        pdfe_test::systemFontPath("msgothic.ttc"),
+        pdfe_test::systemFontPath("simsun.ttc"),
+        pdfe_test::systemFontPath("yugothm.ttc"),
+        pdfe_test::systemFontPath("msjh.ttc"),
+        pdfe_test::systemFontPath("malgun.ttf"),
     }, cjk);
     ASSERT_FALSE(font.empty()) << "No CJK-covering font found (R2-21 vertical)";
 
@@ -471,9 +472,9 @@ TEST(BitmapCompositorI18n, VerticalWritingModeStacksCjkGlyphs) {
 TEST(BitmapCompositorI18n, ArabicRendersInkThroughProductRenderer) {
     const std::u32string word = U"\u0645\u0631\u062D\u0628\u0627";
     const std::string font = firstCoveringPath({
-        "C:\\Windows\\Fonts\\NotoNaskhArabic-Regular.ttf",
-        "C:\\Windows\\Fonts\\arial.ttf",
-        "C:\\Windows\\Fonts\\tahoma.ttf",
+        pdfe_test::systemFontPath("notonaskharabic-regular.ttf"),
+        pdfe_test::systemFontPath("arial.ttf"),
+        pdfe_test::systemFontPath("tahoma.ttf"),
     }, word);
     ASSERT_FALSE(font.empty()) << "No Arabic-covering font found (R2-20)";
 

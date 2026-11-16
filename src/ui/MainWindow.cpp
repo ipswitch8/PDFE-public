@@ -605,6 +605,27 @@ void MainWindow::fireAlignStagingWindowHookForTesting(
     if (hook) hook(stagingPath);
 }
 
+// Linux port phase-6 paste seam. See MainWindow.h.
+std::function<void(const std::filesystem::path&)> MainWindow::sPasteSealedHook_;
+std::mutex MainWindow::sPasteSealedHookMutex_;
+
+void MainWindow::setPasteSealedHookForTesting(
+    std::function<void(const std::filesystem::path&)> hook)
+{
+    std::lock_guard<std::mutex> lock(sPasteSealedHookMutex_);
+    sPasteSealedHook_ = std::move(hook);
+}
+
+void MainWindow::firePasteSealedHookForTesting(const std::filesystem::path& p)
+{
+    std::function<void(const std::filesystem::path&)> hook;
+    {
+        std::lock_guard<std::mutex> lock(sPasteSealedHookMutex_);
+        hook = sPasteSealedHook_;
+    }
+    if (hook) hook(p);
+}
+
 // WIN-87 site #4 output-staging seam. See MainWindow.h.
 std::function<void(const std::filesystem::path&)>
     MainWindow::sRedactionOutputStagingHook_;
@@ -3852,8 +3873,10 @@ MainWindow::~MainWindow()
 // CFSTR_FILEDESCRIPTOR/CFSTR_FILECONTENTS instead of a uri-list, so the
 // URL list is either empty or non-local, and both must fall through.
 //
-// The remote check is LEXICAL-plus-drive-resolution, not a filesystem probe:
-// touching a UNC path to find out whether it exists is the very NetBIOS/LLMNR
+// On Windows the remote check is LEXICAL-plus-drive-resolution, not a filesystem
+// probe. (On POSIX it also asks statfs what the path is mounted on, GitHub #390;
+// that names no new host, see path_is_on_network_filesystem.) Touching a UNC
+// path to find out whether it exists is the very NetBIOS/LLMNR
 // broadcast the gate exists to prevent, so a remote target is refused before
 // anything stats it.
 static bool droppedUrlNamesACandidatePdf(const QUrl& url, QString& pathOut)
@@ -15822,10 +15845,22 @@ bool MainWindow::pasteImageFromClipboard()
         }
     }
     if (!saved) return false;
+    // Seal now the producer is done: a no-op on Windows (the share mode already
+    // holds); on POSIX the PNG drops to 0400 and is snapshotted, so a later
+    // same-user rewrite or rename-over is DETECTED by verifyUnchanged().
+    if (!staged->seal(fdEc)) return false;
+    firePasteSealedHookForTesting(staged->path());
 
     const int pageIdx = canvas_->currentPage();
     auto page = document_->page(pageIdx);
     if (!page) return false;
+
+    // Verified immediately before the first by-path read (execute() below).
+    // LIMIT, stated: later redo() re-reads of this path after an undo are NOT
+    // re-verified — InsertImageCommand has no hook for it and no error path to
+    // report a refusal — so on POSIX those re-reads rely on the 0400 seal
+    // only. See docs/linux-parity-status.md.
+    if (!staged->verifyUnchanged(fdEc)) return false;
 
     pdfe::image::InsertImageOptions opts;
     opts.filePath = tmpPath.toStdString();

@@ -132,15 +132,6 @@ TEST_F(RedactionRoundTripTest,
 // ─── Text extraction: redacted text is gone ──────────────────────────
 
 TEST_F(RedactionRoundTripTest, RedactedTextIsNotExtractableAfterApply) {
-#ifndef _WIN32
-    // text_redaction.pdf's "Confidential" string isn't fully
-    // extractable on Linux — some glyphs drop because the font
-    // ToUnicode CMap path relies on Windows-side font resolution
-    // (SystemFontDiscovery). Pre-condition fails with
-    // "got: ocument" instead of "Confidential Document".
-    // Track under linux_port_plan.md font-extraction follow-up.
-    GTEST_SKIP() << "Text extraction font-decode path needs Linux impl";
-#endif
     auto page = document_->page(0);
 
     // Capture the original extracted text on page 0 so we can check

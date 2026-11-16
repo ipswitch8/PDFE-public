@@ -102,8 +102,12 @@ they are operational state CI or code reads, not trackers:
 `tools/gate/*.json` baselines.
 
 **Beware `#nn`.** Two unrelated schemes use it: GitHub issue numbers, and the
-internal "Defect #nn" scheme that appears inside `gap-register.md` rows. Write
-`GitHub #nn` or `Defect #nn` explicitly; never bare `#nn`.
+internal "Defect" scheme that appears inside `gap-register.md` rows. Write
+`GitHub #nn` for the former and `Defect-nn` (hyphen, no `#`) for the latter;
+never bare `#nn`. Do not write `Defect #nn`. GitHub autolinks it in commit
+messages and PR text to the unrelated GitHub issue with that number
+(GitHub #389), and `tools/gate/check_defect_ref_autolink.py` fails it in
+fast-checks.
 
 ## Existing Test Layers (do not replace — augment)
 - **GoogleTest** (`tests/test_*.cpp`) — unit + headless integration. Primary suite, **6,571 registered tests** (2026-10-14, enumerated by the sharded harness; 6,557 on 2026-10-13, 5,903 on 2026-08-27, 5,898 on 2026-08-25, and the long-stale "2068" before that predated roughly three thousand of them). Re-derive with `pdfe_tests.exe --gtest_list_tests`, never by counting `TEST*` macros — `TEST_P` suites expand at run time. Latest run record: [`docs/audit/release-readiness/gtest-run-summary.md`](docs/audit/release-readiness/gtest-run-summary.md).

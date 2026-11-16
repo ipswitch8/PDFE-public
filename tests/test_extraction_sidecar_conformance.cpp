@@ -34,6 +34,9 @@
 //     yielding a directory — which is precisely how cause (2) above survived —
 //     the script still exits 0 and this case is what notices.
 
+#if !defined(_WIN32)
+#include <sys/wait.h>
+#endif
 #include <gtest/gtest.h>
 
 #include <array>
@@ -70,7 +73,12 @@ int runCapturing(const std::string& cmd, std::string& output)
 #if defined(_WIN32)
     return ::_pclose(pipe);
 #else
-    return ::pclose(pipe);
+    // pclose() returns a WAIT STATUS on POSIX, not the exit code that
+    // _pclose() returns on Windows: exit 1 arrives as 256. Decode it, and
+    // report death by signal as -1 rather than as a plausible exit code.
+    const int status = ::pclose(pipe);
+    if (status == -1) return -1;
+    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 #endif
 }
 

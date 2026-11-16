@@ -15,7 +15,8 @@
     #endif
     #include <windows.h>
 #else
-    // Linux/macOS: use fc-match via popen() for fontconfig query.
+    // Linux/macOS: the fontconfig library (core/FontconfigSupport.h, GitHub #390).
+    #include "core/FontconfigSupport.h"
     #include <cstdio>
     #include <memory>
 #endif
@@ -38,45 +39,7 @@ std::string toLowerNoSep(const std::string& s)
     return out;
 }
 
-#ifndef _WIN32
-/// Run `fc-match -f '%{file}' "<family>:weight=<n>:slant=<n>"` and
-/// return the file path. Returns empty on failure.
-std::string fcMatch(const std::string& family, bool bold, bool italic)
-{
-    // Build the pattern with weight/slant requests so fc-match picks
-    // the right face. fontconfig weight: 80=normal, 200=bold;
-    // slant: 0=roman, 100=italic.
-    std::string pattern = family;
-    if (bold)   pattern += ":weight=200";
-    if (italic) pattern += ":slant=100";
 
-    // Escape single quotes in the family name for the shell.
-    std::string escaped;
-    escaped.reserve(pattern.size() + 8);
-    for (char c : pattern) {
-        if (c == '\'') escaped += R"('\'')";
-        else escaped.push_back(c);
-    }
-
-    std::string cmd = "fc-match -f '%{file}' '" + escaped + "' 2>/dev/null";
-    std::unique_ptr<FILE, int(*)(FILE*)> pipe(popen(cmd.c_str(), "r"), pclose);
-    if (!pipe) return {};
-
-    std::string result;
-    char buf[1024];
-    while (fgets(buf, sizeof(buf), pipe.get())) {
-        result.append(buf);
-    }
-    // fc-match emits no trailing newline with %{file}, but trim just in case.
-    while (!result.empty() && (result.back() == '\n' || result.back() == '\r')) {
-        result.pop_back();
-    }
-    // Sanity: must be an absolute path that exists.
-    if (result.empty() || result[0] != '/') return {};
-    if (!std::filesystem::exists(result)) return {};
-    return result;
-}
-#endif // !_WIN32
 
 /// Family equivalence chain: when the requested family isn't
 /// installed, the resolver walks this list in order.
@@ -204,7 +167,11 @@ std::string FontResolver::queryOsFontFile(const std::string& family,
     }
     return {};
 #else
-    return fcMatch(family, bold, italic);
+    // GitHub #390: the fontconfig LIBRARY, not `fc-match` through popen. The
+    // CLI always prints a file -- DejaVu Sans for a family that does not exist
+    // -- so every name "resolved"; matchFamilyFile accepts only the requested
+    // family or a substitute the configuration binds to it.
+    return pdfe::core::fontconfig::matchFamilyFile(family, bold, italic);
 #endif
 }
 

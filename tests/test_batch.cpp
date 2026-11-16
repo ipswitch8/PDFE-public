@@ -22,6 +22,23 @@ using namespace pdfe::core;
 
 // ========== BatchEngine Unit Tests ==========
 
+namespace {
+// A fresh per-test directory holding a copy of `src`, so anything written
+// beside the input lands under the system temp directory.
+std::filesystem::path privateCopy(const std::filesystem::path& src)
+{
+    const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
+    const auto dir = std::filesystem::temp_directory_path() /
+                     (std::string("pdfe_batch_") + info->name());
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+    std::filesystem::create_directories(dir);
+    const auto dst = dir / src.filename();
+    std::filesystem::copy_file(src, dst, std::filesystem::copy_options::overwrite_existing);
+    return dst;
+}
+}  // namespace
+
 class BatchEngineTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -90,10 +107,14 @@ TEST_F(BatchEngineTest, ProgressCallbackFires) {
     engine.setProgressCallback([&](int, int, const std::string&) { callCount++; });
 
     std::filesystem::path fixturesDir = TEST_FIXTURES_DIR;
-    auto testPdf = fixturesDir / "test_single.pdf";
-    if (!std::filesystem::exists(testPdf)) {
+    const auto tracked = fixturesDir / "test_single.pdf";
+    if (!std::filesystem::exists(tracked)) {
         GTEST_SKIP() << "test_single.pdf not available";
     }
+    // BatchEngine writes "<input dir>/batch_output/<name>". Fed the tracked
+    // fixture, that directory was tests/fixtures/batch_output (hidden by a
+    // .gitignore line rather than fixed). Batch a private copy instead.
+    const auto testPdf = privateCopy(tracked);
 
     std::vector<std::filesystem::path> files = {testPdf};
     std::vector<BatchAction> actions = {{BatchActionType::FlattenAnnotations, std::monostate{}}};
@@ -118,10 +139,14 @@ TEST_F(BatchEngineTest, MultipleActionsExecuteSequentially) {
     BatchEngine engine(context);
 
     std::filesystem::path fixturesDir = TEST_FIXTURES_DIR;
-    auto testPdf = fixturesDir / "test_single.pdf";
-    if (!std::filesystem::exists(testPdf)) {
+    const auto tracked = fixturesDir / "test_single.pdf";
+    if (!std::filesystem::exists(tracked)) {
         GTEST_SKIP() << "test_single.pdf not available";
     }
+    // BatchEngine writes "<input dir>/batch_output/<name>". Fed the tracked
+    // fixture, that directory was tests/fixtures/batch_output (hidden by a
+    // .gitignore line rather than fixed). Batch a private copy instead.
+    const auto testPdf = privateCopy(tracked);
 
     std::vector<std::filesystem::path> files = {testPdf};
     std::vector<BatchAction> actions = {

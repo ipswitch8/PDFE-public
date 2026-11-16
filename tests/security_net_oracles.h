@@ -63,6 +63,9 @@
 #pragma once
 
 #include <atomic>
+#include <sstream>
+#include <fstream>
+#include <filesystem>
 #include <chrono>
 #include <cstdint>
 #include <mutex>
@@ -119,7 +122,111 @@ inline bool isExternalEndpoint(const std::string& addr)
     return true;
 }
 
-#if defined(_WIN32)
+#if defined(__linux__)
+
+namespace detail {
+
+// Linux (GitHub #390). The kernel's TCP/UDP tables (/proc/net/{tcp,tcp6,udp,
+// udp6}) list every socket in the network namespace, so they are joined with
+// this process's open descriptors (/proc/self/fd -> "socket:[inode]") to keep
+// only the sockets THIS process owns, the same scope as the Windows
+// owner-PID tables.
+//
+// One honest difference from Windows: a socket that has already been closed is
+// no longer owned by any descriptor, so a connection in TIME_WAIT cannot be
+// attributed to the process. A connection that opens and closes entirely
+// between two 5 ms samples is therefore invisible here, while on Windows the
+// final snapshot still sees its TIME_WAIT 4-tuple. The positive control in the
+// suite (a real connect held open across a sample) proves the observer is live.
+inline std::set<unsigned long> ownSocketInodes()
+{
+    std::set<unsigned long> out;
+    std::error_code ec;
+    for (std::filesystem::directory_iterator it("/proc/self/fd", ec), end;
+         !ec && it != end; it.increment(ec)) {
+        std::error_code lec;
+        const auto target = std::filesystem::read_symlink(it->path(), lec).string();
+        if (lec || target.rfind("socket:[", 0) != 0) continue;
+        out.insert(std::stoul(target.substr(8)));
+    }
+    return out;
+}
+
+inline std::string hexToIp(const std::string& hex)
+{
+    // /proc/net prints addresses as host-order 32-bit words in hex.
+    auto word = [&](size_t i) {
+        return static_cast<std::uint32_t>(std::stoul(hex.substr(i * 8, 8), nullptr, 16));
+    };
+    if (hex.size() == 8) {
+        const std::uint32_t a = word(0);
+        return std::to_string(a & 0xFF) + "." + std::to_string((a >> 8) & 0xFF) + "." +
+               std::to_string((a >> 16) & 0xFF) + "." + std::to_string(a >> 24);
+    }
+    unsigned char b[16];
+    for (size_t w = 0; w < 4; ++w) {
+        const std::uint32_t v = word(w);
+        for (size_t k = 0; k < 4; ++k) b[w * 4 + k] = static_cast<unsigned char>(v >> (8 * k));
+    }
+    static const char* kHex = "0123456789abcdef";
+    std::string out = "[";
+    for (int i = 0; i < 16; i += 2) {
+        if (i) out += ':';
+        out += kHex[(b[i] >> 4) & 0xF];
+        out += kHex[b[i] & 0xF];
+        out += kHex[(b[i + 1] >> 4) & 0xF];
+        out += kHex[b[i + 1] & 0xF];
+    }
+    out += "]";
+    if (out == "[0000:0000:0000:0000:0000:0000:0000:0001]") return "[::1]";
+    if (out == "[0000:0000:0000:0000:0000:0000:0000:0000]") return "[::]";
+    // IPv4-mapped loopback (::ffff:127.x.x.x) is loopback too.
+    if (out.rfind("[0000:0000:0000:0000:0000:ffff:7f", 0) == 0) return "127.0.0.1";
+    return out;
+}
+
+inline bool snapshotEndpoints(std::vector<NetEndpoint>& out)
+{
+    const std::set<unsigned long> inodes = ownSocketInodes();
+    bool anyTableRead = false;
+    for (const char* table : {"tcp", "tcp6", "udp", "udp6"}) {
+        std::ifstream in(std::string("/proc/self/net/") + table);
+        if (!in) continue;
+        anyTableRead = true;
+        const bool udp = table[0] == 'u';
+        std::string line;
+        std::getline(in, line);  // header
+        while (std::getline(in, line)) {
+            std::istringstream ls(line);
+            std::string sl, local, remote, st, txrx, tr, retr, uid, timeout, inode;
+            if (!(ls >> sl >> local >> remote >> st >> txrx >> tr >> retr >> uid >> timeout >> inode))
+                continue;
+            unsigned long ino = 0;
+            try { ino = std::stoul(inode); } catch (...) { continue; }
+            if (ino == 0 || !inodes.count(ino)) continue;
+            const auto lc = local.find(':');
+            const auto rc = remote.find(':');
+            if (lc == std::string::npos || rc == std::string::npos) continue;
+            NetEndpoint e;
+            e.protocol = udp ? "udp" : "tcp";
+            e.localAddr = hexToIp(local.substr(0, lc));
+            e.localPort = static_cast<std::uint16_t>(std::stoul(local.substr(lc + 1), nullptr, 16));
+            if (!udp) {
+                e.remoteAddr = hexToIp(remote.substr(0, rc));
+                e.remotePort = static_cast<std::uint16_t>(std::stoul(remote.substr(rc + 1), nullptr, 16));
+                // A listening socket has no peer.
+                if (e.remoteAddr == "0.0.0.0" || e.remoteAddr == "[::]") e.remoteAddr.clear();
+            }
+            e.external = isExternalEndpoint(e.remoteAddr);
+            out.push_back(std::move(e));
+        }
+    }
+    return anyTableRead;
+}
+
+} // namespace detail
+
+#elif defined(_WIN32)
 
 namespace detail {
 
@@ -250,6 +357,10 @@ inline bool snapshotEndpoints(std::vector<NetEndpoint>& out)
 
 } // namespace detail
 
+#endif  // platform detail
+
+#if defined(_WIN32) || defined(__linux__)
+
 /// Snapshot-diff observer for outbound connections owned by THIS process.
 ///
 /// Usage:
@@ -363,9 +474,9 @@ private:
     bool supported_ = false;
 };
 
-#else  // !_WIN32
+#else  // neither Windows nor Linux
 
-/// Non-Windows placeholder. `supported()` is false, so a test must treat its
+/// Placeholder for the remaining platforms (macOS). `supported()` is false, so a test must treat its
 /// counts as "not observed" rather than "clean" — the guard never manufactures
 /// a passing result on a platform where it cannot see.
 class NetworkEgressGuard {
@@ -381,6 +492,6 @@ public:
     }
 };
 
-#endif // _WIN32
+#endif // _WIN32 || __linux__
 
 } // namespace pdfe_test

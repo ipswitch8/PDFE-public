@@ -14,6 +14,34 @@
 #include <AclApi.h>    // SetNamedSecurityInfoW  (owner-only crash-dir DACL)
 #include <sddl.h>      // ConvertSidToStringSidW, SDDL security descriptors
 #include <string>
+#else
+#include "core/PathSecurity.h"
+#include "core/TempFileSafety.h"
+#include <QStandardPaths>
+#include <algorithm>
+#include <atomic>
+#include <cerrno>
+#include <climits>
+#include <csignal>
+#include <cstring>
+#include <ctime>
+#include <execinfo.h>   // backtrace, backtrace_symbols_fd
+#include <fcntl.h>
+#include <filesystem>
+#include <signal.h>
+#include <string>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#if defined(__linux__)
+// Linux only (GitHub #388): macOS's <ucontext.h> is an #error without
+// _XOPEN_SOURCE, and XNU's SYS_gettid is a different call (per-thread
+// uid/gid), so neither may reach an Apple build.
+#include <sys/syscall.h>
+#include <ucontext.h>
+#endif
+#include <utility>
+#include <vector>
 #endif
 
 namespace pdfe::app {
@@ -268,7 +296,545 @@ int pruneOldestDumps(const std::wstring& dir, int keep) {
     }
     return deleted;
 }
+#else  // POSIX
+
+// ---------------------------------------------------------------------------
+// THE POSIX CRASH HANDLER (Linux port, phase 6).
+//
+// WHAT IT DOES. install() resolves and secures the crash directory, opens an
+// O_DIRECTORY descriptor on it, prunes old reports, allocates an alternate
+// signal stack, primes backtrace(), pre-formats the version line, and installs
+// one SA_SIGINFO|SA_ONSTACK|SA_RESETHAND handler for SIGSEGV, SIGBUS, SIGILL,
+// SIGFPE, SIGABRT and SIGTRAP. On a fatal signal the handler writes a TEXT
+// report (there is no minidump format here) and re-raises, so the process dies
+// with the ORIGINAL signal and a parent's waitpid() sees WIFSIGNALED with it.
+//
+// ASYNC-SIGNAL SAFETY. The handler runs at an arbitrary instruction — possibly
+// inside malloc with its arena lock held, inside stdio, inside Qt. So the
+// handler uses ONLY the following, and nothing that allocates or locks:
+//   * clock_gettime, getpid, write, openat, close, fsync, sigaction, raise,
+//     nanosleep, _exit                        — on the POSIX async-signal-safe
+//                                               list (signal-safety(7)).
+//   * syscall(SYS_gettid)                     — a raw system call; glibc's
+//                                               syscall() takes no lock.
+//   * std::atomic<int> exchange/load          — lock-free on every target we
+//                                               build (static_assert below).
+//   * hand-written decimal/hex formatting into stack/static char buffers — no
+//     snprintf (not on the list; glibc's may allocate for some conversions).
+//   * backtrace() and backtrace_symbols_fd()  — NOT on the POSIX list. glibc
+//     documents backtrace_symbols_fd as not calling malloc (it formats each
+//     frame straight to the fd), unlike backtrace_symbols. backtrace()'s caveat
+//     is that its FIRST call dlopen()s libgcc_s for the unwinder, which
+//     allocates and takes the loader lock — so install() calls it once,
+//     outside any signal, and the handler's call then finds the unwinder
+//     already loaded. Residual risk, stated rather than hidden: both walk
+//     loader data (dladdr / dl_iterate_phdr take the loader's recursive lock),
+//     so a fault raised while THIS thread holds the loader lock (i.e. during a
+//     dlopen) could deadlock in the backtrace step. Everything before the
+//     backtrace — the marker, signal, si_code, fault address, pid, version —
+//     is already written and on disk by then.
+//
+// Not used in the handler: Qt, std::string, malloc/new, stdio, locale,
+// QStandardPaths, the CrashHandler singleton's QString members. The
+// terminate handler (std::terminate path) is a different context — not a
+// signal — and keeps the existing Qt-based behaviour; its std::abort() then
+// raises SIGABRT, which this handler reports.
+//
+// REPORT FILE. openat(dirfd, "pdfe_crash_<sec>.<nsec>_<pid>_<signo>.crash",
+// O_CREAT|O_EXCL|O_WRONLY|O_CLOEXEC|O_NOFOLLOW, 0600). The directory is 0700
+// and owned by us (createOwnerOnlyDirectory), the fd was opened at install
+// time so a later rename/symlink of the path cannot redirect the write, O_EXCL
+// means we never write into a pre-existing file, and 0600 matches the Windows
+// owner-only DACL. A report holds addresses, not memory contents, so it is
+// less secret-bearing than a minidump — it is still treated as owner-only.
+//
+// LIMITS (also in docs/linux-parity-status.md):
+//   * sigaltstack is PER THREAD. install() gives the installing (main) thread
+//     an alternate stack; a stack overflow on a WORKER thread has no stack to
+//     run the handler on, so the kernel kills the process with SIGSEGV and no
+//     report is written. Other faults on worker threads (null deref, abort) are
+//     reported — the handler itself is process-wide.
+//   * SIGKILL and the OOM killer cannot be caught; nothing is written.
+//   * The backtrace has symbol names only for exported symbols (the binaries
+//     are not linked with -rdynamic); each frame carries module+offset and the
+//     absolute address, which addr2line resolves against the build.
+//   * No pruning in the handler (directory scanning is not async-signal-safe).
+//     install() prunes to maxCrashDumps()-1, leaving room for this process's
+//     one report.
+// ---------------------------------------------------------------------------
+
+constexpr int kMaxCrashDumps = 150;  // same cap as the Windows arm
+
+constexpr int kHandledSignals[] = {SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT, SIGTRAP};
+constexpr int kNumHandledSignals =
+    static_cast<int>(sizeof(kHandledSignals) / sizeof(kHandledSignals[0]));
+
+constexpr const char* kReportPrefix = "pdfe_crash_";
+constexpr const char* kReportSuffix = ".crash";
+
+// Alternate stack: generous, because the libgcc unwinder behind backtrace()
+// uses several KiB per call level and a stack overflow leaves the normal
+// stack unusable. mmap'd, not malloc'd, so it is page-aligned and its own
+// mapping.
+constexpr size_t kAltStackBytes = 256 * 1024;
+
+static_assert(std::atomic<int>::is_always_lock_free,
+              "the signal handler relies on lock-free std::atomic<int>");
+
+// ---- state shared with the handler (written only outside signal context) --
+int g_crashDirFd = -1;
+void* g_altStackMem = nullptr;
+std::atomic<int> g_handlerTid{0};    // tid currently inside the handler, 0 = none
+char g_versionLine[256];
+size_t g_versionLen = 0;
+struct sigaction g_previous[kNumHandledSignals];
+bool g_signalsInstalled = false;
+std::string g_crashDirPath;          // read only outside signal context
+
+// ---- async-signal-safe formatting ------------------------------------------
+struct SafeBuf {
+    char data[1024];
+    size_t len = 0;
+    void put(const char* s) {
+        while (s && *s && len < sizeof(data)) data[len++] = *s++;
+    }
+    void putDec(unsigned long long v) {
+        char tmp[24];
+        int n = 0;
+        do { tmp[n++] = static_cast<char>('0' + (v % 10)); v /= 10; } while (v && n < 24);
+        while (n > 0 && len < sizeof(data)) data[len++] = tmp[--n];
+    }
+    void putSigned(long long v) {
+        if (v < 0) { put("-"); putDec(static_cast<unsigned long long>(-(v + 1)) + 1); }
+        else putDec(static_cast<unsigned long long>(v));
+    }
+    void putHex(unsigned long long v, int minDigits = 1) {
+        static const char* hex = "0123456789abcdef";
+        char tmp[16];
+        int n = 0;
+        do { tmp[n++] = hex[v & 0xF]; v >>= 4; } while (v && n < 16);
+        while (n < minDigits && n < 16) tmp[n++] = '0';
+        put("0x");
+        while (n > 0 && len < sizeof(data)) data[len++] = tmp[--n];
+    }
+    void putPadded(unsigned long long v, int width) {
+        char tmp[24];
+        int n = 0;
+        do { tmp[n++] = static_cast<char>('0' + (v % 10)); v /= 10; } while (v && n < 24);
+        while (n < width && n < 24) tmp[n++] = '0';
+        while (n > 0 && len < sizeof(data)) data[len++] = tmp[--n];
+    }
+    void flushTo(int fd) {
+        size_t off = 0;
+        while (off < len) {
+            const ssize_t w = ::write(fd, data + off, len - off);
+            if (w < 0 && errno == EINTR) continue;
+            if (w <= 0) break;
+            off += static_cast<size_t>(w);
+        }
+        len = 0;
+    }
+};
+
+const char* signalName(int sig) {
+    switch (sig) {
+        case 0:       return "TEST";
+        case SIGSEGV: return "SIGSEGV";
+        case SIGBUS:  return "SIGBUS";
+        case SIGILL:  return "SIGILL";
+        case SIGFPE:  return "SIGFPE";
+        case SIGABRT: return "SIGABRT";
+        case SIGTRAP: return "SIGTRAP";
+        default:      return "SIG?";
+    }
+}
+
+const char* siCodeName(int sig, int code) {
+    switch (code) {
+        case SI_USER:  return "SI_USER";
+#if defined(SI_TKILL)  // Linux only; macOS has no tkill (GitHub #388)
+        case SI_TKILL: return "SI_TKILL";
 #endif
+        case SI_QUEUE: return "SI_QUEUE";
+        default: break;
+    }
+    if (sig == SIGSEGV) {
+        if (code == SEGV_MAPERR) return "SEGV_MAPERR";
+        if (code == SEGV_ACCERR) return "SEGV_ACCERR";
+    } else if (sig == SIGBUS) {
+        if (code == BUS_ADRALN) return "BUS_ADRALN";
+        if (code == BUS_ADRERR) return "BUS_ADRERR";
+        if (code == BUS_OBJERR) return "BUS_OBJERR";
+    } else if (sig == SIGFPE) {
+        if (code == FPE_INTDIV) return "FPE_INTDIV";
+        if (code == FPE_INTOVF) return "FPE_INTOVF";
+        if (code == FPE_FLTDIV) return "FPE_FLTDIV";
+    } else if (sig == SIGILL) {
+        if (code == ILL_ILLOPC) return "ILL_ILLOPC";
+        if (code == ILL_ILLOPN) return "ILL_ILLOPN";
+    } else if (sig == SIGTRAP) {
+        if (code == TRAP_BRKPT) return "TRAP_BRKPT";
+    }
+    return "?";
+}
+
+/// Write the report body to `fd`. Async-signal-safe (see the block above).
+/// `info`/`uctx` may be null (the writeTestMinidump seam).
+void writeReportBody(int fd, int sig, const siginfo_t* info, const void* uctx) {
+    SafeBuf b;
+    struct timespec now{};
+    ::clock_gettime(CLOCK_REALTIME, &now);
+
+    b.put("=== PDFE CRASH REPORT ===\n");
+    b.put("signal: "); b.put(signalName(sig)); b.put(" ("); b.putSigned(sig); b.put(")\n");
+    if (info != nullptr) {
+        b.put("si_code: "); b.putSigned(info->si_code);
+        b.put(" ("); b.put(siCodeName(sig, info->si_code)); b.put(")\n");
+        b.put("fault address: ");
+        b.putHex(reinterpret_cast<unsigned long long>(info->si_addr), 16);
+        b.put("\n");
+        if (info->si_code <= 0) {   // sent by kill/raise/abort: who sent it
+            b.put("sender pid: "); b.putSigned(info->si_pid); b.put("\n");
+        }
+    } else {
+        b.put("si_code: none (no signal; writeTestMinidump seam)\n");
+        b.put("fault address: none\n");
+    }
+#if defined(__linux__) && defined(__x86_64__)
+    if (uctx != nullptr) {
+        const auto* uc = static_cast<const ucontext_t*>(uctx);
+        b.put("instruction pointer: ");
+        b.putHex(static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_RIP]), 16);
+        b.put("\nstack pointer: ");
+        b.putHex(static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_RSP]), 16);
+        b.put("\n");
+    }
+#elif defined(__linux__) && defined(__aarch64__)
+    if (uctx != nullptr) {
+        const auto* uc = static_cast<const ucontext_t*>(uctx);
+        b.put("instruction pointer: ");
+        b.putHex(static_cast<unsigned long long>(uc->uc_mcontext.pc), 16);
+        b.put("\nstack pointer: ");
+        b.putHex(static_cast<unsigned long long>(uc->uc_mcontext.sp), 16);
+        b.put("\n");
+    }
+#else
+    (void)uctx;
+#endif
+    b.put("pid: "); b.putSigned(::getpid()); b.put("\n");
+#if defined(__linux__) && defined(SYS_gettid)
+    b.put("tid: "); b.putSigned(::syscall(SYS_gettid)); b.put("\n");
+#endif
+    b.put("time (CLOCK_REALTIME): "); b.putDec(static_cast<unsigned long long>(now.tv_sec));
+    b.put("."); b.putPadded(static_cast<unsigned long long>(now.tv_nsec), 9); b.put("\n");
+    b.flushTo(fd);
+    if (g_versionLen > 0) {
+        (void)!::write(fd, g_versionLine, g_versionLen);
+    }
+
+    b.put("backtrace:\n");
+    b.flushTo(fd);
+    void* frames[128];
+    const int n = ::backtrace(frames, 128);
+    if (n > 0) ::backtrace_symbols_fd(frames, n, fd);
+    b.put("backtrace frames: "); b.putSigned(n); b.put("\n");
+    b.put("=== END OF REPORT ===\n");
+    b.flushTo(fd);
+}
+
+/// Create a new report file in the held directory and write it. Returns the
+/// fd-relative file name in `nameOut` (NUL-terminated) and true on success.
+/// Async-signal-safe.
+bool writeReportFile(int sig, const siginfo_t* info, const void* uctx,
+                     char* nameOut, size_t nameCap) {
+    if (g_crashDirFd < 0 || nameCap < 96) return false;
+    struct timespec ts{};
+    ::clock_gettime(CLOCK_REALTIME, &ts);
+    for (int attempt = 0; attempt < 8; ++attempt) {
+        SafeBuf nb;
+        nb.put(kReportPrefix);
+        nb.putDec(static_cast<unsigned long long>(ts.tv_sec));
+        nb.put(".");
+        nb.putPadded(static_cast<unsigned long long>(ts.tv_nsec), 9);
+        nb.put("_"); nb.putSigned(::getpid());
+        nb.put("_"); nb.putSigned(sig);
+        if (attempt > 0) { nb.put("_"); nb.putSigned(attempt); }
+        nb.put(kReportSuffix);
+        if (nb.len >= nameCap) return false;
+        std::memcpy(nameOut, nb.data, nb.len);
+        nameOut[nb.len] = '\0';
+
+        const int fd = ::openat(g_crashDirFd, nameOut,
+                                O_CREAT | O_EXCL | O_WRONLY | O_CLOEXEC | O_NOFOLLOW,
+                                0600);
+        if (fd < 0) {
+            if (errno == EEXIST) continue;
+            return false;
+        }
+        writeReportBody(fd, sig, info, uctx);
+        ::fsync(fd);
+        ::close(fd);
+        return true;
+    }
+    return false;
+}
+
+void writeStderrNotice(int sig, const char* name, bool wrote) {
+    SafeBuf b;
+    b.put("[CrashHandler] fatal signal ");
+    b.put(signalName(sig));
+    b.put(" (");
+    b.putSigned(sig);
+    b.put(wrote ? ") - crash report written: " : ") - could not write a crash report file");
+    if (wrote) {
+        b.put(g_crashDirPath.empty() ? "" : "<crash dir>/");
+        b.put(name);
+    }
+    b.put("\n");
+    b.flushTo(STDERR_FILENO);
+}
+
+void fatalSignalHandler(int sig, siginfo_t* info, void* uctx) {
+    const int savedErrno = errno;
+#if defined(__linux__) && defined(SYS_gettid)
+    const int self = static_cast<int>(::syscall(SYS_gettid));
+#else
+    const int self = static_cast<int>(::getpid());
+#endif
+    int expected = 0;
+    if (!g_handlerTid.compare_exchange_strong(expected, self)) {
+        if (expected != self) {
+            // Another thread is already writing a report. Give it time to
+            // finish and kill the process; do not race it into the directory.
+            for (int i = 0; i < 100 && g_handlerTid.load() != 0; ++i) {
+                struct timespec ts{0, 100 * 1000000L};
+                ::nanosleep(&ts, nullptr);
+            }
+        }
+        // Same thread faulted INSIDE the handler (or the other thread never
+        // finished): die with the default action for this signal, now.
+        struct sigaction dfl{};
+        dfl.sa_handler = SIG_DFL;
+        sigemptyset(&dfl.sa_mask);
+        ::sigaction(sig, &dfl, nullptr);
+        ::raise(sig);
+        errno = savedErrno;
+        return;
+    }
+
+    char name[160];
+    name[0] = '\0';
+    bool wrote = writeReportFile(sig, info, uctx, name, sizeof(name));
+    if (!wrote) {
+        // No usable directory: the report still goes somewhere a CI log keeps.
+        writeReportBody(STDERR_FILENO, sig, info, uctx);
+    }
+    writeStderrNotice(sig, name, wrote);
+
+    // SA_RESETHAND restored SIG_DFL for `sig` on entry. `sig` is blocked while
+    // we run (no SA_NODEFER), so raise() leaves it pending and it is delivered
+    // — with the default action, killing the process — the moment we return.
+    // For a hardware fault (SIGSEGV/SIGBUS/SIGILL/SIGFPE) returning would also
+    // re-execute the faulting instruction; the explicit raise makes kill()- and
+    // abort()-originated signals die the same way.
+    ::raise(sig);
+    errno = savedErrno;
+}
+
+// ---- outside-signal helpers (allowed to allocate) --------------------------
+
+bool posixOverrideIsAcceptable(const std::string& p) {
+    if (p.empty() || p[0] != '/') return false;              // absolute only
+    if (p.find('\0') != std::string::npos) return false;
+    if (p.size() > static_cast<size_t>(PATH_MAX) - 128) return false;  // room for the name
+    // Reject any ".." segment (same rule and rationale as the Windows arm).
+    size_t i = 0;
+    while (i <= p.size()) {
+        const size_t slash = p.find('/', i);
+        const size_t end = (slash == std::string::npos) ? p.size() : slash;
+        if (end - i == 2 && p[i] == '.' && p[i + 1] == '.') return false;
+        if (slash == std::string::npos) break;
+        i = slash + 1;
+    }
+    // A network mount is the POSIX analogue of UNC: the report leaves the
+    // machine and lands under permissions we cannot verify.
+    if (pdfe::core::path_security::path_is_on_network_filesystem(p)) return false;
+    return true;
+}
+
+std::string stripTrailingSlashes(std::string p) {
+    while (p.size() > 1 && p.back() == '/') p.pop_back();
+    return p;
+}
+
+std::string resolvePosixCrashDir() {
+    std::string dir;
+    const char* env = std::getenv("PDFE_CRASH_DUMP_DIR");
+    if (env != nullptr && *env != '\0') {
+        const std::string o(env);
+        if (posixOverrideIsAcceptable(o)) {
+            dir = stripTrailingSlashes(o);
+        } else {
+            std::fprintf(stderr,
+                         "[CrashHandler] PDFE_CRASH_DUMP_DIR rejected (must be an "
+                         "absolute local path with no '..'; network filesystems "
+                         "are refused) - falling back to the app data directory\n");
+            std::fflush(stderr);
+        }
+    }
+    if (dir.empty()) {
+        const QString base =
+            QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+        if (base.isEmpty()) return {};
+        dir = stripTrailingSlashes(base.toStdString()) + "/crashes";
+    }
+    std::error_code ec;
+    if (!pdfe::core::createOwnerOnlyDirectory(std::filesystem::path(dir), ec)) {
+        std::fprintf(stderr,
+                     "[CrashHandler] could not create an owner-only (0700) crash "
+                     "directory (%s) - refusing to write crash reports there\n",
+                     ec.message().c_str());
+        std::fflush(stderr);
+        return {};
+    }
+    return dir;
+}
+
+bool isCrashReportName(const std::string& n) {
+    const std::string pre(kReportPrefix), suf(kReportSuffix);
+    return n.size() > pre.size() + suf.size()
+        && n.compare(0, pre.size(), pre) == 0
+        && n.compare(n.size() - suf.size(), suf.size(), suf) == 0;
+}
+
+int prunePosixReports(const std::string& dir, int keep) {
+    if (keep < 0) keep = 0;
+    namespace fs = std::filesystem;
+    std::vector<std::pair<std::pair<long long, long long>, std::string>> found;
+    std::error_code ec;
+    for (fs::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec)) {
+        const std::string name = it->path().filename().string();
+        if (!isCrashReportName(name)) continue;
+        struct stat st{};
+        // lstat: a symlink with a report-like name is not a report; never
+        // follow it, never count it, never delete through it.
+        if (::lstat(it->path().c_str(), &st) != 0 || !S_ISREG(st.st_mode)) continue;
+#if defined(__APPLE__)
+        const struct timespec& mt = st.st_mtimespec;
+#else
+        const struct timespec& mt = st.st_mtim;
+#endif
+        found.push_back({{static_cast<long long>(mt.tv_sec),
+                          static_cast<long long>(mt.tv_nsec)},
+                         it->path().string()});
+    }
+    if (static_cast<int>(found.size()) <= keep) return 0;
+    std::sort(found.begin(), found.end());   // oldest mtime first, then name
+    int deleted = 0;
+    const size_t excess = found.size() - static_cast<size_t>(keep);
+    for (size_t i = 0; i < excess; ++i) {
+        if (::unlink(found[i].second.c_str()) == 0) ++deleted;
+    }
+    return deleted;
+}
+
+bool handlerIsOurs(const struct sigaction& sa) {
+    return (sa.sa_flags & SA_SIGINFO) != 0 && (sa.sa_flags & SA_ONSTACK) != 0
+        && sa.sa_sigaction == &fatalSignalHandler;
+}
+
+void prepareVersionLine() {
+#ifndef PDFE_VERSION_STRING
+#define PDFE_VERSION_STRING "0.0.0"
+#endif
+    SafeBuf b;
+    b.put("version: PDFE " PDFE_VERSION_STRING);
+#if defined(__VERSION__)
+    b.put(" (compiler " __VERSION__ ")");
+#endif
+#if defined(__x86_64__)
+    b.put(" x86_64");
+#elif defined(__aarch64__)
+    b.put(" aarch64");
+#endif
+    b.put("\n");
+    const size_t n = std::min(b.len, sizeof(g_versionLine));
+    std::memcpy(g_versionLine, b.data, n);
+    g_versionLen = n;
+}
+
+/// Install-time half (outside signal context; allowed to allocate).
+void installPosixSignalHandling() {
+    if (g_signalsInstalled) return;
+
+    // 1. Directory: resolve + secure, prune, and hold an fd for the handler.
+    g_crashDirPath = resolvePosixCrashDir();
+    if (!g_crashDirPath.empty()) {
+        prunePosixReports(g_crashDirPath, kMaxCrashDumps - 1);
+        g_crashDirFd = ::open(g_crashDirPath.c_str(),
+                              O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    }
+
+    // 2. Version line, formatted now so the handler only copies bytes.
+    prepareVersionLine();
+
+    // 3. Prime backtrace(): its first call dlopen()s the unwinder (malloc +
+    //    loader lock). Doing that here means the handler's call does not.
+    {
+        void* frames[4];
+        (void)::backtrace(frames, 4);
+    }
+
+    // 4. Alternate signal stack for THIS thread (see LIMITS above).
+    if (g_altStackMem == nullptr) {
+        void* mem = ::mmap(nullptr, kAltStackBytes, PROT_READ | PROT_WRITE,
+                           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (mem != MAP_FAILED) g_altStackMem = mem;
+    }
+    if (g_altStackMem != nullptr) {
+        stack_t ss{};
+        ss.ss_sp = g_altStackMem;
+        ss.ss_size = kAltStackBytes;
+        ss.ss_flags = 0;
+        ::sigaltstack(&ss, nullptr);
+    }
+
+    // 5. The handlers. Previous actions saved for uninstall().
+    for (int i = 0; i < kNumHandledSignals; ++i) {
+        struct sigaction sa{};
+        sa.sa_sigaction = &fatalSignalHandler;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = SA_SIGINFO | SA_ONSTACK | SA_RESETHAND;
+        ::sigaction(kHandledSignals[i], &sa, &g_previous[i]);
+    }
+    g_signalsInstalled = true;
+}
+
+void uninstallPosixSignalHandling() {
+    if (!g_signalsInstalled) return;
+    for (int i = 0; i < kNumHandledSignals; ++i) {
+        ::sigaction(kHandledSignals[i], &g_previous[i], nullptr);
+    }
+    // Disable the alternate stack before unmapping it; a stack the kernel
+    // still points at must never be freed.
+    stack_t cur{};
+    if (g_altStackMem != nullptr && ::sigaltstack(nullptr, &cur) == 0
+        && cur.ss_sp == g_altStackMem && !(cur.ss_flags & SS_ONSTACK)) {
+        stack_t off{};
+        off.ss_flags = SS_DISABLE;
+        if (::sigaltstack(&off, nullptr) == 0) {
+            ::munmap(g_altStackMem, kAltStackBytes);
+            g_altStackMem = nullptr;
+        }
+    }
+    if (g_crashDirFd >= 0) {
+        ::close(g_crashDirFd);
+        g_crashDirFd = -1;
+    }
+    g_signalsInstalled = false;
+}
+
+#endif  // _WIN32 / POSIX
 
 }  // namespace
 
@@ -311,6 +877,11 @@ void CrashHandler::install() {
         reinterpret_cast<void*>(_set_purecall_handler(purecallHandler));
     previousInvalidParameterHandler_ = reinterpret_cast<void*>(
         _set_invalid_parameter_handler(invalidParameterHandler));
+#else
+    // POSIX: crash directory + fd, pruning, alternate stack, backtrace priming
+    // and the fatal-signal handlers. See the block comment above
+    // installPosixSignalHandling().
+    installPosixSignalHandling();
 #endif
 
     installed_ = true;
@@ -347,6 +918,8 @@ void CrashHandler::uninstall() {
     _set_invalid_parameter_handler(reinterpret_cast<_invalid_parameter_handler>(
         previousInvalidParameterHandler_));
     previousInvalidParameterHandler_ = nullptr;
+#else
+    uninstallPosixSignalHandling();
 #endif
 
     installed_ = false;
@@ -709,6 +1282,24 @@ CrashHandler::InstalledHandlers CrashHandler::installedHandlers() {
         _set_invalid_parameter_handler(prev);
         out.invalidParameter = (prev == &CrashHandler::invalidParameterHandler);
     }
+#else
+    // POSIX has getters, so no round trip: read each action back and require
+    // EVERY handled signal to dispatch to our handler with SA_ONSTACK. A
+    // library that later replaced one of them makes this false.
+    {
+        bool allOurs = true;
+        for (int i = 0; i < kNumHandledSignals; ++i) {
+            struct sigaction cur{};
+            if (::sigaction(kHandledSignals[i], nullptr, &cur) != 0
+                || !handlerIsOurs(cur)) {
+                allOurs = false;
+            }
+        }
+        out.fatalSignals = allOurs;
+        stack_t ss{};
+        out.altStack = g_altStackMem != nullptr && ::sigaltstack(nullptr, &ss) == 0
+                    && !(ss.ss_flags & SS_DISABLE) && ss.ss_sp == g_altStackMem;
+    }
 #endif
 
     return out;
@@ -727,26 +1318,36 @@ QString CrashHandler::writeTestMinidump() {
 #ifdef _WIN32
     return writeMinidump(nullptr);  // current-thread context, no live exception
 #else
-    return {};
+    // Same writer as the signal handler, through a directory fd opened the
+    // same way. Not in signal context, so pruning to make room is allowed here
+    // (mirrors the Windows arm's prune-then-write).
+    const std::string dir = resolvePosixCrashDir();
+    if (dir.empty()) return {};
+    prunePosixReports(dir, kMaxCrashDumps - 1);
+    const int dfd = ::open(dir.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+    if (dfd < 0) return {};
+    const int savedFd = g_crashDirFd;
+    g_crashDirFd = dfd;
+    char name[160];
+    const bool ok = writeReportFile(0, nullptr, nullptr, name, sizeof(name));
+    g_crashDirFd = savedFd;
+    ::close(dfd);
+    if (!ok) return {};
+    return QString::fromStdString(dir + "/" + name);
 #endif
 }
 
 // --- phase-11 seams: the retention/validation policy, made testable ---------
 
 int CrashHandler::maxCrashDumps() {
-#ifdef _WIN32
-    return kMaxCrashDumps;
-#else
-    return 0;
-#endif
+    return kMaxCrashDumps;  // 150 on every platform
 }
 
 bool CrashHandler::isAcceptableCrashDumpDirOverride(const QString& dir) {
 #ifdef _WIN32
     return crashDumpDirOverrideIsAcceptable(dir.toStdWString());
 #else
-    (void)dir;
-    return false;
+    return posixOverrideIsAcceptable(dir.toStdString());
 #endif
 }
 
@@ -755,7 +1356,8 @@ QString CrashHandler::resolvedCrashDumpDir() {
     const std::wstring d = resolveCrashDumpDir();
     return d.empty() ? QString() : QString::fromWCharArray(d.c_str());
 #else
-    return {};
+    const std::string d = resolvePosixCrashDir();
+    return d.empty() ? QString() : QString::fromStdString(d);
 #endif
 }
 
@@ -764,8 +1366,8 @@ int CrashHandler::pruneCrashDumps(const QString& dir, int keep) {
     if (dir.isEmpty()) return 0;
     return pruneOldestDumps(dir.toStdWString(), keep);
 #else
-    (void)dir; (void)keep;
-    return 0;
+    if (dir.isEmpty()) return 0;
+    return prunePosixReports(dir.toStdString(), keep);
 #endif
 }
 

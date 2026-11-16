@@ -190,10 +190,6 @@ TEST_F(TextEditSaveRoundtripTest, FontSizeRoundTripWithinOnePt) {
 // RED on UI-TE-SAVE-01-affected code).
 // ─────────────────────────────────────────────────────────────────────
 TEST_F(TextEditSaveRoundtripTest, OverlayFontFamilyReachesContentStream) {
-#ifndef _WIN32
-    GTEST_SKIP() << "Font swap embed pipeline depends on "
-                    "SystemFontDiscovery Linux impl";
-#endif
     TextSpan orig = originalSpan();
     ASSERT_FALSE(orig.text.empty());
 
@@ -332,10 +328,6 @@ TEST_F(TextEditSaveRoundtripTest, EditedTextEqualsInputAfterReopen) {
 // persistence through pdf_filter_page_contents + saveAs GC (phase-4).
 // ─────────────────────────────────────────────────────────────────────
 TEST_F(TextEditSaveRoundtripTest, MultiFormatRunsPreservedAcrossSave) {
-#ifndef _WIN32
-    GTEST_SKIP() << "Multi-format-run embed depends on SystemFontDiscovery "
-                    "Linux impl";
-#endif
     TextSpan orig = originalSpan();
     ASSERT_GE(orig.text.size(), 5u);
 

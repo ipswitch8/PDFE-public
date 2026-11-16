@@ -23,6 +23,7 @@
 #if defined(__linux__)
 #include <sys/random.h>
 #endif
+#include <QCryptographicHash>
 #endif
 
 #include <cstdlib>
@@ -41,11 +42,6 @@ std::error_code lastWinError() noexcept
                            std::system_category());
 }
 #else
-std::error_code notSupportedHere() noexcept
-{
-    return std::make_error_code(std::errc::function_not_supported);
-}
-
 std::error_code lastErrno() noexcept
 {
     const int e = errno;
@@ -66,6 +62,18 @@ int decodeFd(void* h) noexcept
     return h == nullptr
         ? -1
         : static_cast<int>(reinterpret_cast<std::intptr_t>(h) - 1);
+}
+
+// The inode change time, which seal() records and verifyUnchanged() compares.
+// POSIX.1-2008 names it st_ctim; Apple's struct stat spells it st_ctimespec
+// (GitHub #388: the macOS build failed here).
+const struct timespec& statCtime(const struct stat& st) noexcept
+{
+#if defined(__APPLE__)
+    return st.st_ctimespec;
+#else
+    return st.st_ctim;
+#endif
 }
 #endif
 
@@ -361,11 +369,64 @@ bool writeFixedNameTempFile(const std::filesystem::path& path,
     ::CloseHandle(h);
     return ok;
 #else
-    (void)path;
-    (void)bytes;
-    (void)append;
-    ec = notSupportedHere();
-    return false;
+    // POSIX arm of the same contract (Linux port, phase 6). Same order as the
+    // Windows arm, and for the same measured reason: open WITHOUT truncating,
+    // decide, and only then truncate — O_TRUNC at open would empty a hardlinked
+    // victim before the link-count check could refuse it.
+    //
+    //   * O_NOFOLLOW — a symlink planted at the FINAL component makes the open
+    //     fail with ELOOP instead of writing through it. (As on Windows, a link
+    //     on a PARENT component is still traversed; the per-user temp directory
+    //     is the defence there.)
+    //   * O_NONBLOCK — a FIFO planted at the name must not hang the writer; the
+    //     S_ISREG check below then refuses it. Cleared again before writing.
+    //   * st_nlink > 1 refused — a hardlink is an alias for a victim file.
+    //   * not a regular file refused (FIFO, device, socket).
+    //   * st_uid != geteuid() refused — a file another user planted in a
+    //     shared directory is theirs to rewrite later; we do not adopt it.
+    const int flags = O_WRONLY | O_CREAT | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK
+                    | (append ? O_APPEND : 0);
+    const int fd = ::open(path.c_str(), flags, 0600);
+    if (fd < 0) {
+        const int e = errno;
+        ec = (e == ELOOP) ? std::make_error_code(std::errc::operation_not_permitted)
+                          : std::error_code(e, std::generic_category());
+        return false;
+    }
+    struct stat st {};
+    if (::fstat(fd, &st) != 0) {
+        ec = lastErrno();
+        ::close(fd);
+        return false;
+    }
+    if (!S_ISREG(st.st_mode) || st.st_nlink > 1 || st.st_uid != ::geteuid()) {
+        ::close(fd);
+        ec = std::make_error_code(std::errc::operation_not_permitted);
+        return false;
+    }
+    const int fl = ::fcntl(fd, F_GETFL);
+    if (fl >= 0) ::fcntl(fd, F_SETFL, fl & ~O_NONBLOCK);
+    if (!append && ::ftruncate(fd, 0) != 0) {
+        ec = lastErrno();
+        ::close(fd);
+        return false;
+    }
+    const char* p = bytes.data();
+    size_t remaining = bytes.size();
+    bool ok = true;
+    while (remaining > 0) {
+        const ssize_t w = ::write(fd, p, remaining);
+        if (w < 0 && errno == EINTR) continue;
+        if (w <= 0) {
+            ec = lastErrno();
+            ok = false;
+            break;
+        }
+        p += w;
+        remaining -= static_cast<size_t>(w);
+    }
+    ::close(fd);
+    return ok;
 #endif
 }
 
@@ -446,7 +507,10 @@ std::unique_ptr<PinnedTempFile> PinnedTempFile::reserve(
     // writing, unlinking it, or renaming another file over it. The held
     // descriptor only guarantees that writes made through openWriteFd() land in
     // the object we created; a by-path consumer re-reading later has no such
-    // guarantee against a same-user attacker. That residual is not closed here.
+    // guarantee against a same-user attacker. That residual is not closed; it
+    // is NARROWED by seal() (0400 on the held fd, so a by-path open-for-write
+    // fails unless the attacker deliberately chmods first) and made DETECTABLE
+    // by verifyUnchanged(), which the consumer calls before its by-path read.
     const std::string sPrefix(prefix);
     const std::string sExt(extension);
 
@@ -532,6 +596,176 @@ int PinnedTempFile::openWriteFd(std::error_code& ec) noexcept
 bool PinnedTempFile::isPinned() const noexcept
 {
     return handle_ != nullptr;
+}
+
+#if !defined(_WIN32)
+namespace {
+/// SHA-256 of the whole file, read through `fd` with pread (so the offset
+/// shared with any producer duplicate is not disturbed and no NAME is
+/// resolved). False on a read error.
+bool digestFd(int fd, std::array<unsigned char, 32>& out) noexcept
+{
+    try {
+        QCryptographicHash h(QCryptographicHash::Sha256);
+        char buf[64 * 1024];
+        off_t off = 0;
+        for (;;) {
+            const ssize_t r = ::pread(fd, buf, sizeof(buf), off);
+            if (r < 0 && errno == EINTR) continue;
+            if (r < 0) return false;
+            if (r == 0) break;
+            h.addData(QByteArrayView(buf, static_cast<qsizetype>(r)));
+            off += r;
+        }
+        const QByteArray d = h.result();
+        if (d.size() != static_cast<qsizetype>(out.size())) return false;
+        for (size_t i = 0; i < out.size(); ++i) {
+            out[i] = static_cast<unsigned char>(d[static_cast<qsizetype>(i)]);
+        }
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+}  // namespace
+#endif
+
+namespace {
+int& sealFailureInjection() noexcept
+{
+    static int e = 0;
+    return e;
+}
+}  // namespace
+
+namespace testseam {
+void setPinnedSealFailureForTesting(int errnoValue) noexcept
+{
+    sealFailureInjection() = errnoValue;
+}
+}  // namespace testseam
+
+bool PinnedTempFile::seal(std::error_code& ec) noexcept
+{
+    ec.clear();
+#ifdef PDFE_TESTING
+    if (const int injected = sealFailureInjection(); injected != 0) {
+        ec = std::error_code(injected, std::generic_category());
+        return false;
+    }
+#endif
+#if defined(_WIN32)
+    // The share mode already forbids every change this would guard against.
+    if (handle_ == nullptr) {
+        ec = std::make_error_code(std::errc::invalid_argument);
+        return false;
+    }
+    return true;
+#else
+    const int held = decodeFd(handle_);
+    if (held < 0) {
+        ec = std::make_error_code(std::errc::invalid_argument);
+        return false;
+    }
+    // On the DESCRIPTOR, so there is no name to race. From here an
+    // open(path, O_WRONLY) fails with EACCES for every non-root process,
+    // including this user's, unless it first chmods the file back — which
+    // advances st_ctim and is caught by verifyUnchanged().
+    if (::fchmod(held, 0400) != 0) {
+        ec = lastErrno();
+        return false;
+    }
+    struct stat st {};
+    if (::fstat(held, &st) != 0) {
+        ec = lastErrno();
+        return false;
+    }
+    std::array<unsigned char, 32> digest{};
+    if (!digestFd(held, digest)) {
+        ec = std::make_error_code(std::errc::io_error);
+        return false;
+    }
+    sealDev_ = static_cast<std::uint64_t>(st.st_dev);
+    sealIno_ = static_cast<std::uint64_t>(st.st_ino);
+    sealSize_ = static_cast<std::uint64_t>(st.st_size);
+    sealCtimeSec_ = static_cast<std::int64_t>(statCtime(st).tv_sec);
+    sealCtimeNsec_ = static_cast<std::int64_t>(statCtime(st).tv_nsec);
+    sealDigest_ = digest;
+    sealed_ = true;
+    return true;
+#endif
+}
+
+bool PinnedTempFile::isSealed() const noexcept
+{
+#if defined(_WIN32)
+    return handle_ != nullptr;
+#else
+    return sealed_;
+#endif
+}
+
+bool PinnedTempFile::verifyUnchanged(std::error_code& ec) const noexcept
+{
+    ec.clear();
+#if defined(_WIN32)
+    if (handle_ == nullptr) {
+        ec = std::make_error_code(std::errc::invalid_argument);
+        return false;
+    }
+    return true;
+#else
+    const int held = decodeFd(handle_);
+    if (held < 0 || !sealed_) {
+        // Unsealed: there is no snapshot, so "unchanged" cannot be asserted.
+        ec = std::make_error_code(std::errc::invalid_argument);
+        return false;
+    }
+    struct stat mine {};
+    if (::fstat(held, &mine) != 0) {
+        ec = lastErrno();
+        return false;
+    }
+    struct stat named {};
+    if (::lstat(path_.c_str(), &named) != 0) {
+        // Deleted (or the directory became unreadable): the consumer's by-path
+        // read would not see our file.
+        ec = lastErrno();
+        return false;
+    }
+    const auto changed = [&ec]() {
+        ec = std::make_error_code(std::errc::operation_not_permitted);
+        return false;
+    };
+    // 1. The NAME still refers to OUR inode: catches rename-over, a symlink
+    //    planted after a delete, and delete-and-recreate.
+    if (!S_ISREG(named.st_mode)
+        || static_cast<std::uint64_t>(named.st_dev) != sealDev_
+        || static_cast<std::uint64_t>(named.st_ino) != sealIno_
+        || static_cast<std::uint64_t>(mine.st_ino) != sealIno_) {
+        return changed();
+    }
+    // 2. The inode itself is untouched since seal(): still 0400, same ctime
+    //    (advanced by any write, truncate, chmod, chown or link/unlink), same
+    //    size.
+    if ((mine.st_mode & 07777) != 0400
+        || static_cast<std::int64_t>(statCtime(mine).tv_sec) != sealCtimeSec_
+        || static_cast<std::int64_t>(statCtime(mine).tv_nsec) != sealCtimeNsec_
+        || static_cast<std::uint64_t>(mine.st_size) != sealSize_) {
+        return changed();
+    }
+    // 3. And the bytes: covers a same-size change made inside one coarse
+    //    timestamp tick, where ctime alone could compare equal.
+    std::array<unsigned char, 32> now{};
+    if (!digestFd(held, now)) {
+        ec = std::make_error_code(std::errc::io_error);
+        return false;
+    }
+    if (now != sealDigest_) {
+        return changed();
+    }
+    return true;
+#endif
 }
 
 PinnedTempFile::~PinnedTempFile()
@@ -1045,13 +1279,53 @@ bool createOwnerOnlyDirectory(const std::filesystem::path& path,
     ::LocalFree(dacl);
     return true;
 #else
-    std::filesystem::create_directories(path, ec);
-    if (ec && !std::filesystem::is_directory(path)) return false;
-    ec.clear();
-    std::filesystem::permissions(path,
-                                 std::filesystem::perms::owner_all,
-                                 std::filesystem::perm_options::replace, ec);
-    return !ec;
+    // POSIX arm of the same contract (GitHub #390 full-suite triage). The old
+    // arm was create_directories + chmod: it followed a planted symlink,
+    // chmod-ing and then handing back whatever it pointed at, and it created
+    // the directory at the umask's mode (typically 0755) before narrowing it.
+    // (A directory another user owns was refused only because the kernel
+    // rejects the chmod; the owner check below states that rule explicitly.)
+    if (!path.parent_path().empty()) {
+        std::error_code mkec;
+        std::filesystem::create_directories(path.parent_path(), mkec);
+    }
+    // Created 0700 from the first instant, so there is no window in which it
+    // carries the umask's mode. EEXIST falls through to adoption below.
+    if (::mkdir(path.c_str(), 0700) != 0 && errno != EEXIST) {
+        ec = std::error_code(errno, std::generic_category());
+        return false;
+    }
+    // Decide on the object itself, never through a link: O_NOFOLLOW refuses a
+    // symlink at `path`, O_DIRECTORY refuses a non-directory, and fstat/fchmod
+    // act on the descriptor, so nothing can be swapped in between the check
+    // and the change.
+    const int fd = ::open(path.c_str(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (fd < 0) {
+        const int e = errno;
+        ec = (e == ELOOP) ? std::make_error_code(std::errc::operation_not_permitted)
+                          : std::error_code(e, std::generic_category());
+        return false;
+    }
+    struct stat st {};
+    bool ok = ::fstat(fd, &st) == 0;
+    if (!ok) {
+        ec = std::error_code(errno, std::generic_category());
+    } else if (st.st_uid != ::geteuid()) {
+        // Re-chmod-ing a directory somebody else owns is theatre: they can
+        // undo it at will. Same refusal as the Windows ForeignOwner verdict.
+        ec = std::make_error_code(std::errc::operation_not_permitted);
+        ok = false;
+    } else if ((st.st_mode & 07777) != 0700 && ::fchmod(fd, 0700) != 0) {
+        ec = std::error_code(errno, std::generic_category());
+        ok = false;
+    }
+    ::close(fd);
+    // Read back, as the Windows arm does: a successful call is not evidence.
+    if (ok && !isOwnerOnlyAccessible(path)) {
+        ec = std::make_error_code(std::errc::permission_denied);
+        ok = false;
+    }
+    return ok;
 #endif
 }
 

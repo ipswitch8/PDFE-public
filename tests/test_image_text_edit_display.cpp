@@ -1566,10 +1566,14 @@ TEST_F(ImageTextEditDisplayTest, SubstituteFontSelector_ResolvesOcrFonts)
             std::string lower = result->filePath;
             std::transform(lower.begin(), lower.end(), lower.begin(),
                            [](unsigned char c){ return std::tolower(c); });
+            // NimbusSans: the URW metric-compatible Helvetica that fontconfig's
+            // own alias rules name for Helvetica on Linux (GitHub #390), and the
+            // family the Helvetica known pair resolves to there.
             bool ok = lower.find("arial") != std::string::npos
                    || lower.find("liberationsans") != std::string::npos
                    || lower.find("arimo") != std::string::npos
-                   || lower.find("dejavusans") != std::string::npos;
+                   || lower.find("dejavusans") != std::string::npos
+                   || lower.find("nimbussans") != std::string::npos;
             EXPECT_TRUE(ok)
                 << "GlyphLessFont should map to Arial or metric-compatible "
                 << "substitute, got: " << result->filePath;

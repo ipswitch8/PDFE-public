@@ -14,6 +14,8 @@ import hashlib
 import importlib.util
 import os
 
+import pytest
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -156,3 +158,224 @@ def test_the_real_cmakelists_still_installs_the_source_offer():
     cm = os.path.join(os.path.dirname(os.path.dirname(_HERE)),
                       "CMakeLists.txt")
     assert rah.source_file_installed(_io.open(cm, encoding="utf-8").read())
+
+
+# --- the fast screen is never blinder than scan_text (v0.5.3) -----------------
+
+def _screen_agrees(text, needles=NEEDLES):
+    """The one property that makes the screen safe: scan_text never finds a
+    needle in text the screen called clean."""
+    found = bool(csr.scan_text(text, needles))
+    screened = rah.could_hold_needle(text, needles)
+    return (not found) or screened
+
+
+def test_the_screen_passes_text_scan_text_would_flag(monkeypatch):
+    import random
+    rnd = random.Random(7)
+    alphabet = "abcdefghijklmnopqrstuvwxyz0123456789 /\\-_.\n\r\t\x00\xe9"
+    monkeypatch.setattr(rah, "_SCREEN_CHUNK", 37)   # force many chunk edges
+    for _ in range(400):
+        body = "".join(rnd.choice(alphabet) for _ in range(rnd.randint(0, 300)))
+        cut = rnd.randint(0, len(body))
+        sep = rnd.choice(["-", " ", "/", "\\", ".", "_", "\x00"])
+        text = body[:cut] + " zzsynth" + sep + "HOST " + body[cut:]
+        assert _screen_agrees(text), repr(text)
+        assert rah.could_hold_needle(text, NEEDLES), repr(text)
+        assert _screen_agrees(body), repr(body)
+
+
+def test_the_screen_says_clean_for_clean_text():
+    assert not rah.could_hold_needle("nothing here at all\n" * 1000, NEEDLES)
+    assert not rah.could_hold_needle("", NEEDLES)
+    # A token welded into a longer word is not a needle for scan_text, and is
+    # not one for the screen either: the two tokenise the same way.
+    assert not rah.could_hold_needle("xzzsynth hosty", NEEDLES)
+
+
+def test_the_screen_finds_a_pair_split_across_a_chunk_edge(monkeypatch):
+    monkeypatch.setattr(rah, "_SCREEN_CHUNK", 8)
+    assert rah.could_hold_needle("aaaa zzsynth host bbbb", NEEDLES)
+
+
+def test_scan_bytes_still_reports_line_hits_after_the_screen():
+    assert rah.scan_bytes(b"one\ntwo zzsynth host\n", "w", NEEDLES,
+                          csr.scan_text) == [("w [latin-1]", "syn")]
+
+
+# --- Linux package readers: synthetic bytes, no tools needed ----------------
+
+def _ar(members):
+    out = b"!<arch>\n"
+    for name, body in members:
+        out += ("%-16s%-12s%-6s%-6s%-8s%-10d`\n"
+                % (name, 0, 0, 0, 100644, len(body))).encode("ascii")
+        out += body + (b"\n" if len(body) % 2 else b"")
+    return out
+
+
+def _tar_xz(files, links=()):
+    import io as _io
+    import lzma
+    import tarfile
+    buf = _io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as tf:
+        for name, body in files:
+            ti = tarfile.TarInfo(name)
+            ti.size = len(body)
+            tf.addfile(ti, _io.BytesIO(body))
+        for name, target in links:
+            ti = tarfile.TarInfo(name)
+            ti.type = tarfile.SYMTYPE
+            ti.linkname = target
+            tf.addfile(ti)
+    return lzma.compress(buf.getvalue())
+
+
+def test_deb_members_opens_control_and_data_and_reads_links_as_text():
+    deb = _ar([("debian-binary", b"2.0\n"),
+               ("control.tar.xz", _tar_xz([("./control", b"Package: t\n")])),
+               ("data.tar.xz", _tar_xz([("./opt/lib.so", b"x zzsynth host y")],
+                                       [("./usr/bin/t", "../zzsynth-host/t")]))])
+    members = dict(rah.deb_members(deb))
+    assert members["data.tar.xz/./opt/lib.so"] == b"x zzsynth host y"
+    assert members["data.tar.xz/./usr/bin/t -> (link)"] == b"../zzsynth-host/t"
+    assert members["control.tar.xz/./control"] == b"Package: t\n"
+
+
+def test_a_deb_without_data_is_refused():
+    with pytest.raises(rah.PayloadError):
+        rah.deb_members(_ar([("debian-binary", b"2.0\n")]))
+
+
+def test_a_truncated_ar_member_is_refused():
+    deb = _ar([("data.tar.xz", b"0123456789")])
+    with pytest.raises(rah.PayloadError):
+        rah.ar_members(deb[:-6])
+
+
+def _cpio(entries):
+    out = b""
+    for name, mode, body in entries + [("TRAILER!!!", 0, b"")]:
+        nb = name.encode("utf-8") + b"\0"
+        hdr = b"070701" + b"".join(b"%08X" % v for v in (
+            0, mode, 0, 0, 1, 0, len(body), 0, 0, 0, 0, len(nb), 0))
+        rec = hdr + nb
+        rec += b"\0" * ((4 - len(rec) % 4) % 4)
+        rec += body
+        rec += b"\0" * ((4 - len(rec) % 4) % 4)
+        out += rec
+    return out
+
+
+def test_cpio_members_reads_files_and_link_targets():
+    import stat as _st
+    data = _cpio([("./a.so", _st.S_IFREG | 0o644, b"zzsynth host"),
+                  ("./d", _st.S_IFDIR | 0o755, b""),
+                  ("./l", _st.S_IFLNK | 0o777, b"../zzsynth-host")])
+    assert rah.cpio_members(data) == [("./a.so", b"zzsynth host"),
+                                      ("./l -> (link)", b"../zzsynth-host")]
+
+
+def test_a_cpio_without_a_trailer_is_refused():
+    import stat as _st
+    data = _cpio([("./a", _st.S_IFREG | 0o644, b"abc")])
+    with pytest.raises(rah.PayloadError):
+        rah.cpio_members(data[: data.index(b"TRAILER") - 110])
+
+
+def _rpm_header(strings):
+    """An rpm header structure holding only string tags."""
+    import struct
+    store, index = b"", b""
+    for tag, value in strings:
+        index += struct.pack(">IIII", tag, 6, len(store), 1)
+        store += value.encode("utf-8") + b"\0"
+    return (b"\x8e\xad\xe8\x01" + b"\0" * 4
+            + struct.pack(">II", len(strings), len(store)) + index + store)
+
+
+def _rpm(payload, compressor):
+    lead = b"\xed\xab\xee\xdb" + b"\0" * 92
+    sig = _rpm_header([(1000, "s")])
+    sig += b"\0" * ((8 - (len(lead) + len(sig)) % 8) % 8)
+    hdr = _rpm_header([(1124, "cpio"), (1125, compressor)])
+    return lead + sig + hdr + payload
+
+
+def test_rpm_members_follows_the_header_to_the_named_compressor():
+    import lzma
+    import stat as _st
+    cpio = _cpio([("./opt/a.so", _st.S_IFREG | 0o644, b"zzsynth host")])
+    members = rah.rpm_members(_rpm(lzma.compress(cpio), "xz"))
+    assert members == [("./opt/a.so", b"zzsynth host")]
+
+
+def test_an_rpm_with_an_unknown_compressor_is_refused():
+    with pytest.raises(rah.PayloadError) as e:
+        rah.rpm_members(_rpm(b"????", "lz77-of-the-future"))
+    assert "unsupported payload compression" in str(e.value)
+
+
+def test_gzip_and_bzip2_payloads_are_decompressed():
+    import bz2
+    import gzip
+    body = b"x zzsynth host y" * 10
+    assert rah.decompress(gzip.compress(body), "gzip") == body
+    assert rah.decompress(gzip.compress(body), "gz") == body
+    assert rah.decompress(bz2.compress(body), "bzip2") == body
+    assert rah.decompress(bz2.compress(body), "bz2") == body
+    assert rah.decompress(body, "none") == body
+
+
+def test_corrupt_gzip_and_bzip2_payloads_are_refused():
+    for kind in ("gzip", "bzip2"):
+        with pytest.raises(rah.PayloadError):
+            rah.decompress(b"definitely not compressed", kind)
+
+
+def test_a_corrupt_xz_payload_is_refused_not_passed():
+    with pytest.raises(rah.PayloadError):
+        rah.decompress(b"\xfd7zXZ\x00garbage", "xz")
+
+
+def test_the_appimage_offset_is_where_the_elf_section_headers_end():
+    import struct
+    head = bytearray(64)
+    head[:6] = b"\x7fELF\x02\x01"
+    struct.pack_into("<Q", head, 0x28, 1000)
+    struct.pack_into("<HH", head, 0x3A, 64, 3)
+    assert rah.appimage_squashfs_offset(bytes(head)) == 1000 + 64 * 3
+    assert rah.appimage_squashfs_offset(b"MZ" + bytes(62)) is None
+    head[4] = 1                      # ELF32 is not a type-2 x86_64 AppImage
+    assert rah.appimage_squashfs_offset(bytes(head)) is None
+
+
+# --- the sensitivity control off Windows ------------------------------------
+
+def test_the_windows_probe_is_the_host_name():
+    probe, what = rah.live_identity_probe({"COMPUTERNAME": "ZZHOSTNAME"},
+                                          platform="win32")
+    assert what == "COMPUTERNAME" and "ZZHOSTNAME" in probe
+    assert rah.live_identity_probe({}, platform="win32")[0] is None
+
+
+def test_the_linux_probe_is_the_login_name_in_a_home_path():
+    probe, what = rah.live_identity_probe({}, login="zzsynth-host",
+                                          platform="linux")
+    assert what == "login name"
+    assert csr.scan_text(probe, NEEDLES), \
+        "the probe must carry the login the way a Linux build leaks it"
+    assert rah.live_identity_probe({}, login="", platform="linux")[0] is None
+
+
+def test_the_control_refuses_when_the_inventory_does_not_know_the_login(
+        monkeypatch):
+    real = rah.live_identity_probe
+
+    def probe_for(login):
+        return lambda: real({}, login=login, platform="linux")
+    monkeypatch.setattr(rah, "live_identity_probe", probe_for("zzother-acct"))
+    assert rah.run_controls(csr, NEEDLES) is False
+    monkeypatch.setattr(rah, "live_identity_probe", probe_for("zzsynth-host"))
+    assert rah.run_controls(csr, NEEDLES) is True

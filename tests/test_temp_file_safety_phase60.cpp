@@ -43,6 +43,9 @@
 #include <windows.h>
 #include <io.h>
 #else
+#include <cerrno>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 // POSIX stand-ins for the MSVC CRT descriptor calls used below.
 static inline int _write(int fd, const void* buf, unsigned n) { return static_cast<int>(::write(fd, buf, n)); }
@@ -295,6 +298,142 @@ TEST(TempFileSafetyPhase60, APinnedFileCannotBeWrittenDeletedOrRenamedOver)
     //    the pin must not lock out the re-read it exists to protect.
     EXPECT_EQ(readFile(path), content);
 }
+#else  // POSIX
+// -----------------------------------------------------------------------------
+// POSIX (Linux port, phase 6). The Windows property — no second writer, deleter
+// or renamer while held — CANNOT hold here: POSIX has no share modes. What is
+// asserted instead is the documented best-effort substitute: after seal(), a
+// by-path open for writing fails for this very user, and every way a
+// same-user attacker can still change what the path names (rename-over,
+// delete, chmod-back-then-write) is DETECTED by verifyUnchanged().
+// -----------------------------------------------------------------------------
+namespace {
+std::unique_ptr<PinnedTempFile> producedAndSealed(const char* prefix,
+                                                  const std::string& content)
+{
+    std::error_code ec;
+    auto f = PinnedTempFile::reserve(tempDir(), prefix, ".bin", ec);
+    if (!f) return nullptr;
+    const int fd = f->openWriteFd(ec);
+    if (fd < 0) return nullptr;
+    if (::_write(fd, content.data(), static_cast<unsigned>(content.size()))
+        != static_cast<int>(content.size())) {
+        ::_close(fd);
+        return nullptr;
+    }
+    ::_close(fd);
+    if (!f->seal(ec)) return nullptr;
+    return f;
+}
+}  // namespace
+
+TEST(TempFileSafetyPhase60, PosixSealedFileCannotBeOpenedForWritingByPath)
+{
+    // Root bypasses permission bits (CAP_DAC_OVERRIDE); the guarantee is stated
+    // for unprivileged processes, so the precondition is asserted, not assumed.
+    ASSERT_NE(::geteuid(), 0u) << "this property is defined for non-root users";
+    auto f = producedAndSealed("pdfe_seal_write", "GENUINE-PRODUCER-BYTES");
+    ASSERT_TRUE(f);
+    EXPECT_TRUE(f->isSealed());
+
+    struct stat st {};
+    ASSERT_EQ(::stat(f->path().c_str(), &st), 0);
+    EXPECT_EQ(st.st_mode & 07777, 0400u) << "seal() did not drop the mode to 0400";
+
+    errno = 0;
+    const int w = ::open(f->path().c_str(), O_WRONLY | O_CLOEXEC);
+    const int err = errno;
+    EXPECT_LT(w, 0) << "a sealed file was opened for writing by path";
+    if (w >= 0) ::close(w);
+    EXPECT_EQ(err, EACCES);
+    // O_TRUNC is the in-place overwrite primitive; it must fail too.
+    const int t = ::open(f->path().c_str(), O_WRONLY | O_TRUNC | O_CLOEXEC);
+    EXPECT_LT(t, 0);
+    if (t >= 0) ::close(t);
+
+    EXPECT_EQ(readFile(f->path()), "GENUINE-PRODUCER-BYTES");
+    std::error_code ec;
+    EXPECT_TRUE(f->verifyUnchanged(ec)) << ec.message();
+}
+
+TEST(TempFileSafetyPhase60, PosixUntouchedSealedFileVerifiesAndUnsealedDoesNot)
+{
+    // Vacuity guard: a verifier that always says "changed" would pass every
+    // detection case below.
+    auto f = producedAndSealed("pdfe_seal_ok", "UNTOUCHED");
+    ASSERT_TRUE(f);
+    std::error_code ec;
+    EXPECT_TRUE(f->verifyUnchanged(ec)) << ec.message();
+    EXPECT_TRUE(f->verifyUnchanged(ec)) << "verification must be repeatable";
+    EXPECT_EQ(readFile(f->path()), "UNTOUCHED");
+
+    // And an UNSEALED file must not verify: there is no snapshot to compare.
+    auto u = PinnedTempFile::reserve(tempDir(), "pdfe_unsealed", ".bin", ec);
+    ASSERT_TRUE(u) << ec.message();
+    EXPECT_FALSE(u->isSealed());
+    EXPECT_FALSE(u->verifyUnchanged(ec));
+}
+
+TEST(TempFileSafetyPhase60, PosixRenameOverASealedFileIsDetected)
+{
+    auto f = producedAndSealed("pdfe_seal_rename", "PINNED-CONTENT");
+    ASSERT_TRUE(f);
+    const fs::path decoy = f->path().parent_path()
+                           / (f->path().filename().string() + ".decoy");
+    // Same size as the original, so a size-only check would miss it.
+    ASSERT_TRUE(writeFile(decoy, "ATTACKER-BYTES"));
+    ASSERT_EQ(::rename(decoy.c_str(), f->path().c_str()), 0)
+        << "POSIX permits the rename-over (no share modes) — that is the gap "
+           "this case documents";
+    EXPECT_EQ(readFile(f->path()), "ATTACKER-BYTES");
+    std::error_code ec;
+    EXPECT_FALSE(f->verifyUnchanged(ec))
+        << "a rename-over of the pinned name was NOT detected";
+}
+
+TEST(TempFileSafetyPhase60, PosixInPlaceWriteAfterSealIsDetected)
+{
+    // A deliberate same-user attacker: chmod the file back, overwrite it in
+    // place with same-size bytes (same inode, so an identity check alone sees
+    // nothing), then restore 0400 to cover the tracks.
+    auto f = producedAndSealed("pdfe_seal_inplace", "GENUINE-BYTES!");
+    ASSERT_TRUE(f);
+    ASSERT_EQ(::chmod(f->path().c_str(), 0600), 0);
+    const int w = ::open(f->path().c_str(), O_WRONLY | O_CLOEXEC);
+    ASSERT_GE(w, 0);
+    const std::string evil = "ATTACKER-BYTES";
+    ASSERT_EQ(evil.size(), std::string("GENUINE-BYTES!").size());
+    ASSERT_EQ(::write(w, evil.data(), evil.size()), static_cast<ssize_t>(evil.size()));
+    ::close(w);
+    ASSERT_EQ(::chmod(f->path().c_str(), 0400), 0);
+
+    std::error_code ec;
+    EXPECT_FALSE(f->verifyUnchanged(ec))
+        << "an in-place same-size rewrite after seal was NOT detected";
+}
+
+TEST(TempFileSafetyPhase60, PosixChmodAloneAfterSealIsDetected)
+{
+    // The first step of every in-place attack. Detected even if no byte moves.
+    auto f = producedAndSealed("pdfe_seal_chmod", "BYTES");
+    ASSERT_TRUE(f);
+    ASSERT_EQ(::chmod(f->path().c_str(), 0600), 0);
+    std::error_code ec;
+    EXPECT_FALSE(f->verifyUnchanged(ec));
+}
+
+TEST(TempFileSafetyPhase60, PosixDeleteOfASealedFileIsDetected)
+{
+    auto f = producedAndSealed("pdfe_seal_delete", "BYTES");
+    ASSERT_TRUE(f);
+    ASSERT_EQ(::unlink(f->path().c_str()), 0);
+    std::error_code ec;
+    EXPECT_FALSE(f->verifyUnchanged(ec));
+    // Delete-and-recreate at the same name is a different inode.
+    ASSERT_TRUE(writeFile(f->path(), "BYTES"));
+    EXPECT_FALSE(f->verifyUnchanged(ec));
+    fs::remove(f->path(), ec);
+}
 #endif
 
 // -----------------------------------------------------------------------------
@@ -384,6 +523,78 @@ TEST(TempFileSafetyPhase60, AFixedNameWriteStillWorksOnAnHonestPath)
     EXPECT_EQ(readFile(path), "OK\n");
     fs::remove(path, ec);
 }
+#else  // POSIX arms of the three fixed-name cases (Linux port, phase 6)
+TEST(TempFileSafetyPhase60, AFixedNameWriteRefusesAPlantedHardlinkPosix)
+{
+    const fs::path victim = tempDir() / "pdfe_p60_victim.txt";
+    const fs::path planted = tempDir() / "pdfe_p60_planted.txt";
+    std::error_code ec;
+    fs::remove(victim, ec);
+    fs::remove(planted, ec);
+    ASSERT_TRUE(writeFile(victim, "IMPORTANT USER DATA"));
+    ASSERT_EQ(::link(victim.c_str(), planted.c_str()), 0)
+        << "could not create the hardlink this case is about (errno " << errno << ")";
+
+    EXPECT_FALSE(pdfe::core::writeFixedNameTempFile(
+        planted, "STATUS_OVERWRITE", /*append=*/false, ec))
+        << "the write went through a hardlink";
+    EXPECT_EQ(readFile(victim), "IMPORTANT USER DATA")
+        << "the victim's contents were destroyed (truncated before the check?)";
+    fs::remove(planted, ec);
+    fs::remove(victim, ec);
+}
+
+TEST(TempFileSafetyPhase60, AFixedNameWriteIsNotRedirectedByAPlantedSymlinkPosix)
+{
+    // On POSIX an unprivileged user CAN plant a symlink, so unlike the Windows
+    // case there is no "primitive unavailable" branch: the refusal must hold.
+    const fs::path victim = tempDir() / "pdfe_p60_sym_victim.txt";
+    const fs::path link = tempDir() / "pdfe_p60_sym_link.txt";
+    std::error_code ec;
+    fs::remove(victim, ec);
+    fs::remove(link, ec);
+    ASSERT_TRUE(writeFile(victim, "IMPORTANT USER DATA"));
+    ASSERT_EQ(::symlink(victim.c_str(), link.c_str()), 0);
+
+    EXPECT_FALSE(pdfe::core::writeFixedNameTempFile(
+        link, "STATUS_OVERWRITE", /*append=*/false, ec))
+        << "the write followed a planted symlink";
+    EXPECT_EQ(readFile(victim), "IMPORTANT USER DATA");
+    fs::remove(link, ec);
+    fs::remove(victim, ec);
+}
+
+TEST(TempFileSafetyPhase60, AFixedNameWriteRefusesAPlantedFifoWithoutHanging)
+{
+    const fs::path fifo = tempDir() / "pdfe_p60_fifo.txt";
+    std::error_code ec;
+    fs::remove(fifo, ec);
+    ASSERT_EQ(::mkfifo(fifo.c_str(), 0600), 0);
+    // O_NONBLOCK open of a FIFO with no reader fails (ENXIO) rather than
+    // blocking; either way the write must be refused, not hang the UI thread.
+    EXPECT_FALSE(pdfe::core::writeFixedNameTempFile(
+        fifo, "STATUS", /*append=*/false, ec));
+    fs::remove(fifo, ec);
+}
+
+TEST(TempFileSafetyPhase60, AFixedNameWriteStillWorksOnAnHonestPathPosix)
+{
+    const fs::path path = tempDir() / "pdfe_p60_honest.txt";
+    std::error_code ec;
+    fs::remove(path, ec);
+    ASSERT_TRUE(pdfe::core::writeFixedNameTempFile(
+        path, "TEXT_EDIT_ACTIVATING\n", /*append=*/false, ec)) << ec.message();
+    EXPECT_EQ(readFile(path), "TEXT_EDIT_ACTIVATING\n");
+    struct stat st {};
+    ASSERT_EQ(::stat(path.c_str(), &st), 0);
+    EXPECT_EQ(st.st_mode & 077, 0u) << "the sentinel was created group/other-accessible";
+
+    ASSERT_TRUE(pdfe::core::writeFixedNameTempFile(path, "OK\n", false, ec));
+    EXPECT_EQ(readFile(path), "OK\n") << "a non-append write must truncate";
+    ASSERT_TRUE(pdfe::core::writeFixedNameTempFile(path, "MORE\n", true, ec));
+    EXPECT_EQ(readFile(path), "OK\nMORE\n") << "append mode must append";
+    fs::remove(path, ec);
+}
 #endif
 
 // -----------------------------------------------------------------------------
@@ -467,7 +678,11 @@ TEST(TempFileSafetyPhase60, EveryMigratedSiteRoutesThroughTheHardenedPrimitive)
     struct Site { const char* file; const char* mustContain; };
     const Site sites[] = {
         {"src/ui/CombineFilesService.cpp", "PinnedTempFile::reserve"},
+        {"src/ui/CombineFilesService.cpp", "->seal("},
+        {"src/ui/CombineFilesService.cpp", "->verifyUnchanged("},
         {"src/ui/MainWindow.cpp", "PinnedTempFile::reserve"},
+        {"src/ui/MainWindow.cpp", "->seal("},
+        {"src/ui/MainWindow.cpp", "->verifyUnchanged("},
         {"src/ui/MainWindow.cpp", "writeFixedNameTempFile"},
         {"src/tre/GlyphAtlas.cpp", "diagnosticsSubdir"},
         {"src/tre/FontMatcher.cpp", "diagnosticsSubdir"},

@@ -321,6 +321,39 @@ def iter_test_sources(tests_dir: str) -> List[str]:
     return sorted(out)
 
 
+def _is_header_and_its_implementation(tests_dir: str,
+                                      occ: List[Tuple[str, int]]) -> bool:
+    """True for exactly `X.h` + `X.cpp` (same directory) where X.cpp includes X.h.
+
+    That pair is a class and its out-of-line members, not two copies: the
+    corpus rightly says `X::X(...)` DEFINES X, so `class TempWriteBlocker {`
+    in tests/support/SaveFailureInjection.h and its constructor in
+    SaveFailureInjection.cpp read as one helper defined twice once the class
+    passed the size threshold (GitHub #390). Two REAL copies cannot live in
+    such a pair: X.cpp includes X.h, so the same type or function defined in
+    both is a redefinition the compiler rejects. Any third file, or a .cpp that
+    does not include the header, is still reported.
+    """
+    if len(occ) != 2:
+        return False
+    files = sorted(f for f, _sz in occ)
+    stems = {os.path.splitext(f)[0] for f in files}
+    exts = sorted(os.path.splitext(f)[1] for f in files)
+    if len(stems) != 1 or exts != [".cpp", ".h"]:
+        return False
+    cpp = next(f for f in files if f.endswith(".cpp"))
+    header = os.path.basename(next(f for f in files if f.endswith(".h")))
+    cpp_path = cpp if os.path.isabs(cpp) else os.path.join(REPO, cpp)
+    if not os.path.isfile(cpp_path):
+        cpp_path = os.path.join(tests_dir, os.path.basename(cpp))
+    try:
+        src = io.open(cpp_path, encoding="utf-8", errors="replace").read()
+    except OSError:
+        return False
+    return re.search(r'^\s*#\s*include\s*"(?:[^"]*/)?%s"' % re.escape(header),
+                     src, re.M) is not None
+
+
 def find_duplicates(tests_dir: str,
                     min_lines: int = MIN_BODY_LINES
                     ) -> Dict[str, List[Tuple[str, int]]]:
@@ -335,6 +368,8 @@ def find_duplicates(tests_dir: str,
             where[name].append((rel, size))
     out: Dict[str, List[Tuple[str, int]]] = {}
     for name, occ in where.items():
+        if _is_header_and_its_implementation(tests_dir, occ):
+            continue
         if len(occ) < 2:
             continue
         if min(sz for _f, sz in occ) < min_lines:
@@ -540,6 +575,24 @@ def self_test() -> int:
     if dupes_of({"a.cpp": big}, 25):
         failures.append("a single definition was reported as a duplicate")
     size_cases += 1
+
+    # A class in X.h and its out-of-line members in the X.cpp that includes it
+    # is one helper (GitHub #390, TempWriteBlocker). The same pair WITHOUT the
+    # include, or a third file, is still duplication.
+    klass = "class Blocker {\n" + "    int pad;\n" * 30 + "};\n"
+    members = "Blocker::Blocker(int a)\n    : a_(a)\n{\n" + "    a_++;\n" * 30 + "}\n"
+    included = '#include "support/blocker.h"\n' + members
+    if "Blocker" in dupes_of({"blocker.h": klass, "blocker.cpp": included}, 25):
+        failures.append("a class in X.h and its constructor in the X.cpp that "
+                        "includes it was reported as two copies")
+    if "Blocker" not in dupes_of({"blocker.h": klass, "blocker.cpp": members}, 25):
+        failures.append("X.h + an X.cpp that does NOT include it was excused; "
+                        "only the include makes a second copy impossible")
+    if "Blocker" not in dupes_of({"blocker.h": klass, "blocker.cpp": included,
+                                  "other.cpp": klass}, 25):
+        failures.append("a third copy beside a header/implementation pair was "
+                        "excused")
+    size_cases += 3
 
     # And the enumeration must actually have found the probe files, or all four
     # assertions above pass vacuously.

@@ -44,6 +44,12 @@ struct FontMetrics {
     FontStretch stretch = FontStretch::Normal;
     bool isSerif = false;
     bool isMonospace = false;
+    /// False when the font's own coverage data says it was not designed for
+    /// English/Latin text, even though it may carry some Latin glyphs (an Indic
+    /// face with ASCII digits and punctuation, say). Only fontconfig reports
+    /// this (FontconfigSupport.cpp); DirectWrite discovery leaves the default,
+    /// so on Windows nothing is filtered by it (GitHub #390).
+    bool designedForLatin = true;
 
     // Basic metrics (from OS/2 and head tables, in font units)
     int unitsPerEm = 1000;

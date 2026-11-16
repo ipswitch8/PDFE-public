@@ -1,4 +1,6 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
+#include <algorithm>
 #include "textedit/ContentStreamEditor.h"
 #include "textedit/TextEditModel.h"
 #include "textedit/TextEditCommands.h"
@@ -48,7 +50,7 @@ protected:
         }
 
         // Check for Arial (needed for CID font embedding)
-        arialPath_ = "C:\\Windows\\Fonts\\arial.ttf";
+        arialPath_ = pdfe_test::systemFontPath("arial.ttf");
         hasArial_ = std::filesystem::exists(arialPath_);
     }
 
@@ -338,15 +340,31 @@ TEST_F(CidFontEncodingTest, EmbeddedCidFont_HasMultiByteEncoding)
         << "Page should have font resources after embedding";
 
     // Check that at least one font has an Arial-related name
+    // "Arial" on Windows. Elsewhere arial.ttf resolves to its metric-
+    // compatible substitute, so the embedded font carries THAT family's name
+    // (e.g. LiberationSans); the claim is the same: the font we embedded is
+    // the one now on the page.
+    std::vector<std::string> names = {"Arial", "arial"};
+#if !defined(_WIN32)
+    {
+        std::string fam = pdfe_test::systemFontFamily("arial.ttf");
+        if (!fam.empty()) {
+            names.push_back(fam);
+            fam.erase(std::remove(fam.begin(), fam.end(), ' '), fam.end());
+            names.push_back(fam);  // PostScript names drop the spaces
+        }
+    }
+#endif
     bool foundArial = false;
     for (const auto& fi : fontInfos) {
-        if (fi.postScriptName.find("Arial") != std::string::npos ||
-            fi.familyName.find("Arial") != std::string::npos ||
-            fi.postScriptName.find("arial") != std::string::npos ||
-            fi.familyName.find("arial") != std::string::npos) {
-            foundArial = true;
-            break;
+        for (const auto& n : names) {
+            if (fi.postScriptName.find(n) != std::string::npos ||
+                fi.familyName.find(n) != std::string::npos) {
+                foundArial = true;
+                break;
+            }
         }
+        if (foundArial) break;
     }
     EXPECT_TRUE(foundArial)
         << "Should find an Arial-related font after embedding CID font";

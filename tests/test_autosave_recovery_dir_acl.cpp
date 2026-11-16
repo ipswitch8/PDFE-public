@@ -105,6 +105,8 @@
 #include <windows.h>
 #include <aclapi.h>
 #include <sddl.h>
+#else
+#include <sys/stat.h>
 #endif
 
 using pdfe::core::AutosaveManager;
@@ -432,6 +434,34 @@ TEST(AutosaveRecoveryDirAcl, EffectiveAclMatchesTheDocumentedBaseline)
         << " is reachable by a principal outside {this user, SYSTEM, "
            "Administrators}";
 }
+
+#if !defined(_WIN32)
+
+TEST(AutosaveRecoveryDirAcl, ARecoveryDirectoryLeftAtTheUmaskModeIsRepaired)
+{
+    // GitHub #390: builds before the POSIX fix created the recovery directory
+    // with create_directories, i.e. at the umask's mode (0775 or 0755), so a
+    // machine that already ran one has a group/world-readable directory of
+    // full document copies. defaultRecoveryDir() must narrow it, not merely
+    // create new ones correctly. EffectiveAclMatchesTheDocumentedBaseline
+    // cannot show that: it passes on a directory that was already 0700.
+    const std::filesystem::path dir = AutosaveManager::defaultRecoveryDir();
+    ASSERT_TRUE(std::filesystem::is_directory(dir));
+    ASSERT_EQ(::chmod(dir.c_str(), 0775), 0) << "could not loosen " << dir.string();
+    struct stat st {};
+    ASSERT_EQ(::stat(dir.c_str(), &st), 0);
+    ASSERT_EQ(st.st_mode & 07777, mode_t(0775))
+        << "the directory is not at the older build's mode; the repair below "
+           "would pass vacuously";
+
+    EXPECT_EQ(AutosaveManager::defaultRecoveryDir(), dir);
+    ASSERT_EQ(::stat(dir.c_str(), &st), 0);
+    EXPECT_EQ(st.st_mode & 07777, mode_t(0700))
+        << "an existing 0775 recovery directory was left readable by group "
+           "and others";
+}
+
+#endif  // !_WIN32
 
 #if defined(_WIN32)
 

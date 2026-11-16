@@ -876,6 +876,14 @@ public:
     static void setAlignStagingWindowHookForTesting(
         std::function<void(const std::filesystem::path&)> hook);
 
+    /// Linux port phase-6 paste seam. Fires inside pasteImageFromClipboard()
+    /// with the staged PNG's path, after the PNG has been SEALED and before
+    /// verifyUnchanged() and the first by-path read. A test tampers with the
+    /// file here and asserts the paste is refused. Same guarding as the
+    /// siblings above. Never set in production; a null hook costs one branch.
+    static void setPasteSealedHookForTesting(
+        std::function<void(const std::filesystem::path&)> hook);
+
     /// bugfix-3e91a7c4 #4/#5 test seam: drive the private onReplaceAll slot from a
     /// test without a live SearchPanel signal round-trip.
     void replaceAllForTesting(const QString& find, const QString& replace) {
@@ -1390,6 +1398,11 @@ private:
 
     static void fireAlignStagingWindowHookForTesting(
         const std::filesystem::path& stagingPath);
+
+    // Linux port phase-6 paste seam. Same guarding rationale.
+    static std::function<void(const std::filesystem::path&)> sPasteSealedHook_;
+    static std::mutex sPasteSealedHookMutex_;
+    static void firePasteSealedHookForTesting(const std::filesystem::path& p);
 
     static std::atomic<int> sUriDispatchedCount_;
     static std::atomic<int> sUriRefusedCount_;

@@ -17,6 +17,7 @@
 #endif
 
 #include <algorithm>
+#include <mutex>
 #include <cctype>
 #include <filesystem>
 #include <memory>
@@ -112,11 +113,19 @@ CombineFilesService::combine(
     // shape where one gets forgotten. ~PinnedTempFile releases the pin and
     // deletes the file, on every path out of this function including a throw.
     std::vector<std::unique_ptr<core::PinnedTempFile>> pinnedImagePdfs;
+    // Parallel to pdfPaths: the pin behind an image wrapper (nullptr for a PDF
+    // the user chose). Used to verifyUnchanged() a wrapper immediately before
+    // Document::open re-reads it by path — on Windows that is trivially true
+    // (the share mode already forbids a change); on POSIX it is the detection
+    // that stands in for the share mode (see PinnedTempFile's class comment).
+    std::vector<const core::PinnedTempFile*> pinForPdfPath;
+    pinForPdfPath.reserve(inputs.size());
 
     for (const auto& p : inputs) {
         if (classifyInput(p) == InputKind::Pdf) {
             pdfPaths.push_back(p);
             sourceForPdfPath.push_back(p);
+            pinForPdfPath.push_back(nullptr);
             continue;
         }
         // Image: convert to a single-page temp PDF.
@@ -174,7 +183,9 @@ CombineFilesService::combine(
 #endif
             }
         }
-        if (!wrote) {
+        // Seal once the producer is done: no-op on Windows; on POSIX it drops
+        // the file to 0400 and snapshots it for verifyUnchanged() below.
+        if (!wrote || !staged->seal(stagingEc)) {
             r.errorMessage = "Failed to wrap image as PDF: " + p.string();
             r.userMessage =
                 tr("“%1” could not be converted to a PDF page.")
@@ -183,13 +194,36 @@ CombineFilesService::combine(
         }
         // Ownership moves to `pinnedImagePdfs`, which holds the file open (and
         // so the substitution guarantee) until the merge below has read it.
+        fireSealedWrapperHookForTesting(tempPdf);
+        pinForPdfPath.push_back(staged.get());
         pinnedImagePdfs.push_back(std::move(staged));
         pdfPaths.push_back(tempPdf);
         sourceForPdfPath.push_back(p);
     }
 
+    // A wrapper whose name no longer refers to the sealed file (POSIX: renamed
+    // over, rewritten or deleted by a same-user process) must not be merged.
+    // Checked immediately before each by-path open.
+    const auto wrapperIsIntact = [&](size_t i) {
+        const core::PinnedTempFile* pin = pinForPdfPath[i];
+        if (pin == nullptr) return true;  // a user-chosen PDF, not a wrapper
+        std::error_code vec;
+        return pin->verifyUnchanged(vec);
+    };
+    const auto refuseChanged = [&](size_t i) {
+        r.errorMessage = "Staged image wrapper changed before it was read: "
+                         + sourceForPdfPath[i].string();
+        r.userMessage = tr("“%1” could not be combined: its temporary copy was "
+                           "modified by another program.")
+                            .arg(shownName(sourceForPdfPath[i]));
+    };
+
     // Merge: open first PDF as base, graft the rest at the end.
     try {
+        if (!wrapperIsIntact(0)) {
+            refuseChanged(0);
+            return r;
+        }
         auto base = Document::open(context_, pdfPaths[0]);
         if (!base) {
             r.errorMessage = "Failed to open first input: "
@@ -201,6 +235,10 @@ CombineFilesService::combine(
         if (onProgress) onProgress(0, static_cast<int>(inputs.size()));
 
         for (size_t i = 1; i < pdfPaths.size(); ++i) {
+            if (!wrapperIsIntact(i)) {
+                refuseChanged(i);
+                return r;
+            }
             auto src = Document::open(context_, pdfPaths[i]);
             if (!src) {
                 r.errorMessage = "Failed to open input: "
@@ -239,6 +277,37 @@ CombineFilesService::combine(
     // The image wrappers are deleted by ~PinnedTempFile as `pinnedImagePdfs`
     // goes out of scope here.
     return r;
+}
+
+namespace {
+std::mutex& sealedWrapperHookMutex()
+{
+    static std::mutex m;
+    return m;
+}
+std::function<void(const std::filesystem::path&)>& sealedWrapperHook()
+{
+    static std::function<void(const std::filesystem::path&)> h;
+    return h;
+}
+}  // namespace
+
+void CombineFilesService::setSealedWrapperHookForTesting(
+    std::function<void(const std::filesystem::path&)> hook)
+{
+    std::lock_guard<std::mutex> lock(sealedWrapperHookMutex());
+    sealedWrapperHook() = std::move(hook);
+}
+
+void CombineFilesService::fireSealedWrapperHookForTesting(
+    const std::filesystem::path& p)
+{
+    std::function<void(const std::filesystem::path&)> hook;
+    {
+        std::lock_guard<std::mutex> lock(sealedWrapperHookMutex());
+        hook = sealedWrapperHook();
+    }
+    if (hook) hook(p);
 }
 
 } // namespace pdfe::ui

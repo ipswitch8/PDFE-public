@@ -99,6 +99,16 @@ std::string portablePath(std::string s) {
     if (tmp2) sub(tmp2, "<temp>");
     sub(std::string(PDFE_REPO_ROOT), "<repo>");
     if (home) sub(home, "<home>");
+#if !defined(_WIN32)
+    // POSIX names the same roots differently (GitHub #390). Without these the
+    // record carried "/home/<account>/verapdf" from the resolver's search
+    // list, which UiSuitePathHygiene.NoTrackedFileCarriesTheBuildAccountName
+    // caught in this git-tracked file.
+    const char* tmpdir = std::getenv("TMPDIR");
+    const char* posixHome = std::getenv("HOME");
+    if (tmpdir && *tmpdir) sub(tmpdir, "<temp>");
+    if (posixHome && *posixHome && std::string(posixHome) != "/") sub(posixHome, "<home>");
+#endif
 
     // BACKSTOP: anything still drive-qualified becomes <path>.
     //

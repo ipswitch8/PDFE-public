@@ -9,6 +9,7 @@
 //
 // See docs/image-pdf-risks.md (B2).
 
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 
 #include "tre/ImageReplacer.h"
@@ -27,15 +28,15 @@ namespace {
 // Return the first available Latin TTF found on the system, or an
 // empty string if none exists (test will skip).
 std::string findLatinFont() {
-    const char* candidates[] = {
-        "C:/Windows/Fonts/arial.ttf",
-        "C:/Windows/Fonts/tahoma.ttf",
-        "C:/Windows/Fonts/calibri.ttf",
-        "C:/Windows/Fonts/times.ttf",
+    const std::string candidates[] = {
+        pdfe_test::systemFontPath("arial.ttf"),
+        pdfe_test::systemFontPath("tahoma.ttf"),
+        pdfe_test::systemFontPath("calibri.ttf"),
+        pdfe_test::systemFontPath("times.ttf"),
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     };
-    for (const char* c : candidates) {
-        if (std::filesystem::exists(c)) return std::string(c);
+    for (const std::string& c : candidates) {
+        if (std::filesystem::exists(c)) return c;
     }
     return {};
 }

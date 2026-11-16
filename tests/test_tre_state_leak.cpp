@@ -16,6 +16,7 @@
 // Oracle: append an ambient "-100 Tz" fragment, then the writeTextBlock
 // fragment, to a real page; save; reopen; read the reconstructed text back via
 // fitz stext and assert it is NOT mirrored (upper-right x > upper-left x).
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 #include "tre/PdfContentWriter.h"
 #include "fonts/PdfFontEmbedder.h"
@@ -81,7 +82,7 @@ TEST(TreStateLeak, ReconstructedTextNotMirroredByAmbientNegTz) {
     std::filesystem::path scanned =
         std::filesystem::path(TEST_FIXTURES_DIR) / "test_scanned.pdf";
     ASSERT_TRUE(std::filesystem::exists(scanned)) << "test_scanned.pdf required";
-    std::filesystem::path arial = "C:\\Windows\\Fonts\\arial.ttf";
+    std::filesystem::path arial = pdfe_test::systemFontPath("arial.ttf");
     ASSERT_TRUE(std::filesystem::exists(arial)) << "Arial required on this host";
 
     auto doc = Document::open(context, scanned);
@@ -125,7 +126,7 @@ TEST(TreStateLeak, UntouchedNeighborImageUnchanged) {
 
     std::filesystem::path scanned =
         std::filesystem::path(TEST_FIXTURES_DIR) / "test_scanned.pdf";
-    std::filesystem::path arial = "C:\\Windows\\Fonts\\arial.ttf";
+    std::filesystem::path arial = pdfe_test::systemFontPath("arial.ttf");
     ASSERT_TRUE(std::filesystem::exists(scanned));
     ASSERT_TRUE(std::filesystem::exists(arial));
 

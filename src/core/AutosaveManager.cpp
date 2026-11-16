@@ -2,6 +2,7 @@
 #include "core/AutosaveManager.h"
 
 #include "core/Document.h"
+#include "core/TempFileSafety.h"
 #include "core/UndoManager.h"
 
 #include <QDateTime>
@@ -87,7 +88,16 @@ AutosaveManager::AutosaveManager(Document* doc,
 
     // Ensure the recovery directory exists.
     std::error_code ec;
+#if defined(_WIN32)
     std::filesystem::create_directories(recoveryDir_, ec);
+#else
+    // Recovery files are full copies of the document, written without the
+    // user saving. On Windows the per-user AppData ACL already keeps them
+    // private; on POSIX the directory would get the umask's mode (0775 was
+    // measured), readable by every local user. Owner-only, as the
+    // single-user-workstation baseline requires (docs/security-policy.md).
+    pdfe::core::createOwnerOnlyDirectory(recoveryDir_, ec);
+#endif
 
     // A unique, filesystem-safe session id (no braces/dashes surprises).
     sessionId_ = QUuid::createUuid()
@@ -623,7 +633,13 @@ std::filesystem::path AutosaveManager::defaultRecoveryDir() {
     QString dir = base.isEmpty() ? QDir::tempPath() : base;
     std::filesystem::path p = fsFromQString(dir) / "recovery";
     std::error_code ec;
+#if defined(_WIN32)
     std::filesystem::create_directories(p, ec);
+#else
+    // See the constructor: owner-only on POSIX, repairing a directory an
+    // older build left at the umask's mode.
+    pdfe::core::createOwnerOnlyDirectory(p, ec);
+#endif
     return p;
 }
 

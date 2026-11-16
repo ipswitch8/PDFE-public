@@ -1,3 +1,4 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 
 #include "tre/SynthesizedType3FontBundler.h"
@@ -54,7 +55,7 @@ private:
     FT_Face face_ = nullptr;
 };
 
-constexpr const char* kConsolasPath = "C:/Windows/Fonts/consola.ttf";
+static const std::string kConsolasPath = pdfe_test::systemFontPath("consola.ttf");
 
 /// Build a tiny artificial subset atlas from a real font, omitting
 /// targeted codepoints so we can test the synthesis-then-bundle path.

@@ -2,6 +2,10 @@
 // Meta-audit follow-up F28 — see SettingsIsolation.h for the rationale.
 
 #include "support/SettingsIsolation.h"
+#include <QSettings>
+#include <QFileInfo>
+#include <QFile>
+#include <QDir>
 
 #ifdef Q_OS_WIN
 #  ifndef WIN32_LEAN_AND_MEAN
@@ -58,6 +62,22 @@ bool keyIsEmpty(const QString& path)
 }
 #endif // Q_OS_WIN
 
+#ifndef Q_OS_WIN
+// The file QSettings(NativeFormat, UserScope, org, app) reads and writes. Asked
+// of QSettings itself rather than reconstructed, so it follows XDG_CONFIG_HOME
+// and the platform's own layout.
+QString nativeAppFile(const QString& org, const QString& app)
+{
+    return QSettings(QSettings::NativeFormat, QSettings::UserScope, org, app).fileName();
+}
+
+// <config>/<org>: the directory holding every app file of the organization.
+QString nativeOrgDir(const QString& org)
+{
+    return QFileInfo(nativeAppFile(org, QStringLiteral("probe"))).absolutePath();
+}
+#endif
+
 } // namespace
 
 bool registryHiveExists(const QString& org)
@@ -66,8 +86,12 @@ bool registryHiveExists(const QString& org)
     if (org.isEmpty()) return false;
     return keyExists(hivePath(org));
 #else
-    Q_UNUSED(org);
-    return false;
+    if (org.isEmpty()) return false;
+    // The NativeFormat store only, as on Windows, where the registry holds the
+    // hive and IniFormat files live elsewhere: an org directory that holds
+    // nothing but other tests' .ini files is not a hive.
+    if (QFileInfo::exists(nativeOrgDir(org) + QStringLiteral(".conf"))) return true;
+    return !QDir(nativeOrgDir(org)).entryList({QStringLiteral("*.conf")}, QDir::Files).isEmpty();
 #endif
 }
 
@@ -77,9 +101,8 @@ bool registryAppExists(const QString& org, const QString& app)
     if (org.isEmpty() || app.isEmpty()) return false;
     return keyExists(hivePath(org) + QStringLiteral("\\") + app);
 #else
-    Q_UNUSED(org);
-    Q_UNUSED(app);
-    return false;
+    if (org.isEmpty() || app.isEmpty()) return false;
+    return QFileInfo::exists(nativeAppFile(org, app));
 #endif
 }
 
@@ -90,7 +113,10 @@ void purgeRegistryHive(const QString& org)
     // RegDeleteTreeW removes the key's children and then the key itself.
     (void)::RegDeleteTreeW(HKEY_CURRENT_USER, wide(hivePath(org)));
 #else
-    Q_UNUSED(org);
+    if (org.isEmpty()) return;
+    const QString dir = nativeOrgDir(org);
+    QDir(dir).removeRecursively();
+    QFile::remove(dir + QStringLiteral(".conf"));
 #endif
 }
 
@@ -108,8 +134,11 @@ void purgeRegistryApp(const QString& org, const QString& app)
         (void)::RegDeleteTreeW(HKEY_CURRENT_USER, wide(orgPath));
     }
 #else
-    Q_UNUSED(org);
-    Q_UNUSED(app);
+    if (org.isEmpty() || app.isEmpty()) return;
+    QFile::remove(nativeAppFile(org, app));
+    // As on Windows: drop the organization directory only if nothing else
+    // lives in it, so other users of the same organization are never touched.
+    QDir().rmdir(nativeOrgDir(org));
 #endif
 }
 

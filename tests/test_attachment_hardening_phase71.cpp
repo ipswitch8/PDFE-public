@@ -659,7 +659,10 @@ TEST_F(ExtractPolicyTest, ExtractionRefusesToWriteThroughAPlantedSymlink)
     //
     // The oracle is therefore "the attacker's target was never created", not
     // "the victim's bytes are unchanged".
-#if defined(_WIN32)
+    //
+    // The same shape is a POSIX attack (GitHub #390): a dangling symlink in
+    // the extraction directory, followed by an O_CREAT|O_TRUNC open. POSIX
+    // needs no privilege to create one, so the case runs there unchanged.
     const auto attackerTarget = dir / "planted_by_the_link.txt";
     std::error_code ec;
     std::filesystem::remove(attackerTarget, ec);
@@ -692,9 +695,6 @@ TEST_F(ExtractPolicyTest, ExtractionRefusesToWriteThroughAPlantedSymlink)
                         std::filesystem::symlink_status(written)))
             << "extract() returned a path that is not a regular file it made";
     }
-#else
-    GTEST_SKIP() << "Win32 CREATE_NEW / reparse-point semantics";
-#endif
 }
 
 TEST_F(ExtractPolicyTest, ExtractedFilesCarryMarkOfTheWeb)

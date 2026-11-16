@@ -6,14 +6,6 @@ using namespace pdfe::fonts;
 class FontFamilyResolverTest : public ::testing::Test {
 protected:
     void SetUp() override {
-#ifndef _WIN32
-        // SystemFontDiscovery is currently Windows-only (uses
-        // DirectWrite). On Linux the enumerator is a no-op so the
-        // resolver always returns empty paths. Tests skip until the
-        // Linux fontconfig enumeration path is implemented; production
-        // code falls back to QFont/fontconfig directly.
-        GTEST_SKIP() << "Requires SystemFontDiscovery Linux impl";
-#endif
     }
     FontFamilyResolver resolver;
 };

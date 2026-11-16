@@ -56,6 +56,9 @@
 //     earlier (DCA 0031) — it failed itself by sweeping a directory the
 //     artifact under test was not built from.
 
+#if !defined(_WIN32)
+#include <sys/wait.h>
+#endif
 #include <gtest/gtest.h>
 // gtest-spi.h provides EXPECT_FATAL_FAILURE, which is how
 // AnUnusableAccountNameFailsTheScanInsteadOfPassingIt asserts that an
@@ -115,7 +118,12 @@ int runCapturing(const std::string& cmd, std::string& output)
 #if defined(_WIN32)
     return ::_pclose(pipe);
 #else
-    return ::pclose(pipe);
+    // pclose() returns a WAIT STATUS on POSIX, not the exit code that
+    // _pclose() returns on Windows: exit 1 arrives as 256. Decode it, and
+    // report death by signal as -1 rather than as a plausible exit code.
+    const int status = ::pclose(pipe);
+    if (status == -1) return -1;
+    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 #endif
 }
 

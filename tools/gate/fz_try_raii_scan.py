@@ -75,6 +75,7 @@ import json
 import multiprocessing
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -112,6 +113,26 @@ HAZARD_UNKNOWN = "undecidable_type"
 TRIVIAL = "trivial"
 NONTRIVIAL = "nontrivial"
 UNKNOWN = "unknown"
+
+#: True when the compile database was produced by clang-cl / MSVC.  On every
+#: other platform it was produced by GCC and goes through the POSIX path
+#: (gcc argument translation, g++ system include discovery, libclang as the
+#: compiler oracle).  The Windows path is untouched by that.
+IS_WINDOWS = sys.platform == "win32"
+
+#: Default compile database, relative to the repo root.
+DEFAULT_DB_WINDOWS = "build/vs2022-asan/compile_commands.json"
+DEFAULT_DB_POSIX = "build/compile_commands.json"
+
+
+def default_compile_db():
+    return DEFAULT_DB_WINDOWS if IS_WINDOWS else DEFAULT_DB_POSIX
+
+
+def regen_hint():
+    return ("cmake --preset windows-vs2022-asan" if IS_WINDOWS
+            else "cmake --preset linux-gcc")
+
 
 DEFAULT_CLANG_CL = (
     r"C:\Program Files\Microsoft Visual Studio\2022\Community"
@@ -291,8 +312,119 @@ def _looks_like_path(a):
     return ("\\" in a or "/" in a or ":" in a) and not a.startswith(("-", "/"))
 
 
+_GXX_INCLUDE_CACHE = []
+
+#: gcc options that take their value as the NEXT argv element and that libclang
+#: understands identically.
+_GCC_KEEP_WITH_VALUE = ("-isystem", "-iquote", "-idirafter", "-include",
+                        "-imacros", "-I", "-D", "-U", "-x")
+#: gcc options kept verbatim when they appear as a single token.
+_GCC_KEEP_PREFIX = ("-D", "-U", "-I", "-isystem", "-iquote", "-idirafter",
+                    "-include", "-imacros", "-std=")
+_GCC_KEEP_EXACT = {"-fexceptions", "-fno-exceptions", "-frtti", "-fno-rtti",
+                   "-fPIC", "-fPIE", "-pthread", "-fno-char8_t", "-fchar8_t"}
+
+
+def gxx_include_args(verbose=False, gxx=None):
+    """``-isystem`` flags for the GCC / libstdc++ system header directories.
+
+    The POSIX twin of ``msvc_include_args``: libclang inherits no compiler
+    driver, so without these every translation unit fails with
+    "'string' file not found" and the scan reports zero hazards while looking
+    exactly like a clean tree.  The directories are read from the compiler the
+    build itself uses, via ``g++ -E -x c++ - -v </dev/null``, from the
+    '#include <...> search starts here:' list.
+    """
+    if gxx is None and _GXX_INCLUDE_CACHE:
+        return _GXX_INCLUDE_CACHE[0]
+    exe = gxx or os.environ.get("PDFE_GXX") or shutil.which("g++") or "g++"
+    args = []
+    try:
+        proc = subprocess.run([exe, "-E", "-x", "c++", "-", "-v"],
+                              stdin=subprocess.DEVNULL, capture_output=True,
+                              text=True, encoding="utf-8", errors="replace",
+                              timeout=120)
+        active = False
+        for line in (proc.stderr or "").splitlines():
+            if line.startswith("#include <...> search starts here"):
+                active = True
+                continue
+            if line.startswith("End of search list"):
+                break
+            if active:
+                d = line.strip()
+                if d.endswith("(framework directory)"):
+                    continue
+                if d and os.path.isdir(d):
+                    args.append("-isystem" + d)
+    except Exception as exc:  # pragma: no cover - reported below
+        if verbose:
+            sys.stderr.write("gxx_include_args: %r\n" % (exc,))
+    if verbose and not args:
+        sys.stderr.write("gxx_include_args: no include list from '%s -E -x c++ - -v'\n"
+                         % exe)
+    if gxx is None:
+        _GXX_INCLUDE_CACHE.append(args)
+    return args
+
+
+def gcc_to_libclang_args(argv, src_norm):
+    """Translate gcc command-line arguments (compiler already removed).
+
+    Keeps the options that change what the front end sees -- -D/-U/-I/-isystem/
+    -iquote/-include/-std and a few -f switches -- and drops everything libclang
+    would reject or that is irrelevant to a syntax-only parse: -o <out>, -c,
+    -M* dependency flags, -W*, -O*, -g*, -m*, -f*sections, sanitizers, the
+    source file itself.
+    """
+    keep = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        i += 1
+        if a in ("-o", "-MF", "-MT", "-MQ"):
+            i += 1  # swallow the value
+            continue
+        if a in _GCC_KEEP_WITH_VALUE:
+            if i < len(argv):
+                keep.extend([a, argv[i]])
+                i += 1
+            continue
+        if a in _GCC_KEEP_EXACT or a.startswith(_GCC_KEEP_PREFIX):
+            keep.append(a)
+            continue
+        # everything else (-c, -g, -O*, -W*, -m*, -M*, -f*sections, -fsanitize*,
+        # -fdiagnostics*, -fcoroutines, the source path...) is dropped.
+    return keep
+
+
+def _config_of(entry):
+    """Multi-Config Ninja config an entry belongs to ('' when unknown)."""
+    text = entry.get("command") or " ".join(entry.get("arguments", []))
+    m = re.search(r"CMAKE_INTDIR=\\*\"?(\w+)", text)
+    if m:
+        return m.group(1)
+    m = re.search(r"/(Debug|Release|RelWithDebInfo|MinSizeRel)/",
+                  entry.get("output", "") or "")
+    return m.group(1) if m else ""
+
+
+_CONFIG_ORDER = ("Debug", "RelWithDebInfo", "Release", "MinSizeRel", "")
+
+
+def _config_rank(entry):
+    c = _config_of(entry)
+    return _CONFIG_ORDER.index(c) if c in _CONFIG_ORDER else len(_CONFIG_ORDER)
+
+
 def parse_args_for(entry, with_msvc=True):
     """Turn one compile_commands entry into libclang / clang-cl arguments."""
+    if not IS_WINDOWS:
+        argv = list(entry["arguments"]) if "arguments" in entry \
+            else shlex.split(entry["command"])
+        keep = gcc_to_libclang_args(argv[1:] if argv else [], _norm(entry["file"]))
+        # libclang has no driver of its own to find libstdc++.
+        return ["-x", "c++"] + keep + (gxx_include_args() if with_msvc else [])
     argv = list(entry["arguments"]) if "arguments" in entry \
         else _split_command(entry["command"])
     if argv:
@@ -329,7 +461,11 @@ def load_compile_commands(path, repo_root, subdirs=("src",)):
             # a parse error, which would otherwise mask a real one.
             continue
         if f in seen:
-            continue
+            # Ninja Multi-Config emits one entry per configuration for every
+            # file. Windows keeps the first entry (unchanged behaviour); on
+            # POSIX pick ONE configuration deterministically, preferring Debug.
+            if IS_WINDOWS or _config_rank(e) >= _config_rank(seen[f]):
+                continue
         seen[f] = e
     return [seen[k] for k in sorted(seen)]
 
@@ -441,6 +577,41 @@ _DIAG_RE = re.compile(r"[(\[](\d+)[,:]\d+[)\]]?\s*:\s*(?:fatal\s+)?error\s*:\s*(
                       re.I)
 
 
+def _classify_with_libclang(probe, source_file, args, ordered, line_of,
+                            keep_probe, tmpdir):
+    """POSIX oracle: parse the probe with libclang and read Error diagnostics."""
+    try:
+        cargs = [a for a in args if a != "--driver-mode=cl"] + [
+            "-I" + os.path.dirname(os.path.abspath(source_file)),
+            "-fsyntax-only", "-ferror-limit=0"]
+        tu = ci.Index.create().parse(probe, args=cargs)
+        diags = [(d.location.file.name if d.location.file else "",
+                  d.location.line, d.severity, d.spelling)
+                 for d in tu.diagnostics]
+    except Exception:  # pragma: no cover - surfaced as UNKNOWN
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        return {s: UNKNOWN for s in ordered}
+    if keep_probe:
+        shutil.copyfile(probe, keep_probe)
+    shutil.rmtree(tmpdir, ignore_errors=True)
+
+    result = {s: TRIVIAL for s in ordered}
+    probe_name = os.path.basename(probe)
+    for fname, line, severity, msg in diags:
+        if severity < ci.Diagnostic.Error:
+            continue
+        if os.path.basename(fname) != probe_name:
+            continue
+        idx = line_of.get(line)
+        if idx is None:
+            continue
+        if "static assertion failed" in msg or "static_assert failed" in msg:
+            result[ordered[idx]] = NONTRIVIAL
+        else:
+            result[ordered[idx]] = UNKNOWN
+    return result
+
+
 def classify_types_with_compiler(source_file, args, spellings, clang_cl=None,
                                  keep_probe=None):
     """Ask the compiler whether each named type is trivially destructible.
@@ -455,9 +626,10 @@ def classify_types_with_compiler(source_file, args, spellings, clang_cl=None,
     """
     if not spellings:
         return {}
-    clang_cl = clang_cl or os.environ.get("PDFE_CLANG_CL") or DEFAULT_CLANG_CL
-    if not os.path.exists(clang_cl):
-        return {s: UNKNOWN for s in spellings}
+    if IS_WINDOWS:
+        clang_cl = clang_cl or os.environ.get("PDFE_CLANG_CL") or DEFAULT_CLANG_CL
+        if not os.path.exists(clang_cl):
+            return {s: UNKNOWN for s in spellings}
 
     try:
         with io.open(source_file, encoding="utf-8", errors="replace") as fh:
@@ -482,6 +654,13 @@ def classify_types_with_compiler(source_file, args, spellings, clang_cl=None,
         probe = os.path.join(tmpdir, "probe_" + os.path.basename(source_file))
         with io.open(probe, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(body.rstrip("\n") + "\n" + "\n".join(extra) + "\n")
+        if not IS_WINDOWS:
+            # The POSIX compiler oracle is libclang's own front end: Sema
+            # evaluates __is_trivially_destructible against the real libstdc++
+            # headers and reports a failed static_assert as an Error
+            # diagnostic. (There is no clang++ binary to shell out to.)
+            return _classify_with_libclang(probe, source_file, args, ordered,
+                                           line_of, keep_probe, tmpdir)
         cmd = ([clang_cl]
                + [a for a in args if a != "--driver-mode=cl"]
                + ["-I" + os.path.dirname(os.path.abspath(source_file)),
@@ -758,6 +937,26 @@ def stdlib_args_from_db(db_path, repo_root):
         + ["-fsyntax-only"]
 
 
+def _libclang_oracle_works():
+    """True if libclang can evaluate __is_trivially_destructible both ways."""
+    tmp = tempfile.mkdtemp(prefix="fz_oracle_")
+    try:
+        path = os.path.join(tmp, "oracle.cpp")
+        with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("struct T { int a; };\n"
+                     "struct N { ~N(); };\n"
+                     "static_assert(__is_trivially_destructible(T), \"ok\");\n"
+                     "static_assert(__is_trivially_destructible(N), \"bad\");\n")
+        tu = ci.Index.create().parse(path, args=["-x", "c++", "-std=c++20",
+                                                 "-fsyntax-only"])
+        errs = [d for d in tu.diagnostics if d.severity >= ci.Diagnostic.Error]
+        return len(errs) == 1 and errs[0].location.line == 4
+    except Exception:
+        return False
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def self_test(clang_cl=None, verbose=True, db_path=None, repo_root="."):
     checks = []
 
@@ -768,26 +967,39 @@ def self_test(clang_cl=None, verbose=True, db_path=None, repo_root="."):
                                    ("  -- " + detail) if detail and not ok else ""))
 
     repo_root = os.path.abspath(repo_root)
-    db_path = db_path or os.path.join(repo_root, "build", "vs2022-asan",
-                                      "compile_commands.json")
+    db_path = db_path or os.path.join(repo_root, *default_compile_db().split("/"))
     clang_cl = clang_cl or os.environ.get("PDFE_CLANG_CL") or DEFAULT_CLANG_CL
-    check("clang-cl is available for the compiler oracle",
-          os.path.exists(clang_cl), clang_cl)
-    check("MSVC/Windows SDK include paths resolved",
-          bool(msvc_include_args(verbose=True)),
-          "vcvars64.bat produced no usable INCLUDE")
+    if IS_WINDOWS:
+        check("clang-cl is available for the compiler oracle",
+              os.path.exists(clang_cl), clang_cl)
+        check("MSVC/Windows SDK include paths resolved",
+              bool(msvc_include_args(verbose=True)),
+              "vcvars64.bat produced no usable INCLUDE")
+    else:
+        check("libclang is available for the compiler oracle",
+              _libclang_oracle_works(), "libclang could not evaluate "
+              "__is_trivially_destructible in a probe translation unit")
+        check("g++ system include paths resolved",
+              bool(gxx_include_args(verbose=True)),
+              "'g++ -E -x c++ - -v' produced no usable include list")
 
     std_args = stdlib_args_from_db(db_path, repo_root)
     check("a compile database is available for the standard-library checks",
           std_args is not None,
-          "no usable entries in %s -- run: cmake --preset windows-vs2022-asan"
-          % db_path)
-    if std_args is None:
-        std_args = ["--driver-mode=cl", "-TP", "-std:c++20", "-fsyntax-only"] \
-            + msvc_include_args()
-
-    plain_args = (["--driver-mode=cl", "-TP", "-std:c++20", "-fsyntax-only"]
-                  + msvc_include_args())
+          "no usable entries in %s -- run: %s"
+          % (db_path, regen_hint()))
+    if IS_WINDOWS:
+        if std_args is None:
+            std_args = ["--driver-mode=cl", "-TP", "-std:c++20", "-fsyntax-only"] \
+                + msvc_include_args()
+        plain_args = (["--driver-mode=cl", "-TP", "-std:c++20", "-fsyntax-only"]
+                      + msvc_include_args())
+    else:
+        if std_args is None:
+            std_args = ["-x", "c++", "-std=c++20", "-fsyntax-only"] \
+                + gxx_include_args()
+        plain_args = ["-x", "c++", "-std=c++20", "-fsyntax-only"] \
+            + gxx_include_args()
 
     tmpdir = tempfile.mkdtemp(prefix="fz_try_raii_")
     try:
@@ -871,7 +1083,12 @@ def self_test(clang_cl=None, verbose=True, db_path=None, repo_root="."):
         check("two regions once the callee must be MuPdfContext",
               len(strict) == 2, "got %d" % len(strict))
 
-        entry = {"file": rpath, "arguments": ["clang-cl"] + plain_args + [rpath]}
+        if IS_WINDOWS:
+            entry = {"file": rpath, "arguments": ["clang-cl"] + plain_args + [rpath]}
+        else:
+            # parse_args_for appends the g++ system includes itself.
+            entry = {"file": rpath, "arguments": [
+                "g++", "-std=c++20", "-c", "-o", "regions.o", rpath]}
         res = scan_tu(entry, tmpdir, clang_cl)
         names = sorted(h["name"] for h in res["hazards"])
         check("hazards are exactly the three inside MuPdfContext regions",
@@ -970,8 +1187,7 @@ def uncovered_sources(on_disk, db_files, repo_root):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--compile-commands",
-                    default="build/vs2022-asan/compile_commands.json")
+    ap.add_argument("--compile-commands", default=default_compile_db())
     ap.add_argument("--repo-root", default=".")
     ap.add_argument("--subdir", action="append", default=None,
                     help="repo subdirectory to scan (default: src)")
@@ -1003,7 +1219,7 @@ def main(argv=None):
     if not os.path.exists(db):
         sys.stderr.write(
             "fz_try_raii_scan: no compile database at %s\n"
-            "  generate one with:  cmake --preset windows-vs2022-asan\n" % db)
+            "  generate one with:  %s\n" % (db, regen_hint()))
         return 2
 
     subdirs = tuple(args.subdir) if args.subdir else ("src",)
@@ -1045,8 +1261,9 @@ def main(argv=None):
                 "  An unscanned file reports zero hazards and is indistinguishable\n"
                 "  from a clean one, so this is a hard failure -- 'could not check'\n"
                 "  is not 'checked and clean'. Re-configure CMake to refresh the\n"
-                "  database:  cmake --preset windows-vs2022-asan\n"
-                % (len(unresolved), "".join("    %s\n" % u for u in unresolved)))
+                "  database:  %s\n"
+                % (len(unresolved), "".join("    %s\n" % u for u in unresolved),
+                   regen_hint()))
             return 4
     else:
         on_disk = sources_on_disk(repo_root, subdirs)
@@ -1066,9 +1283,9 @@ def main(argv=None):
                 "  compile database and were therefore NOT SCANNED. This is a hard\n"
                 "  failure: an unscanned file reports zero hazards and is\n"
                 "  indistinguishable from a clean one. Re-configure CMake to refresh\n"
-                "  the database (cmake --preset windows-vs2022-asan), or pass\n"
+                "  the database (%s), or pass\n"
                 "  --allow-parse-errors to accept the stated reduced coverage.\n"
-                % (len(uncovered), subdirs))
+                % (len(uncovered), subdirs, regen_hint()))
             return 4
 
     result = run_scan(db, repo_root, args.jobs, subdirs, args.file,

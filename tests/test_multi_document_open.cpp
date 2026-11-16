@@ -177,6 +177,7 @@ TEST_F(MultiDocumentOpenTest, TheSameFileNamedDifferentlyStillRaisesTheExistingW
 // redundant directory hop, which `canonicalFilePath()` collapses without the
 // fold ever mattering. A gate review caught that the claim in WindowManager.h
 // was wider than its coverage.
+#if defined(_WIN32)
 TEST_F(MultiDocumentOpenTest, TheSameFileInDifferentCaseRaisesTheExistingWindow)
 {
     WindowManager manager;
@@ -198,6 +199,35 @@ TEST_F(MultiDocumentOpenTest, TheSameFileInDifferentCaseRaisesTheExistingWindow)
            "on it — two editors that can each save it";
     EXPECT_EQ(manager.windowCount(), 1);
 }
+#else
+// The POSIX half of the same identity rule. Here "doc.pdf" and "DOC.PDF" are
+// two files, and folding them together would raise the WRONG document's window
+// and leave the second file unopenable. Both exist, with different contents.
+TEST_F(MultiDocumentOpenTest, TheSameFileInDifferentCaseRaisesTheExistingWindow)
+{
+    const auto dir = std::filesystem::temp_directory_path() / "pdfe_multidoc_case";
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+    std::filesystem::create_directories(dir);
+    const auto lower = dir / "doc.pdf";
+    const auto upper = dir / "DOC.PDF";
+    std::filesystem::copy_file(a_.toStdString(), lower);
+    std::filesystem::copy_file(b_.toStdString(), upper);
+    ASSERT_TRUE(std::filesystem::exists(lower) && std::filesystem::exists(upper))
+        << "the filesystem under the temp directory is case-insensitive, so this "
+           "test cannot create the two files it is about";
+
+    WindowManager manager;
+    MainWindow* first = manager.openPath(QString::fromStdString(lower.string()));
+    ASSERT_NE(first, nullptr);
+    MainWindow* second = manager.openPath(QString::fromStdString(upper.string()));
+    ASSERT_NE(second, nullptr) << "the case-differing file could not be opened";
+    EXPECT_NE(first, second)
+        << "a DIFFERENT file whose name differs only in case raised the first "
+           "file's window, so the second document can never be opened";
+    EXPECT_EQ(manager.windowCount(), 2);
+}
+#endif
 
 // canonicalKey() is exposed precisely so a test can assert on the same identity
 // rule the manager uses rather than reimplementing it. It had no callers, which
@@ -214,11 +244,20 @@ TEST_F(MultiDocumentOpenTest, CanonicalKeyCollapsesTheSpellingsTheRuleClaims)
                                           QStringLiteral("/./") + info.fileName()),
               canonical);
 
-    // Case-differing spelling.
+    // Case-differing spelling: one file on Windows, two names on POSIX.
+#if defined(_WIN32)
     EXPECT_EQ(WindowManager::canonicalKey(info.absolutePath() +
                                           QLatin1Char('/') +
                                           info.fileName().toUpper()),
               canonical);
+#else
+    EXPECT_NE(WindowManager::canonicalKey(info.absolutePath() +
+                                          QLatin1Char('/') +
+                                          info.fileName().toUpper()),
+              canonical)
+        << "on a case-sensitive filesystem a case-flipped name is a different "
+           "file and must not share its key";
+#endif
 
     // A parent-then-back-down hop.
     EXPECT_EQ(WindowManager::canonicalKey(info.absolutePath() +

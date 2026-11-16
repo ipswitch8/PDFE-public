@@ -9,6 +9,7 @@
 // 5. Detects per-word bold/italic/underline/strikethrough from image pixels
 // 6. Renders per-word styles in BitmapCompositor
 
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 #include "fonts/FontMetricProfile.h"
 #include "fonts/EmbeddedFontAnalyzer.h"
@@ -217,7 +218,7 @@ protected:
 
 TEST_F(ScriptFontAnalysisTest, Arial_DetectedAsLatin)
 {
-    auto profile = analyzer_->analyzeFromFile("C:\\Windows\\Fonts\\arial.ttf");
+    auto profile = analyzer_->analyzeFromFile(pdfe_test::systemFontPath("arial.ttf"));
     if (!profile.has_value()) {
         GTEST_SKIP() << "Arial not found at expected path";
     }
@@ -227,7 +228,7 @@ TEST_F(ScriptFontAnalysisTest, Arial_DetectedAsLatin)
 
 TEST_F(ScriptFontAnalysisTest, TimesNewRoman_DetectedAsLatin)
 {
-    auto profile = analyzer_->analyzeFromFile("C:\\Windows\\Fonts\\times.ttf");
+    auto profile = analyzer_->analyzeFromFile(pdfe_test::systemFontPath("times.ttf"));
     if (!profile.has_value()) {
         GTEST_SKIP() << "Times New Roman not found";
     }
@@ -237,7 +238,7 @@ TEST_F(ScriptFontAnalysisTest, TimesNewRoman_DetectedAsLatin)
 
 TEST_F(ScriptFontAnalysisTest, Calibri_DetectedAsLatin)
 {
-    auto profile = analyzer_->analyzeFromFile("C:\\Windows\\Fonts\\calibri.ttf");
+    auto profile = analyzer_->analyzeFromFile(pdfe_test::systemFontPath("calibri.ttf"));
     if (!profile.has_value()) {
         GTEST_SKIP() << "Calibri not found";
     }
@@ -251,13 +252,6 @@ TEST_F(ScriptFontAnalysisTest, Calibri_DetectedAsLatin)
 
 TEST_F(ScriptFontAnalysisTest, FindSubstitute_LatinText_ReturnsLatinFont)
 {
-#ifndef _WIN32
-    // SubstituteFontSelector relies on SystemFontDiscovery enumeration
-    // to score candidate fonts. The Linux enumerator is currently a
-    // no-op placeholder (see CI-LIMITATION docs), so findSubstitute
-    // returns nullopt regardless of which Latin fonts are installed.
-    GTEST_SKIP() << "Requires SystemFontDiscovery Linux impl";
-#endif
     auto cache = std::make_unique<FontAnalysisCache>();
     auto selector = std::make_unique<SubstituteFontSelector>(
         analyzer_.get(), cache.get());
@@ -1284,7 +1278,7 @@ TEST(DetectWordStyles, EmptyLines_NoExceptions)
 
 // --- BitmapCompositor StyledRuns Test ---
 
-static const std::string kArialFontPath = "C:/Windows/Fonts/arial.ttf";
+static const std::string kArialFontPath = pdfe_test::systemFontPath("arial.ttf");
 
 TEST(BitmapCompositorStyled, StyledRunsBoldUnderline_ProducesNonEmptyBitmap)
 {

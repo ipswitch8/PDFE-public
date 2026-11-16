@@ -26,6 +26,9 @@
 // CLASS-LEVEL: it sweeps every test translation unit for the shape that
 // created the hazard, so the next one is red before it ever runs.
 
+#if !defined(_WIN32)
+#include <sys/wait.h>
+#endif
 #include <gtest/gtest.h>
 
 #include <array>
@@ -68,7 +71,12 @@ int runCapturing(const std::string& cmd, std::string& out)
 #if defined(_WIN32)
     return ::_pclose(pipe);
 #else
-    return ::pclose(pipe);
+    // pclose() returns a WAIT STATUS on POSIX, not the exit code that
+    // _pclose() returns on Windows: exit 1 arrives as 256. Decode it, and
+    // report death by signal as -1 rather than as a plausible exit code.
+    const int status = ::pclose(pipe);
+    if (status == -1) return -1;
+    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 #endif
 }
 
@@ -119,10 +127,18 @@ TEST(TeardownCrashVisibility, TheRunnerClassifiesACrashExitAsAbnormal)
     }
 
     std::string out;
+#ifdef _WIN32
     // One further pair of quotes wraps the whole command: cmd.exe strips the
     // outermost pair, leaving both quoted paths intact.
     const std::string cmd =
         "\"\"" + python + "\" \"" + scriptPath.string() + "\"\" 2>&1";
+#else
+    // A POSIX shell strips nothing, so the cmd.exe wrapper above glues the two
+    // paths into ONE word ("<python> <script>") and the shell reports 127,
+    // command not found (GitHub #390 full-suite triage). Quote each path once.
+    const std::string cmd =
+        "\"" + python + "\" \"" + scriptPath.string() + "\" 2>&1";
+#endif
     const int rc = runCapturing(cmd, out);
     ASSERT_EQ(rc, 0) << "could not evaluate the classifier:\n" << out;
 

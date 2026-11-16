@@ -1,3 +1,4 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 #include "tre/VisualFontRanker.h"
 #include "tre/BitmapCompositor.h"
@@ -59,7 +60,7 @@ TEST(VisualFontRankerTest, NullRegionReturnsEmpty) {
     VisualFontRanker ranker;
     QImage nullImg;
     std::vector<SubstituteResult> candidates;
-    candidates.push_back(makeCandidate("Arial", "C:\\Windows\\Fonts\\arial.ttf", 5.0f));
+    candidates.push_back(makeCandidate("Arial", pdfe_test::systemFontPath("arial.ttf"), 5.0f));
 
     auto result = ranker.rankByVisualSimilarity(nullImg, candidates, "Hello", 12.0f, {0, 0, 0});
     EXPECT_TRUE(result.empty());
@@ -69,7 +70,7 @@ TEST(VisualFontRankerTest, EmptyTextReturnsCandidatesUnchanged) {
     VisualFontRanker ranker;
     QImage region = makeScannedRegion(200, 50);
     std::vector<SubstituteResult> candidates;
-    candidates.push_back(makeCandidate("Arial", "C:\\Windows\\Fonts\\arial.ttf", 5.0f));
+    candidates.push_back(makeCandidate("Arial", pdfe_test::systemFontPath("arial.ttf"), 5.0f));
 
     auto result = ranker.rankByVisualSimilarity(region, candidates, "", 12.0f, {0, 0, 0});
     ASSERT_EQ(result.size(), 1u);
@@ -77,7 +78,7 @@ TEST(VisualFontRankerTest, EmptyTextReturnsCandidatesUnchanged) {
 }
 
 TEST(VisualFontRankerTest, SingleCandidateReturnedWithScores) {
-    if (!std::filesystem::exists("C:\\Windows\\Fonts\\arial.ttf")) {
+    if (!std::filesystem::exists(pdfe_test::systemFontPath("arial.ttf"))) {
         GTEST_SKIP() << "Arial not available";
     }
 
@@ -85,7 +86,7 @@ TEST(VisualFontRankerTest, SingleCandidateReturnedWithScores) {
     // Use larger region for reliable rendering
     QImage region = makeScannedRegion(400, 100, "Hello");
     std::vector<SubstituteResult> candidates;
-    candidates.push_back(makeCandidate("Arial", "C:\\Windows\\Fonts\\arial.ttf", 5.0f));
+    candidates.push_back(makeCandidate("Arial", pdfe_test::systemFontPath("arial.ttf"), 5.0f));
 
     auto result = ranker.rankByVisualSimilarity(region, candidates, "Hello", 14.0f, {0, 0, 0});
     ASSERT_EQ(result.size(), 1u);
@@ -96,8 +97,8 @@ TEST(VisualFontRankerTest, SingleCandidateReturnedWithScores) {
 }
 
 TEST(VisualFontRankerTest, MultipleCandidatesSortedByCombinedScore) {
-    if (!std::filesystem::exists("C:\\Windows\\Fonts\\arial.ttf") ||
-        !std::filesystem::exists("C:\\Windows\\Fonts\\times.ttf")) {
+    if (!std::filesystem::exists(pdfe_test::systemFontPath("arial.ttf")) ||
+        !std::filesystem::exists(pdfe_test::systemFontPath("times.ttf"))) {
         GTEST_SKIP() << "Arial or Times not available";
     }
 
@@ -106,8 +107,8 @@ TEST(VisualFontRankerTest, MultipleCandidatesSortedByCombinedScore) {
     QImage region = makeScannedRegion(200, 50, "Hello World");
 
     std::vector<SubstituteResult> candidates;
-    candidates.push_back(makeCandidate("Arial", "C:\\Windows\\Fonts\\arial.ttf", 5.0f));
-    candidates.push_back(makeCandidate("Times", "C:\\Windows\\Fonts\\times.ttf", 3.0f));
+    candidates.push_back(makeCandidate("Arial", pdfe_test::systemFontPath("arial.ttf"), 5.0f));
+    candidates.push_back(makeCandidate("Times", pdfe_test::systemFontPath("times.ttf"), 3.0f));
 
     auto result = ranker.rankByVisualSimilarity(
         region, candidates, "Hello World", 14.0f, {0, 0, 0});

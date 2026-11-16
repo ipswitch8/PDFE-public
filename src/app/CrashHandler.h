@@ -9,6 +9,12 @@ class CrashHandler {
 public:
     static CrashHandler& instance();
 
+    /// POSIX (Linux port, phase 6): std::set_terminate plus sigaction handlers
+    /// for SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT and SIGTRAP on an alternate
+    /// signal stack; each writes a text crash report into the resolved crash
+    /// directory and re-raises so the process still dies with the original
+    /// signal. Details and limits in CrashHandler.cpp.
+    ///
     /// Install global exception handlers: std::set_terminate, the Windows
     /// top-level SEH filter, and (WIN-82 / GitHub #103) the two CRT handlers
     /// that own the fault kinds neither of those can see —
@@ -43,20 +49,36 @@ public:
     /// than asserted: a child process about to make a pure-virtual call can
     /// confirm the purecall handler is in place FIRST, in the very process that
     /// is going to fault.
+    ///
+    /// POSIX (Linux port, phase 6): the three Windows-only fields stay false —
+    /// there is no SEH filter or CRT handler to own — and two POSIX fields
+    /// report the equivalent state, read back with sigaction()/sigaltstack()
+    /// rather than cached: `fatalSignals` is true only when EVERY signal in the
+    /// handled set (SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT, SIGTRAP) currently
+    /// dispatches to CrashHandler's handler with SA_ONSTACK, and `altStack` is
+    /// true when the calling thread's alternate signal stack is the one
+    /// install() allocated. `all()` means "everything this platform installs".
     struct InstalledHandlers {
         bool terminate = false;
-        bool unhandledExceptionFilter = false;
-        bool purecall = false;
-        bool invalidParameter = false;
+        bool unhandledExceptionFilter = false;   // Windows only
+        bool purecall = false;                   // Windows only
+        bool invalidParameter = false;           // Windows only
+        bool fatalSignals = false;               // POSIX only
+        bool altStack = false;                   // POSIX only
 
         bool all() const {
+#ifdef _WIN32
             return terminate && unhandledExceptionFilter && purecall
                 && invalidParameter;
+#else
+            return terminate && fatalSignals && altStack;
+#endif
         }
     };
 
-    /// Which of the four global handlers are, right now, CrashHandler's own.
-    /// Reads them back out of the CRT / Win32 rather than trusting install().
+    /// Which of the global handlers are, right now, CrashHandler's own.
+    /// Reads them back out of the CRT / Win32 (or sigaction on POSIX) rather
+    /// than trusting install().
     static InstalledHandlers installedHandlers();
 
     /// For testing: set a callback instead of showing a dialog.
@@ -82,6 +104,12 @@ public:
     /// (empty on failure). Exercises the exact MiniDumpWriteDump/DbgHelp
     /// plumbing the crash path uses, so a test can assert a real .dmp is
     /// produced without triggering an actual access violation.
+    ///
+    /// POSIX: writes a text crash report (the same writer the signal handler
+    /// uses, with signal number 0 and "TEST" as the signal name) into the
+    /// resolved directory — pruning to maxCrashDumps()-1 first — and returns
+    /// its path. There is no minidump format on Linux; see the report layout
+    /// in CrashHandler.cpp.
     static QString writeTestMinidump();
 
     // -----------------------------------------------------------------------
@@ -99,16 +127,29 @@ public:
     /// Rejects UNC, device-namespace, drive-relative and relative paths, and any
     /// ".." segment — see the rationale block in CrashHandler.cpp. No filesystem
     /// access, so it is safe to call from anywhere and cheap to test.
+    ///
+    /// POSIX rules: must be absolute ("/..."), contain no ".." segment and no
+    /// NUL, leave room for a file name under PATH_MAX, and not lie on a network
+    /// filesystem (path_security::path_is_on_network_filesystem — which does a
+    /// statfs, so on POSIX this is NOT free of filesystem access).
     static bool isAcceptableCrashDumpDirOverride(const QString& dir);
 
     /// Resolve (creating and securing if needed) the crash-dump directory the
     /// crash path would use right now, honouring PDFE_CRASH_DUMP_DIR. Empty on
     /// failure — including when an owner-only ACL could not be applied.
+    ///
+    /// POSIX: an acceptable override, else QStandardPaths::AppLocalDataLocation
+    /// plus a "crashes" subdirectory, created through
+    /// core::createOwnerOnlyDirectory (0700, refuses a symlink or a directory
+    /// another user owns). Empty if that refuses.
     static QString resolvedCrashDumpDir();
 
     /// Delete oldest-first until at most `keep` dumps remain in `dir`; returns
     /// the number deleted. Exposed so the retention policy is testable without
     /// writing 150 real (~48 MB) minidumps.
+    ///
+    /// POSIX: only regular files named like a crash report
+    /// ("pdfe_crash_*.crash") are counted or removed; oldest by mtime first.
     static int pruneCrashDumps(const QString& dir, int keep);
 
 private:
@@ -157,6 +198,10 @@ private:
     /// Returns the dump path written, or an empty string on failure.
     static QString writeMinidump(struct _EXCEPTION_POINTERS* exInfo);
 #endif
+    // POSIX: the fatal-signal handler and its state live at file scope in
+    // CrashHandler.cpp (it needs siginfo_t, which this header does not pull
+    // in, and it must not touch this object — see the async-signal-safety
+    // block there).
 };
 
 } // namespace pdfe::app

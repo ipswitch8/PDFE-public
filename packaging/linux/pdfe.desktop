@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=PDFE
+GenericName=PDF Editor
+Comment=Edit, annotate, redact and sign PDF documents
+Exec=pdfe %F
+Icon=pdfe
+Terminal=false
+Categories=Office;Viewer;
+MimeType=application/pdf;
+Keywords=pdf;editor;annotate;redact;sign;
+StartupWMClass=pdfe

@@ -74,7 +74,19 @@ public:
     enum class InputKind { Pdf, Image, Unsupported };
     static InputKind classifyInput(const std::filesystem::path& path);
 
+    /// Linux port phase-6 test seam. Fires once per image wrapper, with the
+    /// wrapper's path, immediately after the wrapper has been SEALED and before
+    /// combine() re-reads it by path — the exact window a same-user attacker
+    /// would use on POSIX. A test tampers with the file here and asserts the
+    /// combine is refused by verifyUnchanged(). Same shape and guarding as
+    /// MainWindow::setAlignStagingWindowHookForTesting. Never set in
+    /// production; a null hook costs one predictable branch.
+    static void setSealedWrapperHookForTesting(
+        std::function<void(const std::filesystem::path&)> hook);
+
 private:
+    static void fireSealedWrapperHookForTesting(const std::filesystem::path& p);
+
     std::shared_ptr<pdfe::core::MuPdfContext> context_;
 };
 

@@ -7,6 +7,7 @@
 // 3. FontMatcher returns a non-empty family for scanned page OCR data
 // 4. Full pipeline: OCR → FontMatcher → font family on test_scanned.pdf
 
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 #include "core/Document.h"
 #include "core/Page.h"
@@ -468,7 +469,7 @@ TEST_F(TessdataFontDetectionTest, RealWorldPdf_FontDetection_SansSerif)
         << "English document should detect Latin script";
 
     // Scheherazade must be classified as Arabic (not Latin)
-    auto scheherazadeProfile = analyzer->analyzeFromFile("C:\\Windows\\Fonts\\scheherazade-bold.ttf");
+    auto scheherazadeProfile = analyzer->analyzeFromFile(pdfe_test::systemFontPath("scheherazade-bold.ttf"));
     if (scheherazadeProfile) {
         EXPECT_EQ(scheherazadeProfile->primaryScript, pdfe::fonts::FontScript::Arabic)
             << "Scheherazade should be classified as Arabic, not Latin";

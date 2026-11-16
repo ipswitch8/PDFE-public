@@ -54,6 +54,81 @@ inline std::filesystem::path uniqueRedactTemp(const char* stem)
     return std::filesystem::temp_directory_path() / name;
 }
 
+// Makes the PUBLISH of `target` fail deterministically while it is alive, so a
+// test can drive the redaction rewrite's error path.
+//
+// Windows: an open deny-write handle this process holds on the target blocks
+// the replace-existing rename (openDenyWriteReadStream, DCA 0021).
+//
+// POSIX (GitHub #387): there are no mandatory share modes, so the same pin
+// blocks nothing -- the publish succeeded and both failure-path rows silently
+// stopped being failure-path rows. A read-only target is the POSIX blocker
+// instead. rename() itself ignores the destination's mode, but every POSIX
+// publish arm refuses an existing target the caller cannot write
+// (existingTargetIsWritable, GitHub #385 / DCA 0118), and that refusal happens
+// at the same point the Windows rename fails: after the staging artifacts
+// exist. Reading the document is unaffected.
+//
+// NOT AS ROOT. existingTargetIsWritable uses faccessat(W_OK, AT_EACCESS), and
+// root may write any file, so a read-only target does not block root's
+// publish. Rather than claim a block that will not happen, the POSIX arm
+// reports itself inactive for euid 0, and the callers' ASSERT then says why.
+class PublishBlocker {
+public:
+    explicit PublishBlocker(const std::filesystem::path& target) : target_(target) {
+#ifdef _WIN32
+        std::error_code ec;
+        pin_ = pdfe::core::openDenyWriteReadStream(target_, ec);
+        if (!pin_) error_ = ec.message();
+#else
+        if (::geteuid() == 0) {
+            error_ = "running as root: a read-only target does not block "
+                     "root's publish (existingTargetIsWritable)";
+            return;
+        }
+        std::error_code ec;
+        std::filesystem::permissions(target_, std::filesystem::perms::owner_read, ec);
+        if (ec) error_ = ec.message();
+        else    blocked_ = true;
+#endif
+    }
+    ~PublishBlocker() { release(); }
+    PublishBlocker(const PublishBlocker&) = delete;
+    PublishBlocker& operator=(const PublishBlocker&) = delete;
+
+    bool active() const {
+#ifdef _WIN32
+        return pin_ != nullptr;
+#else
+        return blocked_;
+#endif
+    }
+    const std::string& error() const { return error_; }
+
+    void release() {
+#ifdef _WIN32
+        if (pin_) { std::fclose(pin_); pin_ = nullptr; }
+#else
+        if (blocked_) {
+            std::error_code ec;
+            std::filesystem::permissions(
+                target_, std::filesystem::perms::owner_read
+                       | std::filesystem::perms::owner_write, ec);
+            blocked_ = false;
+        }
+#endif
+    }
+
+private:
+    std::filesystem::path target_;
+    std::string error_;
+#ifdef _WIN32
+    std::FILE* pin_ = nullptr;
+#else
+    bool blocked_ = false;
+#endif
+};
+
 } // namespace
 
 // ============================================================================
@@ -430,14 +505,13 @@ TEST_F(RedactionApplyTest, RewriteExceptionPathRemovesBothSideFiles) {
         pages_.push_back(std::move(page));
         manager_->createRedactionMark(rawPage, QRectF(100, 660, 400, 30));
 
-        // Force the PUBLISH to fail: hold a handle on the target that denies
-        // DELETE, so the rename-over cannot land. Taken after the marks are
+        // Force the PUBLISH to fail (PublishBlocker: a deny-write pin on
+        // Windows, a read-only target on POSIX). Taken after the marks are
         // created and released before the listing, so it is not itself residue.
-        std::error_code pinEc;
-        std::FILE* pin = pdfe::core::openDenyWriteReadStream(workPath, pinEc);
-        ASSERT_NE(pin, nullptr)
-            << "could not pin the target, so this row cannot drive the failure "
-               "path it exists for: " << pinEc.message();
+        PublishBlocker blocker(workPath);
+        ASSERT_TRUE(blocker.active())
+            << "could not block the target's publish, so this row cannot drive "
+               "the failure path it exists for: " << blocker.error();
 
         pdfe::redaction::RedactionApplyOptions options;
         options.rewriteDocument = true;
@@ -446,7 +520,7 @@ TEST_F(RedactionApplyTest, RewriteExceptionPathRemovesBothSideFiles) {
         } catch (const std::exception&) {
             // The failure is the point; the cleanup is what is under test.
         }
-        std::fclose(pin);
+        blocker.release();
         pages_.clear();
         doc.reset();
     }
@@ -666,8 +740,9 @@ TEST_F(RedactionApplyTest, NoFilesystemResidueFromAnyApplyPath) {
     // itself was in the expected set, so the row would keep passing while
     // asserting about a file only the test created.
     //
-    // It now forces the PUBLISH to fail instead — an open handle this process
-    // holds on the target blocks the replace-existing rename — which happens
+    // It now forces the PUBLISH to fail instead — PublishBlocker: an open
+    // handle this process holds on the target blocks the replace-existing
+    // rename on Windows, a read-only target is refused on POSIX — which happens
     // AFTER both staging artifacts exist, so it exercises strictly more of the
     // error path than the old blocker did. Nothing but the user's document may
     // survive.
@@ -680,11 +755,10 @@ TEST_F(RedactionApplyTest, NoFilesystemResidueFromAnyApplyPath) {
         auto page = doc->page(0);
         manager_->createRedactionMark(page.get(), QRectF(100, 660, 400, 30));
 
-        std::error_code pinEc;
-        std::FILE* pin = pdfe::core::openDenyWriteReadStream(work, pinEc);
-        ASSERT_NE(pin, nullptr)
-            << "could not pin the target, so this row cannot drive the failure "
-               "path it exists for: " << pinEc.message();
+        PublishBlocker blocker(work);
+        ASSERT_TRUE(blocker.active())
+            << "could not block the target's publish, so this row cannot drive "
+               "the failure path it exists for: " << blocker.error();
 
         pdfe::redaction::RedactionApplyOptions opts;
         opts.rewriteDocument = true;
@@ -695,7 +769,7 @@ TEST_F(RedactionApplyTest, NoFilesystemResidueFromAnyApplyPath) {
             r = manager_->applyAllRedactions(doc.get(), opts);
         } catch (const std::exception&) {
         }
-        std::fclose(pin);
+        blocker.release();
         // Vacuity guard: if the publish succeeded, this row is silently no
         // longer a failure-path row.
         EXPECT_FALSE(r.documentRewritten)

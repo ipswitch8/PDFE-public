@@ -16,6 +16,20 @@
 #  include <windows.h>
 #  include <winnetwk.h>
 #  pragma comment(lib, "mpr.lib")
+#else
+#  include <cerrno>
+#  include <climits>
+#  include <cstdlib>
+#  include <filesystem>
+#  include <fstream>
+#  include <sstream>
+#  include <string>
+#  if defined(__APPLE__)
+#    include <sys/mount.h>
+#    include <sys/param.h>
+#  else
+#    include <sys/vfs.h>
+#  endif
 #endif
 
 namespace pdfe::core::path_security {
@@ -184,7 +198,7 @@ bool checkUtf8(std::string_view path) noexcept {
 // Extract the drive letter of a path that begins `X:`, else '\0'.
 // Handles the `\\?\X:\…` extended-length prefix, which is a local path in
 // UNC clothing and would otherwise be missed.
-char leadingDriveLetter(std::string_view s) noexcept {
+[[maybe_unused]] char leadingDriveLetter(std::string_view s) noexcept {
     // `file:///Z:/x.pdf` names the mapped drive just as surely as `Z:\x.pdf`
     // does, so the scheme is stripped here too — otherwise the URI spelling
     // would be a free bypass of the resolution step.
@@ -270,6 +284,244 @@ bool drive_letter_resolves_to_remote([[maybe_unused]] char driveLetter) noexcept
     return false;
 }
 
+// ---------------------------------------------------------------------------
+// GitHub #390 — the POSIX analogue of a mapped drive: a network mount.
+// ---------------------------------------------------------------------------
+
+namespace detail {
+
+bool linux_fs_magic_is_network(unsigned long long m) noexcept {
+    // Values from <linux/magic.h> and the filesystems' own sources. Spelled
+    // out rather than included: several (CIFS, SMB2, Lustre, GPFS, PanFS) are
+    // not in that header, and the set is the policy, so it belongs here.
+    switch (m) {
+    case 0x6969ULL:       // NFS_SUPER_MAGIC (nfs, nfs4)
+    case 0x517BULL:       // SMB_SUPER_MAGIC (legacy smbfs)
+    case 0xFF534D42ULL:   // CIFS_SUPER_MAGIC
+    case 0xFE534D42ULL:   // SMB2_SUPER_MAGIC (smb3)
+    case 0x5346414FULL:   // AFS_SUPER_MAGIC (kAFS)
+    case 0x6B414653ULL:   // AFS_FS_MAGIC (OpenAFS)
+    case 0x73757245ULL:   // CODA_SUPER_MAGIC
+    case 0x564CULL:       // NCP_SUPER_MAGIC (NetWare)
+    case 0x01021997ULL:   // V9FS_MAGIC (9p)
+    case 0x00C36400ULL:   // CEPH_SUPER_MAGIC
+    case 0x0BD00BD0ULL:   // LUSTRE_SUPER_MAGIC
+    case 0x47504653ULL:   // GPFS_SUPER_MAGIC
+    case 0xAAD7AAEAULL:   // PANFS_SUPER_MAGIC
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool fuse_fstype_is_network(std::string_view fstype) noexcept {
+    // `fuse.<subtype>` names the userspace filesystem. These reach another
+    // host. Everything else FUSE (fuseblk for ntfs-3g/exfat, the document
+    // portal, a mounted AppImage) is local.
+    constexpr std::string_view kPrefix = "fuse.";
+    if (fstype.substr(0, kPrefix.size()) != kPrefix) return false;
+    const std::string_view sub = fstype.substr(kPrefix.size());
+    static constexpr std::string_view kNetwork[] = {
+        "sshfs", "rclone", "s3fs", "gcsfuse", "goofys", "glusterfs",
+        "davfs", "davfs2", "curlftpfs", "smbnetfs", "gvfsd-fuse",
+        "ceph-fuse", "juicefs", "mfs", "lizardfs", "cephfs", "afpfs",
+    };
+    for (std::string_view n : kNetwork) {
+        if (sub == n) return true;
+    }
+    return false;
+}
+
+namespace {
+// mountinfo escapes space, tab, newline and backslash as \ooo octal.
+std::string decodeMountField(std::string_view s) {
+    std::string out;
+    out.reserve(s.size());
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        const auto octal = [&](std::size_t k) { return s[k] >= '0' && s[k] <= '7'; };
+        if (s[i] == '\\' && i + 3 < s.size() && octal(i + 1) && octal(i + 2) &&
+            octal(i + 3)) {
+            out.push_back(static_cast<char>((s[i + 1] - '0') * 64 +
+                                            (s[i + 2] - '0') * 8 + (s[i + 3] - '0')));
+            i += 3;
+        } else {
+            out.push_back(s[i]);
+        }
+    }
+    return out;
+}
+
+// Is `mount` a path-component prefix of `path`? "/mnt/share" contains
+// "/mnt/share/x" and itself, but not "/mnt/sharex".
+bool mountContains(std::string_view mount, std::string_view path) {
+    if (mount == "/") return !path.empty() && path[0] == '/';
+    if (path.substr(0, mount.size()) != mount) return false;
+    return path.size() == mount.size() || path[mount.size()] == '/';
+}
+}  // namespace
+
+std::string mountinfo_fstype_for(std::string_view mountinfo,
+                                 std::string_view absPath) {
+    std::string best;
+    std::size_t bestLen = 0;
+    bool found = false;
+    std::size_t pos = 0;
+    while (pos < mountinfo.size()) {
+        std::size_t eol = mountinfo.find('\n', pos);
+        if (eol == std::string_view::npos) eol = mountinfo.size();
+        const std::string_view line = mountinfo.substr(pos, eol - pos);
+        pos = eol + 1;
+
+        // Fields: id parent major:minor root MOUNTPOINT options [optional...]
+        // - FSTYPE source superoptions
+        std::vector<std::string_view> f;
+        std::size_t i = 0;
+        while (i < line.size()) {
+            while (i < line.size() && line[i] == ' ') ++i;
+            const std::size_t j = line.find(' ', i);
+            const std::size_t end = (j == std::string_view::npos) ? line.size() : j;
+            if (end > i) f.push_back(line.substr(i, end - i));
+            i = end;
+        }
+        if (f.size() < 7) continue;
+        std::size_t sep = 6;
+        while (sep < f.size() && f[sep] != "-") ++sep;
+        if (sep + 1 >= f.size()) continue;
+
+        const std::string mount = decodeMountField(f[4]);
+        if (!mountContains(mount, absPath)) continue;
+        // Longest mount point wins; at equal length the LATER line wins,
+        // because a later mount over the same point hides the earlier one.
+        if (!found || mount.size() >= bestLen) {
+            best = std::string(f[sep + 1]);
+            bestLen = mount.size();
+            found = true;
+        }
+    }
+    return best;
+}
+
+}  // namespace detail
+
+namespace testseam {
+namespace {
+[[maybe_unused]] FsMagicProbe& probeOverride() noexcept {
+    static FsMagicProbe p = nullptr;
+    return p;
+}
+}  // namespace
+void setFsMagicProbe(FsMagicProbe probe) noexcept { probeOverride() = probe; }
+namespace {
+[[maybe_unused]] MountinfoReader& mountinfoOverride() noexcept {
+    static MountinfoReader r = nullptr;
+    return r;
+}
+}  // namespace
+void setMountinfoReader(MountinfoReader reader) noexcept { mountinfoOverride() = reader; }
+}  // namespace testseam
+
+#if !defined(_WIN32)
+namespace {
+
+// statfs the path, or (for a path that does not exist yet) its nearest
+// existing ancestor. On success fills `magic` (Linux) / `local` (macOS) and
+// `probed` with the path actually examined.
+struct FsProbe {
+    bool ok = false;
+    unsigned long long magic = 0;
+    bool local = true;
+    std::string probed;
+};
+
+FsProbe probeFilesystem(std::string_view path) {
+    FsProbe r;
+    std::string p(path);
+    for (int depth = 0; depth < 64 && !p.empty(); ++depth) {
+#if defined(PDFE_TESTING)
+        if (auto seam = testseam::probeOverride()) {
+            unsigned long long m = 0;
+            if (seam(p.c_str(), &m)) {
+                r.ok = true; r.magic = m; r.local = !detail::linux_fs_magic_is_network(m);
+                r.probed = p;
+                return r;
+            }
+        } else
+#endif
+        {
+            struct statfs st {};
+            if (::statfs(p.c_str(), &st) == 0) {
+                r.ok = true;
+#if defined(__APPLE__)
+                r.local = (st.f_flags & MNT_LOCAL) != 0;
+#else
+                r.magic = static_cast<unsigned long long>(
+                    static_cast<unsigned long>(st.f_type));
+                r.local = !detail::linux_fs_magic_is_network(r.magic);
+#endif
+                r.probed = p;
+                return r;
+            }
+            if (errno != ENOENT && errno != ENOTDIR) return r;
+        }
+        // Climb one component: "/a/b/c" -> "/a/b", "/a" -> "/", "rel" -> ".".
+        while (p.size() > 1 && p.back() == '/') p.pop_back();
+        const std::size_t slash = p.rfind('/');
+        if (slash == std::string::npos) p = (p == ".") ? std::string() : ".";
+        else if (slash == 0) p = (p == "/") ? std::string() : "/";
+        else p.resize(slash);
+    }
+    return r;
+}
+
+#if !defined(__APPLE__)
+constexpr unsigned long long kFuseSuperMagic = 0x65735546ULL;
+
+bool fuseMountIsNetwork(const std::string& probed) {
+    // mountinfo lists canonical mount points, so match the canonical path.
+    // `probed` passed statfs, so it exists and realpath normally succeeds;
+    // if it does not, the path as probed is the best available answer.
+    char resolved[PATH_MAX];
+    const std::string abs = ::realpath(probed.c_str(), resolved) ? std::string(resolved)
+                                                                 : probed;
+    std::string mountinfo;
+#if defined(PDFE_TESTING)
+    if (auto seam = testseam::mountinfoOverride()) {
+        mountinfo = seam();
+    } else
+#endif
+    {
+        std::ifstream in("/proc/self/mountinfo");
+        if (!in) return false;
+        std::stringstream ss;
+        ss << in.rdbuf();
+        mountinfo = ss.str();
+    }
+    return detail::fuse_fstype_is_network(detail::mountinfo_fstype_for(mountinfo, abs));
+}
+#endif
+
+}  // namespace
+#endif  // !_WIN32
+
+bool path_is_on_network_filesystem([[maybe_unused]] std::string_view path) noexcept {
+#if defined(_WIN32)
+    return false;
+#else
+    if (path.empty() || path.find('\0') != std::string_view::npos) return false;
+    try {
+        const FsProbe probe = probeFilesystem(path);
+        if (!probe.ok) return false;
+        if (!probe.local) return true;
+#  if !defined(__APPLE__)
+        if (probe.magic == kFuseSuperMagic) return fuseMountIsNetwork(probe.probed);
+#  endif
+        return false;
+    } catch (...) {
+        return false;
+    }
+#endif
+}
+
 bool is_lexically_unc_or_remote(std::string_view path) noexcept {
     return checkUtf8(path);
 }
@@ -277,10 +529,15 @@ bool is_lexically_unc_or_remote(std::string_view path) noexcept {
 bool is_unc_or_remote(std::string_view path) noexcept {
     if (checkUtf8(path)) return true;
 
+#if defined(_WIN32)
     // Not lexically remote. It may still BE remote: ask the drive table.
     const char drive = leadingDriveLetter(path);
     if (drive == '\0') return false;
     return drive_letter_resolves_to_remote(drive);
+#else
+    // Not lexically remote. It may still BE remote: ask what it is mounted on.
+    return path_is_on_network_filesystem(path);
+#endif
 }
 
 bool is_unsafe_link_target(std::string_view uri) noexcept {
@@ -349,7 +606,19 @@ bool is_unc_or_remote(std::wstring_view path) noexcept {
     // wide string said where it matters. Delegating (rather than repeating
     // the two-step here) is what stops the two overloads from drifting —
     // SEC-50 existed because one gate was weaker than it looked.
+#if defined(_WIN32)
     return is_unc_or_remote(std::string_view{narrow});
+#else
+    // POSIX asks the filesystem, which needs the REAL path, not the lossy
+    // narrowing: a '?' where a non-ASCII component was names nothing.
+    if (is_lexically_unc_or_remote(std::string_view{narrow})) return true;
+    try {
+        const std::string utf8 = std::filesystem::path(std::wstring(path)).string();
+        return path_is_on_network_filesystem(utf8);
+    } catch (...) {
+        return false;
+    }
+#endif
 }
 
 // ---------------------------------------------------------------------------

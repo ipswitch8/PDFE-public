@@ -12,6 +12,7 @@
 // path at all. Nothing in tests/ called setFreeTypeFallback() before, which is
 // a large part of why #268 survived #266.
 
+#include "system_font_path.h"  // GitHub #390
 #include "tre/EnrichedAtlas.h"
 #include "tre/BitmapCompositor.h"
 #include "tre/GlyphAtlas.h"
@@ -66,9 +67,9 @@ std::string systemFont()
 {
     // Same fonts other tests in this suite use. Checked rather than assumed so
     // a missing font is a clear skip rather than a null-image mystery.
-    for (const char* p : {"C:/Windows/Fonts/arial.ttf",
-                          "C:/Windows/Fonts/calibri.ttf",
-                          "C:/Windows/Fonts/cour.ttf"}) {
+    for (const std::string& p : {pdfe_test::systemFontPath("arial.ttf"),
+                          pdfe_test::systemFontPath("calibri.ttf"),
+                          pdfe_test::systemFontPath("cour.ttf")}) {
         if (std::filesystem::exists(p))
             return p;
     }

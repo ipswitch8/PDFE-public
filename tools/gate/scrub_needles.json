@@ -54,6 +54,12 @@
       "sha256": "dadbfb70d9ba918de0c35ad6929d02cefb1d45f0dc932555a0769f23bbc953b7",
       "tokens": 1,
       "note": "The build account name. check_tracked_path_hygiene.py already polices this with substring matching from an ambient needle, and is stronger where it applies; this is defence for the case where that checker cannot resolve USERNAME/USER/LOGNAME and fails closed instead."
+    },
+    {
+      "label": "build-account-linux",
+      "sha256": "53942edc0efd52bae4178bf70563e83ff19c659edd0135016952e3291e15bb3c",
+      "tokens": 2,
+      "note": "The Linux build account in the form a Linux build leaks it: the token pair 'home' + the account's first token, i.e. a home-directory path. A host build of the Linux release embedded it 199 times in pdfe, through static libraries' __FILE__ strings and OpenSSL's ENGINESDIR/MODULESDIR, and in vcpkg-built shared libraries such as libdbus (v0.5.3, GitHub #390). The bare account name is not used, because its two tokens are short enough to occur by chance in compressed data. The release is now built in a container (tools/packaging/build-release-container.sh), and check_release_asset_hygiene.py uses this needle as its sensitivity control on Linux."
     }
   ]
 }

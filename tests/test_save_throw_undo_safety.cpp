@@ -33,6 +33,9 @@
 // command was rebound despite the throw. RED (UAF, hard under ASan) on the
 // unpatched tree; GREEN after the fix, Debug and msvc-asan.
 
+#if !defined(_WIN32)
+#include <unistd.h>
+#endif
 #include <gtest/gtest.h>
 
 #include "core/AtomicFileReplace.h"
@@ -263,10 +266,30 @@ TEST_P(SaveThrowUndoSafetyTest, ThrownSaveStillRebindsUndoStack) {
     std::unique_ptr<Page> extraHolder = doc->page(0);
     ASSERT_NE(extraHolder, nullptr);
 
+#if !defined(_WIN32)
+    // POSIX (GitHub #390 full-suite triage): a held Page locks nothing here, so
+    // the rename-over would land and the throw this test exists for would never
+    // happen. The same publish step is made to fail the POSIX way instead: a
+    // target the caller cannot write, which every POSIX publish arm refuses
+    // (existingTargetIsWritable, GitHub #385). It fails at the same point, after
+    // the temp is written and the command pages drained, which is the
+    // residual-holder moment R2-03 must survive. Root ignores the mode, so the
+    // case cannot be driven as root.
+    ASSERT_NE(::geteuid(), 0u) << "as root a read-only target does not block the publish";
+    std::filesystem::permissions(tempPdf_, std::filesystem::perms::owner_read,
+                                 std::filesystem::perm_options::replace);
+#endif
+
     // (a) The save must throw (the file-lock holder blocks the rewrite).
     EXPECT_ANY_THROW({
         pdfe::core::saveWithCommandPageRebind(*doc, undo, commandPages, tempPdf_);
     }) << "the held extra Page must lock the full-rewrite save";
+
+#if !defined(_WIN32)
+    std::filesystem::permissions(tempPdf_, std::filesystem::perms::owner_read |
+                                           std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::replace);
+#endif
 
     // Drop the extra holder — safe: it kept the OLD (pre-save) document alive,
     // distinct from the ORIGINAL that save() reopened on failure.

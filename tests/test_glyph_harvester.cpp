@@ -1,3 +1,4 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 #include "tre/LineFontVerifier.h"
 #include "tre/EnrichedAtlas.h"
@@ -579,7 +580,7 @@ TEST_F(GlyphHarvesterTest, Integration_CompositorEnrichedOverload) {
 
     FontMatch fm;
     fm.sizePt = 12.0f;
-    fm.fontFilePath = "C:/Windows/Fonts/arial.ttf";
+    fm.fontFilePath = pdfe_test::systemFontPath("arial.ttf");
     fm.fontFamily = "Arial";
     fm.color = textColor;
 
@@ -611,7 +612,7 @@ TEST_F(GlyphHarvesterTest, Integration_WysiwygPathConsistency) {
 
     FontMatch fm;
     fm.sizePt = 12.0f;
-    fm.fontFilePath = "C:/Windows/Fonts/arial.ttf";
+    fm.fontFilePath = pdfe_test::systemFontPath("arial.ttf");
     fm.fontFamily = "Arial";
     fm.color = textColor;
 
@@ -1365,10 +1366,10 @@ TEST_F(GlyphHarvesterTest, TemplateCache_EmptyInputs) {
     auto r1 = GlyphTemplateCache::renderTemplates("", 0, 30, {U'A'});
     EXPECT_TRUE(r1.empty()) << "Empty font path should return empty map";
 
-    auto r2 = GlyphTemplateCache::renderTemplates("C:/Windows/Fonts/arial.ttf", 0, 0, {U'A'});
+    auto r2 = GlyphTemplateCache::renderTemplates(pdfe_test::systemFontPath("arial.ttf"), 0, 0, {U'A'});
     EXPECT_TRUE(r2.empty()) << "Zero pixel height should return empty map";
 
-    auto r3 = GlyphTemplateCache::renderTemplates("C:/Windows/Fonts/arial.ttf", 0, 30, {});
+    auto r3 = GlyphTemplateCache::renderTemplates(pdfe_test::systemFontPath("arial.ttf"), 0, 30, {});
     EXPECT_TRUE(r3.empty()) << "Empty codepoints should return empty map";
 }
 

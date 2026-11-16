@@ -189,11 +189,15 @@ endforeach()
 
 add_executable(pdfe_tests
     test_main.cpp
+    fixture_immutability_guard.cpp
+    system_font_path.cpp
+    test_fixture_immutability_guard.cpp
     test_mupdf_context.cpp
     test_mupdf_context_clone_lifecycle.cpp
     test_mupdf_context_instance_key.cpp
     test_qpdf_wrapper.cpp
     test_path_security.cpp
+    test_network_filesystem_detection.cpp
     test_teardown_crash_visibility.cpp
     test_sanitizer_gate_fault_injection.cpp
     test_hostile_source_mutation_phase8.cpp
@@ -311,6 +315,7 @@ add_executable(pdfe_tests
     test_thumbnail_zoom_integration.cpp
     test_bookmarks.cpp
     test_font_matching.cpp
+    test_fontconfig_support.cpp
     test_hidpi.cpp
     test_hidpi_render.cpp
     test_ui_integration.cpp
@@ -358,6 +363,7 @@ add_executable(pdfe_tests
     test_content_stream_adversarial_ambient.cpp
     test_content_stream_ctm_reset.cpp
     test_preflight_open.cpp
+    test_preflight_sandbox_posix.cpp
     test_save_error_paths.cpp
     test_linearization.cpp
     test_find_replace.cpp
@@ -1117,6 +1123,7 @@ add_executable(pdfe_tests
     # service's image wrappers) and a fixed-name %TEMP% write that is a
     # plant-and-redirect target rather than a substitution target.
     test_temp_file_safety_phase60.cpp
+    test_pinned_consumer_wiring_phase6.cpp
     test_clipboard_paste_substitution_phase60.cpp
     test_tsa_timestamp_verification.cpp
     test_redaction_completeness.cpp
@@ -1459,6 +1466,13 @@ else()
                     "(GitHub #51) cannot be generated and "
                     "ResourceBombSandbox.PageTreeBombOpensWithinHardCaps will "
                     "FAIL naming the missing path.")
+endif()
+
+# GitHub #390: tests/system_font_path.cpp resolves the Windows font files the
+# suite names (arial.ttf, ...) to their installed substitutes via fontconfig.
+if(NOT WIN32)
+    find_package(Fontconfig REQUIRED)
+    target_link_libraries(pdfe_tests PRIVATE Fontconfig::Fontconfig)
 endif()
 
 target_compile_definitions(pdfe_tests PRIVATE

@@ -1,3 +1,4 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 
 #include "tre/AutoMissingGlyphResolver.h"
@@ -117,11 +118,11 @@ protected:
         // aren't available, fall back to a regular Latin font and
         // accept that fewer codepoints will exercise the fallback.
         const std::string candidates[] = {
-            "C:/Windows/Fonts/webdings.ttf",
-            "C:/Windows/Fonts/wingding.ttf",
-            "C:/Windows/Fonts/symbol.ttf",
-            "C:/Windows/Fonts/arial.ttf",
-            "C:/Windows/Fonts/consola.ttf",
+            pdfe_test::systemFontPath("webdings.ttf"),
+            pdfe_test::systemFontPath("wingding.ttf"),
+            pdfe_test::systemFontPath("symbol.ttf"),
+            pdfe_test::systemFontPath("arial.ttf"),
+            pdfe_test::systemFontPath("consola.ttf"),
         };
         std::string fontPath;
         for (const auto& c : candidates) {

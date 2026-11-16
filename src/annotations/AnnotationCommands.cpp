@@ -1,6 +1,7 @@
 #include "AnnotationCommands.h"
 #include "AnnotationManager.h"
 #include "core/Page.h"
+#include <cstdint>
 #include <functional>
 
 namespace pdfe::annotations {
@@ -285,13 +286,25 @@ int ModifyAnnotationCommand::mergeId() const
     // Cluster #5 fix: hash on pageIndex (stable across Document::page()
     // calls) rather than the volatile raw Page* pointer. See mergeWith
     // above for the full root-cause analysis.
-    size_t h1 = std::hash<int>{}(newData_.pageIndex);
-    size_t h2 = std::hash<int>{}(annotIndex_);
-    size_t h3 = std::hash<int>{}(static_cast<int>(property_));
-
-    // Combine hashes
-    size_t combined = h1 ^ (h2 << 1) ^ (h3 << 2);
-    return static_cast<int>(combined & 0x7FFFFFFF); // Keep positive
+    //
+    // PORTABLE MIX, NEVER ZERO (GitHub #390 full-suite triage). This used to
+    // xor std::hash<int> values. MSVC's std::hash<int> is FNV-based, but
+    // libstdc++'s is the identity, so on Linux the first annotation on the
+    // first page (page 0, annot 0, Contents == 0) hashed to exactly 0. QUndo
+    // reads 0 as "never merge", so typing into it never coalesced. The mix is
+    // now explicit (splitmix64 finaliser over the three fields), independent
+    // of the standard library, and 0 is remapped because 0 is reserved.
+    auto mix = [](std::uint64_t x) {
+        x += 0x9E3779B97F4A7C15ULL;
+        x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ULL;
+        x = (x ^ (x >> 27)) * 0x94D049BB133111EBULL;
+        return x ^ (x >> 31);
+    };
+    std::uint64_t h = mix(static_cast<std::uint32_t>(newData_.pageIndex));
+    h = mix(h ^ static_cast<std::uint32_t>(annotIndex_));
+    h = mix(h ^ static_cast<std::uint32_t>(property_));
+    const int id = static_cast<int>(h & 0x7FFFFFFF);  // keep positive
+    return id == 0 ? 1 : id;
 }
 
 void ModifyAnnotationCommand::applyData(const AnnotationData& data)

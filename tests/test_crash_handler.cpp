@@ -8,6 +8,10 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#ifndef _WIN32
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 using namespace pdfe::app;
 
@@ -151,7 +155,39 @@ TEST_F(CrashHandlerTest, TestCallback_SetNull_DoesNotCrash) {
 // (no real access violation needed) and assert a genuine .dmp is produced.
 TEST_F(CrashHandlerTest, WriteTestMinidump_ProducesRealDumpFile) {
 #ifndef _WIN32
-    GTEST_SKIP() << "minidump is a Windows-only facility";
+    // POSIX has no minidump format. The seam writes a TEXT crash report through
+    // the same async-signal-safe writer the fatal-signal handler uses; assert
+    // that real file, its owner-only mode and its layout.
+    std::error_code ec;
+    const auto dir = std::filesystem::temp_directory_path(ec)
+                     / ("pdfe_p6_wtm_" + std::to_string(::getpid()));
+    std::filesystem::remove_all(dir, ec);
+    ::setenv("PDFE_CRASH_DUMP_DIR", dir.c_str(), 1);
+    const QString path = CrashHandler::writeTestMinidump();
+    ::unsetenv("PDFE_CRASH_DUMP_DIR");
+    ASSERT_FALSE(path.isEmpty()) << "writeTestMinidump() wrote nothing";
+    const std::filesystem::path p = path.toStdString();
+    ASSERT_TRUE(std::filesystem::exists(p)) << path.toStdString();
+    EXPECT_EQ(p.parent_path(), dir) << "PDFE_CRASH_DUMP_DIR was ignored";
+    EXPECT_EQ(p.filename().string().rfind("pdfe_crash_", 0), 0u);
+    EXPECT_EQ(p.extension(), ".crash");
+    struct stat st{};
+    ASSERT_EQ(::stat(p.c_str(), &st), 0);
+    EXPECT_EQ(st.st_mode & 07777, 0600u) << "report is not owner-only";
+    ASSERT_EQ(::stat(dir.c_str(), &st), 0);
+    EXPECT_EQ(st.st_mode & 07777, 0700u) << "crash directory is not owner-only";
+    std::ifstream f(p, std::ios::binary);
+    const std::string text((std::istreambuf_iterator<char>(f)),
+                           std::istreambuf_iterator<char>());
+    EXPECT_EQ(text.rfind("=== PDFE CRASH REPORT ===\n", 0), 0u) << text;
+    EXPECT_NE(text.find("signal: TEST (0)"), std::string::npos) << text;
+    EXPECT_NE(text.find("\nversion: PDFE "), std::string::npos) << text;
+    EXPECT_NE(text.find("\nbacktrace:\n"), std::string::npos) << text;
+    EXPECT_NE(text.find("\nbacktrace frames: "), std::string::npos) << text;
+    EXPECT_NE(text.find("=== END OF REPORT ==="), std::string::npos) << text;
+    // A real backtrace has frames, and this function's caller chain is in it.
+    EXPECT_GT(text.size(), 400u) << "report is implausibly small:\n" << text;
+    std::filesystem::remove_all(dir, ec);
 #else
     const QString path = CrashHandler::writeTestMinidump();
     ASSERT_FALSE(path.isEmpty())
@@ -487,4 +523,258 @@ TEST_F(CrashHandlerTest, AtTheCap_TheNewestCrashIsStillCapturedAndTheOldestIsPru
     std::error_code ec;
     std::filesystem::remove_all(dir, ec);
 }
+#else  // POSIX arms of the phase-11 cases (Linux port, phase 6)
+
+#include "core/PathSecurity.h"
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <atomic>
+#include <vector>
+
+namespace {
+
+std::filesystem::path freshCrashDirPosix(const char* tag)
+{
+    static std::atomic<unsigned> counter{0};
+    std::error_code ec;
+    auto d = std::filesystem::temp_directory_path(ec)
+             / (std::string("pdfe_p6_ch_") + tag + "_" + std::to_string(::getpid())
+                + "_" + std::to_string(counter.fetch_add(1)));
+    std::filesystem::remove_all(d, ec);
+    std::filesystem::create_directories(d, ec);
+    return d;
+}
+
+/// `n` report-named files with strictly increasing mtimes, oldest first.
+std::vector<std::filesystem::path> makeAgedReports(const std::filesystem::path& dir, int n)
+{
+    std::vector<std::filesystem::path> made;
+    struct timeval now{};
+    ::gettimeofday(&now, nullptr);
+    for (int i = 0; i < n; ++i) {
+        auto p = dir / ("pdfe_crash_aged_" + std::to_string(i) + ".crash");
+        { std::ofstream f(p, std::ios::binary); f << "x"; }
+        struct timeval tv[2];
+        tv[0].tv_sec = tv[1].tv_sec = now.tv_sec - (n - i) * 10;
+        tv[0].tv_usec = tv[1].tv_usec = 0;
+        ::utimes(p.c_str(), tv);
+        made.push_back(p);
+    }
+    return made;
+}
+
+int countReports(const std::filesystem::path& dir)
+{
+    int n = 0;
+    std::error_code ec;
+    for (auto& e : std::filesystem::directory_iterator(dir, ec)) {
+        const std::string name = e.path().filename().string();
+        if (name.rfind("pdfe_crash_", 0) == 0 && e.path().extension() == ".crash"
+            && e.is_regular_file() && !e.is_symlink())
+            ++n;
+    }
+    return n;
+}
+
+unsigned modeOf(const std::filesystem::path& p)
+{
+    struct stat st{};
+    if (::lstat(p.c_str(), &st) != 0) return 0xFFFFu;
+    return static_cast<unsigned>(st.st_mode & 07777);
+}
+
+class ScopedCrashDirEnvPosix {
+public:
+    explicit ScopedCrashDirEnvPosix(const std::string& value)
+    {
+        if (const char* v = std::getenv("PDFE_CRASH_DUMP_DIR")) { had_ = true; prev_ = v; }
+        ::setenv("PDFE_CRASH_DUMP_DIR", value.c_str(), 1);
+    }
+    ~ScopedCrashDirEnvPosix()
+    {
+        if (had_) ::setenv("PDFE_CRASH_DUMP_DIR", prev_.c_str(), 1);
+        else ::unsetenv("PDFE_CRASH_DUMP_DIR");
+    }
+private:
+    bool had_ = false;
+    std::string prev_;
+};
+
+bool g_fakeNfs = false;
+bool fakeMagicProbe(const char* /*path*/, unsigned long long* magic)
+{
+    *magic = g_fakeNfs ? 0x6969ULL /* NFS_SUPER_MAGIC */ : 0xEF53ULL /* ext4 */;
+    return true;
+}
+
+}  // namespace
+
+TEST_F(CrashHandlerTest, CrashDumpDirOverride_RejectsUnprotectablePathsPosix)
+{
+    const std::string tmp = std::filesystem::temp_directory_path().string();
+    struct Case { std::string path; bool acceptable; const char* why; };
+    const Case cases[] = {
+        {tmp + "/pdfe_dumps",          true,  "absolute local path"},
+        {tmp + "/pdfe_dumps/",         true,  "trailing slash is still the same directory"},
+        {"pdfe_dumps",                 false, "relative: resolves against a CWD that varies by launcher"},
+        {"./pdfe_dumps",               false, "relative"},
+        {"../pdfe_dumps",              false, "relative escape"},
+        {tmp + "/a/../b",              false, "'..' segment smuggled through an absolute path"},
+        {tmp + "/..",                  false, "trailing '..' segment"},
+        {"",                           false, "empty"},
+        {std::string("/x\0y", 4),      false, "embedded NUL"},
+        {"/" + std::string(5000, 'a'), false, "longer than PATH_MAX leaves no room for a name"},
+    };
+    int accepted = 0, rejected = 0;
+    for (const auto& c : cases) {
+        const QString q = QString::fromUtf8(c.path.data(), static_cast<qsizetype>(c.path.size()));
+        EXPECT_EQ(CrashHandler::isAcceptableCrashDumpDirOverride(q), c.acceptable)
+            << "path \"" << c.path << "\" - " << c.why;
+        (c.acceptable ? accepted : rejected)++;
+    }
+    EXPECT_GT(accepted, 0);
+    EXPECT_GT(rejected, 0);
+}
+
+TEST_F(CrashHandlerTest, CrashDumpDirOverride_RejectsANetworkFilesystemPosix)
+{
+    // The POSIX analogue of UNC. Driven through PathSecurity's statfs seam so
+    // no real NFS mount is needed; the SAME path flips verdict with the magic.
+    const std::string p = std::filesystem::temp_directory_path().string() + "/pdfe_nfs_dumps";
+    pdfe::core::path_security::testseam::setFsMagicProbe(&fakeMagicProbe);
+    g_fakeNfs = false;
+    const bool local = CrashHandler::isAcceptableCrashDumpDirOverride(QString::fromStdString(p));
+    g_fakeNfs = true;
+    const bool nfs = CrashHandler::isAcceptableCrashDumpDirOverride(QString::fromStdString(p));
+    pdfe::core::path_security::testseam::setFsMagicProbe(nullptr);
+    EXPECT_TRUE(local) << "a local path was refused";
+    EXPECT_FALSE(nfs) << "a path on NFS was accepted as a crash directory";
+}
+
+TEST_F(CrashHandlerTest, CrashDumpDirOverride_DoesNotRejectInnocentDotsPosix)
+{
+    const std::string tmp = std::filesystem::temp_directory_path().string();
+    EXPECT_TRUE(CrashHandler::isAcceptableCrashDumpDirOverride(QString::fromStdString(tmp + "/..a")));
+    EXPECT_TRUE(CrashHandler::isAcceptableCrashDumpDirOverride(QString::fromStdString(tmp + "/a..b")));
+    EXPECT_TRUE(CrashHandler::isAcceptableCrashDumpDirOverride(QString::fromStdString(tmp + "/...")));
+}
+
+TEST_F(CrashHandlerTest, ResolvedCrashDumpDir_IsCreatedOwnerOnlyPosix)
+{
+    const auto base = freshCrashDirPosix("mode");
+    const auto dir = base / "crashes";
+    ScopedCrashDirEnvPosix env(dir.string());
+    const QString resolved = CrashHandler::resolvedCrashDumpDir();
+    ASSERT_FALSE(resolved.isEmpty());
+    EXPECT_EQ(resolved.toStdString(), dir.string());
+    EXPECT_EQ(modeOf(dir), 0700u) << "the crash directory was not created 0700";
+
+    // An existing, too-open directory is ADOPTED and narrowed (we own it).
+    ASSERT_EQ(::chmod(dir.c_str(), 0755), 0);
+    ASSERT_FALSE(CrashHandler::resolvedCrashDumpDir().isEmpty());
+    EXPECT_EQ(modeOf(dir), 0700u);
+    std::error_code ec;
+    std::filesystem::remove_all(base, ec);
+}
+
+TEST_F(CrashHandlerTest, ResolvedCrashDumpDir_RefusesASymlinkPosix)
+{
+    // A planted symlink at the crash-dir name must not be followed: securing
+    // it would secure (and then write reports into) the attacker's target.
+    const auto base = freshCrashDirPosix("symlink");
+    const auto target = base / "elsewhere";
+    std::filesystem::create_directories(target);
+    const auto link = base / "crashes";
+    ASSERT_EQ(::symlink(target.c_str(), link.c_str()), 0);
+    ScopedCrashDirEnvPosix env(link.string());
+    EXPECT_TRUE(CrashHandler::resolvedCrashDumpDir().isEmpty())
+        << "a symlinked crash directory was adopted";
+    std::error_code ec;
+    std::filesystem::remove_all(base, ec);
+}
+
+TEST_F(CrashHandlerTest, RejectedOverrideFallsBackRatherThanObeyingItPosix)
+{
+    ScopedCrashDirEnvPosix env("relative/crash/dir");
+    const QString resolved = CrashHandler::resolvedCrashDumpDir();
+    ASSERT_FALSE(resolved.isEmpty())
+        << "a rejected override killed crash capture entirely; it must fall back "
+           "to the app data directory";
+    EXPECT_TRUE(resolved.startsWith('/')) << resolved.toStdString();
+    EXPECT_FALSE(resolved.contains("relative/crash/dir")) << resolved.toStdString();
+    EXPECT_TRUE(resolved.endsWith("/crashes")) << resolved.toStdString();
+    EXPECT_EQ(modeOf(resolved.toStdString()), 0700u);
+}
+
+TEST_F(CrashHandlerTest, PruneCrashDumps_DeletesOldestFirstDownToKeepPosix)
+{
+    const auto dir = freshCrashDirPosix("prune");
+    const auto aged = makeAgedReports(dir, 10);
+    // Entries that are NOT crash reports must never be touched or counted.
+    const auto notes = dir / "notes.txt";
+    const auto dmp = dir / "pdfe_crash_windows_style.dmp";
+    const auto link = dir / "pdfe_crash_link.crash";
+    { std::ofstream(notes) << "keep"; }
+    { std::ofstream(dmp) << "keep"; }
+    ASSERT_EQ(::symlink(aged[9].c_str(), link.c_str()), 0);
+    ASSERT_EQ(countReports(dir), 10);
+
+    const int deleted = CrashHandler::pruneCrashDumps(QString::fromStdString(dir.string()), 4);
+    EXPECT_EQ(deleted, 6);
+    EXPECT_EQ(countReports(dir), 4);
+    for (int i = 0; i < 6; ++i)
+        EXPECT_FALSE(std::filesystem::exists(aged[i])) << "aged_" << i << " survived";
+    for (int i = 6; i < 10; ++i)
+        EXPECT_TRUE(std::filesystem::exists(aged[i])) << "aged_" << i << " was deleted";
+    EXPECT_TRUE(std::filesystem::exists(notes));
+    EXPECT_TRUE(std::filesystem::exists(dmp));
+    EXPECT_TRUE(std::filesystem::is_symlink(link)) << "a report-named symlink was deleted";
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+}
+
+TEST_F(CrashHandlerTest, PruneCrashDumps_BelowThresholdDeletesNothingPosix)
+{
+    const auto dir = freshCrashDirPosix("nokill");
+    makeAgedReports(dir, 3);
+    EXPECT_EQ(CrashHandler::pruneCrashDumps(QString::fromStdString(dir.string()), 10), 0);
+    EXPECT_EQ(countReports(dir), 3);
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+}
+
+TEST_F(CrashHandlerTest, AtTheCap_TheNewestCrashIsStillCapturedAndTheOldestIsPrunedPosix)
+{
+    const auto dir = freshCrashDirPosix("cap");
+    ScopedCrashDirEnvPosix env(dir.string());
+    const int cap = CrashHandler::maxCrashDumps();
+    ASSERT_EQ(cap, 150) << "POSIX must enforce the same cap as Windows";
+    const auto aged = makeAgedReports(dir, cap);
+    ASSERT_EQ(countReports(dir), cap);
+
+    const QString written = CrashHandler::writeTestMinidump();
+    EXPECT_FALSE(written.isEmpty()) << "at the cap the newest report was refused";
+    EXPECT_TRUE(std::filesystem::exists(written.toStdString()));
+    EXPECT_FALSE(std::filesystem::exists(aged[0])) << "nothing was pruned to make room";
+    EXPECT_LE(countReports(dir), cap);
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+}
+
+TEST_F(CrashHandlerTest, InstallPrunesToLeaveRoomForThisProcessesReportPosix)
+{
+    const auto dir = freshCrashDirPosix("installprune");
+    ScopedCrashDirEnvPosix env(dir.string());
+    const int cap = CrashHandler::maxCrashDumps();
+    makeAgedReports(dir, cap + 5);
+    CrashHandler::instance().install();
+    CrashHandler::instance().uninstall();
+    EXPECT_EQ(countReports(dir), cap - 1)
+        << "install() must prune to cap-1 so the signal handler (which cannot "
+           "prune) always has room for one report";
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+}
 #endif  // _WIN32
+

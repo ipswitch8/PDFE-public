@@ -1,4 +1,7 @@
 // -*- coding: utf-8 -*-
+#if !defined(_WIN32)
+#include <unistd.h>
+#endif
 #include "support/SaveFailureInjection.h"
 
 #include "core/AtomicFileReplace.h"
@@ -132,13 +135,26 @@ TempWriteBlocker::TempWriteBlocker(const std::filesystem::path& target,
         armed_ = true;
     }
 #else
-    // POSIX has no mandatory locking; fall back to a read-only file, which
-    // makes fopen("wb") fail with EACCES.
-    {
-        std::ofstream seed(tempPath_, std::ios::binary);
-        seed << "poisoned";
-    }
-    std::filesystem::permissions(tempPath_, std::filesystem::perms::owner_read, ec);
+    // POSIX has no mandatory locking, so nothing can hold the temp path the way
+    // a scanner's handle does. The old fallback planted a read-only FILE there,
+    // and that blocked nothing: the save path rightly sweeps a stale temp as
+    // residue (unlink needs write permission on the DIRECTORY, not on the
+    // file), so the save succeeded and the case ran its happy path (GitHub
+    // #390 full-suite triage). The POSIX analogue of "the temp cannot be
+    // written" is the header's other failure class, "the target directory
+    // became unwritable". A read-only directory refuses every create, unlink
+    // and rename inside it, so neither the temp nor the publish can land.
+    // Root bypasses directory permissions, so as root the blocker reports
+    // itself unarmed and the caller's ASSERT says so.
+    if (::geteuid() == 0) return;
+    dirPath_ = tempPath_.parent_path();
+    const auto st = std::filesystem::status(dirPath_, ec);
+    if (ec) return;
+    dirPerms_ = st.permissions();
+    std::filesystem::permissions(dirPath_,
+                                 std::filesystem::perms::owner_read |
+                                 std::filesystem::perms::owner_exec,
+                                 std::filesystem::perm_options::replace, ec);
     armed_ = !ec;
 #endif
 }
@@ -155,6 +171,13 @@ void TempWriteBlocker::release()
     if (mode_ == TempWriteBlockMode::DirectoryOnTempPath) {
         std::filesystem::remove_all(tempPath_, ec);
     } else {
+#if !defined(_WIN32)
+        if (!dirPath_.empty()) {
+            std::filesystem::permissions(dirPath_, dirPerms_,
+                                         std::filesystem::perm_options::replace, ec);
+            dirPath_.clear();
+        }
+#endif
         std::filesystem::permissions(tempPath_, std::filesystem::perms::all, ec);
         std::filesystem::remove(tempPath_, ec);
     }

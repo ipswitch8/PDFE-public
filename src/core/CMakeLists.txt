@@ -47,6 +47,7 @@ add_library(pdfe_core STATIC
     BookmarkExtractor.cpp
     BookmarkManager.cpp
     SystemFontDiscovery.cpp
+    FontconfigSupport.cpp
     BundledFonts.cpp
     BasicFontMatcher.cpp
 )
@@ -71,6 +72,12 @@ if(WIN32)
     # bcrypt   — BCryptGenRandom: the CSPRNG behind the unpredictable staging
     #            file name (AtomicFileReplace::StagingFile, F58-a/phase-53).
     target_link_libraries(pdfe_core PUBLIC dwrite advapi32 bcrypt)
+else()
+    # fontconfig — system font discovery off Windows (FontconfigSupport.cpp,
+    # GitHub #390). The vcpkg port is static; Qt already pulls it in for the
+    # xcb plugin, so this adds no new runtime dependency.
+    find_package(Fontconfig REQUIRED)
+    target_link_libraries(pdfe_core PUBLIC Fontconfig::Fontconfig)
 endif()
 
 target_compile_features(pdfe_core PUBLIC cxx_std_20)

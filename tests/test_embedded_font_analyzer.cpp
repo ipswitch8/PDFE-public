@@ -1,3 +1,4 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 #include "fonts/EmbeddedFontAnalyzer.h"
 #include "core/Document.h"
@@ -219,7 +220,7 @@ TEST_F(EmbeddedFontAnalyzerTest, MultipleFontsOnPage) {
 
 TEST_F(EmbeddedFontAnalyzerTest, AnalyzeFromFileHasPanose) {
     // Arial should have non-zero PANOSE data
-    std::filesystem::path arialPath = "C:\\Windows\\Fonts\\arial.ttf";
+    std::filesystem::path arialPath = pdfe_test::systemFontPath("arial.ttf");
     if (!std::filesystem::exists(arialPath)) {
         GTEST_SKIP() << "Arial not found at " << arialPath;
     }

@@ -1,3 +1,4 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 #include "fonts/TextShaper.h"
 #include <memory>
@@ -19,15 +20,14 @@ protected:
             return;
 
         // Try common system font paths on Windows
-        const char* fontPaths[] = {
-            "C:\\Windows\\Fonts\\arial.ttf",
-            "C:\\Windows\\Fonts\\times.ttf",
-            "C:\\Windows\\Fonts\\cour.ttf",
-            nullptr
+        const std::string fontPaths[] = {
+            pdfe_test::systemFontPath("arial.ttf"),
+            pdfe_test::systemFontPath("times.ttf"),
+            pdfe_test::systemFontPath("cour.ttf"),
         };
 
-        for (int i = 0; fontPaths[i]; ++i) {
-            err = FT_New_Face(ftLibrary_, fontPaths[i], 0, &ftFace_);
+        for (const std::string& path : fontPaths) {
+            err = FT_New_Face(ftLibrary_, path.c_str(), 0, &ftFace_);
             if (err == 0)
                 break;
         }

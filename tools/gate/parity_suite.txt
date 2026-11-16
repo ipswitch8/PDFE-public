@@ -187,3 +187,8 @@ ExternalFlawCorpusTest
 PathRoundTrips
 PathSecurity
 SanitizeFilterTr3
+
+# --- harness integrity (GitHub #386) ---------------------------------------------
+# The fixture immutability guard runs for every test; this pins that it works.
+FixtureImmutabilityGuard
+FixtureImmutabilityGuardInstall

@@ -85,7 +85,19 @@ std::string lower(std::string s)
 TEST(SystemFontDiscoveryPanoseIntegration, TimesNewRomanIsClassifiedSerif)
 {
 #ifndef _WIN32
-    GTEST_SKIP() << "DirectWrite-driven enumeration is Windows-only";
+    // fontconfig carries no PANOSE, so the POSIX enumeration classifies by
+    // family name (FontconfigSupport.cpp). Times New Roman is not installed
+    // on Linux; its metric twin Liberation Serif (fonts-liberation) is, and
+    // must come out serif through the same SystemFontDiscovery entry point.
+    SystemFontDiscovery disc;
+    const auto& fonts = disc.enumerateFonts();
+    const auto it = std::find_if(fonts.begin(), fonts.end(), [](const auto& fm) {
+        return lower(fm.familyName) == "liberation serif";
+    });
+    ASSERT_NE(it, fonts.end())
+        << "Liberation Serif (fonts-liberation) is not enumerated; it is a "
+           "documented test prerequisite (docs/building-linux.md)";
+    EXPECT_TRUE(it->isSerif) << "Liberation Serif must classify as serif";
 #else
     SystemFontDiscovery disc;
     const auto& fonts = disc.enumerateFonts();
@@ -108,7 +120,16 @@ TEST(SystemFontDiscoveryPanoseIntegration, TimesNewRomanIsClassifiedSerif)
 TEST(SystemFontDiscoveryPanoseIntegration, ArialIsClassifiedSans)
 {
 #ifndef _WIN32
-    GTEST_SKIP() << "DirectWrite-driven enumeration is Windows-only";
+    // As above: Arial's metric twin, classified by family name.
+    SystemFontDiscovery disc;
+    const auto& fonts = disc.enumerateFonts();
+    const auto it = std::find_if(fonts.begin(), fonts.end(), [](const auto& fm) {
+        return lower(fm.familyName) == "liberation sans";
+    });
+    ASSERT_NE(it, fonts.end())
+        << "Liberation Sans (fonts-liberation) is not enumerated; it is a "
+           "documented test prerequisite (docs/building-linux.md)";
+    EXPECT_FALSE(it->isSerif) << "Liberation Sans must classify as sans-serif";
 #else
     SystemFontDiscovery disc;
     const auto& fonts = disc.enumerateFonts();

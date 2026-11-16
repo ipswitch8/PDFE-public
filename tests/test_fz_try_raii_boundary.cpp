@@ -36,6 +36,9 @@
 // extra. Without it, every other case in this file could pass while measuring
 // nothing at all.
 
+#if !defined(_WIN32)
+#include <sys/wait.h>
+#endif
 #include <gtest/gtest.h>
 
 #include <array>
@@ -77,11 +80,43 @@ int runCapturing(const std::string& cmd, std::string& output)
 #if defined(_WIN32)
     return ::_pclose(pipe);
 #else
-    return ::pclose(pipe);
+    // pclose() returns a WAIT STATUS on POSIX, not the exit code that
+    // _pclose() returns on Windows: exit 1 arrives as 256. Decode it, and
+    // report death by signal as -1 rather than as a plausible exit code.
+    const int status = ::pclose(pipe);
+    if (status == -1) return -1;
+    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 #endif
 }
 
 std::string quoted(const std::string& s) { return "\"" + s + "\""; }
+
+// Environment prefix that makes the scanner's stdout UTF-8 on this platform.
+// cmd.exe has no inline VAR=value syntax, so Windows needs `set ... &&`; every
+// POSIX shell takes the assignment as a prefix to the command.
+std::string utf8EnvPrefix()
+{
+#if defined(_WIN32)
+    return "set PYTHONIOENCODING=utf-8 && ";
+#else
+    return "PYTHONIOENCODING=utf-8 ";
+#endif
+}
+
+// Where the scanner finds its project and its compile database. Windows keeps
+// the scanner's own defaults (cwd = repo root, build/vs2022-asan database).
+// On POSIX the cwd of the test binary is not guaranteed to be the repo root,
+// and the database is the GCC one the linux-gcc preset exports.
+std::string scannerLocationArgs()
+{
+#if defined(_WIN32)
+    return "";
+#else
+    return " --repo-root " + quoted(repoRoot().string()) +
+           " --compile-commands " +
+           quoted((repoRoot() / "build" / "compile_commands.json").string());
+#endif
+}
 
 fs::path scanner()
 {
@@ -140,8 +175,9 @@ const ScanOutput& repairedFileScan()
         ScanOutput o;
         const std::string python = PDFE_PYTHON_EXECUTABLE;
         if (python.empty()) return o;
-        std::string cmd = "set PYTHONIOENCODING=utf-8 && " + quoted(python) +
-                          " " + quoted(scanner().string());
+        std::string cmd = utf8EnvPrefix() + quoted(python) +
+                          " " + quoted(scanner().string()) +
+                          scannerLocationArgs();
         for (const auto& f : repairedFiles()) {
             cmd += " --file " + quoted((repoRoot() / f).string());
         }
@@ -187,9 +223,9 @@ TEST(FzTryRaiiBoundary, TheScannerSatisfiesItsOwnContract)
            "scanner cannot be verified. A hard failure, not a skip.";
     ASSERT_TRUE(fs::exists(scanner())) << scanner().string() << " is missing";
 
-    const std::string cmd = "set PYTHONIOENCODING=utf-8 && " + quoted(python) +
+    const std::string cmd = utf8EnvPrefix() + quoted(python) +
                             " " + quoted(scanner().string()) +
-                            " --self-test 2>&1";
+                            scannerLocationArgs() + " --self-test 2>&1";
     std::string out;
     const int rc = runCapturing(cmd, out);
     EXPECT_EQ(rc, 0) << "fz_try_raii_scan.py --self-test failed:\n\n" << out;

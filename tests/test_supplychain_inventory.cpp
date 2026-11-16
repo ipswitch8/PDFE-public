@@ -108,7 +108,12 @@ std::vector<std::string> vcpkgDirectDependencies(const std::string& manifest)
             names.push_back(token);
             continue;
         }
-        if (brace > 0 && token == "name") { expectName = true; continue; }
+        // Only the TOP-LEVEL object of a dependency names a package. A nested
+        // object is a FEATURE ({"name": "cups", "platform": "linux"} inside
+        // qtbase's "features"), and reading its "name" as a dependency made
+        // the SBOM look incomplete the moment a platform-qualified feature
+        // was declared (GitHub #390).
+        if (brace == 1 && bracket == 1 && token == "name") { expectName = true; continue; }
         // Any other token inside an object (keys and their values: version>=,
         // features, platform, host, default-features, feature names) is not a
         // dependency name.

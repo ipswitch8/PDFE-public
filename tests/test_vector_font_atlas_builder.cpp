@@ -1,3 +1,4 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 
 #include "tre/VectorFontAtlasBuilder.h"
@@ -54,9 +55,9 @@ private:
     FT_Face face_ = nullptr;
 };
 
-constexpr const char* kSegoeUiPath = "C:/Windows/Fonts/segoeui.ttf";
-constexpr const char* kConsolasPath = "C:/Windows/Fonts/consola.ttf";
-constexpr const char* kCffOtfPath  = "C:/Windows/Fonts/DavidCLM-Bold.otf";
+static const std::string kSegoeUiPath = pdfe_test::systemFontPath("segoeui.ttf");
+static const std::string kConsolasPath = pdfe_test::systemFontPath("consola.ttf");
+static const std::string kCffOtfPath  = pdfe_test::systemFontPath("davidclm-bold.otf");
 
 } // namespace
 

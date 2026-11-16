@@ -1,3 +1,4 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 #include "fonts/GlyphScaleAdjuster.h"
 #include "fonts/TextShaper.h"
@@ -23,13 +24,13 @@ protected:
         }
 
         // Load Arial font
-        err = FT_New_Face(ftLibrary_, "C:\\Windows\\Fonts\\arial.ttf", 0, &arialFace_);
+        err = FT_New_Face(ftLibrary_, pdfe_test::systemFontPath("arial.ttf").c_str(), 0, &arialFace_);
         if (err != 0) {
             arialFace_ = nullptr;
         }
 
         // Load Times New Roman font
-        err = FT_New_Face(ftLibrary_, "C:\\Windows\\Fonts\\times.ttf", 0, &timesFace_);
+        err = FT_New_Face(ftLibrary_, pdfe_test::systemFontPath("times.ttf").c_str(), 0, &timesFace_);
         if (err != 0) {
             timesFace_ = nullptr;
         }

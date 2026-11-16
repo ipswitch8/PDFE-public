@@ -1,6 +1,8 @@
 // -*- coding: utf-8 -*-
 #pragma once
 
+#include <array>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -104,6 +106,11 @@ std::filesystem::path diagnosticsSubdir(std::string_view name) noexcept;
 ///     alias for a victim file, and truncating it destroys that file's
 ///     contents under PDFE's token.
 ///
+/// POSIX (Linux port, phase 6): O_NOFOLLOW (a planted symlink at the final
+/// component is refused), no truncation until the object is vetted, and a
+/// refusal for st_nlink > 1, a non-regular file (FIFO/device) or a file owned
+/// by another user. Mode 0600 when created.
+///
 /// Returns false with `ec` set on refusal or failure. A refusal is a security
 /// event, not a transient error: the caller writes nothing and carries on.
 bool writeFixedNameTempFile(const std::filesystem::path& path,
@@ -150,6 +157,37 @@ bool writeFixedNameTempFile(const std::filesystem::path& path,
 ///      stops a rename-over, not just a delete. `FILE_SHARE_READ` is granted
 ///      deliberately, because the consumer re-reads the path and a pin that
 ///      locked out readers would break the feature it protects.
+///
+/// POSIX (Linux port, phase 6) — WHAT HOLDS AND WHAT DOES NOT. Properties 1
+/// and 2 hold as on Windows (CSPRNG name; O_CREAT|O_EXCL|O_NOFOLLOW, mode
+/// 0600). Property 3 does NOT hold: POSIX has no share modes and no mandatory
+/// locking, so holding the descriptor does not stop a process running as the
+/// SAME user (or root) from writing, unlinking or renaming over the path. Other
+/// users are kept out by the 0600 mode and, in a sticky temp directory, by the
+/// sticky bit. Against the same user the class offers a best-effort substitute
+/// that DETECTS rather than PREVENTS:
+///   * seal() — called once the producer has finished — fchmods the held
+///     descriptor to 0400 and records a snapshot (st_dev/st_ino, size, mode,
+///     st_ctim, and a SHA-256 of the content read through the held fd). After
+///     seal, an open-for-write BY PATH fails with EACCES for everyone except
+///     root, unless the attacker first deliberately chmods the file back.
+///   * verifyUnchanged() — called by a consumer immediately before it re-reads
+///     the path — checks that the NAME still refers to the held inode (catches
+///     rename-over and delete-and-recreate), that the inode is still a 0400
+///     regular file, that st_ctim is unchanged (the kernel advances ctime on
+///     every write, truncate, chmod or link-count change, and an unprivileged
+///     process cannot set it back), that the size is unchanged, and that the
+///     content still hashes to the sealed digest (which also covers a change
+///     made within one coarse timestamp tick).
+/// NOT guaranteed on POSIX: (a) anything after verifyUnchanged() returns —
+/// a same-user attacker can still swap the path between the check and the
+/// consumer's own open (the check narrows that window to the consumer's next
+/// syscalls, it does not close it); (b) anything against root; (c) any
+/// consumer that re-reads the path without calling verifyUnchanged() first —
+/// see the call-site list in docs/linux-parity-status.md.
+/// On Windows seal() is a no-op that returns true and verifyUnchanged() returns
+/// true while the handle is held, because the share mode already prevents
+/// every change verifyUnchanged() would look for.
 class PinnedTempFile {
 public:
     /// Create `dir`/`prefix`.`<32 hex>``extension`, exclusively, and HOLD it.
@@ -178,8 +216,27 @@ public:
     /// assert the invariant.
     bool isPinned() const noexcept;
 
+    /// Call once, after the producer has finished writing through
+    /// openWriteFd() and closed its descriptor. POSIX: fchmod(0400) on the held
+    /// descriptor and record the snapshot verifyUnchanged() compares against
+    /// (see the class comment). Windows: no-op, returns true. Returns false
+    /// with `ec` set if the file is not held or the snapshot could not be
+    /// taken; callers should then treat the file as unusable.
+    bool seal(std::error_code& ec) noexcept;
+
+    /// True once seal() has succeeded (always true on Windows while held).
+    bool isSealed() const noexcept;
+
+    /// Call immediately before re-reading path() BY PATH. POSIX: true only if
+    /// the name still refers to the held inode and that inode is unchanged
+    /// since seal() (mode, ctime, size, content digest). False with `ec` set
+    /// otherwise — including when seal() was never called — and the consumer
+    /// must then refuse the file. Windows: true while the handle is held.
+    bool verifyUnchanged(std::error_code& ec) const noexcept;
+
     /// The held path. Safe to hand to a by-path CONSUMER at any time: readers
-    /// are permitted, writers and deleters are not.
+    /// are permitted, writers and deleters are not. (Windows. On POSIX a
+    /// consumer must call verifyUnchanged() first — see the class comment.)
     const std::filesystem::path& path() const noexcept { return path_; }
 
     /// Releases the handle and DELETES the file.
@@ -193,7 +250,27 @@ private:
 
     std::filesystem::path path_;
     void* handle_ = nullptr;  // HANDLE; nullptr = not held
+
+    // POSIX seal snapshot (unused on Windows; kept platform-neutral so the
+    // header is the same everywhere).
+    bool sealed_ = false;
+    std::uint64_t sealDev_ = 0;
+    std::uint64_t sealIno_ = 0;
+    std::uint64_t sealSize_ = 0;
+    std::int64_t sealCtimeSec_ = 0;
+    std::int64_t sealCtimeNsec_ = 0;
+    std::array<unsigned char, 32> sealDigest_{};
 };
+
+namespace testseam {
+/// Test-only: make every subsequent PinnedTempFile::seal() fail with
+/// `std::errc(errnoValue)` (0 = off, the default). Lets a test prove that a
+/// CONSUMER treats a seal failure as a refusal, which no real filesystem state
+/// can provoke on demand (fchmod of our own descriptor does not fail). Same
+/// posture as src/core/PrintDeviceSeam.h: consulted only when PDFE_TESTING is
+/// defined, so a release-configured tree never fails a seal this way.
+void setPinnedSealFailureForTesting(int errnoValue) noexcept;
+}  // namespace testseam
 
 /// Creates `path` (and any missing parent directories) with a DACL granting
 /// FULL CONTROL to the calling user's SID and to nobody else — no Users, no

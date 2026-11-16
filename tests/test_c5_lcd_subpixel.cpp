@@ -11,6 +11,7 @@
 //
 // See docs/image-pdf-risks.md (C5 / C1/C4/C5 polish bundle).
 
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 
 #include "tre/BitmapCompositor.h"
@@ -28,14 +29,14 @@ using namespace pdfe::tre;
 namespace {
 
 std::string findLatinFont() {
-    const char* candidates[] = {
-        "C:/Windows/Fonts/arial.ttf",
-        "C:/Windows/Fonts/tahoma.ttf",
-        "C:/Windows/Fonts/calibri.ttf",
+    const std::string candidates[] = {
+        pdfe_test::systemFontPath("arial.ttf"),
+        pdfe_test::systemFontPath("tahoma.ttf"),
+        pdfe_test::systemFontPath("calibri.ttf"),
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     };
-    for (const char* c : candidates) {
-        if (std::filesystem::exists(c)) return std::string(c);
+    for (const std::string& c : candidates) {
+        if (std::filesystem::exists(c)) return c;
     }
     return {};
 }

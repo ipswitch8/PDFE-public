@@ -1,7 +1,9 @@
 // Copyright (c) 2025 PDFE Project
 // Unit tests for SubstituteFontSelector
 
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
+#include <vector>
 #include "fonts/SubstituteFontSelector.h"
 #include "fonts/EmbeddedFontAnalyzer.h"
 #include "fonts/FontAnalysisCache.h"
@@ -145,9 +147,10 @@ protected:
 };
 
 // Test 1: Known pair Helvetica returns Arial
+
 TEST_F(SubstituteFontSelectorTest, KnownPairHelveticaReturnsArial) {
     // Skip if Arial is not available on this system
-    if (!std::filesystem::exists("C:\\Windows\\Fonts\\arial.ttf")) {
+    if (!std::filesystem::exists(pdfe_test::systemFontPath("arial.ttf"))) {
         GTEST_SKIP() << "Arial font not available on this system";
     }
 
@@ -162,15 +165,16 @@ TEST_F(SubstituteFontSelectorTest, KnownPairHelveticaReturnsArial) {
     // Convert path to lowercase for case-insensitive comparison
     std::string filePath = result->filePath;
     std::transform(filePath.begin(), filePath.end(), filePath.begin(), ::tolower);
-    EXPECT_NE(filePath.find("arial"), std::string::npos)
-        << "File path should contain 'arial', got: " << result->filePath;
+    EXPECT_TRUE(pdfe_test::isMetricCompatibleFont(filePath, "arial"))
+        << "File path should be Arial or a metric-compatible substitute, got: "
+        << result->filePath;
 }
 
 // Test 2: Known pair Times returns Times New Roman
 TEST_F(SubstituteFontSelectorTest, KnownPairTimesReturnsTimesNR) {
     // Skip if Times New Roman is not available
-    if (!std::filesystem::exists("C:\\Windows\\Fonts\\times.ttf") &&
-        !std::filesystem::exists("C:\\Windows\\Fonts\\timesnewroman.ttf")) {
+    if (!std::filesystem::exists(pdfe_test::systemFontPath("times.ttf")) &&
+        !std::filesystem::exists(pdfe_test::systemFontPath("timesnewroman.ttf"))) {
         GTEST_SKIP() << "Times New Roman font not available on this system";
     }
 
@@ -185,8 +189,9 @@ TEST_F(SubstituteFontSelectorTest, KnownPairTimesReturnsTimesNR) {
     // Convert path to lowercase for case-insensitive comparison
     std::string filePath = result->filePath;
     std::transform(filePath.begin(), filePath.end(), filePath.begin(), ::tolower);
-    EXPECT_NE(filePath.find("times"), std::string::npos)
-        << "File path should contain 'times', got: " << result->filePath;
+    EXPECT_TRUE(pdfe_test::isMetricCompatibleFont(filePath, "times"))
+        << "File path should be Times New Roman or a metric-compatible "
+           "substitute, got: " << result->filePath;
 }
 
 // Test 3: Serif font gets serif substitute
@@ -227,8 +232,8 @@ TEST_F(SubstituteFontSelectorTest, SansFontGetsSansSubstitute) {
 // Test 5: Monospace font gets monospace substitute
 TEST_F(SubstituteFontSelectorTest, MonoFontGetsMonoSubstitute) {
     // Skip if Courier New is not available
-    if (!std::filesystem::exists("C:\\Windows\\Fonts\\cour.ttf") &&
-        !std::filesystem::exists("C:\\Windows\\Fonts\\couriernew.ttf")) {
+    if (!std::filesystem::exists(pdfe_test::systemFontPath("cour.ttf")) &&
+        !std::filesystem::exists(pdfe_test::systemFontPath("couriernew.ttf"))) {
         GTEST_SKIP() << "Courier New font not available on this system";
     }
 
@@ -243,8 +248,9 @@ TEST_F(SubstituteFontSelectorTest, MonoFontGetsMonoSubstitute) {
     // Convert path to lowercase for case-insensitive comparison
     std::string filePath = result->filePath;
     std::transform(filePath.begin(), filePath.end(), filePath.begin(), ::tolower);
-    EXPECT_NE(filePath.find("cour"), std::string::npos)
-        << "File path should contain 'cour', got: " << result->filePath;
+    EXPECT_TRUE(pdfe_test::isMetricCompatibleFont(filePath, "cour"))
+        << "File path should be Courier New or a metric-compatible substitute, "
+           "got: " << result->filePath;
 }
 
 // Test 6: Empty text returns nullopt
@@ -261,7 +267,7 @@ TEST_F(SubstituteFontSelectorTest, EmptyTextReturnsNullopt) {
 // Test 7: Match score is reasonable for known pairs
 TEST_F(SubstituteFontSelectorTest, MatchScoreIsReasonable) {
     // Skip if Arial is not available
-    if (!std::filesystem::exists("C:\\Windows\\Fonts\\arial.ttf")) {
+    if (!std::filesystem::exists(pdfe_test::systemFontPath("arial.ttf"))) {
         GTEST_SKIP() << "Arial font not available on this system";
     }
 
@@ -449,7 +455,7 @@ TEST_F(SubstituteFontSelectorTest, HandlesMinimalProfile) {
 // ---------------------------------------------------------------------------
 
 TEST_F(SubstituteFontSelectorTest, FindTopCandidatesReturnsUpToN) {
-    if (!std::filesystem::exists("C:\\Windows\\Fonts\\arial.ttf")) {
+    if (!std::filesystem::exists(pdfe_test::systemFontPath("arial.ttf"))) {
         GTEST_SKIP() << "Arial font not available on this system";
     }
 
@@ -485,7 +491,7 @@ TEST_F(SubstituteFontSelectorTest, FindTopCandidatesSortedByScore) {
 }
 
 TEST_F(SubstituteFontSelectorTest, FindTopCandidatesKnownPairIncludedInLargerSet) {
-    if (!std::filesystem::exists("C:\\Windows\\Fonts\\arial.ttf")) {
+    if (!std::filesystem::exists(pdfe_test::systemFontPath("arial.ttf"))) {
         GTEST_SKIP() << "Arial font not available on this system";
     }
 
@@ -502,7 +508,7 @@ TEST_F(SubstituteFontSelectorTest, FindTopCandidatesKnownPairIncludedInLargerSet
     for (const auto& c : candidates) {
         std::string lower = c.filePath;
         std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-        if (lower.find("arial") != std::string::npos) {
+        if (pdfe_test::isMetricCompatibleFont(lower, "arial")) {
             foundKnownPair = true;
             break;
         }
@@ -525,7 +531,7 @@ TEST_F(SubstituteFontSelectorTest, FindTopCandidatesKnownPairIncludedInLargerSet
 // Arial (3.615) by a 0.06 margin, producing visibly oversized text because
 // Nirmala UI has Ascent=1079 vs CharisSIL's Ascent=731.
 TEST_F(SubstituteFontSelectorTest, CharisSILDoesNotMatchToNirmalaUI) {
-    if (!std::filesystem::exists("C:\\Windows\\Fonts\\arial.ttf")) {
+    if (!std::filesystem::exists(pdfe_test::systemFontPath("arial.ttf"))) {
         GTEST_SKIP() << "Arial not available; system fonts test requires it";
     }
 

@@ -151,8 +151,16 @@ TEST_F(MaliciousPdfTest, NestedFlateDecode10Deep)
 
 TEST_F(MaliciousPdfTest, RedactionClearsUndoEvidence)
 {
-    auto fixture = std::filesystem::path(fixturesDir()) / "test_single.pdf";
-    if (!std::filesystem::exists(fixture)) GTEST_SKIP() << "fixture missing";
+    const auto tracked = std::filesystem::path(fixturesDir()) / "test_single.pdf";
+    if (!std::filesystem::exists(tracked)) GTEST_SKIP() << "fixture missing";
+
+    // GitHub #386: applyAllRedactions rewrites the document it is given, so it
+    // must never be handed the TRACKED fixture -- doing so redacted
+    // test_single.pdf in place for every suite that ran afterwards. Work on a
+    // private copy.
+    const auto fixture = td_ / "test_single_copy.pdf";
+    std::filesystem::copy_file(tracked, fixture,
+                               std::filesystem::copy_options::overwrite_existing);
 
     auto doc = Document::open(ctx_, fixture);
     ASSERT_NE(doc, nullptr);

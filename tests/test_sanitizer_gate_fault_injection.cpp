@@ -44,6 +44,9 @@
 // report file from that run. They are real instrument output; nothing here is
 // a hand-written sample of what ASan "would" print.
 
+#if !defined(_WIN32)
+#include <sys/wait.h>
+#endif
 #include <gtest/gtest.h>
 
 #include <array>
@@ -52,6 +55,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -68,6 +72,14 @@ std::filesystem::path fixtureDir()
 std::filesystem::path gateScript()
 {
     return repoRoot() / "tests" / "scripts" / "asan_gate_verdict.ps1";
+}
+
+// The cross-platform port of the same verdict logic. POSIX runs it because
+// PowerShell is not part of a Linux or macOS toolchain; Windows runs it too, next
+// to the .ps1, and requires the two to agree (ThePythonAndPowerShellGatesAgree).
+std::filesystem::path pythonGateScript()
+{
+    return repoRoot() / "tests" / "scripts" / "asan_gate_verdict.py";
 }
 
 std::string readFile(const std::filesystem::path& p)
@@ -94,13 +106,18 @@ int runCapturing(const std::string& cmd, std::string& out)
 #if defined(_WIN32)
     return ::_pclose(pipe);
 #else
-    return ::pclose(pipe);
+    // pclose() returns a WAIT STATUS on POSIX, not the exit code that
+    // _pclose() returns on Windows: exit 1 arrives as 256. Decode it, and
+    // report death by signal as -1 rather than as a plausible exit code.
+    const int status = ::pclose(pipe);
+    if (status == -1) return -1;
+    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 #endif
 }
 
 // Invoke the gate script exactly as the workflow does and return its JSON.
 // `extraArgs` is appended verbatim so each test states its own scenario.
-std::string runGate(const std::string& extraArgs)
+[[maybe_unused]] std::string runPowerShellGate(const std::string& extraArgs)
 {
     std::string cmd = "pwsh -NoProfile -File \"" + gateScript().string() + "\" " + extraArgs;
     std::string out;
@@ -108,6 +125,31 @@ std::string runGate(const std::string& extraArgs)
     // an error signal here — the JSON is.
     (void)runCapturing(cmd + " 2>&1", out);
     return out;
+}
+
+std::string runPythonGate(const std::string& extraArgs)
+{
+    const std::string python = PDFE_PYTHON_EXECUTABLE;
+    std::string cmd = "\"" + python + "\" \"" + pythonGateScript().string() + "\" " +
+                      extraArgs + " 2>&1";
+#if defined(_WIN32)
+    // cmd.exe strips one outer pair of quotes from a line that starts with one.
+    cmd = "\"" + cmd + "\"";
+#endif
+    std::string out;
+    (void)runCapturing(cmd, out);
+    return out;
+}
+
+// The implementation each platform's sanitizer lane uses: the .ps1 on Windows
+// (windows-sanitizer.yml), the Python port elsewhere.
+std::string runGate(const std::string& extraArgs)
+{
+#if defined(_WIN32)
+    return runPowerShellGate(extraArgs);
+#else
+    return runPythonGate(extraArgs);
+#endif
 }
 
 // Deliberately primitive: the script emits a single compressed JSON object, so
@@ -285,6 +327,68 @@ TEST(SanitizerGateFaultInjection, TheSanitizerWorkflowInvokesTheSharedVerdictScr
         << "the log_path scan is no longer passed multiple candidate directories; "
            "a finding written outside GITHUB_WORKSPACE would be counted as zero";
 }
+
+// ── The two implementations agree (Windows, where both can run) ─────────────
+//
+// The Python port exists so POSIX can run every test above without
+// PowerShell. That is only worth having if it decides exactly what the .ps1
+// decides. On Windows, where both run, every scenario above is fed to both and
+// each verdict field must match. This compiles only where pwsh is part of the
+// platform; it is not skipped anywhere it is compiled.
+#if defined(_WIN32)
+namespace {
+std::string jsonField(const std::string& json, const std::string& key)
+{
+    const std::string k = "\"" + key + "\":";
+    const auto at = json.find(k);
+    if (at == std::string::npos) return "<missing " + key + ">";
+    const auto start = at + k.size();
+    const auto end = json.find_first_of(",}", start);
+    return json.substr(start, end - start);
+}
+}  // namespace
+
+TEST(SanitizerGateFaultInjection, ThePythonAndPowerShellGatesAgree)
+{
+    const auto realDir = freshDir("agree_real");
+    std::filesystem::copy_file(fixtureDir() / "asan_real_heap_use_after_free.report.txt",
+                               realDir / "asan_ci_finding.14232",
+                               std::filesystem::copy_options::overwrite_existing);
+    const auto emptyDir = freshDir("agree_empty");
+    const auto xmlDir = freshDir("agree_xml");
+    const auto redXml = xmlDir / "red.xml";
+    {
+        std::ofstream out(redXml, std::ios::binary | std::ios::trunc);
+        out << "<?xml version=\"1.0\"?>\n<testsuites tests=\"2\" failures=\"1\" errors=\"0\">"
+               "<testsuite name=\"S\" tests=\"2\" failures=\"1\" errors=\"0\"/></testsuites>\n";
+    }
+    const auto greenXml = xmlDir / "green.xml";
+    {
+        std::ofstream out(greenXml, std::ios::binary | std::ios::trunc);
+        out << "<?xml version=\"1.0\"?>\n<testsuites tests=\"1\" failures=\"0\" errors=\"0\">"
+               "<testsuite name=\"S\" tests=\"1\" failures=\"0\" errors=\"0\"/></testsuites>\n";
+    }
+    const std::string stdoutFixture =
+        (fixtureDir() / "asan_real_stdout_with_log_path.txt").string();
+
+    const std::vector<std::string> scenarios = {
+        "-LogDir \"" + realDir.string() + "\" -Rc 1",
+        "-StdoutLog \"" + stdoutFixture + "\" -LogDir \"" + emptyDir.string() + "\" -Rc 1",
+        "-LogDir \"" + emptyDir.string() + "\" -Rc 1",
+        "-LogDir \"" + xmlDir.string() + "\" -XmlPath \"" + redXml.string() + "\" -Rc 0",
+        "-LogDir \"" + xmlDir.string() + "\" -XmlPath \"" + greenXml.string() + "\" -Rc 0",
+    };
+    for (const auto& args : scenarios) {
+        const std::string ps = runPowerShellGate(args);
+        const std::string py = runPythonGate(args);
+        SCOPED_TRACE("args: " + args + "\n  ps1: " + ps + "\n  py:  " + py);
+        for (const char* key : {"verdict", "rc", "findings", "findingsStdout",
+                                "findingsLogFiles", "gtestFailures", "evidenceCollected"}) {
+            EXPECT_EQ(jsonField(py, key), jsonField(ps, key)) << "field " << key;
+        }
+    }
+}
+#endif
 
 // ── A1-95 standing control: this lane can never carry leak evidence ─────────
 //

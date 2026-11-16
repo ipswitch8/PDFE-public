@@ -1,3 +1,4 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 
 #include "tre/FontMatcher.h"
@@ -519,7 +520,7 @@ TEST(FontMatcherTest, FallbackToArial) {
     // Test that when selector returns nullopt, we fallback to arial.ttf
     // This test may need to skip if arial.ttf is not available
 
-    const std::filesystem::path arialPath("C:/Windows/Fonts/arial.ttf");
+    const std::filesystem::path arialPath(pdfe_test::systemFontPath("arial.ttf"));
     if (!std::filesystem::exists(arialPath)) {
         GTEST_SKIP() << "arial.ttf not found at " << arialPath;
     }
@@ -554,8 +555,8 @@ TEST(FontMatcherTest, FallbackToArial) {
     // are specifiable.
     const std::string lower = lowerPath(match.fontFilePath);
     if (match.confidence < 0.5f) {
-        EXPECT_NE(lower.find("arial"), std::string::npos)
-            << "Expected an Arial-family fallback path, got: "
+        EXPECT_TRUE(pdfe_test::isMetricCompatibleFont(lower, "arial"))
+            << "Expected an Arial-family (or metric-compatible) fallback path, got: "
             << match.fontFilePath;
     } else {
         EXPECT_FALSE(namesSerifFamily(lower))
@@ -928,7 +929,7 @@ TEST(FontMatcherVisualRanking, WithCompositorAlwaysUsesVisualRanking) {
 
 TEST(FontMatcherVisualRanking, WithCompositorAndLowConfidence) {
     // This tests the full visual re-ranking path
-    if (!std::filesystem::exists("C:\\Windows\\Fonts\\arial.ttf")) {
+    if (!std::filesystem::exists(pdfe_test::systemFontPath("arial.ttf"))) {
         GTEST_SKIP() << "Arial not available";
     }
 

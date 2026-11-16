@@ -37,6 +37,9 @@
 // mechanism" this programme keeps recording.
 // ===========================================================================
 
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -66,6 +69,27 @@ fs::path runningExePath()
     const DWORD n = ::GetModuleFileNameW(nullptr, buf, MAX_PATH);
     if (n == 0 || n >= MAX_PATH) return {};
     return fs::path(std::wstring(buf, n));
+}
+#elif defined(__linux__)
+// GitHub #390: the kernel's own record of the running image. Without a Linux
+// arm this returned empty and the guard failed on every Linux run, so the
+// staleness check it exists for never ran there.
+fs::path runningExePath()
+{
+    std::error_code ec;
+    const auto p = fs::read_symlink("/proc/self/exe", ec);
+    return ec ? fs::path{} : p;
+}
+#elif defined(__APPLE__)
+fs::path runningExePath()
+{
+    uint32_t size = 0;
+    _NSGetExecutablePath(nullptr, &size);
+    std::string buf(size, '\0');
+    if (_NSGetExecutablePath(buf.data(), &size) != 0) return {};
+    std::error_code ec;
+    const auto p = fs::weakly_canonical(fs::path(buf.c_str()), ec);
+    return ec ? fs::path{} : p;
 }
 #else
 fs::path runningExePath() { return {}; }
@@ -166,7 +190,9 @@ std::string describe(const fs::file_time_type& t)
     // Portable-enough rendering for a failure message: raw ticks are useless to
     // a reader, so express the DIFFERENCE at the call site instead. Here we only
     // need something stable to print.
-    return std::to_string(t.time_since_epoch().count());
+    // Cast: libc++ (macOS) counts file_time_type in __int128 ticks, which no
+    // std::to_string overload takes (GitHub #388). Only printed, never compared.
+    return std::to_string(static_cast<long long>(t.time_since_epoch().count()));
 }
 
 }  // namespace

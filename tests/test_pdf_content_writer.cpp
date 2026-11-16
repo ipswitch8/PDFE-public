@@ -1,3 +1,4 @@
+#include "system_font_path.h"  // GitHub #390
 #include <gtest/gtest.h>
 #include "tre/PdfContentWriter.h"
 #include "fonts/PdfFontEmbedder.h"
@@ -169,7 +170,7 @@ TEST_F(PdfContentWriterTest, WriteSimpleTextBlockReturnsOperators) {
         GTEST_SKIP() << "No scanned test PDF available";
     }
 
-    std::filesystem::path arialPath = "C:\\Windows\\Fonts\\arial.ttf";
+    std::filesystem::path arialPath = pdfe_test::systemFontPath("arial.ttf");
     if (!std::filesystem::exists(arialPath)) {
         GTEST_SKIP() << "Arial font not available on system";
     }
@@ -202,7 +203,7 @@ TEST_F(PdfContentWriterTest, WriteTextWithEmptyStringReturnsEmpty) {
     }
 
     FontMatch fontMatch;
-    fontMatch.fontFilePath = "C:\\Windows\\Fonts\\arial.ttf";
+    fontMatch.fontFilePath = pdfe_test::systemFontPath("arial.ttf");
     fontMatch.sizePt = 12.0f;
 
     PdfRect rect{50, 700, 200, 720};
@@ -221,7 +222,7 @@ TEST_F(PdfContentWriterTest, WriteTextWithNullPageReturnsEmpty) {
     }
 
     FontMatch fontMatch;
-    fontMatch.fontFilePath = "C:\\Windows\\Fonts\\arial.ttf";
+    fontMatch.fontFilePath = pdfe_test::systemFontPath("arial.ttf");
     fontMatch.sizePt = 12.0f;
 
     PdfRect rect{50, 700, 200, 720};
@@ -334,7 +335,7 @@ TEST_F(PdfContentWriterTest, WriteTextBlockWithMultiLineHocrData) {
         GTEST_SKIP() << "No scanned test PDF available";
     }
 
-    std::filesystem::path arialPath = "C:\\Windows\\Fonts\\arial.ttf";
+    std::filesystem::path arialPath = pdfe_test::systemFontPath("arial.ttf");
     if (!std::filesystem::exists(arialPath)) {
         GTEST_SKIP() << "Arial font not available on system";
     }
