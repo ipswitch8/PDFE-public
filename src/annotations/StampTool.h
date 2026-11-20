@@ -31,6 +31,8 @@ public:
     void onPaintOverlay(QPainter& painter, int pageIndex,
                         float zoom, QPointF pageOrigin, float pageHeightPt) override;
 
+    /// Esc-cancel an in-progress stamp rubber-band (bug 6). See AnnotationTool.
+    bool cancelInProgress() override;
 
     /// Stamp name or text. Common values: "Approved", "Draft", "Confidential",
     /// "NotApproved", "AsIs", "Experimental", "Expired", "Final", "Sold",

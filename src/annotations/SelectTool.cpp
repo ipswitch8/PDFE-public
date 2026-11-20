@@ -562,6 +562,19 @@ void SelectTool::onKeyPress(QKeyEvent* event)
         return;
     }
 
+    // form-field-bugs phase-8, bug 6: Esc aborts an in-progress manipulation
+    // drag (move / resize / rotate). cancelInProgress() reverts the live
+    // preview; if there was no drag it returns false and Esc is left to the
+    // canvas (ignore()) rather than being silently swallowed.
+    if (event->key() == Qt::Key_Escape) {
+        if (cancelInProgress()) {
+            event->accept();
+        } else {
+            event->ignore();
+        }
+        return;
+    }
+
     // Delete/Backspace: delete selected annotation(s)
     if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
         // Multi-selection delete
@@ -626,6 +639,30 @@ void SelectTool::onKeyPress(QKeyEvent* event)
     // at startup: before that currentTool_ was null, the canvas never
     // consulted a tool, and navigation worked by accident.
     event->ignore();
+}
+
+bool SelectTool::cancelInProgress()
+{
+    // form-field-bugs phase-8, bug 6: abort an in-progress manipulation drag.
+    // The drag mutates a LIVE PREVIEW (selectedAnnotRect_ for move/resize,
+    // rotationDegrees_ for rotate) and only commits an annotationMoved/Rotated
+    // command on release. Reverting the preview to its pre-drag snapshot and
+    // clearing isDragging_ makes the pending onMouseRelease an early-out (it
+    // guards on isDragging_), so no command is fired and the annotation is left
+    // exactly where it was. The selection itself is deliberately kept.
+    if (!isDragging_) {
+        return false;
+    }
+    if (activeHandle_ == Handle::Rotate) {
+        // Rotate drags never snapshot dragStartRect_; only the angle changed.
+        rotationDegrees_ = dragStartRotation_;
+    } else {
+        // Move / resize drags snapshot dragStartRect_ at press.
+        selectedAnnotRect_ = dragStartRect_;
+    }
+    isDragging_ = false;
+    activeHandle_ = Handle::None;
+    return true;
 }
 
 void SelectTool::onMouseDoubleClick(QMouseEvent* event, int pageIndex, QPointF pdfPoint)

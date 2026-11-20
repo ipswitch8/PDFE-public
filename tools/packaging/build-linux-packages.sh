@@ -228,6 +228,13 @@ if (( WANT_RPM )); then
     fi
     requires="glibc >= 2.39"
     for r in "${RPM_REQUIRES[@]}"; do requires+=", $r"; done
+    # One %changelog entry per build (GitHub #406). Without one, rpmbuild warns
+    # "%source_date_epoch_from_changelog is set, but %changelog has no entries".
+    # The date is the source commit's, so the same commit always gives the same
+    # entry; outside a git checkout, today's date (UTC).
+    changelog_date="$(LC_ALL=C git -C "$REPO" log -1 --format=%cd \
+        --date=format:'%a %b %d %Y' 2>/dev/null || true)"
+    [[ -n "$changelog_date" ]] || changelog_date="$(LC_ALL=C date -u '+%a %b %d %Y')"
     mkdir -p "$WORK/rpm"
     cat > "$WORK/rpm/pdfe.spec" <<EOF
 Name:           pdfe
@@ -259,6 +266,10 @@ cp -a /pkgroot/. %{buildroot}/
 /usr/share/applications/pdfe.desktop
 /usr/share/icons/hicolor/256x256/apps/pdfe.png
 %doc /usr/share/doc/pdfe
+
+%changelog
+* $changelog_date Itwerx Corp <pdfe@itwerx.net> - $VERSION-1
+- PDFE $VERSION, repackaged from the release AppImage's contents.
 EOF
     podman run --rm --security-opt label=disable \
         -v "$ROOT:/pkgroot:ro" -v "$WORK/rpm:/rpm" \

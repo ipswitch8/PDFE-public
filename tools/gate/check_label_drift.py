@@ -36,6 +36,16 @@ WHAT THIS CHECKS
   2. Every self-hosted `runs-on` in `.github/workflows/` is a SUBSET of that set,
      so a solo machine provisioned by the package can serve every job.
 
+A SECOND DEPLOYMENT PATH: the Linux CI runner. `tools/ops/linux-ci-runner/
+run-runner.sh` registers the self-hosted Linux runner that serves fast-checks
+(docs/ci-linux-runner.md). A job whose `runs-on` names `Linux` is checked
+against what THAT script registers -- the runner's built-in `self-hosted`,
+`Linux`, `X64` plus the script's one `RUNNER_LABELS=` value -- not against the
+Windows package, which cannot provision it. It is the same question asked of
+the other path, not an exemption: a Linux job needing a label the script does
+not register fails exactly as a Windows one would, and so does a Linux job when
+the script cannot be read or names no labels.
+
 EXEMPTION, deliberately narrow: the ephemeral Hetzner linux set, matching the
 allowlist in `check_runner_label_coverage.py`. It is a Linux box created per run
 and always deleted afterwards; a Windows deployment package cannot and should not
@@ -66,6 +76,13 @@ PKG_README = os.path.join("tools", "runner-deployment", "README.md")
 # nothing compares is exactly how the tree contradicted itself the first time.
 REGISTER = os.path.join("tools", "runner-deployment", "Register-PdfeRunner.ps1")
 WORKFLOW_DIR = os.path.join(".github", "workflows")
+
+# The Linux CI runner's deployment path (see the module docstring). The runner
+# always registers its built-in labels for the platform it runs on; the script
+# adds its custom ones through exactly one RUNNER_LABELS= assignment.
+LINUX_RUNNER = os.path.join("tools", "ops", "linux-ci-runner", "run-runner.sh")
+LINUX_BUILTIN_LABELS = {"self-hosted", "Linux", "X64"}
+_RUNNER_LABELS_RE = re.compile(r"RUNNER_LABELS=([A-Za-z0-9,\-_]+)")
 
 # Same set, and the same reasoning, as check_runner_label_coverage.py's
 # EPHEMERAL_LABEL_SETS. Kept as its own literal rather than imported: these two
@@ -173,6 +190,33 @@ def declared_label_sets(root: str = ".", problems: list = None) -> dict:
     return out
 
 
+def linux_deployment_labels(root: str = ".", problems: list = None):
+    """What the Linux CI runner's deployment script registers, or None.
+
+    None (with a problem appended) when the script is missing, names no
+    RUNNER_LABELS, or names two different sets -- ambiguity fails, as it does
+    for the Windows package's markers."""
+    if problems is None:
+        problems = []
+    full = os.path.join(root, LINUX_RUNNER)
+    if not os.path.exists(full):
+        problems.append("%s is missing, so no Linux deployment declares any "
+                        "labels." % LINUX_RUNNER)
+        return None
+    with io.open(full, encoding="utf-8", errors="replace") as fh:
+        found = set(_RUNNER_LABELS_RE.findall(fh.read()))
+    if len(found) != 1:
+        problems.append("%s must assign RUNNER_LABELS= exactly one label set; "
+                        "found %d (%s)." % (LINUX_RUNNER, len(found),
+                                            ", ".join(sorted(found)) or "none"))
+        return None
+    return LINUX_BUILTIN_LABELS | set(found.pop().split(","))
+
+
+def _is_linux_job(want: set) -> bool:
+    return any(lab.lower() == "linux" for lab in want)
+
+
 def self_hosted_jobs(root: str = ".") -> list:
     """[(workflow, job, set(labels))] for every self-hosted `runs-on` list."""
     jobs = []
@@ -198,7 +242,10 @@ def self_hosted_jobs(root: str = ".") -> list:
     return jobs
 
 
-def check(declared: dict, jobs: list) -> list:
+def check(declared: dict, jobs: list, linux: set = None,
+          linux_problems: list = None) -> list:
+    """`linux` is what the Linux deployment path registers (None: unreadable,
+    with the reason in `linux_problems`)."""
     problems = []
 
     if not declared:
@@ -226,6 +273,24 @@ def check(declared: dict, jobs: list) -> list:
     for wf, job, want in jobs:
         if frozenset(want) in EPHEMERAL_LABEL_SETS:
             exempt += 1
+            continue
+        if _is_linux_job(want):
+            if linux is None:
+                problems.append(
+                    "%s job '%s' needs a Linux runner with %s, but no Linux "
+                    "deployment path declares what it registers (%s)."
+                    % (wf, job, sorted(want),
+                       "; ".join(linux_problems or [LINUX_RUNNER])))
+                continue
+            # GitHub matches runner labels case-insensitively.
+            have = {lab.lower() for lab in linux}
+            missing = {lab for lab in want if lab.lower() not in have}
+            if missing:
+                problems.append(
+                    "%s job '%s' needs %s, which the Linux CI runner (%s) does "
+                    "NOT register. GitHub will not error: the job queues, then "
+                    "reports `cancelled`." % (wf, job, sorted(missing),
+                                             LINUX_RUNNER))
             continue
         missing = want - widest
         if missing:
@@ -291,6 +356,39 @@ def self_test() -> int:
                   {"self-hosted", "linux", "hetzner", "sanitiser"})]
     ck("a typo'd ephemeral set is NOT exempt",
        any("sanitiser" in p for p in check(agree, heth_typo)), True)
+
+    # ---- the Linux CI runner's deployment path -----------------------------
+    linux_set = LINUX_BUILTIN_LABELS | {"pdfe-linux"}
+    lin_job = [("fast-checks.yml", "fast-checks",
+                {"self-hosted", "Linux", "X64", "pdfe-linux"})]
+    ck("a Linux job the Linux runner registers for passes",
+       check(agree, lin_job, linux_set), [])
+    ck("...and is NOT judged against the Windows package",
+       check(agree, lin_job, linux_set), [])
+    ck("a Linux job needing a label the Linux runner lacks is caught",
+       any("pdfe-linux" in p for p in
+           check(agree, lin_job, LINUX_BUILTIN_LABELS)), True)
+    ck("a Linux job with no readable Linux deployment fails",
+       any("no Linux deployment" in p for p in
+           check(agree, lin_job, None, ["unreadable"])), True)
+    ck("Linux labels match case-insensitively",
+       check(agree, [("w.yml", "j", {"self-hosted", "linux", "x64",
+                                      "pdfe-linux"})], linux_set), [])
+    for text, want in (
+            ('-e RUNNER_LABELS=pdfe-linux\n', linux_set),
+            ('no assignment here\n', None),
+            ('RUNNER_LABELS=a\nRUNNER_LABELS=b\n', None)):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            os.makedirs(os.path.join(td, os.path.dirname(LINUX_RUNNER)))
+            with io.open(os.path.join(td, LINUX_RUNNER), "w",
+                         encoding="utf-8") as fh:
+                fh.write(text)
+            probs = []
+            got = linux_deployment_labels(td, probs)
+        ck("linux_deployment_labels(%r)" % text.strip(), got, want)
+        ck("...reports a problem iff it returns None (%r)" % text.strip(),
+           bool(probs), want is None)
 
     # An empty model must fail rather than pass vacuously.
     ck("no declarations at all fails", bool(check({}, jobs_ok)), True)
@@ -360,7 +458,9 @@ def main(argv: list) -> int:
     problems: list = []
     declared = declared_label_sets(args.repo_root, problems)
     jobs = self_hosted_jobs(args.repo_root)
-    problems += check(declared, jobs)
+    linux_problems: list = []
+    linux = linux_deployment_labels(args.repo_root, linux_problems)
+    problems += check(declared, jobs, linux, linux_problems)
 
     if problems:
         print("[label-drift] FAILED -- the deployment path and the workflows "

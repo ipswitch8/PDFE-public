@@ -163,7 +163,7 @@ TEST_F(TextEditToolTest, ClickOnTextSelectsSpan) {
     EXPECT_TRUE(tool->isEditing()) << "Clicking on text should enter editing mode";
 }
 
-TEST_F(TextEditToolTest, ClickOutsideDeselectsSpan) {
+TEST_F(TextEditToolTest, ClickOutsideCommitsAndStartsNewInsertion) {
     if (!tool || !model) {
         GTEST_SKIP() << "Test fixture not available: " << testPdf;
     }
@@ -184,8 +184,13 @@ TEST_F(TextEditToolTest, ClickOutsideDeselectsSpan) {
     );
     tool->onMousePress(&press1, 0, textPoint);
     ASSERT_TRUE(tool->isEditing());
+    int firstSpan = tool->activeSpanIndexForTesting();
+    int spansBefore = tool->spanCountForTesting();
 
-    // Now click outside text
+    // Bug 9: a left-click on empty page space no longer merely deselects — it
+    // commits the previous edit AND begins a brand-new text run at the click,
+    // so the user can type into empty space (a blank line / margin). The old
+    // behaviour (exit editing, no new run) was exactly the defect.
     QPointF outsidePoint = getPointOutsideText();
     QMouseEvent press2(
         QEvent::MouseButtonPress,
@@ -194,12 +199,15 @@ TEST_F(TextEditToolTest, ClickOutsideDeselectsSpan) {
         Qt::LeftButton,
         Qt::NoModifier
     );
-
-    // Click outside should commit and deselect
     tool->onMousePress(&press2, 0, outsidePoint);
 
-    // Should no longer be editing
-    EXPECT_FALSE(tool->isEditing()) << "Clicking outside text should exit editing mode";
+    // Still editing, but now a DIFFERENT (newly-created) span — proving the
+    // prior edit committed and a fresh insertion point opened.
+    EXPECT_TRUE(tool->isEditing())
+        << "Clicking empty space should start a new text run (bug 9).";
+    EXPECT_NE(tool->activeSpanIndexForTesting(), firstSpan);
+    EXPECT_EQ(tool->spanCountForTesting(), spansBefore + 1)
+        << "A new empty span must have been appended to the model.";
 }
 
 TEST_F(TextEditToolTest, KeyInputInsertsText) {

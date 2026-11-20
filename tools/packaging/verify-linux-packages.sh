@@ -148,7 +148,7 @@ apt-get update -qq
 apt-get install -y -qq --no-install-recommends sudo >/dev/null
 useradd -m tester
 echo 'tester ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/tester
-install -o tester -m 0755 /pkg/$ai /pkg/install.sh /home/tester/
+install -o tester -m 0755 /pkg/$ai /pkg/install.sh ~tester/
 sudo -u tester -H env APPIMAGE_EXTRACT_AND_RUN=1 QT_QPA_PLATFORM=offscreen \\
     PDFE_EXPECT_VERSION=\"\$PDFE_EXPECT_VERSION\" bash -euxo pipefail -c '
 cd ~
@@ -178,7 +178,7 @@ apt-get update -qq
 apt-get install -y -qq --no-install-recommends sudo >/dev/null
 useradd -m tester
 echo 'tester ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/tester
-install -o tester -m 0755 /pkg/$ai /pkg/install.sh /home/tester/
+install -o tester -m 0755 /pkg/$ai /pkg/install.sh ~tester/
 for run in 1 2; do
     echo \"--- --system run \$run\"
     sudo -u tester -H env APPIMAGE_EXTRACT_AND_RUN=1 QT_QPA_PLATFORM=offscreen \\

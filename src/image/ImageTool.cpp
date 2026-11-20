@@ -1,5 +1,6 @@
 #include "image/ImageTool.h"
 #include "image/ImageManager.h"
+#include "image/ImagePlacement.h"
 #include "core/Page.h"
 #include "core/Document.h"
 #include <QMouseEvent>
@@ -183,9 +184,22 @@ public:
     }
 
     /// Compute new bounding box based on handle drag.
-    QRectF computeNewRect(HandlePosition handle, QPointF currentPos) const {
+    ///
+    /// GitHub #433: the handles belong to the image's OWN frame. originalRect_
+    /// is the upright rect in that frame (centred on the visible centre), and
+    /// the page shows it turned by -rotationRadians about its centre. The
+    /// page-space drag is therefore taken into the image's frame (+rotation,
+    /// the same inverse the hit-test uses), the edge is moved there, and the
+    /// resulting centre shift is turned back onto the page, so the edge
+    /// opposite the handle stays where it is on screen. With rotationRadians
+    /// == 0 every step is the identity and the rect is what it always was.
+    QRectF computeNewRect(HandlePosition handle, QPointF currentPos,
+                          float rotationRadians) const {
         QRectF newRect = originalRect_;
-        const QPointF delta = currentPos - dragStart_;
+        QPointF delta = currentPos - dragStart_;
+        if (rotationRadians != 0.0f) {
+            delta = rotateAbout(delta, QPointF(0.0, 0.0), rotationRadians);
+        }
 
         switch (handle) {
         case HandlePosition::TopLeft:
@@ -232,6 +246,12 @@ public:
             }
         }
 
+        if (rotationRadians != 0.0f) {
+            // The centre moved in the image's frame; move it on the page.
+            const QPointF localShift = newRect.center() - originalRect_.center();
+            const QPointF pageShift = rotateAbout(localShift, QPointF(0.0, 0.0), -rotationRadians);
+            newRect.moveCenter(originalRect_.center() + pageShift);
+        }
         return newRect;
     }
 
@@ -335,7 +355,9 @@ void ImageTool::mouseMoveEvent(QMouseEvent* event, QPointF pdfPos, float scale) 
     if (impl_->dragging_ && impl_->selectedIndex_ >= 0) {
         if (impl_->activeHandle_ != HandlePosition::None && impl_->activeHandle_ != HandlePosition::Rotation) {
             // Resizing via handle
-            QRectF newRect = impl_->computeNewRect(impl_->activeHandle_, pdfPos);
+            QRectF newRect = impl_->computeNewRect(
+                impl_->activeHandle_, pdfPos,
+                impl_->images_[impl_->selectedIndex_].rotationRadians);
             impl_->images_[impl_->selectedIndex_].boundingBox = newRect;
             impl_->images_[impl_->selectedIndex_].displayWidth = newRect.width();
             impl_->images_[impl_->selectedIndex_].displayHeight = newRect.height();
@@ -377,17 +399,39 @@ void ImageTool::mouseReleaseEvent(QMouseEvent* event, QPointF pdfPos, float scal
         return;
     }
 
+    if (impl_->dragging_ && impl_->selectedIndex_ >= 0 &&
+        impl_->images_[impl_->selectedIndex_].inFormXObject) {
+        // docs/image-placement-model.md (GitHub #427): a placement inside a
+        // Form XObject is selectable but not editable, so a drag commits
+        // nothing; put the overlay back where the page has it.
+        impl_->images_[impl_->selectedIndex_].boundingBox = impl_->originalRect_;
+        impl_->dragging_ = false;
+        impl_->activeHandle_ = HandlePosition::None;
+        impl_->pendingRotation_ = 0.0f;
+        emit repaintRequested();
+        return;
+    }
+
     if (impl_->dragging_ && impl_->selectedIndex_ >= 0) {
         const auto& img = impl_->images_[impl_->selectedIndex_];
 
         if (impl_->activeHandle_ != HandlePosition::None && impl_->activeHandle_ != HandlePosition::Rotation) {
-            // Emit resize request
+            // Emit resize request. GitHub #416: carry the current orientation,
+            // or the editor rebuilds an upright placement and a rotated image
+            // snaps back to 0 while the overlay still shows it rotated. The name
+            // is a COPY: handlers re-enumerate this tool, which frees `img`.
+            const std::string name = img.xobjectName;
+            // GitHub #420: the overlay is the VISIBLE region; the editor takes
+            // the whole placement (identical for an uncropped image).
+            const QRectF full = placementRectForVisibleRect(
+                img, impl_->originalRect_, img.boundingBox);
             emit resizeRequested(
-                img.xobjectName,
-                img.boundingBox.width(),
-                img.boundingBox.height(),
-                img.boundingBox.x(),
-                img.boundingBox.y()
+                name,
+                full.width(),
+                full.height(),
+                full.x(),
+                full.y(),
+                visualClockwiseDegrees(img)
             );
         } else if (impl_->activeHandle_ == HandlePosition::Rotation) {
             // Compute rotation angle from drag
@@ -417,9 +461,11 @@ void ImageTool::mouseReleaseEvent(QMouseEvent* event, QPointF pdfPos, float scal
             // guard is on the raw DELTA so a near-zero drag (a click-select on
             // the handle) still commits nothing.
             if (std::abs(deltaAngle) > 1.0f) {
-                const float currentDeg = -img.rotationRadians * 180.0f / 3.14159265f;
+                const float currentDeg = visualClockwiseDegrees(img);
                 const float absoluteAngle = currentDeg + deltaAngle;
-                emit rotateRequested(img.xobjectName, absoluteAngle);
+                // A copy, for the same reason as the resize emit above.
+                const std::string name = img.xobjectName;
+                emit rotateRequested(name, absoluteAngle);
             }
         } else {
             // GitHub #340: body drag (no handle). mouseMoveEvent has already
@@ -430,12 +476,18 @@ void ImageTool::mouseReleaseEvent(QMouseEvent* event, QPointF pdfPos, float scal
             // no-op move (preserving the selection-only press).
             const QPointF delta = pdfPos - impl_->dragStart_;
             if (std::hypot(delta.x(), delta.y()) > kMinMoveDistance) {
+                // GitHub #416: a move must keep the image's rotation. The name
+                // is a copy: handlers re-enumerate this tool, which frees `img`.
+                const std::string name = img.xobjectName;
+                const QRectF full = placementRectForVisibleRect(
+                    img, impl_->originalRect_, img.boundingBox);
                 emit resizeRequested(
-                    img.xobjectName,
-                    img.boundingBox.width(),
-                    img.boundingBox.height(),
-                    img.boundingBox.x(),
-                    img.boundingBox.y()
+                    name,
+                    full.width(),
+                    full.height(),
+                    full.x(),
+                    full.y(),
+                    visualClockwiseDegrees(img)
                 );
             }
         }
@@ -596,6 +648,24 @@ const PageImageInfo& ImageTool::selectedImage() const {
     return emptyInfo;
 }
 
+bool ImageTool::selectPlacement(const std::string& xobjectName, int occurrence) {
+    if (xobjectName.empty()) {
+        return false;
+    }
+    for (int i = 0; i < static_cast<int>(impl_->images_.size()); ++i) {
+        const auto& img = impl_->images_[i];
+        if (img.xobjectName == xobjectName && img.occurrence == occurrence) {
+            impl_->selectedIndex_ = i;
+            impl_->activeHandle_ = HandlePosition::None;
+            impl_->dragging_ = false;
+            emit imageSelected(impl_->images_[i]);
+            emit repaintRequested();
+            return true;
+        }
+    }
+    return false;
+}
+
 bool ImageTool::selectImage(const std::string& xobjectName) {
     if (xobjectName.empty()) {
         return false;
@@ -657,6 +727,65 @@ void ImageTool::setImagesForTest(std::vector<PageImageInfo> images, int selectIn
     } else {
         impl_->selectedIndex_ = -1;
     }
+}
+
+float visualClockwiseDegrees(const PageImageInfo& info) {
+    return -info.rotationRadians * 180.0f / 3.14159265f;
+}
+
+QRectF placementRectForVisibleRect(const PageImageInfo& info,
+                                   const QRectF& originalVisible,
+                                   const QRectF& newVisible) {
+    if (!info.cropped || originalVisible.width() <= 0.0 || originalVisible.height() <= 0.0)
+        return newVisible;
+    const double sx = newVisible.width() / originalVisible.width();
+    const double sy = newVisible.height() / originalVisible.height();
+    // Offset from the visible centre to the image's centre, taken into the
+    // upright frame (undo the on-page turn of -rotationRadians), scaled with
+    // the visible rect, and turned back.
+    const double t = -static_cast<double>(info.rotationRadians);
+    const QPointF origin(0.0, 0.0);
+    const QPointF offset = info.placementBox.center() - originalVisible.center();
+    const QPointF upright = placement::rotateAbout(offset, origin, -t);
+    const QPointF scaled = placement::rotateAbout(
+        QPointF(upright.x() * sx, upright.y() * sy), origin, t);
+    const QPointF centre = newVisible.center() + scaled;
+    const double w = info.placementBox.width() * sx;
+    const double h = info.placementBox.height() * sy;
+    return QRectF(centre.x() - w / 2.0, centre.y() - h / 2.0, w, h);
+}
+
+bool resyncImageToolSelection(ImageTool& tool, pdfe::core::Page* page,
+                              pdfe::core::Document* doc, const std::string& xobjectName) {
+    // Copy BEFORE setPage. Callers are signal handlers whose xobjectName is a
+    // reference straight into the tool's image list (the tool emits
+    // img.xobjectName from mouseReleaseEvent), and setPage clears and refills
+    // that list, so the reference dangles. selectImage then compared against
+    // freed memory and the selection was silently lost after a drag
+    // (GitHub #416).
+    const std::string name = xobjectName;
+    tool.setPage(page, doc);
+    return tool.selectImage(name);
+}
+
+bool resyncImageToolPlacement(ImageTool& tool, pdfe::core::Page* page,
+                              pdfe::core::Document* doc, const std::string& xobjectName,
+                              int occurrence) {
+    // A copy, for the reason given in resyncImageToolSelection.
+    const std::string name = xobjectName;
+    const bool hadSelection = tool.hasSelection();
+    tool.setPage(page, doc);
+    if (!name.empty() && tool.selectPlacement(name, occurrence)) {
+        return true;
+    }
+    // setPage dropped the selection without a signal. Say so, so the
+    // properties panel and the image actions do not keep showing a placement
+    // that is no longer on the page.
+    if (hadSelection) {
+        emit tool.imageDeselected();
+        emit tool.repaintRequested();
+    }
+    return false;
 }
 
 } // namespace pdfe::image

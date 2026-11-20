@@ -1,4 +1,6 @@
+// -*- coding: utf-8 -*-
 #include "ui/ImagePropertiesPanel.h"
+#include "image/ImageTool.h"
 #include <QVBoxLayout>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -7,6 +9,8 @@
 #include <QDoubleSpinBox>
 #include <QComboBox>
 #include <QPushButton>
+#include <QStandardItemModel>
+#include <cmath>
 
 namespace pdfe::image {
 
@@ -32,6 +36,69 @@ public:
 
     // Flag to prevent signal emission during programmatic updates
     bool updatingInfo_ = false;
+
+    // The four selectable angles. A placement at any other angle is shown in
+    // an extra, non-selectable entry at index kOtherAngleIndex.
+    static constexpr int kQuarterTurns = 4;
+    static constexpr int kOtherAngleIndex = 4;
+
+    // GitHub #423: show the angle the page holds (visually clockwise, as the
+    // rotate actions count it). A multiple of 90 selects its entry; any other
+    // angle is shown as itself in an extra entry that cannot be chosen, so the
+    // box never claims 0 for a rotated image and showing it changes nothing.
+    // Called with updatingInfo_ set, so no edit is requested.
+    void showRotation(const PageImageInfo& info) {
+        float deg = std::fmod(visualClockwiseDegrees(info), 360.0f);
+        if (deg < 0.0f) deg += 360.0f;
+        const float quarter = std::round(deg / 90.0f);
+        const bool onQuarter = std::abs(deg - quarter * 90.0f) < 0.05f;
+        if (onQuarter) {
+            removeOtherAngle();
+            rotationCombo_->setCurrentIndex(static_cast<int>(quarter) % kQuarterTurns);
+            return;
+        }
+        const QString text = std::abs(deg - std::round(deg)) < 0.05f
+            ? QString::fromUtf8("%1°").arg(static_cast<int>(std::round(deg)) % 360)
+            : QString::fromUtf8("%1°").arg(static_cast<double>(deg), 0, 'f', 1);
+        if (rotationCombo_->count() <= kOtherAngleIndex) {
+            rotationCombo_->addItem(text);
+        } else {
+            rotationCombo_->setItemText(kOtherAngleIndex, text);
+        }
+        if (auto* model = qobject_cast<QStandardItemModel*>(rotationCombo_->model())) {
+            if (QStandardItem* item = model->item(kOtherAngleIndex)) {
+                item->setFlags(item->flags() & ~(Qt::ItemIsSelectable | Qt::ItemIsEnabled));
+                item->setToolTip(QObject::tr("The image's current angle. Choose 0°, 90°, "
+                                             "180° or 270° to set an exact angle."));
+            }
+        }
+        rotationCombo_->setCurrentIndex(kOtherAngleIndex);
+    }
+
+    void removeOtherAngle() {
+        while (rotationCombo_->count() > kQuarterTurns)
+            rotationCombo_->removeItem(rotationCombo_->count() - 1);
+    }
+
+    // Tooltips: what each control does, or why it is disabled.
+    void setEditable(bool editable, const QString& why) {
+        const std::pair<QWidget*, QString> controls[] = {
+            {widthSpin_, QObject::tr("Full width of the image in points. Changing it "
+                                     "resizes the image and keeps its rotation and crop.")},
+            {heightSpin_, QObject::tr("Full height of the image in points. Changing it "
+                                      "resizes the image and keeps its rotation and crop.")},
+            {rotationCombo_, QObject::tr("The image's angle, clockwise. Choosing an angle "
+                                         "sets it exactly and keeps the crop.")},
+            {cropButton_, QObject::tr("Crop to the central 80% of the visible image "
+                                      "(as Image > Crop Image)")},
+            {extractButton_, QObject::tr("Save the image's pixels to a file")},
+            {removeButton_, QObject::tr("Remove this image from the page")},
+        };
+        for (const auto& [w, tip] : controls) {
+            w->setEnabled(editable);
+            w->setToolTip(editable ? tip : why);
+        }
+    }
 
     void setupUi(QWidget* parent) {
         auto* mainLayout = new QVBoxLayout(parent);
@@ -86,6 +153,9 @@ public:
         widthSpin_->setRange(1.0, 10000.0);
         widthSpin_->setDecimals(1);
         widthSpin_->setSuffix(" pt");
+        // One edit per committed value (Enter, focus out, arrow step), not one
+        // per keystroke: each change is an undoable resize.
+        widthSpin_->setKeyboardTracking(false);
         widthSpin_->setEnabled(false);
         transformLayout->addRow("Width:", widthSpin_);
 
@@ -95,6 +165,7 @@ public:
         heightSpin_->setRange(1.0, 10000.0);
         heightSpin_->setDecimals(1);
         heightSpin_->setSuffix(" pt");
+        heightSpin_->setKeyboardTracking(false);
         heightSpin_->setEnabled(false);
         transformLayout->addRow("Height:", heightSpin_);
 
@@ -158,15 +229,10 @@ public:
 
         QObject::connect(rotationCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
             parent, [this, parent](int index) {
-                if (!updatingInfo_) {
-                    float angle = 0.0f;
-                    switch (index) {
-                    case 0: angle = 0.0f; break;
-                    case 1: angle = 90.0f; break;
-                    case 2: angle = 180.0f; break;
-                    case 3: angle = 270.0f; break;
-                    }
-                    emit parent->rotationRequested(angle);
+                // Only the four quarter turns request an edit; the extra entry
+                // showing another angle is display only.
+                if (!updatingInfo_ && index >= 0 && index < kQuarterTurns) {
+                    emit parent->rotationRequested(90.0f * static_cast<float>(index));
                 }
             });
 
@@ -210,15 +276,19 @@ public:
         // Update transform controls
         widthSpin_->setValue(info.displayWidth);
         heightSpin_->setValue(info.displayHeight);
-        rotationCombo_->setCurrentIndex(0); // Default to 0°
+        showRotation(info);
 
-        // Enable controls
-        widthSpin_->setEnabled(true);
-        heightSpin_->setEnabled(true);
-        rotationCombo_->setEnabled(true);
-        cropButton_->setEnabled(true);
-        extractButton_->setEnabled(true);
-        removeButton_->setEnabled(true);
+        // Enable controls. A placement inside a Form XObject is enumerated
+        // but not editable (docs/image-placement-model.md), and extraction
+        // looks the name up in the page's own resources, so every control is
+        // disabled for it and says why.
+        if (info.inFormXObject) {
+            setEditable(false, QObject::tr(
+                "This image is drawn inside a Form XObject, which may be shared with "
+                "other pages, so it cannot be edited or extracted here."));
+        } else {
+            setEditable(true, QString());
+        }
 
         updatingInfo_ = false;
     }
@@ -237,15 +307,11 @@ public:
         // Reset controls
         widthSpin_->setValue(0.0);
         heightSpin_->setValue(0.0);
+        removeOtherAngle();
         rotationCombo_->setCurrentIndex(0);
 
         // Disable controls
-        widthSpin_->setEnabled(false);
-        heightSpin_->setEnabled(false);
-        rotationCombo_->setEnabled(false);
-        cropButton_->setEnabled(false);
-        extractButton_->setEnabled(false);
-        removeButton_->setEnabled(false);
+        setEditable(false, QObject::tr("Select an image with the Image tool"));
 
         updatingInfo_ = false;
     }

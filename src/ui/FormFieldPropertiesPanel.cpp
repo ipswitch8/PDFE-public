@@ -3,6 +3,13 @@
 
 #include <QVBoxLayout>
 #include <QFormLayout>
+#include <QColorDialog>
+#include <QGroupBox>
+#include <QPushButton>
+#include <QSpinBox>
+
+#include <algorithm>
+#include <cmath>
 #include <QLabel>
 #include <QLineEdit>
 #include <QTextEdit>
@@ -22,7 +29,27 @@ FormFieldPropertiesPanel::FormFieldPropertiesPanel(QWidget* parent)
     clear();
 }
 
-FormFieldPropertiesPanel::~FormFieldPropertiesPanel() = default;
+FormFieldPropertiesPanel::~FormFieldPropertiesPanel() {
+    // Destruction-order focus-out hazard: when this panel is destroyed while a
+    // child editor (e.g. textEdit_) holds focus, the base ~QWidget() synthesizes
+    // a focus-out that fires QLineEdit::editingFinished -> onTextValueChanged.
+    // By then this object's dynamic type is already QWidget, so Qt's
+    // assertObjectType<FormFieldPropertiesPanel> dynamic_cast on the receiver
+    // fails and aborts (qobjectdefs_impl.h). Break every child-widget signal
+    // whose RECEIVER is this panel BEFORE the base destructor runs so no member
+    // slot can fire during teardown. disconnect(sender, 0, this, 0) is the
+    // receiver-side form (disconnect(this) would treat this as the SENDER).
+    // Every child below is created in buildUI() from the constructor, so each
+    // is non-null by the time this panel can be destroyed.
+    disconnect(textEdit_, nullptr, this, nullptr);
+    disconnect(multilineEdit_, nullptr, this, nullptr);
+    disconnect(checkboxWidget_, nullptr, this, nullptr);
+    disconnect(comboWidget_, nullptr, this, nullptr);
+    disconnect(listWidget_, nullptr, this, nullptr);
+    disconnect(fontCombo_, nullptr, this, nullptr);
+    disconnect(fontSizeSpin_, nullptr, this, nullptr);
+    disconnect(fontColorButton_, nullptr, this, nullptr);
+}
 
 void FormFieldPropertiesPanel::buildUI() {
     auto* layout = new QVBoxLayout(this);
@@ -117,7 +144,227 @@ void FormFieldPropertiesPanel::buildUI() {
     editorStack_->addWidget(noEditorLabel_);
 
     layout->addWidget(editorStack_);
+
+    buildFontGroup(layout);
+
     layout->addStretch();
+}
+
+// ─── GitHub #460: font group ─────────────────────────────────────────────────
+//
+// The family list is limited to the base-14 fonts FormManager::
+// setFieldDefaultAppearance accepts and MuPDF 1.26.10 resolves without a /DR
+// entry. Helvetica, Times and Courier are always offered. Symbol and
+// ZapfDingbats are NOT offered for selection: they are symbol fonts, and text
+// typed into a field set in either one comes out as Greek letters or
+// dingbats. They are added to the list only while the selected field already
+// uses one (so the combo shows the truth, and a size or colour change does not
+// quietly switch that field to Helvetica).
+namespace {
+
+struct FontChoice {
+    const char* key;
+    const char* label;
+};
+
+constexpr FontChoice kSelectableFonts[] = {
+    {"Helv", QT_TRANSLATE_NOOP("FormFieldPropertiesPanel", "Helvetica")},
+    {"TiRo", QT_TRANSLATE_NOOP("FormFieldPropertiesPanel", "Times")},
+    {"Cour", QT_TRANSLATE_NOOP("FormFieldPropertiesPanel", "Courier")},
+};
+constexpr int kSelectableFontCount =
+    static_cast<int>(sizeof(kSelectableFonts) / sizeof(kSelectableFonts[0]));
+
+constexpr FontChoice kSymbolFonts[] = {
+    {"Symb", QT_TRANSLATE_NOOP("FormFieldPropertiesPanel", "Symbol")},
+    {"ZaDb", QT_TRANSLATE_NOOP("FormFieldPropertiesPanel", "ZapfDingbats")},
+};
+
+/// The /DA colour as an opaque RGB QColor. Components come from the PDF via
+/// FormManager's read sanitisers; they are clamped again here so a
+/// hand-built FormFieldData cannot produce an out-of-range QColor.
+QColor daColorToQColor(const pdfe::forms::FormFieldData& d) {
+    using pdfe::forms::sanitizeColorComponent;
+    const auto c = [&d](int i) { return sanitizeColorComponent(d.daColor[i]); };
+    switch (pdfe::forms::sanitizeColorComponentCount(d.daColorComponents)) {
+        case 1:
+            return QColor::fromRgbF(c(0), c(0), c(0));
+        case 3:
+            return QColor::fromRgbF(c(0), c(1), c(2));
+        case 4:
+            return QColor::fromCmykF(c(0), c(1), c(2), c(3)).toRgb();
+        default:
+            return QColor(0, 0, 0);
+    }
+}
+
+}  // namespace
+
+bool FormFieldPropertiesPanel::fieldTypeHasFontControls(pdfe::forms::FormFieldType type) {
+    using FT = pdfe::forms::FormFieldType;
+    return type == FT::Text || type == FT::ComboBox || type == FT::ListBox;
+}
+
+void FormFieldPropertiesPanel::buildFontGroup(QVBoxLayout* layout) {
+    fontGroup_ = new QGroupBox(tr("Font"), this);
+    fontGroup_->setObjectName("formFieldFontGroup");
+    fontGroup_->setAccessibleName(tr("Form Field Font Settings"));
+    auto* fontLayout = new QFormLayout(fontGroup_);
+    fontLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+
+    fontCombo_ = new QComboBox(fontGroup_);
+    fontCombo_->setObjectName("formFieldFontCombo");
+    fontCombo_->setAccessibleName(tr("Form Field Font"));
+    fontCombo_->setAccessibleDescription(
+        tr("Font used to draw the text of the selected form field"));
+    for (const auto& f : kSelectableFonts) {
+        fontCombo_->addItem(tr(f.label), QString::fromLatin1(f.key));
+    }
+    fontLayout->addRow(tr("Family:"), fontCombo_);
+
+    fontSizeSpin_ = new QSpinBox(fontGroup_);
+    fontSizeSpin_->setObjectName("formFieldFontSizeSpin");
+    fontSizeSpin_->setAccessibleName(tr("Form Field Font Size"));
+    fontSizeSpin_->setAccessibleDescription(
+        tr("Font size in points; Auto fits the text to the field"));
+    // 0 is auto-size (PDF 32000-1 12.7.3.3); 1..1000 is exactly the range
+    // FormManager::setFieldDefaultAppearance accepts, so the spin box cannot
+    // produce a size the setter would reject.
+    fontSizeSpin_->setRange(0, static_cast<int>(pdfe::forms::kMaxDefaultAppearanceSizePt));
+    fontSizeSpin_->setSpecialValueText(tr("Auto"));
+    fontSizeSpin_->setSuffix(tr(" pt"));
+    // One command per COMMITTED size: editingFinished (Enter or focus out),
+    // never per arrow step or keystroke. SetFieldAppearanceCommand never
+    // merges, so per-step commands would be per-step undo entries.
+    fontSizeSpin_->setKeyboardTracking(false);
+    fontLayout->addRow(tr("Size:"), fontSizeSpin_);
+
+    fontColorButton_ = new QPushButton(fontGroup_);
+    fontColorButton_->setObjectName("formFieldFontColorButton");
+    fontColorButton_->setAccessibleName(tr("Form Field Font Color"));
+    fontColorButton_->setAccessibleDescription(
+        tr("Choose the colour of the selected form field's text"));
+    fontColorButton_->setFixedSize(40, 22);
+    fontLayout->addRow(tr("Color:"), fontColorButton_);
+
+    connect(fontCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &FormFieldPropertiesPanel::onFontFamilyChanged);
+    connect(fontSizeSpin_, &QSpinBox::editingFinished,
+            this, &FormFieldPropertiesPanel::onFontSizeEditingFinished);
+    connect(fontColorButton_, &QPushButton::clicked,
+            this, &FormFieldPropertiesPanel::onFontColorButtonClicked);
+
+    setFontColorSwatch(fontColor_);
+    fontGroup_->setVisible(false);
+    layout->addWidget(fontGroup_);
+}
+
+void FormFieldPropertiesPanel::setFontColorSwatch(const QColor& color) {
+    fontColor_ = color;
+    if (!fontColorButton_) return;
+    // name() is "#rrggbb" built from the colour's own components, so nothing
+    // from the PDF reaches the style sheet as text.
+    fontColorButton_->setStyleSheet(
+        QStringLiteral("QPushButton { background-color: %1; }").arg(color.name()));
+    fontColorButton_->setToolTip(color.name());
+}
+
+void FormFieldPropertiesPanel::updateFontControls() {
+    // Called only with updatingFields_ set, so nothing below emits.
+    const bool show = fieldTypeHasFontControls(currentData_.type);
+    fontGroup_->setVisible(show);
+
+    // Drop any symbol-font entry a previous field added.
+    while (fontCombo_->count() > kSelectableFontCount) {
+        fontCombo_->removeItem(fontCombo_->count() - 1);
+    }
+    if (!show) return;
+
+    const QString key = QString::fromStdString(currentData_.daFontName);
+    int idx = fontCombo_->findData(key);
+    if (idx < 0) {
+        for (const auto& f : kSymbolFonts) {
+            if (key == QLatin1String(f.key)) {
+                fontCombo_->addItem(tr(f.label), QString::fromLatin1(f.key));
+                idx = fontCombo_->count() - 1;
+                break;
+            }
+        }
+    }
+    // FormManager maps every unknown name to "Helv", so idx < 0 means a
+    // hand-built FormFieldData; show Helvetica, MuPDF's own fallback.
+    fontCombo_->setCurrentIndex(idx >= 0 ? idx : 0);
+
+    // origin/master 596d613f: a read-only field's font is not user-editable,
+    // so its controls are shown (they report the font) but disabled.
+    const bool editable = !currentData_.isReadOnly;
+    fontCombo_->setEnabled(editable);
+    fontSizeSpin_->setEnabled(editable);
+    fontColorButton_->setEnabled(editable);
+
+    const float size = pdfe::forms::sanitizeDefaultAppearanceSize(currentData_.daFontSize);
+    // A fractional size (10.5) is shown rounded. It is only rewritten if the
+    // user commits a different size: MainWindow takes the size it writes for
+    // a family or colour change from the document, not from this spin box.
+    const int shown = std::clamp(static_cast<int>(std::lround(size)), 0,
+                                 static_cast<int>(pdfe::forms::kMaxDefaultAppearanceSizePt));
+    fontSizeSpin_->setValue(shown);
+    committedFontSize_ = shown;
+
+    setFontColorSwatch(daColorToQColor(currentData_));
+}
+
+void FormFieldPropertiesPanel::emitFontChange(FormFieldFontRequest::Property changed) {
+    if (updatingFields_ || !fieldTypeHasFontControls(currentData_.type) ||
+        currentData_.widgetIndex < 0 || currentData_.isReadOnly) {
+        return;
+    }
+    FormFieldFontRequest req;
+    req.changed = changed;
+    req.font = fontCombo_->currentData().toString().toStdString();
+    req.size = static_cast<float>(committedFontSize_);
+    req.color = fontColor_;
+    emit fieldFontChangeRequested(currentData_, req);
+}
+
+void FormFieldPropertiesPanel::onFontFamilyChanged(int index) {
+    if (updatingFields_ || index < 0) return;
+    const std::string key = fontCombo_->itemData(index).toString().toStdString();
+    if (key == currentData_.daFontName) return;
+    currentData_.daFontName = key;
+    emitFontChange(FormFieldFontRequest::Property::Family);
+}
+
+void FormFieldPropertiesPanel::onFontSizeEditingFinished() {
+    if (updatingFields_) return;
+    const int value = fontSizeSpin_->value();
+    if (value == committedFontSize_) return;
+    committedFontSize_ = value;
+    currentData_.daFontSize = static_cast<float>(value);
+    emitFontChange(FormFieldFontRequest::Property::Size);
+}
+
+void FormFieldPropertiesPanel::onFontColorButtonClicked() {
+    if (updatingFields_ || !fieldTypeHasFontControls(currentData_.type) ||
+        currentData_.isReadOnly) {
+        return;
+    }
+    const QColor initial = fontColor_;
+    const QColor chosen = colorPicker_
+        ? colorPicker_(initial, this)
+        : QColorDialog::getColor(initial, this, tr("Form Field Font Color"));
+    // Invalid = the dialog was cancelled. The dialog is opened without
+    // ShowAlphaChannel so it returns opaque colours; anything translucent
+    // (only reachable through the test seam) is refused rather than silently
+    // made opaque, because the /DA has no alpha and the setter rejects it.
+    if (!chosen.isValid() || chosen.alpha() != 255) return;
+    const QColor rgb = chosen.toRgb();
+    if (rgb == initial) return;
+    setFontColorSwatch(rgb);
+    currentData_.daColorComponents = 3;
+    currentData_.daColor = {static_cast<float>(rgb.redF()), static_cast<float>(rgb.greenF()),
+                            static_cast<float>(rgb.blueF()), 0.0f};
+    emitFontChange(FormFieldFontRequest::Property::Color);
 }
 
 void FormFieldPropertiesPanel::setFormField(const pdfe::forms::FormFieldData& data) {
@@ -143,6 +390,9 @@ void FormFieldPropertiesPanel::setFormField(const pdfe::forms::FormFieldData& da
 
     // Update the stacked editor
     updateForFieldType(data.type);
+
+    // GitHub #460: the font group, from the field's default appearance.
+    updateFontControls();
 
     updatingFields_ = false;
 }
@@ -238,6 +488,7 @@ void FormFieldPropertiesPanel::clear() {
     comboWidget_->clear();
     listWidget_->clear();
     editorStack_->setCurrentIndex(5);
+    updateFontControls();  // GitHub #460: Unknown type, so the group hides
 
     updatingFields_ = false;
 }

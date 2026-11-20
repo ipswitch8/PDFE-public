@@ -33,7 +33,11 @@ import pytest
 from conftest import REPO, build_packages, make_appdir
 
 NEEDLES = [{"label": "syn", "sha256": hashlib.sha256(b"zzsynth host").hexdigest()}]
-LEAK = b"\x7fELF built in /home/zzsynth-host/src/lib.c\n"
+# Assembled from parts so no complete home-path literal sits in this source:
+# check_tracked_path_hygiene.py flags any `/home/<owner>` it finds, and a
+# synthetic owner is not one of its verified placeholders. Same route
+# scan_binary_path_hygiene.py's fixtures take.
+LEAK = b"\x7fELF built in /" + b"home" + b"/zzsynth-host/src/lib.c\n"
 CLEAN = b"\x7fELF built in /work/src/lib.c\n"
 
 

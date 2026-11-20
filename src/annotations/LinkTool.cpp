@@ -205,6 +205,19 @@ LinkAction LinkTool::promptForAction() const
     return out;
 }
 
+bool LinkTool::cancelInProgress()
+{
+    // Bug 6: Esc mid-drag aborts the link rubber-band before the release that
+    // would pop the action dialog. Clearing isDrawing_ makes onMouseRelease an
+    // early-out, so no dialog appears and no link annotation is created.
+    if (!isDrawing_) {
+        return false;
+    }
+    isDrawing_ = false;
+    currentPageIndex_ = -1;
+    return true;
+}
+
 void LinkTool::onPaintOverlay(QPainter& painter, int pageIndex,
                                 float zoom, QPointF pageOrigin, float pageHeightPt)
 {

@@ -2,6 +2,7 @@
 
 #include <QRectF>
 #include <QColor>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -10,9 +11,10 @@ namespace pdfe::redaction {
 /// Image handling method during redaction application.
 enum class RedactionImageMethod {
     None,                    ///< Do not touch images
-    Remove,                  ///< Remove images entirely
-    Pixels,                  ///< Replace overlapping pixels with black
-    RemoveUnlessInvisible    ///< Remove unless image is behind redaction
+    Remove,                  ///< Remove every image the mark touches, entirely
+    Pixels,                  ///< Blank the image pixels under the mark; an image the
+                             ///< mark covers completely is removed (the default)
+    RemoveUnlessInvisible    ///< Remove an image the mark touches where it is visible
 };
 
 /// Text handling method during redaction application.
@@ -37,16 +39,26 @@ struct RedactionData {
     std::string overlayText;        ///< Optional text to show in redacted area
     bool enabled = true;            ///< Whether this mark will be applied
 
-    // Per-mark option overrides
-    RedactionImageMethod imageMethod = RedactionImageMethod::Remove;
-    RedactionTextMethod textMethod = RedactionTextMethod::Remove;
-    RedactionLineArtMethod lineArtMethod = RedactionLineArtMethod::RemoveIfCovered;
+    // Per-mark option overrides. Unset: the mark is applied with the
+    // RedactionApplyOptions method. Set: this mark is applied with its own
+    // method, whatever the options say (RedactionManager::applyPageRedactions
+    // applies each mark on its own when the marks of a page differ).
+    // RedactionManager::restoreRedactionMark stores them on the mark and the
+    // getters read them back. They are honoured only for marks made in this
+    // session: a value found in a file is ignored, so a document cannot ship
+    // marks that quietly leave their content in place when applied.
+    std::optional<RedactionImageMethod> imageMethod;
+    std::optional<RedactionTextMethod> textMethod;
+    std::optional<RedactionLineArtMethod> lineArtMethod;
 };
 
 /// Options controlling the apply-all operation.
 struct RedactionApplyOptions {
     bool blackBoxes = true;
-    RedactionImageMethod imageMethod = RedactionImageMethod::Remove;
+    /// Pixels (GitHub #440): a mark over part of an image destroys only the
+    /// pixels under it and keeps the rest; a mark covering the whole image
+    /// removes the image.
+    RedactionImageMethod imageMethod = RedactionImageMethod::Pixels;
     RedactionTextMethod textMethod = RedactionTextMethod::Remove;
     RedactionLineArtMethod lineArtMethod = RedactionLineArtMethod::RemoveIfCovered;
     bool rewriteDocument = true;     ///< QPDF single-revision rewrite to eliminate data ghosts

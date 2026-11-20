@@ -239,6 +239,10 @@ for canvas content.
 | comboWidget_ | formFieldCombo | — | ADDED |
 | listWidget_ | formFieldList | — | ADDED |
 | noEditorLabel_ | formFieldNoEditor | — | OK-NAME |
+| fontGroup_ | formFieldFontGroup | Form Field Font Settings | ADDED (GitHub #460) |
+| fontCombo_ | formFieldFontCombo | Form Field Font | ADDED (GitHub #460) |
+| fontSizeSpin_ | formFieldFontSizeSpin | Form Field Font Size | ADDED (GitHub #460) |
+| fontColorButton_ | formFieldFontColorButton | Form Field Font Color | ADDED (GitHub #460) |
 
 **Fixes applied:** All interactive and informational widgets in FormFieldPropertiesPanel received accessibleName.
 

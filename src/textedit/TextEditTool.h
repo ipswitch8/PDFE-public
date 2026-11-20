@@ -142,6 +142,22 @@ public:
     void commitEdit();
     void cancelEdit();
 
+    /// Bug 9: begin a brand-new text edit in empty page space at @p pdfPoint
+    /// (PDF/fitz coordinates, Y-down — the same space onMousePress receives).
+    /// Commits any active edit first, appends a new empty span to the model at
+    /// a default font/size with its top at the click point, selects it, and
+    /// places the caret at offset 0 so subsequent keystrokes type into it. On
+    /// commit the span's isNewInsertion flag routes it to a content-stream
+    /// WRITE (new run) rather than the find-and-replace editor. Returns the new
+    /// span index, or -1 when no model is loaded. This is the exact path a
+    /// real empty-area left-click takes; exposed publicly so a headless test
+    /// can drive it without fabricating a QMouseEvent.
+    int beginTextInsertionAt(QPointF pdfPoint);
+
+    /// Default point size for a new empty-area text insertion when the page
+    /// supplies no better reference. Base-14 Helvetica at a readable body size.
+    static constexpr float kDefaultInsertionFontSizePt = 12.0f;
+
     /// Push the current in-memory edit state to the textEdited callback
     /// without resetting activeSpanIndex_.  Used to keep the UndoManager
     /// (and the visual undoAction enabled state) in sync with the user's

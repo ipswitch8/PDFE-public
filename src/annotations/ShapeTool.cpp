@@ -94,6 +94,19 @@ void ShapeTool::onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pdfPoi
     }
 }
 
+bool ShapeTool::cancelInProgress()
+{
+    // Bug 6: Esc mid-drag aborts the rubber-band. Clearing isDrawing_ makes the
+    // pending onMouseRelease an early-out (it guards on isDrawing_), so nothing
+    // is created and no partial shape reaches the document.
+    if (!isDrawing_) {
+        return false;
+    }
+    isDrawing_ = false;
+    currentPageIndex_ = -1;
+    return true;
+}
+
 void ShapeTool::onPaintOverlay(QPainter& painter, int pageIndex,
                                 float zoom, QPointF pageOrigin, float pageHeightPt)
 {

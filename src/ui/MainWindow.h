@@ -143,6 +143,7 @@ class ExifStripper;
 class ImageContentEditor;
 class ImageTool;
 class ImagePropertiesPanel;
+struct PageImageInfo;
 }
 
 namespace pdfe::metadata {
@@ -167,6 +168,7 @@ class CommentPanel;
 class LayerPanel;
 class AnnotationPropertiesWidget;
 class FormFieldPropertiesPanel;
+struct FormFieldFontRequest;
 class TextEditToolBar;
 class RedactionPanel;
 class SignaturePanel;
@@ -1259,6 +1261,9 @@ private slots:
     void onImageRotate270();
     void onImageCrop();
     void onImageResize();
+    /// Image Properties panel > Extract: save the selected image's pixels to
+    /// a file (save dialog, or the test seam's queued path).
+    void onImageExtract();
 
     // Metadata
     void onDocumentMetadata();
@@ -1275,6 +1280,14 @@ private slots:
     void onFormFieldSelected(int widgetIndex);
     void onFormFieldDeselected();
     void onFormFieldValueChanged(pdfe::forms::FormFieldData data);
+    /// Bug 3 / GitHub #460 (pipeline form-reconcile): the ONE handler for a
+    /// font change (family, size or colour) committed in the form properties
+    /// panel. Re-reads the field (refusing a stale index), takes only the
+    /// changed property from the panel, parks the Page in commandPages_ and
+    /// issues one SetFieldAppearanceCommand, then refreshPage only (never
+    /// markPageDirty / onPageContentChanged, which would end an edit).
+    void onFormFieldFontChanged(pdfe::forms::FormFieldData field,
+                                pdfe::ui::FormFieldFontRequest request);
 
     // Page manipulation
     void onRotatePageCW();
@@ -2455,8 +2468,30 @@ private:
     QAction* stripExifAction_ = nullptr;
     QAction* imageRemoveAction_ = nullptr;
     QAction* imageRotateAction_ = nullptr;
+    QAction* imageRotate180Action_ = nullptr;  ///< relative half turn (GitHub #432)
+    QAction* imageRotate270Action_ = nullptr;  ///< relative three-quarter turn (GitHub #432)
     QAction* imageCropAction_ = nullptr;
     QAction* imageResizeAction_ = nullptr;
+
+    // docs/image-placement-model.md, "Image actions in the UI" (GitHub
+    // #422/#423/#431/#432). Every helper reads the selected placement back
+    // from the PAGE (name + occurrence), never from a cached angle or size.
+    /// The image tool's selected placement as the current page holds it now.
+    std::optional<pdfe::image::PageImageInfo> selectedImagePlacementOnPage();
+    /// Rotate the selected placement by @p deltaDegrees (visually clockwise)
+    /// from the angle the page holds: Rotate Image / 180 / 270 are relative.
+    void rotateSelectedImageBy(float deltaDegrees);
+    /// Set the selected placement's ABSOLUTE angle (properties panel).
+    void rotateSelectedImageTo(float angleDegrees);
+    /// Resize the selected placement to the FULL size @p w x @p h, keeping its
+    /// rotation, flips, skew and crop, with the visible centre fixed.
+    void resizeSelectedImageTo(float w, float h);
+    /// Re-read the image tool (and so the properties panel) from the page
+    /// after an edit, reselecting the placement @p name / @p occurrence.
+    void resyncImageToolAfterEdit(int pageIdx, const std::string& name, int occurrence);
+    /// Enable the image edit actions for @p info (nullptr = no selection); a
+    /// placement inside a Form XObject is not editable, so they are disabled.
+    void updateImageActionsFor(const pdfe::image::PageImageInfo* info);
 
     // Metadata
     std::unique_ptr<pdfe::metadata::MetadataManager> metadataManager_;

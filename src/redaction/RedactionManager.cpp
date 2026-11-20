@@ -16,6 +16,8 @@
 #include <mupdf/pdf.h>
 
 #include <cstdio>
+#include <cstring>
+#include <random>
 #include <stdexcept>
 #include <filesystem>
 #include <system_error>
@@ -49,8 +51,110 @@ static pdf_annot* getNthAnnot(fz_context* ctx, pdf_page* page, int targetIndex) 
     return annot;
 }
 
+// --- Per-mark method overrides (GitHub #441) --------------------------------
+//
+// RedactionData::imageMethod / textMethod / lineArtMethod are stored on the
+// mark's annotation dictionary under kMarkOptionsKey, as names, together with
+// a token that identifies this process (sessionToken). They are read back,
+// and honoured when the mark is applied, only when the token matches. A
+// value found in a file therefore never counts: a document cannot carry
+// marks that quietly leave their content in place when the user applies
+// them (for example an image method of None under a black box). A mark made
+// in an earlier session is applied with the RedactionApplyOptions methods.
+static constexpr const char* kMarkOptionsKey = "PDFEMarkOptions";
+
+// 128 random bits, hex, made once per process. Called OUTSIDE the MuPDF
+// guarded regions (it builds a std::string); the regions get the C string.
+static const std::string& sessionToken() {
+    static const std::string token = [] {
+        std::random_device rd;
+        std::string t;
+        static const char* hex = "0123456789abcdef";
+        for (int i = 0; i < 4; ++i) {
+            const unsigned v = static_cast<unsigned>(rd());
+            for (int k = 0; k < 8; ++k) t.push_back(hex[(v >> (4 * k)) & 0xF]);
+        }
+        return t;
+    }();
+    return token;
+}
+
+static const char* imageMethodName(RedactionImageMethod m) {
+    switch (m) {
+        case RedactionImageMethod::None:                  return "None";
+        case RedactionImageMethod::Remove:                return "Remove";
+        case RedactionImageMethod::Pixels:                return "Pixels";
+        case RedactionImageMethod::RemoveUnlessInvisible: return "RemoveUnlessInvisible";
+    }
+    return "Pixels";
+}
+
+static const char* textMethodName(RedactionTextMethod m) {
+    return m == RedactionTextMethod::None ? "None" : "Remove";
+}
+
+static const char* lineArtMethodName(RedactionLineArtMethod m) {
+    switch (m) {
+        case RedactionLineArtMethod::None:            return "None";
+        case RedactionLineArtMethod::RemoveIfCovered: return "RemoveIfCovered";
+        case RedactionLineArtMethod::RemoveIfTouched: return "RemoveIfTouched";
+    }
+    return "RemoveIfCovered";
+}
+
+// The override dictionary of a mark, or null when it has none or it was not
+// written in this session.
+static pdf_obj* sessionMarkOptions(fz_context* ctx, pdf_obj* annotObj, const char* token) {
+    pdf_obj* o = pdf_dict_gets(ctx, annotObj, kMarkOptionsKey);
+    if (!pdf_is_dict(ctx, o)) return nullptr;
+    pdf_obj* t = pdf_dict_gets(ctx, o, "Session");
+    if (!pdf_is_string(ctx, t) || std::strcmp(pdf_to_str_buf(ctx, t), token) != 0) return nullptr;
+    return o;
+}
+
+// True when `v` is the name `name`.
+static bool isName(fz_context* ctx, pdf_obj* v, const char* name) {
+    return pdf_is_name(ctx, v) && std::strcmp(pdf_to_name(ctx, v), name) == 0;
+}
+
+// Reads the overrides of a mark into `data` (only the ones present).
+static void readMarkOverrides(fz_context* ctx, pdf_obj* annotObj, const char* token, RedactionData& data) {
+    pdf_obj* o = sessionMarkOptions(ctx, annotObj, token);
+    if (!o) return;
+    pdf_obj* v = pdf_dict_gets(ctx, o, "Image");
+    for (RedactionImageMethod m : {RedactionImageMethod::None, RedactionImageMethod::Remove,
+                                   RedactionImageMethod::Pixels, RedactionImageMethod::RemoveUnlessInvisible})
+        if (isName(ctx, v, imageMethodName(m))) data.imageMethod = m;
+    v = pdf_dict_gets(ctx, o, "Text");
+    for (RedactionTextMethod m : {RedactionTextMethod::Remove, RedactionTextMethod::None})
+        if (isName(ctx, v, textMethodName(m))) data.textMethod = m;
+    v = pdf_dict_gets(ctx, o, "LineArt");
+    for (RedactionLineArtMethod m : {RedactionLineArtMethod::None, RedactionLineArtMethod::RemoveIfCovered,
+                                     RedactionLineArtMethod::RemoveIfTouched})
+        if (isName(ctx, v, lineArtMethodName(m))) data.lineArtMethod = m;
+}
+
+// Writes the overrides that are set (removes the key when none is).
+static void writeMarkOverrides(fz_context* ctx, pdf_document* doc, pdf_obj* annotObj, const char* token,
+                               const RedactionData& data) {
+    if (!data.imageMethod && !data.textMethod && !data.lineArtMethod) {
+        pdf_dict_dels(ctx, annotObj, kMarkOptionsKey);
+        return;
+    }
+    pdf_obj* o = pdf_dict_puts_dict(ctx, annotObj, kMarkOptionsKey, 4);
+    pdf_dict_puts_drop(ctx, o, "Session", pdf_new_string(ctx, token, std::strlen(token)));
+    if (data.imageMethod)
+        pdf_dict_puts_drop(ctx, o, "Image", pdf_new_name(ctx, imageMethodName(*data.imageMethod)));
+    if (data.textMethod)
+        pdf_dict_puts_drop(ctx, o, "Text", pdf_new_name(ctx, textMethodName(*data.textMethod)));
+    if (data.lineArtMethod)
+        pdf_dict_puts_drop(ctx, o, "LineArt", pdf_new_name(ctx, lineArtMethodName(*data.lineArtMethod)));
+    (void)doc;
+}
+
 // Helper: Read redaction data from a MuPDF redaction annotation
-static RedactionData readRedactionData(fz_context* ctx, pdf_annot* annot, int pageIndex, int annotIndex) {
+static RedactionData readRedactionData(fz_context* ctx, pdf_annot* annot, int pageIndex, int annotIndex,
+                                       const char* token) {
     RedactionData data;
     data.pageIndex = pageIndex;
     data.annotIndex = annotIndex;
@@ -84,6 +188,8 @@ static RedactionData readRedactionData(fz_context* ctx, pdf_annot* annot, int pa
         }
     }
 
+    readMarkOverrides(ctx, annotObj, token, data);
+
     return data;
 }
 
@@ -113,6 +219,41 @@ static int toMuPdfText(RedactionTextMethod method) {
         case RedactionTextMethod::None:   return PDF_REDACT_TEXT_NONE;
         default:                          return PDF_REDACT_TEXT_REMOVE;
     }
+}
+
+// The MuPDF options one mark is applied with: its own (session) overrides
+// where set, the apply options otherwise. Plain C data: built inside the
+// MuPDF guarded regions.
+static pdf_redact_options markRedactOptions(fz_context* ctx, pdf_obj* annotObj, const char* token,
+                                            const RedactionApplyOptions& options) {
+    pdf_redact_options opts;
+    std::memset(&opts, 0, sizeof opts);
+    opts.black_boxes = options.blackBoxes ? 1 : 0;
+    opts.image_method = toMuPdfImageMethod(options.imageMethod);
+    opts.line_art = toMuPdfLineArt(options.lineArtMethod);
+    opts.text = toMuPdfText(options.textMethod);
+    pdf_obj* o = sessionMarkOptions(ctx, annotObj, token);
+    if (!o) return opts;
+    pdf_obj* v = pdf_dict_gets(ctx, o, "Image");
+    for (RedactionImageMethod m : {RedactionImageMethod::None, RedactionImageMethod::Remove,
+                                   RedactionImageMethod::Pixels, RedactionImageMethod::RemoveUnlessInvisible})
+        if (isName(ctx, v, imageMethodName(m)))
+            opts.image_method = toMuPdfImageMethod(m);
+    v = pdf_dict_gets(ctx, o, "Text");
+    for (RedactionTextMethod m : {RedactionTextMethod::Remove, RedactionTextMethod::None})
+        if (isName(ctx, v, textMethodName(m)))
+            opts.text = toMuPdfText(m);
+    v = pdf_dict_gets(ctx, o, "LineArt");
+    for (RedactionLineArtMethod m : {RedactionLineArtMethod::None, RedactionLineArtMethod::RemoveIfCovered,
+                                     RedactionLineArtMethod::RemoveIfTouched})
+        if (isName(ctx, v, lineArtMethodName(m)))
+            opts.line_art = toMuPdfLineArt(m);
+    return opts;
+}
+
+static bool sameRedactOptions(const pdf_redact_options& a, const pdf_redact_options& b) {
+    return a.black_boxes == b.black_boxes && a.image_method == b.image_method &&
+           a.line_art == b.line_art && a.text == b.text;
 }
 
 // Pimpl implementation
@@ -267,6 +408,7 @@ int RedactionManager::restoreRedactionMark(
 
     pdf_page* pdfPage = pImpl->getPdfPage(page);
     int newAnnotIndex = 0;
+    const char* token = sessionToken().c_str();
 
     pImpl->context->execute([&](fz_context* ctx) {
         // Re-create the redaction annotation
@@ -301,6 +443,9 @@ int RedactionManager::restoreRedactionMark(
             pdf_dict_puts(ctx, annotObj, "OverlayText",
                 pdf_new_text_string(ctx, data.overlayText.c_str()));
         }
+
+        // The mark's own image / text / line-art methods (GitHub #441).
+        writeMarkOverrides(ctx, pdfPage->doc, restoreAnnotObj, token, data);
 
         pdf_update_annot(ctx, annot);
 
@@ -412,13 +557,14 @@ std::vector<RedactionData> RedactionManager::getRedactionMarks(const pdfe::core:
     pdf_page* pdfPage = pImpl->getPdfPage(page);
     int pageIndex = page->index();
     std::vector<RedactionData> marks;
+    const char* token = sessionToken().c_str();
 
     pImpl->context->execute([&](fz_context* ctx) {
         pdf_annot* annot = pdf_first_annot(ctx, pdfPage);
         int idx = 0;
         while (annot) {
             if (pdf_annot_type(ctx, annot) == PDF_ANNOT_REDACT) {
-                marks.push_back(readRedactionData(ctx, annot, pageIndex, idx));
+                marks.push_back(readRedactionData(ctx, annot, pageIndex, idx, token));
             }
             annot = pdf_next_annot(ctx, annot);
             idx++;
@@ -436,6 +582,7 @@ RedactionData RedactionManager::getRedactionMark(const pdfe::core::Page* page, i
     pdf_page* pdfPage = pImpl->getPdfPage(page);
     int pageIndex = page->index();
     RedactionData data;
+    const char* token = sessionToken().c_str();
 
     pImpl->context->execute([&](fz_context* ctx) {
         pdf_annot* annot = getNthAnnot(ctx, pdfPage, annotIndex);
@@ -445,7 +592,7 @@ RedactionData RedactionManager::getRedactionMark(const pdfe::core::Page* page, i
         if (pdf_annot_type(ctx, annot) != PDF_ANNOT_REDACT) {
             fz_throw(ctx, FZ_ERROR_ARGUMENT, "Annotation is not a redaction mark");
         }
-        data = readRedactionData(ctx, annot, pageIndex, annotIndex);
+        data = readRedactionData(ctx, annot, pageIndex, annotIndex, token);
     });
 
     return data;
@@ -564,7 +711,14 @@ bool RedactionManager::applyPageRedactions(
     // their destructors.
     std::vector<fz_rect> redactRects;
     std::vector<std::string> redactedWords;
+    // The marks whose text is removed (their effective text method is not
+    // None, GitHub #441), and the words under them: only those words are
+    // blanked from the page content by the residual scrub below, so a mark
+    // whose text method is None really leaves its text in place.
+    std::vector<fz_rect> textRemoveRects;
+    std::vector<std::string> textRemovedWords;
     ScrubStats scrubStats;
+    const char* token = sessionToken().c_str();
 
     const bool wantScrub = options.scrubPageSurfaces || options.scrubDocumentSurfaces
                         || options.fullSanitize;
@@ -574,7 +728,10 @@ bool RedactionManager::applyPageRedactions(
             for (pdf_annot* a = pdf_first_annot(ctx, pdfPage); a;
                  a = pdf_next_annot(ctx, a)) {
                 if (pdf_annot_type(ctx, a) == PDF_ANNOT_REDACT) {
-                    redactRects.push_back(pdf_bound_annot(ctx, a));
+                    const fz_rect r = pdf_bound_annot(ctx, a);
+                    redactRects.push_back(r);
+                    if (markRedactOptions(ctx, pdf_annot_obj(ctx, a), token, options).text != PDF_REDACT_TEXT_NONE)
+                        textRemoveRects.push_back(r);
                 }
             }
         });
@@ -585,6 +742,13 @@ bool RedactionManager::applyPageRedactions(
         pImpl->context->execute([&](fz_context* ctx) {
             collectRedactedWords(ctx, fzPage, redactRects, redactedWords);
         });
+        if (textRemoveRects.size() == redactRects.size()) {
+            textRemovedWords = redactedWords;
+        } else if (!textRemoveRects.empty()) {
+            pImpl->context->execute([&](fz_context* ctx) {
+                collectRedactedWords(ctx, fzPage, textRemoveRects, textRemovedWords);
+            });
+        }
 
         if (options.scrubPageSurfaces) {
             pImpl->context->execute([&](fz_context* ctx) {
@@ -600,17 +764,53 @@ bool RedactionManager::applyPageRedactions(
         }
     }
 
+    // Each mark is applied with its own methods (GitHub #441): the options'
+    // methods, or the mark's own where restoreRedactionMark stored them in
+    // this session. MuPDF takes one set of methods per call, so when every
+    // mark of the page has the same set the page is redacted in one
+    // pdf_redact_page call, as before; otherwise each mark is applied on its
+    // own with pdf_apply_redaction, which filters the page for that mark only
+    // (text, line art, images and its black box) and removes it.
+    //
+    // Images (GitHub #440): the default method is Pixels. MuPDF maps the mark
+    // through the inverse of the image's full CTM at its Do (rotation, flips,
+    // skew, and the crop's unit-square clip do not move the pixels), blanks
+    // the covered pixels and the matching soft-mask pixels, writes the
+    // result as a NEW image XObject for this page and leaves every other
+    // placement (another Do of the name, another page) on the original. An
+    // image the mark covers completely is removed. Form XObjects are copied
+    // per page before they are filtered. See docs/image-placement-model.md.
     pImpl->context->execute([&](fz_context* ctx) {
         pdf_document* pdfDoc = pdf_page_from_fz_page(ctx, page->fzPage())->doc;
 
-        pdf_redact_options opts;
-        opts.black_boxes = options.blackBoxes ? 1 : 0;
-        opts.image_method = toMuPdfImageMethod(options.imageMethod);
-        opts.line_art = toMuPdfLineArt(options.lineArtMethod);
-        opts.text = toMuPdfText(options.textMethod);
+        int marks = 0;
+        bool uniform = true;
+        pdf_redact_options first;
+        std::memset(&first, 0, sizeof first);
+        for (pdf_annot* a = pdf_first_annot(ctx, pdfPage); a; a = pdf_next_annot(ctx, a)) {
+            if (pdf_annot_type(ctx, a) != PDF_ANNOT_REDACT) continue;
+            const pdf_redact_options o = markRedactOptions(ctx, pdf_annot_obj(ctx, a), token, options);
+            if (marks == 0) first = o;
+            else if (!sameRedactOptions(first, o)) uniform = false;
+            ++marks;
+        }
+        if (marks == 0) return;
 
-        int result = pdf_redact_page(ctx, pdfDoc, pdfPage, &opts);
-        applied = (result != 0);
+        if (uniform) {
+            int result = pdf_redact_page(ctx, pdfDoc, pdfPage, &first);
+            applied = (result != 0);
+            return;
+        }
+        // One mark at a time. Each call removes the mark it applied, so the
+        // first remaining mark is the next one; `marks` bounds the loop.
+        for (int k = 0; k < marks; ++k) {
+            pdf_annot* target = pdf_first_annot(ctx, pdfPage);
+            while (target && pdf_annot_type(ctx, target) != PDF_ANNOT_REDACT)
+                target = pdf_next_annot(ctx, target);
+            if (!target) break;
+            pdf_redact_options o = markRedactOptions(ctx, pdf_annot_obj(ctx, target), token, options);
+            if (pdf_apply_redaction(ctx, target, &o)) applied = true;
+        }
     });
 
     // Residual page-content scrub (PDF-61, marked-content half): a redacted
@@ -618,9 +818,11 @@ bool RedactionManager::applyPageRedactions(
     // `/Span << /ActualText (secret) >> BDC` — which is not a text-showing
     // operator and so is not what pdf_redact_page removes, yet PDFE's own
     // extractor reads /ActualText. No-op when the content is already clean.
-    if (applied && options.scrubPageSurfaces && !redactedWords.empty()) {
+    // Only the words under marks that remove text: a mark whose text method
+    // is None keeps its text (GitHub #441).
+    if (applied && options.scrubPageSurfaces && !textRemovedWords.empty()) {
         pImpl->context->execute([&](fz_context* ctx) {
-            scrubPageContentResiduals(ctx, pdfPage->doc, pdfPage, redactedWords,
+            scrubPageContentResiduals(ctx, pdfPage->doc, pdfPage, textRemovedWords,
                                       scrubStats);
         });
     }

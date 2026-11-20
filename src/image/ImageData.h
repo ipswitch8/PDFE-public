@@ -16,33 +16,72 @@ struct PageImageInfo {
     int pixelHeight = 0;
     int bitsPerComponent = 8;
     int components = 3;          ///< 1=gray, 3=RGB, 4=CMYK
-    QRectF boundingBox;          ///< Un-rotated, axis-aligned local rect (size =
-                                 ///< displayWidth x displayHeight) centred on the
-                                 ///< image's page-space centre, in FITZ DEVICE SPACE:
-                                 ///< Y-down, origin at the page's TOP-left,
-                                 ///< MediaBox-origin-aware (GitHub #373). This is the
-                                 ///< same space as mouse input (screenToPdf), the
-                                 ///< ImageTool overlay painter and the canvas pdf-coord
-                                 ///< test seams. When rotationRadians is non-zero this
-                                 ///< rect is NOT the on-page extent; rotate it about its
-                                 ///< centre by MINUS rotationRadians (math convention in
-                                 ///< this Y-down frame) to get the oriented placement
-                                 ///< (GitHub #342/#376).
-    float rotationRadians = 0.0f;///< Rotation of the image placement on the page,
-                                 ///< atan2(ctm.b, ctm.a). CCW-positive in PDF USER space
-                                 ///< (Y-up) — i.e. positive = visually counter-clockwise.
-                                 ///< In the Y-down fitz frame boundingBox lives in, the
-                                 ///< placement corresponds to a math rotation of
-                                 ///< -rotationRadians (GitHub #342/#373/#376). 0 for an
-                                 ///< axis-aligned placement.
-    float displayWidth = 0;      ///< Rendered width in points
-    float displayHeight = 0;     ///< Rendered height in points
+    QRectF boundingBox;          ///< The VISIBLE region of the placement as an
+                                 ///< un-rotated, axis-aligned rect in the image's own
+                                 ///< upright frame, centred on the visible centre, in
+                                 ///< FITZ DEVICE SPACE of the RENDERED page: Y-down,
+                                 ///< origin at the rendered page's TOP-left, page
+                                 ///< /Rotate and box origin applied (GitHub #373/#426).
+                                 ///< This is the same space as mouse input
+                                 ///< (screenToPdf), the ImageTool overlay painter and
+                                 ///< the canvas pdf-coord test seams. For a cropped
+                                 ///< placement it is the crop, not the whole image
+                                 ///< (GitHub #420); its size is visibleWidth() x
+                                 ///< visibleHeight(). When rotationRadians is non-zero
+                                 ///< this rect is NOT the on-page extent; rotate it
+                                 ///< about its centre by MINUS rotationRadians (math
+                                 ///< convention in this Y-down frame) to get the
+                                 ///< oriented region (GitHub #342/#376).
+    QRectF placementBox;         ///< The FULL (uncropped) placement, same frame and
+                                 ///< convention as boundingBox (size = displayWidth x
+                                 ///< displayHeight, centred on the image's centre).
+                                 ///< Equal to boundingBox when not cropped.
+    float rotationRadians = 0.0f;///< Rotation of the placement, CCW-positive in the
+                                 ///< Y-up RENDERED page frame (positive = visually
+                                 ///< counter-clockwise; on an unrotated page this is
+                                 ///< PDF user space). In the Y-down fitz frame
+                                 ///< boundingBox lives in, the placement corresponds
+                                 ///< to a math rotation of -rotationRadians (GitHub
+                                 ///< #342/#373/#376). A flip is NOT a rotation: a
+                                 ///< mirrored placement reports flippedX or flippedY
+                                 ///< plus the rotation that remains (GitHub #424); see
+                                 ///< placement::decompose in ImagePlacement.h.
+    bool flippedX = false;       ///< Mirrored left-right in its own frame (det < 0).
+    bool flippedY = false;       ///< Mirrored top-bottom in its own frame (det < 0).
+                                 ///< At most one is set: the pair with the smaller
+                                 ///< |rotationRadians| is reported.
+    float skewRadians = 0.0f;    ///< Angle between the image's own axes minus 90
+                                 ///< degrees; 0 for a rectangular placement. Every
+                                 ///< edit keeps it (the editor works from the full
+                                 ///< matrix); it is reported, never rebuilt from.
+    int occurrence = 0;          ///< Placement identity, together with xobjectName:
+                                 ///< the n-th `Do` of this name in the page content,
+                                 ///< in content order (GitHub #421). It counts the
+                                 ///< page's OWN Do's only; a placement inside a Form
+                                 ///< XObject reports -1, so it can never alias a page
+                                 ///< placement of the same name.
+    bool inFormXObject = false;  ///< Drawn inside a Form XObject (GitHub #427):
+                                 ///< enumerated and selectable, NOT editable (the
+                                 ///< form may be shared with other pages).
+    bool cropped = false;        ///< A PDFE crop is in force (see crop).
+    std::array<float, 4> crop{0.0f, 0.0f, 1.0f, 1.0f};
+                                 ///< Crop in the image's unit square [u0 v0 u1 v1]
+                                 ///< (v = 0 is the image's bottom row as drawn); the
+                                 ///< full square when not cropped.
+    std::array<float, 6> pageCtm{};
+                                 ///< The placement matrix: unit square -> RENDERED
+                                 ///< fitz page frame (Y-down), row-vector [a b c d e f].
+    float displayWidth = 0;      ///< FULL (uncropped) placement width in points: the
+                                 ///< length of the image's own x axis.
+    float displayHeight = 0;     ///< FULL (uncropped) placement height in points.
     int xDpi = 0, yDpi = 0;
     bool isJpeg = false;         ///< DCTDecode filter
     bool isJpx = false;          ///< JPXDecode (JPEG2000) filter — gated OFF by default (#50)
     bool isJbig2 = false;        ///< JBIG2Decode filter — gated OFF by default (SEC-56 / #56)
     bool isMask = false;
-    std::array<float, 6> ctm{};  ///< Current transformation matrix [a,b,c,d,e,f]
+    std::array<float, 6> ctm{};  ///< Effective CTM at the Do in PDF USER space (Y-up;
+                                 ///< an enclosing Form XObject's matrix composed in),
+                                 ///< [a,b,c,d,e,f]
 
     /// Check if this info represents a valid image.
     [[nodiscard]] bool isValid() const {
@@ -53,6 +92,10 @@ struct PageImageInfo {
     [[nodiscard]] int64_t pixelArea() const {
         return static_cast<int64_t>(pixelWidth) * pixelHeight;
     }
+
+    /// Visible (cropped) width / height in points: the size of boundingBox.
+    [[nodiscard]] float visibleWidth() const { return static_cast<float>(boundingBox.width()); }
+    [[nodiscard]] float visibleHeight() const { return static_cast<float>(boundingBox.height()); }
 
     /// Get display area in square points.
     [[nodiscard]] float displayArea() const {
@@ -69,9 +112,15 @@ struct PageImageInfo {
         }
     }
 
-    /// Get a descriptive compression string.
+    /// Get a descriptive compression string: the image's filter, read from
+    /// the stream. JPX and JBIG2 are named for what they are (JBIG2 may be
+    /// lossy, JPX usually is); only an image with none of these lossy-capable
+    /// filters is "Lossless" (GitHub #425).
     [[nodiscard]] std::string compressionString() const {
-        return isJpeg ? "JPEG" : "Lossless";
+        if (isJpeg) return "JPEG";
+        if (isJpx) return "JPEG 2000";
+        if (isJbig2) return "JBIG2";
+        return "Lossless";
     }
 };
 
@@ -104,7 +153,11 @@ struct InsertImageOptions {
                                  ///< y is the distance of the image's visual
                                  ///< top edge from the page top (GitHub #373)
     int jpegQuality = 85;        ///< JPEG compression quality (0-100)
-    bool stripExif = true;       ///< Strip metadata on insert
+    bool stripExif = true;       ///< Kept for source compatibility; insertImage
+                                 ///< ignores it. Insert always re-encodes from
+                                 ///< fresh pixels, so no EXIF/APP1, comment or
+                                 ///< /Metadata ever reaches the PDF, whatever
+                                 ///< this says (docs/image-placement-model.md).
     bool maintainAspectRatio = true;
 };
 

@@ -1247,8 +1247,17 @@ void TextEditTool::onMousePress(QMouseEvent* event, int pageIndex, QPointF pdfPo
     int spanIndex = model_->spanAtPoint(pdfPoint);
 
     if (spanIndex < 0) {
-        // Clicked outside any text -- commit current edit if active
-        if (isEditing()) {
+        // Clicked outside any existing text span. Bug 9: a plain left-click on
+        // empty page space (blank line, margin, whitespace) must START a new
+        // text run there, not merely commit and bail — that early return was
+        // the whole defect (text could only ever be edited where a glyph run
+        // already existed). A left-click is a deliberate text action for this
+        // tool (PdfCanvas only routes a click here when Edit Text is active and
+        // the location has no live span), so it is never a viewport gesture.
+        // beginTextInsertionAt commits any in-flight edit itself.
+        if (event && event->button() == Qt::LeftButton) {
+            beginTextInsertionAt(pdfPoint);
+        } else if (isEditing()) {
             commitEdit();
         }
         return;
@@ -2107,6 +2116,40 @@ void TextEditTool::cancelEdit()
     preeditCursor_ = 0;
     lastCaretScreenRectValid_ = false;
     emit editingStateChanged(false);
+}
+
+int TextEditTool::beginTextInsertionAt(QPointF pdfPoint)
+{
+    if (!model_)
+        return -1;
+
+    // Commit whatever was being edited before starting a fresh run, matching
+    // the span-switch behaviour of a normal click onto a different span.
+    if (isEditing())
+        commitEdit();
+
+    // Base-14 Helvetica at a readable body size. FontFamilyResolver maps
+    // "Helvetica" to the platform sans (Arial on Windows) when the new run is
+    // written to the content stream (InsertTextRunCommand); the model only
+    // needs a stable name/size for overlay metrics and the commit payload.
+    const float sizePt = kDefaultInsertionFontSizePt;
+    const std::string fontName = "Helvetica";
+
+    // bbox is in PDF/fitz space (Y-down): top at the click point, a line's
+    // worth of height, and a generous width so the caret/overlay and the
+    // later hit-test have a non-degenerate region. writeTextBlock places the
+    // run's baseline relative to bbox top (fitz y0), so the typed text lands
+    // at the click.
+    QRectF bbox(pdfPoint.x(), pdfPoint.y(),
+                static_cast<double>(sizePt) * 20.0,
+                static_cast<double>(sizePt) * 1.25);
+
+    int idx = model_->addEmptySpan(bbox, fontName, sizePt);
+    selectSpan(idx);
+    cursorPosition_ = 0;
+    selectionStart_ = -1;
+    selectionEnd_ = -1;
+    return idx;
 }
 
 void TextEditTool::selectSpan(int spanIndex)

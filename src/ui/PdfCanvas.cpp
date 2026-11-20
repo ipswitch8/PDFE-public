@@ -587,11 +587,16 @@ void PdfCanvas::setTextEditTool(std::unique_ptr<pdfe::textedit::TextEditTool> to
 
 void PdfCanvas::clearTextEditTool()
 {
+    const bool released = static_cast<bool>(textEditTool_);
     if (textEditTool_) {
         textEditTool_->deactivate();
         textEditTool_.reset();
     }
     updateInputMethodEnabled();
+    // GitHub #460: after the reset, so a receiver never sees the dying tool.
+    if (released) {
+        emit textEditToolReleased();
+    }
 }
 
 void PdfCanvas::setImageTool(pdfe::image::ImageTool* tool)
@@ -1256,7 +1261,7 @@ void PdfCanvas::mousePressEvent(QMouseEvent* event)
                 return;
             }
 
-            // Defect #4: per-region routing. On a mixed-content page the text
+            // Defect-4: per-region routing. On a mixed-content page the text
             // tool is the page default (the page has SOME live text), but a
             // left-click that lands on a scanned image block — with no live
             // text span under it — belongs to the region/TRE tool, not the

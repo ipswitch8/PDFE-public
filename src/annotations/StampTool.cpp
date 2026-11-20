@@ -131,6 +131,18 @@ void StampTool::onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pdfPoi
     }
 }
 
+bool StampTool::cancelInProgress()
+{
+    // Bug 6: Esc mid-drag aborts the stamp placement. Clearing isDrawing_ makes
+    // the pending onMouseRelease an early-out, so no stamp is created.
+    if (!isDrawing_) {
+        return false;
+    }
+    isDrawing_ = false;
+    currentPageIndex_ = -1;
+    return true;
+}
+
 void StampTool::onPaintOverlay(QPainter& painter, int pageIndex,
                                 float zoom, QPointF pageOrigin, float pageHeightPt)
 {

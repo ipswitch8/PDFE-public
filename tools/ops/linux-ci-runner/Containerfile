@@ -1,0 +1,65 @@
+# Self-hosted GitHub Actions runner for ipswitch8/PDFE's Linux CI lane, as a
+# rootless podman container (see docs/ci-linux-runner.md).
+#
+# Why a container and not the runner straight on the build host: every job log
+# would then carry the host's home directory, i.e. the account name. The
+# fast-checks lane itself checks that recent run logs carry no scrubbed
+# identifier, and GitHub keeps those logs. In here the paths are /home/runner and
+# /runner, and the job cannot touch the host's files.
+#
+# It also gives the jobs what GitHub's hosted ubuntu image had and the lane
+# relies on: a Python that actions/setup-python has builds for (Ubuntu 24.04),
+# pwsh, gh, git, tesseract and cmake with a C++ compiler (the mutation-kill
+# floor tests drive a tiny CMake project). Every download is pinned and checked against the
+# SHA-256 its publisher lists.
+FROM docker.io/library/ubuntu:24.04
+
+ARG RUNNER_VERSION=2.338.2
+ARG RUNNER_SHA256=baebf204307bac6193480852732f0aba2ae97b6c5597c244f4d5558390147c40
+ARG PWSH_VERSION=7.7.0
+ARG PWSH_SHA256=c89d9c682d2c403dfe726f3df948e359675235a5bd6fab535776de69729ca0cb
+ARG GH_VERSION=2.104.0
+ARG GH_SHA256=98cb101ad87dbbd3f6b2f2bfcbd43197ccd07643140121d8a9cfaa91eadbc24e
+
+ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8 LC_ALL=C.UTF-8
+RUN apt-get update -qq \
+ && apt-get install -y -qq --no-install-recommends \
+      ca-certificates curl git git-lfs jq unzip zstd xz-utils file \
+      python3 python3-venv python3-pip \
+      tesseract-ocr tesseract-ocr-eng \
+      cmake ninja-build g++ make \
+      libicu74 libssl3 libkrb5-3 zlib1g liblttng-ust1t64 \
+ && rm -rf /var/lib/apt/lists/*
+
+# pwsh (the lane's pwsh-step guard derives PowerShell's automatic variables
+# from a real pwsh rather than a hand-written list)
+RUN curl -fsSL -o /tmp/pwsh.tgz \
+      "https://github.com/PowerShell/PowerShell/releases/download/v${PWSH_VERSION}/powershell-${PWSH_VERSION}-linux-x64.tar.gz" \
+ && echo "${PWSH_SHA256}  /tmp/pwsh.tgz" | sha256sum -c - \
+ && mkdir -p /opt/microsoft/powershell/7 \
+ && tar -xzf /tmp/pwsh.tgz -C /opt/microsoft/powershell/7 \
+ && chmod +x /opt/microsoft/powershell/7/pwsh \
+ && ln -s /opt/microsoft/powershell/7/pwsh /usr/local/bin/pwsh \
+ && rm /tmp/pwsh.tgz && pwsh -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
+
+# gh (steps that read the repo's Actions logs and tracker through the API)
+RUN curl -fsSL -o /tmp/gh.tgz \
+      "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" \
+ && echo "${GH_SHA256}  /tmp/gh.tgz" | sha256sum -c - \
+ && tar -xzf /tmp/gh.tgz -C /tmp \
+ && install -m 0755 "/tmp/gh_${GH_VERSION}_linux_amd64/bin/gh" /usr/local/bin/gh \
+ && rm -rf /tmp/gh.tgz "/tmp/gh_${GH_VERSION}_linux_amd64" && gh --version | head -1
+
+# The runner itself, owned by an unprivileged user (the runner refuses root).
+RUN useradd -m -s /bin/bash runner \
+ && mkdir -p /runner && chown runner:runner /runner \
+ && curl -fsSL -o /tmp/runner.tgz \
+      "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz" \
+ && echo "${RUNNER_SHA256}  /tmp/runner.tgz" | sha256sum -c - \
+ && mkdir -p /opt/actions-runner && tar -xzf /tmp/runner.tgz -C /opt/actions-runner \
+ && rm /tmp/runner.tgz && chown -R runner:runner /opt/actions-runner
+
+COPY --chown=runner:runner entrypoint.sh /opt/actions-runner/entrypoint.sh
+USER runner
+WORKDIR /opt/actions-runner
+ENTRYPOINT ["/bin/bash", "/opt/actions-runner/entrypoint.sh"]

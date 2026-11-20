@@ -18,6 +18,9 @@ public:
     void onPaintOverlay(QPainter& painter, int pageIndex,
                         float zoom, QPointF pageOrigin, float pageHeightPt) override;
 
+    /// Esc-cancel an in-progress region rubber-band (bug 6). See AnnotationTool.
+    bool cancelInProgress() override;
+
     /// Callback fired when user finishes drawing a region (page index + PDF rect).
     std::function<void(int pageIndex, QRectF pdfRect)> regionSelected;
 

@@ -205,6 +205,23 @@ TEST_F(RgbaInsertReproTest, InsertSigThenRenderLargestPage) {
         std::fprintf(stderr, "[rgba] FLOW: saveAs threw: %s\n", e.what());
         std::fflush(stderr);
     }
+    // Readback oracle: a successful save must produce a re-openable PDF with the
+    // same page count, and the page that received the inserted signature must
+    // still render non-null -- i.e. the alpha image + its /SMask survived the
+    // flate-encode round-trip, not merely "saveAs did not crash". (A caught
+    // exception on the save path is tolerated: this repro's hard-crash oracle is
+    // process survival, which the catch proves; but a clean save that writes a
+    // corrupt/unreadable file would otherwise pass silently -- this closes it.)
+    if (!threw) {
+        auto reopened = Document::open(context_, out);
+        ASSERT_NE(reopened, nullptr) << "saved PDF did not re-open: " << out;
+        EXPECT_EQ(reopened->pageCount(), pages);
+        auto rpage = reopened->page(biggest);
+        ASSERT_NE(rpage, nullptr) << "largest page missing after insert+save";
+        QImage rimg = rpage->render(rpage->boundingBox(), 1.0f);
+        EXPECT_FALSE(rimg.isNull())
+            << "re-opened largest page rendered null after insert+save";
+    }
     std::error_code ec; fs::remove(out, ec);
     std::fprintf(stderr, "[rgba] FLOW: saveAs done (threw=%d)\n", threw ? 1 : 0);
     std::fflush(stderr);

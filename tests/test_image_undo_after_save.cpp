@@ -57,6 +57,7 @@
 #include <QRectF>
 
 #include <array>
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <memory>
@@ -273,6 +274,13 @@ TEST_P(ImageUndoAfterSaveTest, UndoRedoCycleSurvivesSaveWithCorrectState) {
 
     // Observable state right after execute (pagePtr still valid — pre-save).
     std::array<float, 6> executedCtm{};
+    std::array<float, 4> executedCrop{0.0f, 0.0f, 1.0f, 1.0f};
+    const std::array<float, 4> kFullCrop{0.0f, 0.0f, 1.0f, 1.0f};
+    auto cropMaxDelta = [](const std::array<float, 4>& a, const std::array<float, 4>& b) {
+        float m = 0.0f;
+        for (int i = 0; i < 4; ++i) m = std::max(m, std::abs(a[i] - b[i]));
+        return m;
+    };
     int countAfterExecute = 0;
     {
         auto imgs = manager_->enumerateImages(pagePtr, doc.get());
@@ -286,8 +294,20 @@ TEST_P(ImageUndoAfterSaveTest, UndoRedoCycleSurvivesSaveWithCorrectState) {
             auto t = findByName(imgs, targetName);
             ASSERT_TRUE(t.has_value()) << "target image must survive the transform";
             executedCtm = t->ctm;
-            EXPECT_GT(ctmMaxDelta(executedCtm, originalCtm), 1.0f)
-                << "transform must visibly change the placement CTM";
+            executedCrop = t->crop;
+            if (p.op == ImgOp::Crop) {
+                // docs/image-placement-model.md (image-placement-state phase
+                // 2): a crop changes the placement's unit-square crop and keeps
+                // its CTM (the old crop rebuilt the CTM - GitHub #417). The
+                // observable state of a crop is therefore the crop.
+                EXPECT_GT(cropMaxDelta(executedCrop, kFullCrop), 0.1f)
+                    << "crop must visibly change the placement's crop";
+                EXPECT_LT(ctmMaxDelta(executedCtm, originalCtm), 0.5f)
+                    << "crop must keep the placement CTM (GitHub #417)";
+            } else {
+                EXPECT_GT(ctmMaxDelta(executedCtm, originalCtm), 1.0f)
+                    << "transform must visibly change the placement CTM";
+            }
         }
     }
 
@@ -314,6 +334,8 @@ TEST_P(ImageUndoAfterSaveTest, UndoRedoCycleSurvivesSaveWithCorrectState) {
             ASSERT_TRUE(t.has_value()) << "target must be back after undo";
             EXPECT_LT(ctmMaxDelta(t->ctm, originalCtm), 0.5f)
                 << "undo must restore the original placement CTM";
+            EXPECT_LT(cropMaxDelta(t->crop, kFullCrop), 1e-4f)
+                << "undo must restore the original (uncropped) placement";
         }
     }
 
@@ -331,6 +353,8 @@ TEST_P(ImageUndoAfterSaveTest, UndoRedoCycleSurvivesSaveWithCorrectState) {
             ASSERT_TRUE(t.has_value()) << "target must be present after redo";
             EXPECT_LT(ctmMaxDelta(t->ctm, executedCtm), 0.5f)
                 << "redo must reproduce the executed placement CTM";
+            EXPECT_LT(cropMaxDelta(t->crop, executedCrop), 1e-4f)
+                << "redo must reproduce the executed crop";
         }
     }
 

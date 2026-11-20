@@ -41,6 +41,7 @@ target_include_directories(pdfe_tre PUBLIC
 target_link_libraries(pdfe_tre PUBLIC
     pdfe_core
     pdfe_fonts
+    pdfe_image
     pdfe_annotations
     Tesseract::libtesseract
     pugixml::pugixml

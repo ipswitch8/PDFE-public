@@ -10,6 +10,9 @@
 #include <QListWidget>
 #include <QStackedWidget>
 #include <QLabel>
+#include <QSpinBox>
+#include <QTest>
+#include <QWidget>
 
 using namespace pdfe::forms;
 using namespace pdfe::ui;
@@ -332,4 +335,117 @@ TEST_F(FormFieldPropertiesPanelTest, CurrentTextValueReturnsEmptyForOtherStacks)
 
     // Act + Assert: currentTextValue() returns empty for non-text stacks.
     EXPECT_EQ(panel->currentTextValue(), QString(""));
+}
+
+// ---------------------------------------------------------------------------
+// form-field-bugs phase-5 (bug 3): font controls. The panel now carries a font
+// family / size / colour group for /DA-bearing fields, and emits a font change
+// when the user changes it. Before, the panel had no font UI at all, so a form
+// field's font could never be changed from the properties panel.
+//
+// Pipeline form-reconcile: one font UI. The group is GitHub #460's
+// ("formFieldFontGroup": a base-14 family combo "formFieldFontCombo", an
+// integer size spin box "formFieldFontSizeSpin" with Auto at 0, a colour
+// button), it emits fieldFontChangeRequested once per COMMITTED change (a size
+// on editingFinished, not per step), and it is populated from the /DA values
+// FormManager parses (daFontName, daFontSize, daColor). Bold/italic are not
+// offered: MuPDF 1.26.10 renders the variant keys as the regular face (see
+// FormCreationTest.Base14FontNameMapping).
+// ---------------------------------------------------------------------------
+
+TEST_F(FormFieldPropertiesPanelTest, FontRowVisibleForTextFieldAndReflectsDa) {
+    FormFieldData data;
+    data.type = FormFieldType::Text;
+    data.fieldName = "f";
+    // The /DA "/TiRo 18 Tf 0 g", as FormManager parses it.
+    data.daFontName = "TiRo";
+    data.daFontSize = 18.0f;
+    panel->setFormField(data);
+
+    auto* fontRow = panel->findChild<QWidget*>("formFieldFontGroup");
+    ASSERT_NE(fontRow, nullptr);
+    EXPECT_TRUE(fontRow->isVisibleTo(panel.get()));
+
+    // The size spin must reflect the size parsed out of the /DA.
+    auto* sizeSpin = panel->findChild<QSpinBox*>("formFieldFontSizeSpin");
+    ASSERT_NE(sizeSpin, nullptr);
+    EXPECT_EQ(sizeSpin->value(), 18);
+
+    // And the family combo the font parsed out of the /DA.
+    auto* fontCombo = panel->findChild<QComboBox*>("formFieldFontCombo");
+    ASSERT_NE(fontCombo, nullptr);
+    EXPECT_EQ(fontCombo->currentData().toString(), QString("TiRo"));
+}
+
+TEST_F(FormFieldPropertiesPanelTest, FontRowHiddenForCheckbox) {
+    FormFieldData data;
+    data.type = FormFieldType::Checkbox;
+    data.fieldName = "c";
+    panel->setFormField(data);
+
+    auto* fontRow = panel->findChild<QWidget*>("formFieldFontGroup");
+    ASSERT_NE(fontRow, nullptr);
+    EXPECT_FALSE(fontRow->isVisibleTo(panel.get()))
+        << "a checkbox has no /DA, so the font row must be hidden";
+}
+
+TEST_F(FormFieldPropertiesPanelTest, FontSizeChangeEmitsFieldFontChanged) {
+    FormFieldData data;
+    data.type = FormFieldType::Text;
+    data.fieldName = "f";
+    data.widgetIndex = 0;  // a request names the widget it is for
+    data.daFontName = "Helv";
+    data.daFontSize = 12.0f;
+    panel->setFormField(data);
+
+    int count = 0;
+    float gotSize = -1.0f;
+    std::string gotFamily;
+    FormFieldFontRequest::Property gotChanged = FormFieldFontRequest::Property::Family;
+    QObject::connect(panel.get(), &FormFieldPropertiesPanel::fieldFontChangeRequested,
+        [&](const FormFieldData&, FormFieldFontRequest r) {
+            ++count;
+            gotFamily = r.font;
+            gotSize = r.size;
+            gotChanged = r.changed;
+        });
+
+    auto* sizeSpin = panel->findChild<QSpinBox*>("formFieldFontSizeSpin");
+    ASSERT_NE(sizeSpin, nullptr);
+    sizeSpin->setValue(28);
+    // The user commits the size (Enter); the request is issued on commit.
+    QTest::keyClick(sizeSpin, Qt::Key_Return);
+
+    EXPECT_GE(count, 1) << "changing the size must emit fieldFontChangeRequested";
+    EXPECT_EQ(gotChanged, FormFieldFontRequest::Property::Size);
+    EXPECT_FLOAT_EQ(gotSize, 28.0f);
+    EXPECT_FALSE(gotFamily.empty());
+    // A size change keeps the field's own regular face (no style flip).
+    EXPECT_EQ(gotFamily, "Helv");
+}
+
+TEST_F(FormFieldPropertiesPanelTest, ReadOnlyTextFieldFontControlsDisabled) {
+    FormFieldData data;
+    data.type = FormFieldType::Text;
+    data.fieldName = "ro";
+    data.widgetIndex = 0;
+    data.isReadOnly = true;
+    data.daFontName = "Helv";
+    data.daFontSize = 12.0f;
+    panel->setFormField(data);
+
+    auto* sizeSpin = panel->findChild<QSpinBox*>("formFieldFontSizeSpin");
+    ASSERT_NE(sizeSpin, nullptr);
+    EXPECT_FALSE(sizeSpin->isEnabled());
+
+    auto* fontCombo = panel->findChild<QComboBox*>("formFieldFontCombo");
+    ASSERT_NE(fontCombo, nullptr);
+    EXPECT_FALSE(fontCombo->isEnabled());
+
+    // And no signal should fire from a programmatic repopulation.
+    int count = 0;
+    QObject::connect(panel.get(), &FormFieldPropertiesPanel::fieldFontChangeRequested,
+        [&](const FormFieldData&, FormFieldFontRequest) { ++count; });
+    panel->setFormField(data);
+    EXPECT_EQ(count, 0) << "setFormField must not emit fieldFontChangeRequested";
 }

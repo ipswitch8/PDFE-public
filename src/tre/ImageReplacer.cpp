@@ -16,10 +16,12 @@
 #include "core/Document.h"
 
 #include "tre/TreTypes.h"
+#include "tre/WriteBackGuard.h"
 
 #include <QDebug>
 #include <QDir>
 #include <QPainter>
+#include <QTransform>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -95,6 +97,95 @@ RegionTextData scaleRegionData(RegionTextData data, double scale) {
         scaleHocrLine(line, scale);
     }
     return data;
+}
+
+/// Upright and unflipped in the rendered frame: the image's rows run left to
+/// right and its top row is at the top (GitHub #444).
+bool isUprightUnflippedPlacement(const PageImageInfo& info) {
+    const auto& m = info.pageCtm;
+    const double scale = std::max({std::abs(m[0]), std::abs(m[3]), 1e-9});
+    return m[0] > 0.0 && m[3] < 0.0 &&
+           std::abs(m[1]) <= 1e-6 * scale && std::abs(m[2]) <= 1e-6 * scale;
+}
+
+// Write-back size guard: tre/WriteBackGuard.h (security-audit follow-up,
+// phase 6). An edit that fails it is refused with this message.
+using writeback::intSafe;
+using writeback::transformIsFinite;
+constexpr const char* kWriteBackSizeRefused =
+    "The edited region maps to an implausible size in the target image (its placement "
+    "scale is too small or not finite); it is not edited";
+
+/// Paint `composited`'s `src` rect into a copy of `orig` through `toPixels`
+/// (composited pixel -> the image's own pixel grid), for a placement that is
+/// rotated, mirrored or skewed (GitHub #444).
+///
+/// A right-angle turn or a mirror is applied EXACTLY (a pixel remap), then the
+/// region is resized with the same Lanczos/bilinear choice the upright path
+/// uses, so the write-back keeps its sharpness. Any other angle, or a skew,
+/// is drawn through the matrix with smooth sampling.
+QImage writeRegionThroughMatrix(const QImage& orig, const QImage& composited,
+                                const QRect& src, const QTransform& toPixels,
+                                bool* refused) {
+    if (!transformIsFinite(toPixels)) {
+        *refused = true;
+        return {};
+    }
+    const QImage region = composited.copy(src).convertToFormat(QImage::Format_RGB32);
+    const double m11 = toPixels.m11(), m12 = toPixels.m12();
+    const double m21 = toPixels.m21(), m22 = toPixels.m22();
+    const double big = std::max({std::abs(m11), std::abs(m12), std::abs(m21), std::abs(m22)});
+    const double eps = 1e-6 * big;
+    const bool axisAligned = std::abs(m12) <= eps && std::abs(m21) <= eps;
+    const bool quarterTurn = std::abs(m11) <= eps && std::abs(m22) <= eps;
+    QImage finalImage = orig.copy();  // deep copy to avoid modifying the cache
+
+    if (axisAligned || quarterTurn) {
+        const int W = region.width(), H = region.height();
+        QImage turned(quarterTurn ? H : W, quarterTurn ? W : H, QImage::Format_RGB32);
+        for (int dy = 0; dy < turned.height(); ++dy) {
+            auto* line = reinterpret_cast<QRgb*>(turned.scanLine(dy));
+            for (int dx = 0; dx < turned.width(); ++dx) {
+                int sx = 0, sy = 0;
+                if (axisAligned) {
+                    sx = m11 > 0 ? dx : W - 1 - dx;
+                    sy = m22 > 0 ? dy : H - 1 - dy;
+                } else {
+                    // x' = m21 * y and y' = m12 * x: the source's rows become
+                    // the destination's columns.
+                    sy = m21 > 0 ? dx : H - 1 - dx;
+                    sx = m12 > 0 ? dy : W - 1 - dy;
+                }
+                line[dx] = reinterpret_cast<const QRgb*>(region.constScanLine(sy))[sx];
+            }
+        }
+        const QRectF dst = toPixels.mapRect(QRectF(src));
+        if (!intSafe(dst.left()) || !intSafe(dst.top()) || !intSafe(dst.right()) ||
+            !intSafe(dst.bottom())) {
+            *refused = true;
+            return {};
+        }
+        const int x0 = static_cast<int>(std::lround(dst.left()));
+        const int y0 = static_cast<int>(std::lround(dst.top()));
+        const int w = std::max(1, static_cast<int>(std::lround(dst.right())) - x0);
+        const int h = std::max(1, static_cast<int>(std::lround(dst.bottom())) - y0);
+        if (!writeback::sizeIsSane(w, h, orig.size())) {
+            *refused = true;
+            return {};
+        }
+        const QImage scaled = LanczosResize::resizeBest(turned, QSize(w, h));
+        QPainter painter(&finalImage);
+        painter.drawImage(x0, y0, scaled);
+        painter.end();
+        return finalImage;
+    }
+
+    QPainter painter(&finalImage);
+    painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    painter.setTransform(toPixels);
+    painter.drawImage(QPointF(src.topLeft()), region);
+    painter.end();
+    return finalImage;
 }
 
 } // anonymous namespace
@@ -213,13 +304,18 @@ public:
     /// old arithmetic.
     ///
     /// Returns a null QImage when nothing could be composed; the caller then
-    /// writes `compositedImage` unchanged, as before.
+    /// writes `compositedImage` unchanged, as before. Sets `*refused` (and
+    /// returns a null QImage) when the edit would scale to an implausible or
+    /// non-finite size in the target's pixel grid: the caller then refuses
+    /// the edit instead of writing anything.
     QImage buildWriteBackImage(pdfe::core::Page* page,
                                pdfe::core::Document* document,
                                int pageIndex,
                                const QImage& compositedImage,
                                const PixelRect& editBbox,
-                               const WriteTarget& target) {
+                               const WriteTarget& target,
+                               bool* refused) {
+        *refused = false;
         if (!target.resolved || compositedImage.isNull() ||
             compositedImage.width() <= 0 || compositedImage.height() <= 0) {
             return {};
@@ -238,6 +334,15 @@ public:
 
         const QRectF pageRect = page->boundingBox();
         QRectF placement = target.info.placementFitz;
+        if ((placement.isEmpty() || pageRect.isEmpty()) && target.info.hasPageCtm &&
+            !pageRect.isEmpty()) {
+            // The main-image fallback carries no placementFitz but does carry
+            // the matrix: use where the image really is (GitHub #444).
+            placement = QTransform(target.info.pageCtm[0], target.info.pageCtm[1],
+                                   target.info.pageCtm[2], target.info.pageCtm[3],
+                                   target.info.pageCtm[4], target.info.pageCtm[5])
+                            .mapRect(QRectF(0, 0, 1, 1));
+        }
         if (placement.isEmpty() || pageRect.isEmpty()) {
             placement = pageRect;  // placement unknown -> old page-spanning assumption
         }
@@ -253,6 +358,29 @@ public:
             pageRect.width() / static_cast<double>(compositedImage.width());
         const double ptPerPxY =
             pageRect.height() / static_cast<double>(compositedImage.height());
+
+        // GitHub #444. The offset-and-scale arithmetic below is right only for
+        // an upright, unflipped placement. A rotated, mirrored or skewed one is
+        // mapped through its full matrix instead: composited pixel -> rendered
+        // page point -> the image's own pixel grid.
+        if (target.info.hasPageCtm && !isUprightUnflippedPlacement(target.info)) {
+            QTransform renderedToPixels;
+            if (!PdfContentWriter::renderedFrameToImagePixels(target.info, &renderedToPixels)) {
+                return {};
+            }
+            const QTransform compositedToPixels =
+                QTransform::fromScale(ptPerPxX, ptPerPxY) *
+                QTransform::fromTranslate(pageRect.x(), pageRect.y()) * renderedToPixels;
+            QImage finalImage = writeRegionThroughMatrix(
+                origImage, compositedImage, ocrRect, compositedToPixels, refused);
+            if (*refused) return {};
+            qDebug() << "[ImageReplacer] Write-back through the placement matrix: target="
+                     << QString::fromStdString(target.info.xobjectName)
+                     << "original=" << origImage.width() << "x" << origImage.height()
+                     << "editRect=" << ocrRect << "-> dst"
+                     << compositedToPixels.mapRect(QRectF(ocrRect));
+            return finalImage;
+        }
         const double imgPxPerPtX =
             static_cast<double>(origImage.width()) / placement.width();
         const double imgPxPerPtY =
@@ -264,10 +392,25 @@ public:
         const double editPtW = ocrRect.width() * ptPerPxX;
         const double editPtH = ocrRect.height() * ptPerPxY;
 
-        const int hiResW = std::max(1, static_cast<int>(editPtW * imgPxPerPtX));
-        const int hiResH = std::max(1, static_cast<int>(editPtH * imgPxPerPtY));
-        const int hiResX = static_cast<int>((editPtX - placement.x()) * imgPxPerPtX);
-        const int hiResY = static_cast<int>((editPtY - placement.y()) * imgPxPerPtY);
+        // The same size guard as the matrix path: a tiny placement scale
+        // makes these enormous (or non-finite), and the int conversion of
+        // such a value is undefined.
+        const double hiResWd = editPtW * imgPxPerPtX;
+        const double hiResHd = editPtH * imgPxPerPtY;
+        const double hiResXd = (editPtX - placement.x()) * imgPxPerPtX;
+        const double hiResYd = (editPtY - placement.y()) * imgPxPerPtY;
+        if (!intSafe(hiResWd) || !intSafe(hiResHd) || !intSafe(hiResXd) || !intSafe(hiResYd)) {
+            *refused = true;
+            return {};
+        }
+        const int hiResW = std::max(1, static_cast<int>(hiResWd));
+        const int hiResH = std::max(1, static_cast<int>(hiResHd));
+        const int hiResX = static_cast<int>(hiResXd);
+        const int hiResY = static_cast<int>(hiResYd);
+        if (!writeback::sizeIsSane(hiResW, hiResH, origImage.size())) {
+            *refused = true;
+            return {};
+        }
 
         QImage editedRegion = compositedImage.copy(ocrRect);
         // C1: Lanczos-3 for >=1.5x upscales, bilinear below.
@@ -315,7 +458,10 @@ public:
         // fallback path. Same name => the write lands in the image on top and is
         // visible; a different name => something is drawn over the target.
         if (!top->xobjectName.empty() && !target.xobjectName.empty()) {
-            return top->xobjectName != target.xobjectName;
+            // A form's image and the page's image can share a name (each has
+            // its own resource dict), so the form flag is part of the identity.
+            return top->xobjectName != target.xobjectName ||
+                   top->inFormXObject != target.inFormXObject;
         }
 
         // Fallback identity when a name is unavailable: dimensions AND placement.
@@ -701,7 +847,7 @@ ReconstructionResult ImageReplacer::replace(
         // are in ocrDpi space; everything below operates in workingDpi
         // space, rendered to match the source image's native DPI.
         int ocrDpi = pImpl_->ocrPipeline_->config().ocrDpi;
-        // Defect #2: use the native DPI of the image actually under the edited
+        // Defect-2: use the native DPI of the image actually under the edited
         // region, not the page maximum. A 150-DPI region is no longer rendered
         // at the page's 300-DPI photo resolution and upscaled.
         const QRectF selRectFitz(selectionPdf.x0, selectionPdf.y0,
@@ -1108,9 +1254,23 @@ ReconstructionResult ImageReplacer::replace(
             result.errorMessage = "No image XObject found for the edited region";
             return result;
         }
+        if (target.info.inFormXObject) {
+            // The placement model's phase-2 rule: an image drawn inside a Form
+            // XObject is not edited (the form may be drawn elsewhere).
+            result.errorMessage =
+                "The image under the edited region is inside a Form XObject, which may be "
+                "shared; it is not edited";
+            return result;
+        }
 
+        bool sizeRefused = false;
         QImage finalImage = pImpl_->buildWriteBackImage(
-            page, document, pageIndex, compositedImage, renderBbox, target);
+            page, document, pageIndex, compositedImage, renderBbox, target, &sizeRefused);
+        if (sizeRefused) {
+            result.errorMessage = kWriteBackSizeRefused;
+            qWarning("ImageReplacer: %s", result.errorMessage.c_str());
+            return result;  // success stays false; nothing was written
+        }
         if (finalImage.isNull()) {
             finalImage = compositedImage;  // nothing composable -> historical path
         }
@@ -1201,7 +1361,7 @@ ReconstructionResult ImageReplacer::replaceWithFontMatch(
         // A3: compute working DPI before rendering so the page image
         // matches the source image's native DPI.
         int ocrDpi = pImpl_->ocrPipeline_->config().ocrDpi;
-        // Defect #2: per-region native DPI (see replace() above).
+        // Defect-2: per-region native DPI (see replace() above).
         const QRectF selRectFitz(selectionPdf.x0, selectionPdf.y0,
                                  selectionPdf.x1 - selectionPdf.x0,
                                  selectionPdf.y1 - selectionPdf.y0);
@@ -1305,9 +1465,23 @@ ReconstructionResult ImageReplacer::replaceWithFontMatch(
             result.errorMessage = "No image XObject found for the edited region";
             return result;
         }
+        if (target.info.inFormXObject) {
+            // The placement model's phase-2 rule: an image drawn inside a Form
+            // XObject is not edited (the form may be drawn elsewhere).
+            result.errorMessage =
+                "The image under the edited region is inside a Form XObject, which may be "
+                "shared; it is not edited";
+            return result;
+        }
 
+        bool sizeRefused = false;
         QImage finalImage = pImpl_->buildWriteBackImage(
-            page, document, pageIndex, compositedImage, compositeBbox, target);
+            page, document, pageIndex, compositedImage, compositeBbox, target, &sizeRefused);
+        if (sizeRefused) {
+            result.errorMessage = kWriteBackSizeRefused;
+            qWarning("ImageReplacer: %s", result.errorMessage.c_str());
+            return result;  // success stays false; nothing was written
+        }
         if (finalImage.isNull()) {
             finalImage = compositedImage;  // nothing composable -> historical path
         }

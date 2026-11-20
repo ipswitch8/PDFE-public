@@ -50,6 +50,18 @@ void CropTool::onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pdfPoin
     }
 }
 
+bool CropTool::cancelInProgress()
+{
+    // Bug 6: Esc mid-drag aborts the crop rubber-band. Clearing dragging_ makes
+    // the pending onMouseRelease an early-out, so the cropApplied callback never
+    // fires and the page crop box is left unchanged.
+    if (!dragging_) {
+        return false;
+    }
+    dragging_ = false;
+    return true;
+}
+
 void CropTool::onPaintOverlay(QPainter& painter, int pageIndex,
                               float zoom, QPointF pageOrigin,
                               float pageHeightPt)

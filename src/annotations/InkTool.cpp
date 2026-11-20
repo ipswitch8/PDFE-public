@@ -115,6 +115,21 @@ void InkTool::onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pdfPoint
     // Do NOT access any member here -- `this` may already be destroyed.
 }
 
+bool InkTool::cancelInProgress()
+{
+    // Bug 6: Esc mid-stroke aborts the drawing. Drop the in-flight stroke AND
+    // any strokes accumulated this gesture, so the pending onMouseRelease
+    // (guarded on isDrawing_) creates nothing and no partial ink is committed.
+    if (!isDrawing_) {
+        return false;
+    }
+    isDrawing_ = false;
+    currentStroke_.clear();
+    allStrokes_.clear();
+    currentPageIndex_ = -1;
+    return true;
+}
+
 void InkTool::onPaintOverlay(QPainter& painter, int pageIndex,
                               float zoom, QPointF pageOrigin, float pageHeightPt)
 {

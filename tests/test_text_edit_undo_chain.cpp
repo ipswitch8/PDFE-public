@@ -666,12 +666,19 @@ TEST_F(TextEditUndoChainTest, ImageXObjectRefSurvivesSaveAndRestore) {
         << "saveImageXObjectRef returned null on a fixture that has an "
            "image XObject — the UNDO-11 lossless-undo anchor is broken.";
 
+    // Image-placement-state phase 6 (GitHub #447): the two-argument form now
+    // takes a picture of the WHOLE page and writes only the part under the
+    // image into the image's own pixel grid, so it no longer changes the
+    // image's dimensions on this fixture (its image does not cover the page).
+    // The targeted form below writes the replacement as the image itself,
+    // which is the dimension-changing mutation these tests need.
     // Mutate the page image via the production mutator that
     // refreshImageForScannedPage uses (replacePageImage). A small
     // deliberately-different image guarantees the dimensions change.
     QImage replacement(64, 48, QImage::Format_RGB888);
     replacement.fill(qRgb(0, 0, 0));
-    ASSERT_TRUE(writer.replacePageImage(page.get(), imgDoc.get(), replacement))
+    ASSERT_TRUE(writer.replacePageImage(page.get(), imgDoc.get(), replacement,
+                                        *writer.findPageImageXObject(page.get(), imgDoc.get())))
         << "replacePageImage failed — cannot simulate the production "
            "mutation that UNDO-11 reverses.";
 
@@ -752,6 +759,12 @@ TEST_F(TextEditUndoChainTest, ImageEditStackLosslessUndoChain) {
     void* savedRef0 = writer.saveImageXObjectRef(page.get(), imgDoc.get());
     ASSERT_NE(savedRef0, nullptr);
 
+    // Image-placement-state phase 6 (GitHub #447): the two-argument form now
+    // takes a picture of the WHOLE page and writes only the part under the
+    // image into the image's own pixel grid, so it no longer changes the
+    // image's dimensions on this fixture (its image does not cover the page).
+    // The targeted form below writes the replacement as the image itself,
+    // which is the dimension-changing mutation these tests need.
     // Edit #1: replace the image. After this the page holds the
     // first replacement; savedRef0 still points at the original.
     // NB: replacePageImage auto-rescales to match the current XObject
@@ -760,7 +773,8 @@ TEST_F(TextEditUndoChainTest, ImageEditStackLosslessUndoChain) {
     // each replacement is well under half the previous size.
     QImage replacement1(100, 80, QImage::Format_RGB888);
     replacement1.fill(qRgb(255, 0, 0));
-    ASSERT_TRUE(writer.replacePageImage(page.get(), imgDoc.get(), replacement1));
+    ASSERT_TRUE(writer.replacePageImage(page.get(), imgDoc.get(), replacement1,
+                                        *writer.findPageImageXObject(page.get(), imgDoc.get())));
 
     auto mid1Info = writer.findPageImageXObject(page.get(), imgDoc.get());
     ASSERT_TRUE(mid1Info.has_value());
@@ -783,7 +797,8 @@ TEST_F(TextEditUndoChainTest, ImageEditStackLosslessUndoChain) {
     // upscale this back to the previous dims.
     QImage replacement2(40, 30, QImage::Format_RGB888);
     replacement2.fill(qRgb(0, 255, 0));
-    ASSERT_TRUE(writer.replacePageImage(page.get(), imgDoc.get(), replacement2));
+    ASSERT_TRUE(writer.replacePageImage(page.get(), imgDoc.get(), replacement2,
+                                        *writer.findPageImageXObject(page.get(), imgDoc.get())));
 
     auto mid2Info = writer.findPageImageXObject(page.get(), imgDoc.get());
     ASSERT_TRUE(mid2Info.has_value());

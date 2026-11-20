@@ -15,6 +15,10 @@ add_library(pdfe_ui STATIC
     AnnotationPropertiesWidget.cpp
     FormFieldPropertiesPanel.cpp
     TextEditToolBar.cpp
+    # form-field-bugs phase-10 (bug 7): wrapping toolbar primitives.
+    FlowLayout.cpp
+    FlowToolBar.cpp
+    WrappingToolBar.cpp
     RedactionPanel.cpp
     PasswordDialog.cpp
     EncryptionDialog.cpp

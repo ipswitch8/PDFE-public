@@ -44,6 +44,15 @@ public:
     virtual void redo() { execute(); }
 
     /**
+     * @brief True if the last execute() changed nothing because it failed.
+     *
+     * UndoManager does not push a failed command onto the undo stack (and
+     * does not clear the redo stack for it), so a refused edit never leaves a
+     * no-op undo entry. Default: never fails.
+     */
+    [[nodiscard]] virtual bool failed() const { return false; }
+
+    /**
      * @brief Get a human-readable description of this command.
      *
      * Used for displaying undo/redo menu items (e.g., "Undo Insert Text").

@@ -690,8 +690,13 @@ TEST(AdversarialAmbient, ImageCrop) {
             if (!doc) { c.probed = false; c.note = "open failed"; finishCell(c); continue; }
             auto page = doc->page(0);
             pdfe::image::ImageContentEditor ed(ctx);
+            // Im0 is drawn 120x120 at user (200,500): fitz Y-down (200,172).
+            // Keep its left half. (docs/image-placement-model.md: the crop
+            // rect is the region of the visible image to keep. This cell used
+            // to pass a rect that missed the image, which "worked" only
+            // because the old crop also re-placed the image at x/y/w/h.)
             if (!ed.cropImage(page.get(), doc.get(), "Im0",
-                              QRectF(200, 500, 60, 120), 60.0f, 120.0f, 200.0f, 500.0f)) {
+                              QRectF(200, 172, 60, 120), 120.0f, 120.0f, 200.0f, 172.0f)) {
                 c.injected_ok = false; c.note = "cropImage returned false"; finishCell(c); continue;
             }
             fs::path out = outPath("imgcrop_" + op);

@@ -11,6 +11,7 @@
 #include "core/UndoManager.h"
 #include <filesystem>
 #include <memory>
+#include <QColor>
 
 class FormCreationTest : public ::testing::Test {
 protected:
@@ -451,6 +452,237 @@ TEST_F(FormCreationTest, RadioButtonFieldIsCreatableAndReadsBackAsARadioButton) 
     const auto created = manager_->getFormField(page.get(), idx);
     EXPECT_EQ(created.type, pdfe::forms::FormFieldType::RadioButton)
         << "the created field did not read back as a RadioButton";
+}
+
+// ---------------------------------------------------------------------------
+// Bug 3 (form-field-bugs phase-5) — changing a form text field's font family /
+// size / style must actually rewrite the widget's /DA and regenerate its
+// appearance. Before the fix there was NO code path to do this: the properties
+// panel had no font controls and FormManager had no set-font method, so the /DA
+// stayed pinned at the hardcoded "/Helv 12 Tf 0 g" from creation forever.
+//
+// These drive the real FormManager path (not "a call was made") and read the
+// /DA back through the public API to prove the font/size landed, that the old
+// /DA is returned for undo, that the command stack round-trips, and that the
+// change survives a save→reopen.
+// ---------------------------------------------------------------------------
+TEST_F(FormCreationTest, SetFieldDefaultAppearance_RewritesFontAndSize) {
+    if (!document_) {
+        GTEST_SKIP() << "test_single.pdf not available";
+    }
+    auto page = document_->page(0);
+    ASSERT_NE(page, nullptr);
+
+    int idx = manager_->createFormField(
+        page.get(), pdfe::forms::FormFieldType::Text,
+        QRectF(100, 100, 200, 30), "fontField");
+    ASSERT_NE(idx, -1);
+
+    // The field starts with the hardcoded creation /DA.
+    const std::string da0 = manager_->getFieldDefaultAppearance(page.get(), idx);
+    EXPECT_NE(da0.find("/Helv"), std::string::npos)
+        << "created text field should carry the default Helv /DA, got: " << da0;
+    EXPECT_NE(da0.find("12 Tf"), std::string::npos) << da0;
+
+    // The PREVIOUS /DA must be recoverable for undo. Pipeline form-reconcile:
+    // the one setter returns bool (accepted / rejected), and the undo snapshot
+    // master's string return value carried is getFieldOwnDefaultAppearance,
+    // which SetFieldAppearanceCommand takes before it calls the setter.
+    const auto old = manager_->getFieldOwnDefaultAppearance(page.get(), idx);
+    ASSERT_TRUE(old.has_value()) << "the undo snapshot must be readable";
+    EXPECT_TRUE(old->hasDa);
+    EXPECT_EQ(old->da, da0)
+        << "the old /DA must be recoverable, byte for byte, for undo";
+
+    // Change the font to Times 20pt.
+    EXPECT_TRUE(manager_->setFieldDefaultAppearance(
+        page.get(), idx, "TiRo", 20.0f, QColor(Qt::black)))
+        << "a base-14 font, a valid size and an opaque colour must be accepted";
+
+    // Read back through getFieldDefaultAppearance...
+    const std::string da1 = manager_->getFieldDefaultAppearance(page.get(), idx);
+    EXPECT_NE(da1.find("/TiRo"), std::string::npos)
+        << "font family not written into /DA, got: " << da1;
+    EXPECT_NE(da1.find("20 Tf"), std::string::npos)
+        << "font size not written into /DA, got: " << da1;
+
+    // ...and through the normal public FormFieldData read path.
+    const auto fd = manager_->getFormField(page.get(), idx);
+    EXPECT_TRUE(fd.defaultAppearanceStringCaptured);
+    EXPECT_EQ(fd.defaultAppearanceString, da1)
+        << "FormFieldData.defaultAppearanceString must reflect the live /DA";
+
+    // Putting the snapshot back restores the old /DA exactly (the undo path).
+    ASSERT_TRUE(manager_->restoreFieldOwnDefaultAppearance(page.get(), idx, *old));
+    EXPECT_EQ(manager_->getFieldDefaultAppearance(page.get(), idx), da0)
+        << "restoring the snapshot did not put the old /DA back";
+}
+
+TEST_F(FormCreationTest, SetFieldDefaultAppearance_WritesColorOperator) {
+    if (!document_) {
+        GTEST_SKIP() << "test_single.pdf not available";
+    }
+    auto page = document_->page(0);
+    ASSERT_NE(page, nullptr);
+
+    int idx = manager_->createFormField(
+        page.get(), pdfe::forms::FormFieldType::Text,
+        QRectF(100, 150, 200, 30), "colorFontField");
+    ASSERT_NE(idx, -1);
+
+    EXPECT_TRUE(manager_->setFieldDefaultAppearance(
+        page.get(), idx, "Cour", 14.0f, QColor(255, 0, 0)));
+    const std::string da = manager_->getFieldDefaultAppearance(page.get(), idx);
+
+    EXPECT_NE(da.find("/Cour"), std::string::npos) << da;
+    EXPECT_NE(da.find("14 Tf"), std::string::npos) << da;
+    // A non-black colour must use the 3-component rg operator, not "0 g".
+    EXPECT_NE(da.find("rg"), std::string::npos)
+        << "non-black colour should emit an rg operator, got: " << da;
+    EXPECT_NE(da.find("1 0 0"), std::string::npos) << da;
+}
+
+TEST_F(FormCreationTest, SetFieldFontCommand_ExecuteUndoRedo) {
+    if (!document_) {
+        GTEST_SKIP() << "test_single.pdf not available";
+    }
+    auto page = document_->page(0);
+    ASSERT_NE(page, nullptr);
+
+    int idx = manager_->createFormField(
+        page.get(), pdfe::forms::FormFieldType::Text,
+        QRectF(120, 200, 200, 30), "cmdFontField");
+    ASSERT_NE(idx, -1);
+
+    const std::string daBefore =
+        manager_->getFieldDefaultAppearance(page.get(), idx);
+
+    // Pipeline form-reconcile: the one /DA command is SetFieldAppearanceCommand.
+    auto cmd = std::make_unique<pdfe::forms::SetFieldAppearanceCommand>(
+        manager_.get(), page.get(), idx, "Cour", 18.0f, QColor(Qt::black));
+    undoManager_->execute(std::move(cmd));
+
+    const std::string daAfter =
+        manager_->getFieldDefaultAppearance(page.get(), idx);
+    EXPECT_NE(daAfter.find("/Cour"), std::string::npos) << daAfter;
+    EXPECT_NE(daAfter.find("18 Tf"), std::string::npos) << daAfter;
+
+    // Undo must restore the exact previous /DA byte-for-byte.
+    undoManager_->undo();
+    EXPECT_EQ(manager_->getFieldDefaultAppearance(page.get(), idx), daBefore)
+        << "undo did not restore the original /DA";
+
+    // Redo must re-apply the font change.
+    undoManager_->redo();
+    const std::string daRedo =
+        manager_->getFieldDefaultAppearance(page.get(), idx);
+    EXPECT_NE(daRedo.find("/Cour"), std::string::npos) << daRedo;
+    EXPECT_NE(daRedo.find("18 Tf"), std::string::npos) << daRedo;
+}
+
+// Pipeline form-reconcile, decision 4 (bold/italic). origin/master mapped a
+// UI family plus bold/italic to a base-14 /DA key through the static
+// FormManager::base14FontName ("Arial" + bold -> "HeBo"). MuPDF 1.26.10 cannot
+// render those style-variant keys: pdf_parse_default_appearance and
+// full_font_name map every name other than Helv/TiRo/Cour/Symb/ZaDb to
+// Helvetica, so a /HeBo field renders (and reads back) as regular Helvetica.
+// The reconciled design keeps the family -> key mapping in ONE place, the
+// validated setter's key set, and rejects the variants rather than writing a
+// /DA that claims a style the field never shows. This test pins that mapping
+// through the single API: each of the five renderable base-14 families lands
+// as its key, and every style-variant key (and a UI family name, which is not
+// a key) is refused with the field's /DA unchanged.
+TEST_F(FormCreationTest, Base14FontNameMapping) {
+    using pdfe::forms::isBase14DefaultAppearanceFont;
+    ASSERT_NE(document_, nullptr) << "test_single.pdf not available";
+    auto page = document_->page(0);
+    ASSERT_NE(page, nullptr);
+    const int idx = manager_->createFormField(
+        page.get(), pdfe::forms::FormFieldType::Text,
+        QRectF(100, 320, 200, 30), "base14MapField");
+    ASSERT_NE(idx, -1);
+
+    // Helvetica, Times, Courier, Symbol and ZapfDingbats: accepted, and the
+    // /DA names exactly that key.
+    for (const char* key : {"Helv", "TiRo", "Cour", "Symb", "ZaDb"}) {
+        EXPECT_TRUE(isBase14DefaultAppearanceFont(key)) << key;
+        EXPECT_TRUE(manager_->setFieldDefaultAppearance(
+            page.get(), idx, key, 12.0f, QColor(Qt::black)))
+            << "base-14 key " << key << " was refused";
+        const std::string da = manager_->getFieldDefaultAppearance(page.get(), idx);
+        EXPECT_EQ(da.rfind(std::string("/") + key + " ", 0), 0u)
+            << "base-14 key " << key << " did not land in the /DA, got: " << da;
+    }
+
+    // Bold, italic and bold-italic of Helvetica, Times and Courier, and UI
+    // family names: refused, the /DA left exactly as it was.
+    for (const char* key : {"HeBo", "HeOb", "HeBO", "TiBo", "TiIt", "TiBI",
+                            "CoBo", "CoOb", "CoBO", "Helvetica", "Arial",
+                            "Times New Roman", "sans-serif"}) {
+        EXPECT_FALSE(isBase14DefaultAppearanceFont(key)) << key;
+        const std::string before = manager_->getFieldDefaultAppearance(page.get(), idx);
+        EXPECT_FALSE(manager_->setFieldDefaultAppearance(
+            page.get(), idx, key, 12.0f, QColor(Qt::black)))
+            << key << " is not a renderable base-14 key and must be refused";
+        EXPECT_EQ(manager_->getFieldDefaultAppearance(page.get(), idx), before)
+            << "a refused " << key << " request modified the /DA";
+    }
+}
+
+TEST_F(FormCreationTest, SetFieldFont_PersistsAcrossSaveReopen) {
+    if (!document_) {
+        GTEST_SKIP() << "test_single.pdf not available";
+    }
+    auto page = document_->page(0);
+    ASSERT_NE(page, nullptr);
+
+    int idx = manager_->createFormField(
+        page.get(), pdfe::forms::FormFieldType::Text,
+        QRectF(100, 260, 200, 30), "persistFontField");
+    ASSERT_NE(idx, -1);
+    // Give it a value so the appearance is non-blank, then change the font.
+    manager_->setFieldValue(page.get(), idx, "Hello");
+    ASSERT_TRUE(manager_->setFieldDefaultAppearance(
+        page.get(), idx, "TiRo", 22.0f, QColor(Qt::black)));
+
+    const auto outPath = std::filesystem::temp_directory_path() /
+                         "pdfe_phase5_font_roundtrip.pdf";
+    std::error_code ec;
+    std::filesystem::remove(outPath, ec);
+    ASSERT_NO_THROW(document_->saveAs(outPath));
+    ASSERT_TRUE(std::filesystem::exists(outPath));
+
+    // Reopen in a FRESH context + manager to prove the /DA is on disk, not just
+    // in the live in-memory model.
+    auto ctx2 = std::make_shared<pdfe::core::MuPdfContext>();
+    auto reopened = pdfe::core::Document::open(ctx2, outPath);
+    ASSERT_NE(reopened, nullptr);
+    auto mgr2 = std::make_unique<pdfe::forms::FormManager>(ctx2);
+    auto rpage = reopened->page(0);
+    ASSERT_NE(rpage, nullptr);
+
+    bool found = false;
+    for (const auto& f : mgr2->getFormFields(rpage.get())) {
+        if (f.fieldName == "persistFontField") {
+            found = true;
+            EXPECT_EQ(f.type, pdfe::forms::FormFieldType::Text)
+                << "field must round-trip as an interactive text field";
+            EXPECT_TRUE(f.defaultAppearanceStringCaptured);
+            EXPECT_NE(f.defaultAppearanceString.find("/TiRo"), std::string::npos)
+                << "font family did not persist across save/reopen, got: "
+                << f.defaultAppearanceString;
+            EXPECT_NE(f.defaultAppearanceString.find("22 Tf"), std::string::npos)
+                << "font size did not persist across save/reopen, got: "
+                << f.defaultAppearanceString;
+        }
+    }
+    EXPECT_TRUE(found)
+        << "the field with the changed font must survive the round-trip";
+
+    reopened.reset();
+    mgr2.reset();
+    ctx2.reset();
+    std::filesystem::remove(outPath, ec);
 }
 
 TEST_F(FormCreationTest, SignatureFieldIsCreatableAndReadsBackAsASignature) {

@@ -1,6 +1,7 @@
 #pragma once
 #include "FormFieldData.h"
 #include "core/Command.h"
+#include <QColor>
 #include <memory>
 #include <vector>
 #include <string>
@@ -230,6 +231,77 @@ private:
     int widgetIndex_;
     FormFieldData savedData_;
     bool executed_ = false;
+};
+
+/**
+ * @brief GitHub #460: set a text, combo or list field's default appearance
+ * (/DA font, size and colour) through FormManager::setFieldDefaultAppearance.
+ *
+ * Undo puts back the widget's own /DA, /DS and /RC exactly as they were
+ * (byte for byte, or absent -- an inherited /DA is inherited again); redo puts
+ * back exactly the entries the execute wrote. Both regenerate the appearance.
+ *
+ * A rejected request (FormManager::setFieldDefaultAppearance returned false:
+ * not a base-14 font, an out-of-range size or colour, a bad index, not a
+ * text/combo/list widget) leaves the document untouched, and the command's
+ * undo and redo are then no-ops; applied() reports which case occurred.
+ *
+ * Merging: this command NEVER merges (mergeId() is 0, mergeWith() is false),
+ * so every appearance change is its own undo step and one undo reverts
+ * exactly one change. Reasons: a font, a size and a colour change are
+ * distinct user decisions; and UndoManager::execute runs a candidate
+ * command's execute() once to try a merge and AGAIN when mergeWith()
+ * declines, which for a snapshot-taking command would capture its own
+ * result as the "previous" state. A UI that emits a stream of values (a
+ * spin box) should issue the command when editing finishes, not per step.
+ * execute() is also idempotent: a second call re-applies the same values
+ * without re-taking the undo snapshot.
+ *
+ * Pipeline form-reconcile: this is the ONE /DA command. origin/master's
+ * SetFieldDefaultAppearanceCommand (596d613f), which merged consecutive
+ * tweaks to a widget into one undo step and restored only the raw /DA, was
+ * folded into it; notes.md decision 1 records why never-merge was kept.
+ * A rejected request also reports failed(), so UndoManager does not push it:
+ * a refused change never becomes an undo step that does nothing.
+ */
+class SetFieldAppearanceCommand : public pdfe::commands::Command {
+public:
+    SetFieldAppearanceCommand(
+        FormManager* manager,
+        pdfe::core::Page* page,
+        int widgetIndex,
+        const std::string& font,
+        float size,
+        const QColor& color
+    );
+
+    void execute() override;
+    void undo() override;
+    void redo() override;
+    [[nodiscard]] std::string description() const override;
+    bool mergeWith(const pdfe::commands::Command* other) override;
+    [[nodiscard]] int mergeId() const override;
+    [[nodiscard]] int pageIndex() const override;
+    void rebindPage(pdfe::core::Page* page) override;
+
+    /// True when execute() changed the document (the request was accepted).
+    [[nodiscard]] bool applied() const { return applied_; }
+
+    /// True when execute() ran and the request was rejected (nothing
+    /// changed), so UndoManager::execute keeps it off the undo stack.
+    [[nodiscard]] bool failed() const override { return executed_ && !applied_; }
+
+private:
+    FormManager* manager_;
+    pdfe::core::Page* page_;
+    int widgetIndex_;
+    std::string font_;
+    float size_;
+    QColor color_;
+    FormFieldOwnDefaultAppearance before_;
+    FormFieldOwnDefaultAppearance after_;
+    bool executed_ = false;
+    bool applied_ = false;
 };
 
 } // namespace pdfe::forms

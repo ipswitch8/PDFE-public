@@ -8,6 +8,7 @@
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QImageReader>
 #include <QLabel>
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -124,6 +125,25 @@ InsertImageDialog::InsertImageDialog(const QString& imagePath,
     jpegQuality_->setAccessibleName(tr("JPEG quality"));
     jpegQuality_->setRange(0, 100);
     jpegQuality_->setValue(85);  // the engine's own default
+    // GitHub #435 (docs/image-placement-model.md, "Inserting an image"): the
+    // quality is used for a JPEG source, which is stored as JPEG at this
+    // quality. Every other source is stored losslessly, so for those the box
+    // would do nothing: it is disabled and says why.
+    {
+        // Detected from the file's content, as insertImage does, so a PNG
+        // named .jpg is a PNG here too.
+        QImageReader probe(imagePath);
+        probe.setDecideFormatFromContent(true);
+        const QByteArray fmt = probe.format().toLower();
+        const bool jpegSource = fmt == "jpeg" || fmt == "jpg";
+        jpegQuality_->setEnabled(jpegSource);
+        jpegQuality_->setToolTip(
+            jpegSource
+                ? tr("The image is stored as JPEG at this quality (0-100). "
+                     "Lower values give smaller files and more artefacts.")
+                : tr("Only JPEG images are stored as JPEG. This image is "
+                     "stored losslessly, so the quality does not apply."));
+    }
     encForm->addRow(tr("&JPEG quality:"), jpegQuality_);
 
     stripExif_ = new QCheckBox(tr("&Strip image metadata (EXIF)"), this);
@@ -133,9 +153,17 @@ InsertImageDialog::InsertImageDialog(const QString& imagePath,
     // Say what it does. This default was previously applied invisibly, and EXIF
     // can carry GPS coordinates, camera serial numbers and timestamps — a user
     // is entitled to know it is being removed, and to keep it if they need it.
-    stripExif_->setToolTip(tr("Removes EXIF metadata such as GPS location, "
-                              "camera details and timestamps from the inserted "
-                              "image. On by default."));
+    //
+    // GitHub #436: insert always decodes the pixels and writes them again, so
+    // no EXIF metadata ever reaches the PDF (ImageManager::insertImage). The
+    // box is therefore always on, and disabled with a tooltip that says so,
+    // rather than offering a choice that would do nothing.
+    stripExif_->setEnabled(false);
+    stripExif_->setToolTip(tr("EXIF metadata such as GPS location, camera "
+                              "details and timestamps is always removed: the "
+                              "image's pixels are re-encoded and no metadata "
+                              "is copied into the PDF. The photo's EXIF "
+                              "orientation is applied to the pixels first."));
     encForm->addRow(stripExif_);
 
     outer->addWidget(encoding);

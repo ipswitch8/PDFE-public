@@ -72,6 +72,19 @@ void TreRegionTool::onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pd
     currentPageIndex_ = -1;
 }
 
+bool TreRegionTool::cancelInProgress()
+{
+    // Bug 6: Esc mid-drag aborts the region rubber-band. Clearing isDrawing_
+    // makes the pending onMouseRelease an early-out, so the regionSelected
+    // callback never fires and no TRE region is opened.
+    if (!isDrawing_) {
+        return false;
+    }
+    isDrawing_ = false;
+    currentPageIndex_ = -1;
+    return true;
+}
+
 void TreRegionTool::onPaintOverlay(QPainter& painter, int pageIndex,
                                     float zoom, QPointF pageOrigin, float pageHeightPt)
 {

@@ -2930,3 +2930,25 @@ creation-mode exit fire) or opt in with `,interaction`:
 `tests/test_ui_sign_image_and_sigfield_click.py::test_click_signature_field_opens_sign_dialog_issue328`
 has already been migrated to the real flow (toolbar arm -> drag-create -> #369
 exit -> click) and now also covers the #369 regression shape.
+
+## PDFE-LIMITATION-PUSHBUTTON-APPEARANCE (2026-11-20; tracked as GitHub #465)
+
+Four parameterized `FormFieldVisibilityModel` cases for the **PushButton** field
+type fail because a push-button widget renders with an unpainted (blank)
+interior:
+`AllPlaceableTypes/FormFieldVisibilityModel.CreatedFieldRendersBorderAndShadedInterior/PushButton`,
+`.FieldStaysVisibleAfterUndoRedoOfCreate/PushButton`,
+`.FieldStaysVisibleAfterDeleteAndUndo/PushButton`,
+`.HandBuiltRestoreDataGetsTheDefaultAppearance/PushButton`
+(each asserts the interior is shaded and measures 0 at `test_form_textfield_model.cpp:367`).
+
+Root cause is in **vendored MuPDF 1.26.10**, not PDFE: `draw_push_button()` in
+`source/pdf/pdf-appearance.c` passes four arguments to a two-conversion
+`fz_append_printf` format for its background fill, so the width/height are
+dropped and the fill becomes a zero-area rectangle. PDFE writes the field's
+appearance characteristics, border and background colour correctly (the sibling
+structure test `CreatedFieldCarriesDefaultMkAndBs/PushButton` passes). Pre-existing
+across every PDFE version bundling this MuPDF; push buttons are the least-common
+field type. Resolution path (GitHub #465): a vcpkg overlay port patch for the
+one-line MuPDF fix, or a PDFE-owned push-button appearance stream. Excluded from
+release-regression gates on this basis until #465 lands.

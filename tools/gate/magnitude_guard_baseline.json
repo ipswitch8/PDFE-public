@@ -579,6 +579,13 @@
       "ordinal": 0,
       "classification": "benign",
       "reason": "Fixture-availability guard in SetUp: skips when the test PDF fails to open (pageCount()<1). Availability check, not a measurement magnitude; cannot become permanently false as hardware gets faster. The TEST_F bodies' assertions are unconditional. (many-bugs-2026-11 #344)"
+    },
+    {
+      "file": "tests/test_watermark_exif_model.cpp",
+      "condition": "r.stripped == 1",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Outcome branch, not a measurement magnitude: a JPEG behind a buried DCT filter may be either re-encoded (stripped == 1) or reported not processed (failed == 1); both are accepted outcomes, recorded with RecordProperty. The test asserts unconditionally that exactly one image was seen and that it was not reported clean (EXPECT_EQ(r.total(), 1), EXPECT_EQ(r.alreadyClean, 0)); the guarded EXPECT adds the secret-bytes check for the stripped outcome only, because a failed image is documented as left untouched. The count is 0 or 1 by construction and cannot drift with hardware. (image-placement-state phase 6; the guard was added in phase 4, GitHub #452)"
     }
   ],
   "_ownership": {

@@ -307,15 +307,19 @@ TEST_F(RedactionManagerEdgeCaseTest, DefaultRedactionDataValues) {
     EXPECT_EQ(data.fillColor, QColor(Qt::black));
     EXPECT_TRUE(data.overlayText.empty());
     EXPECT_TRUE(data.enabled);
-    EXPECT_EQ(data.imageMethod, pdfe::redaction::RedactionImageMethod::Remove);
-    EXPECT_EQ(data.textMethod, pdfe::redaction::RedactionTextMethod::Remove);
-    EXPECT_EQ(data.lineArtMethod, pdfe::redaction::RedactionLineArtMethod::RemoveIfCovered);
+    // Per-mark overrides are unset by default: the mark is applied with the
+    // RedactionApplyOptions methods (GitHub #441).
+    EXPECT_FALSE(data.imageMethod.has_value());
+    EXPECT_FALSE(data.textMethod.has_value());
+    EXPECT_FALSE(data.lineArtMethod.has_value());
 }
 
 TEST_F(RedactionManagerEdgeCaseTest, DefaultApplyOptionsValues) {
     pdfe::redaction::RedactionApplyOptions opts;
     EXPECT_TRUE(opts.blackBoxes);
-    EXPECT_EQ(opts.imageMethod, pdfe::redaction::RedactionImageMethod::Remove);
+    // Pixels: a mark over part of an image destroys only the covered pixels;
+    // a mark covering the whole image still removes it (GitHub #440).
+    EXPECT_EQ(opts.imageMethod, pdfe::redaction::RedactionImageMethod::Pixels);
     EXPECT_EQ(opts.textMethod, pdfe::redaction::RedactionTextMethod::Remove);
     EXPECT_EQ(opts.lineArtMethod, pdfe::redaction::RedactionLineArtMethod::RemoveIfCovered);
     EXPECT_TRUE(opts.rewriteDocument);

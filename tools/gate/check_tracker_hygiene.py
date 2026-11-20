@@ -151,19 +151,66 @@ def verdict(items_read, hits, unreadable=0, readable=None):
 # ---------------------------------------------------------------------------
 
 
-def run_controls(m, needles):
-    live = (os.environ.get("COMPUTERNAME") or "").strip()
-    if len(live) < 4:
-        # CI runners always have COMPUTERNAME on Windows; a missing value means
-        # the sensitivity control cannot run, and an uncontrolled scan is not
-        # evidence. Hosted-Linux futures can revisit; today the runner is
-        # Windows and this fails closed.
-        print("FAIL: COMPUTERNAME absent/short -- sensitivity control cannot "
-              "run, so a clean result would be unverifiable")
+PROBE_ENV = "PDFE_HYGIENE_PROBE"
+
+
+def live_probe(environ=None, login=None, platform=None):
+    """(live value, where it came from) for the sensitivity control, or
+    (None, why it cannot run). The value is matched (through controls_ok),
+    never printed.
+
+    Windows: the live host name (COMPUTERNAME), exactly as before.
+
+    Elsewhere (the Linux CI runner, GitHub #407):
+      1. PDFE_HYGIENE_PROBE, when set. CI supplies it from an Actions secret, so
+         GitHub masks it in logs, and nothing in the tree holds it. A value that
+         is set but shorter than 4 characters fails closed; it is never quietly
+         replaced by the next source.
+      2. Otherwise the login name, embedded the way a Linux build leaks it (in a
+         home-directory path). That works on the developer's own host. In the CI
+         container the login is `runner`, deliberately not a needle, so the
+         control then FAILS rather than passing vacuously.
+    """
+    environ = os.environ if environ is None else environ
+    platform = sys.platform if platform is None else platform
+    if platform.startswith("win"):
+        live = (environ.get("COMPUTERNAME") or "").strip()
+        if len(live) < 4:
+            return None, "COMPUTERNAME absent/short"
+        return live, "COMPUTERNAME"
+    if PROBE_ENV in environ:
+        probe = (environ.get(PROBE_ENV) or "").strip()
+        if len(probe) < 4:
+            return None, "%s set but absent/short" % PROBE_ENV
+        return probe, PROBE_ENV
+    if login is None:
+        try:
+            import getpass
+            login = getpass.getuser()
+        except (KeyError, OSError):
+            login = ""
+    login = (login or "").strip()
+    if len(login) < 3:
+        return None, "no %s and the login name is absent/short" % PROBE_ENV
+    return "/home/%s/src" % login, "login name"
+
+
+def run_controls(m, needles, environ=None, login=None, platform=None):
+    value, source = live_probe(environ, login, platform)
+    if value is None:
+        # A missing value means the sensitivity control cannot run, and an
+        # uncontrolled scan is not evidence: fail closed.
+        print("FAIL: %s -- sensitivity control cannot run, so a clean result "
+              "would be unverifiable" % source)
         return False
-    sens, spec = controls_ok(m.scan_text, needles, live)
+    print("control probe: the live %s" % source)
+    sens, spec = controls_ok(m.scan_text, needles, value)
     print("controls: sensitivity %s, specificity %s"
           % ("PASS" if sens else "FAIL", "PASS" if spec else "FAIL"))
+    if not sens:
+        print("FAIL: the %s probe matches no needle, so the scanner cannot be "
+              "shown to see a real identifier here. On a CI runner, supply %s "
+              "(docs/ci-linux-runner.md)." % (source, PROBE_ENV))
     return sens and spec
 
 
@@ -297,6 +344,16 @@ def self_test():
          verdict(10, [("x", "syn")])[0] == "leak")
     case("verdict reports clean only with items and no hits",
          verdict(10, [])[0] == "clean")
+    p, src = live_probe({PROBE_ENV: "zzsynth host"}, "runner", "linux")
+    case("linux: the probe env var is used, and it hits",
+         src == PROBE_ENV and bool(m.scan_text(p, needles)))
+    case("linux: a short probe env var fails closed",
+         live_probe({PROBE_ENV: "ab"}, "runner", "linux")[0] is None)
+    case("linux: no env var falls back to the login name",
+         live_probe({}, "someone", "linux")[1] == "login name")
+    case("windows: COMPUTERNAME still drives the control",
+         live_probe({"COMPUTERNAME": "ZZSYNTH", PROBE_ENV: "x"}, "u",
+                    "win32")[1] == "COMPUTERNAME")
 
     print("self-test: %d failure(s)" % bad)
     return 0 if bad == 0 else 1

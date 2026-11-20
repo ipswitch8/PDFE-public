@@ -36,6 +36,9 @@ public:
     void onPaintOverlay(QPainter& painter, int pageIndex,
                         float zoom, QPointF pageOrigin, float pageHeightPt) override;
 
+    /// Esc-cancel an in-progress text selection (bug 6). See AnnotationTool.
+    bool cancelInProgress() override;
+
     /// Set the page context for creating annotations.
     /// This must be called before using the tool.
 

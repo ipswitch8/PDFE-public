@@ -5,6 +5,7 @@
 #include "core/Document.h"
 #include "core/Page.h"
 #include "core/MuPdfContext.h"
+#include "fonts/FontFamilyResolver.h"
 #include <QDebug>
 
 namespace pdfe::tre {
@@ -148,6 +149,140 @@ void ReconstructRegionCommand::undo() {
 
 std::string ReconstructRegionCommand::description() const {
     return "Reconstruct Scanned Text";
+}
+
+// ========== InsertTextRunCommand Implementation ==========
+
+InsertTextRunCommand::InsertTextRunCommand(
+    pdfe::core::Document* document,
+    std::shared_ptr<pdfe::core::MuPdfContext> context,
+    PdfContentWriter* contentWriter,
+    int pageIndex,
+    const PdfRect& insertionRectFitz,
+    const std::string& utf8Text,
+    const std::string& fontFamily,
+    float fontSizePt,
+    RgbColor color,
+    bool bold,
+    bool italic)
+    : document_(document)
+    , context_(std::move(context))
+    , contentWriter_(contentWriter)
+    , pageIndex_(pageIndex)
+    , insertionRectFitz_(insertionRectFitz)
+    , utf8Text_(utf8Text)
+    , fontFamily_(fontFamily)
+    , fontSizePt_(fontSizePt)
+    , color_(color)
+    , bold_(bold)
+    , italic_(italic)
+{
+}
+
+InsertTextRunCommand::~InsertTextRunCommand() {
+    // Holder is OWNED for the command's whole lifetime (undo()'s restore is
+    // non-consuming — it grafts a COPY into the live doc), mirroring the
+    // Reconstruct/ImageReplace commands. Release whatever is non-null.
+    if (savedContentsRef_) {
+        contentWriter_->releaseContentsRef(savedContentsRef_);
+        savedContentsRef_ = nullptr;
+    }
+}
+
+void InsertTextRunCommand::execute() {
+    if (!document_ || !contentWriter_) return;
+
+    auto page = document_->page(pageIndex_);
+    if (!page) {
+        qWarning() << "InsertTextRunCommand: Failed to get page" << pageIndex_;
+        return;
+    }
+
+    // redo() re-enters here; release any prior holder before re-capturing so a
+    // re-execution never leaks the standalone holder document.
+    if (savedContentsRef_) {
+        contentWriter_->releaseContentsRef(savedContentsRef_);
+        savedContentsRef_ = nullptr;
+    }
+
+    // Nothing to write (empty text / no page) is not a success.
+    if (utf8Text_.empty()) return;
+
+    // Resolve the font family to a concrete system font file. Without a path,
+    // writeTextBlock cannot embed a font and writes nothing. The default
+    // "Helvetica" is the base-14 sans but is NOT an installed Windows family
+    // and has no FontFamilyResolver substitute entry, so fall back through its
+    // metric-compatible equivalents (Arial and the free Linux/CI alternatives)
+    // rather than silently writing nothing.
+    pdfe::fonts::FontFamilyResolver resolver;
+    std::string usedFamily = fontFamily_;
+    std::string fontPath = resolver.resolve(fontFamily_, bold_, italic_);
+    if (fontPath.empty()) {
+        for (const char* fb : {"Arial", "Liberation Sans", "DejaVu Sans"}) {
+            fontPath = resolver.resolve(fb, bold_, italic_);
+            if (!fontPath.empty()) { usedFamily = fb; break; }
+        }
+    }
+    if (fontPath.empty()) {
+        qWarning() << "InsertTextRunCommand: could not resolve font family"
+                   << QString::fromStdString(fontFamily_) << "or sans fallback";
+        return;
+    }
+
+    // Snapshot the pre-insert /Contents for lossless undo (survives a
+    // full-rewrite save — see PdfContentWriter::saveContentsRef).
+    savedContentsRef_ = contentWriter_->saveContentsRef(page.get(), document_);
+
+    FontMatch fontMatch;
+    fontMatch.fontFilePath = fontPath;
+    fontMatch.fontFamily = usedFamily;
+    fontMatch.sizePt = fontSizePt_;
+    fontMatch.color = color_;
+
+    const std::string ops = contentWriter_->writeTextBlock(
+        page.get(), document_, utf8Text_, fontMatch, insertionRectFitz_, {});
+
+    if (ops.empty()) {
+        qWarning() << "InsertTextRunCommand: writeTextBlock emitted nothing";
+        // Restore (no-op graft of the untouched snapshot) and release — this
+        // run produced no edit, so the command owns no undo state going forward.
+        if (savedContentsRef_) {
+            contentWriter_->restoreContentsRef(page.get(), document_, savedContentsRef_);
+            contentWriter_->releaseContentsRef(savedContentsRef_);
+            savedContentsRef_ = nullptr;
+        }
+        return;
+    }
+
+    // The new run is a freshly appended content-stream object. Force a full
+    // rewrite so the incremental writer cannot drop it on save (bug-8 lesson:
+    // ImageManager does the same for newly created objects).
+    document_->markRequiresFullRewrite();
+    document_->markPageDirty(pageIndex_);
+    executed_ = true;
+}
+
+void InsertTextRunCommand::undo() {
+    if (!executed_) return;
+
+    auto page = document_->page(pageIndex_);
+    if (!page) {
+        qWarning() << "InsertTextRunCommand::undo: Failed to get page" << pageIndex_;
+        return;
+    }
+
+    // Restore the pre-insert /Contents (non-consuming graft; the holder stays
+    // owned by this command and is released in the dtor / on re-execute).
+    if (savedContentsRef_) {
+        contentWriter_->restoreContentsRef(page.get(), document_, savedContentsRef_);
+    }
+    document_->markRequiresFullRewrite();
+    document_->markPageDirty(pageIndex_);
+    executed_ = false;
+}
+
+std::string InsertTextRunCommand::description() const {
+    return "Insert Text";
 }
 
 // ========== ImageReplaceCommand Implementation ==========

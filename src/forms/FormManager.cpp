@@ -134,6 +134,60 @@ static void writeNeedAppearances(fz_context* ctx, pdf_document* pdfDoc, int valu
                   value ? PDF_TRUE : PDF_FALSE);
 }
 
+// ─── Pathological /RV (rich text) guard ─────────────────────────────────────
+//
+// A widget's /RV value is an XHTML fragment. MuPDF's Gumbo HTML parser builds
+// and tears down the /RV DOM with UNBOUNDED native recursion, so a value nested
+// thousands of tags deep (e.g. 20000 `<b>`) or many megabytes long overflows
+// the stack (STATUS_STACK_OVERFLOW) the moment pdf_update_annot tries to
+// generate a rich-text appearance. There is no MuPDF-side depth limit to lean
+// on, so we must refuse the content ourselves BEFORE it reaches the parser.
+//
+// Caps are deliberately generous: real rich-text field values are a handful of
+// nested spans and a few kilobytes. On breach we skip appearance generation and
+// fall back to /NeedAppearances (the same fail-safe used when an appearance
+// cannot be produced), which is exactly what a viewer needs to render the field.
+static constexpr size_t kMaxRichTextValueBytes = 1u << 20;  // 1 MiB
+static constexpr int kMaxRichTextTagDepth = 256;            // nesting depth cap
+
+// True when the field's /RV rich-text value is too large or too deeply nested
+// to hand to MuPDF's recursive HTML parser safely. Reads /RV as a C string and
+// walks it once, tracking tag-nesting depth; performs no C++ allocation that
+// could throw inside the surrounding fz_try region.
+static bool richTextValueIsPathological(fz_context* ctx, pdf_obj* fieldObj) {
+    if (!fieldObj) return false;
+    pdf_obj* rvObj = pdf_dict_get(ctx, fieldObj, PDF_NAME(RV));
+    if (!rvObj) return false;
+    const char* rv = pdf_dict_get_text_string(ctx, fieldObj, PDF_NAME(RV));
+    if (!rv) return false;
+
+    int depth = 0;
+    size_t i = 0;
+    for (; rv[i] != '\0'; ++i) {
+        if (i >= kMaxRichTextValueBytes) {
+            return true;  // length cap breached
+        }
+        if (rv[i] != '<') continue;
+        const char next = rv[i + 1];
+        if (next == '/') {
+            if (depth > 0) --depth;  // closing tag
+        } else if (next == '!' || next == '?') {
+            // comment / declaration / processing instruction: not a nesting tag
+        } else {
+            // Opening tag; a self-closing "<.../>" does not change net depth, so
+            // only count it if it is not self-closed before the next '>'.
+            bool selfClosing = false;
+            for (size_t j = i + 1; rv[j] != '\0' && rv[j] != '>'; ++j) {
+                if (rv[j] == '/' && rv[j + 1] == '>') { selfClosing = true; break; }
+            }
+            if (!selfClosing && ++depth > kMaxRichTextTagDepth) {
+                return true;  // depth cap breached
+            }
+        }
+    }
+    return false;
+}
+
 // Helper: Get the nth widget from a page
 static pdf_annot* getNthWidget(fz_context* ctx, pdf_page* page, int index) {
     // DEFECT FIX (meta-audit follow-up F17, gap A1-34): a NEGATIVE index used
@@ -152,6 +206,241 @@ static pdf_annot* getNthWidget(fz_context* ctx, pdf_page* page, int index) {
         widget = pdf_next_widget(ctx, widget);
     }
     return widget;
+}
+
+// GitHub #458: read a colour array (/MK /BC or /MK /BG) into a fixed-size
+// buffer. Returns the component count, or 0 when the entry is absent or is not
+// a 1-, 3- or 4-component array. POD locals only (fz_try discipline).
+//
+// Phase-3 security audit: each component is clamped to [0, 1], a non-finite
+// one becomes 0 (sanitizeColorComponent). A non-numeric entry already reads
+// as 0 through pdf_array_get_real.
+static int readColorArray(fz_context* ctx, pdf_obj* arr, float* out) {
+    if (!pdf_is_array(ctx, arr)) {
+        return 0;
+    }
+    const int n = sanitizeColorComponentCount(pdf_array_len(ctx, arr));
+    for (int i = 0; i < n; ++i) {
+        out[i] = sanitizeColorComponent(pdf_array_get_real(ctx, arr, i));
+    }
+    return n;
+}
+
+// GitHub #458: read a widget's /MK /BC, /MK /BG and /BS. POD out-parameter,
+// no C++ objects with destructors (fz_try discipline).
+static void readBorderAppearance(fz_context* ctx, pdf_obj* obj,
+                                 FormFieldBorderAppearance* out) {
+    pdf_obj* mk = pdf_dict_get(ctx, obj, PDF_NAME(MK));
+    if (pdf_is_dict(ctx, mk)) {
+        out->borderColorComponents = readColorArray(
+            ctx, pdf_dict_get(ctx, mk, PDF_NAME(BC)), out->borderColor.data());
+        out->backgroundColorComponents = readColorArray(
+            ctx, pdf_dict_get(ctx, mk, PDF_NAME(BG)), out->backgroundColor.data());
+    }
+    pdf_obj* bs = pdf_dict_get(ctx, obj, PDF_NAME(BS));
+    if (pdf_is_dict(ctx, bs)) {
+        out->hasBorderStyle = true;
+        pdf_obj* w = pdf_dict_get(ctx, bs, PDF_NAME(W));
+        // PDF 32000-1 table 166: /W defaults to 1 when absent. Clamped to
+        // [0, 100] pt, non-finite -> 1 (phase-3 security audit).
+        out->borderWidth = pdf_is_number(ctx, w)
+                               ? sanitizeBorderWidth(pdf_to_real(ctx, w))
+                               : 1.0f;
+        const char* style = pdf_to_name(ctx, pdf_dict_get(ctx, bs, PDF_NAME(S)));
+        out->borderStyle = (style && style[0]) ? style[0] : 'S';
+    }
+}
+
+// GitHub #458: write /MK /BC, /MK /BG and /BS onto a widget the app creates.
+// Only called from createFormFieldWithAppearance, i.e. never on a widget
+// loaded from a file, so an existing widget's /MK is never touched. Entries
+// that are absent in `ap` are not written. Any other /MK entry is kept.
+//
+// Phase-3 security audit: `ap` can be hand-built (restore data, a caller's
+// struct), so it is sanitised on the way out exactly as readBorderAppearance
+// sanitises on the way in: a component count other than 1, 3 or 4 writes
+// nothing (and can never index past the 4-element arrays), components are
+// clamped to [0, 1], and /W to [0, 100].
+static void writeBorderAppearance(fz_context* ctx, pdf_obj* obj,
+                                  const FormFieldBorderAppearance* ap) {
+    const int nBc = sanitizeColorComponentCount(ap->borderColorComponents);
+    const int nBg = sanitizeColorComponentCount(ap->backgroundColorComponents);
+    if (nBc > 0 || nBg > 0) {
+        pdf_obj* mk = pdf_dict_get(ctx, obj, PDF_NAME(MK));
+        if (!pdf_is_dict(ctx, mk)) {
+            mk = pdf_dict_put_dict(ctx, obj, PDF_NAME(MK), 2);
+        }
+        if (nBc > 0) {
+            pdf_obj* bc = pdf_dict_put_array(ctx, mk, PDF_NAME(BC), nBc);
+            for (int i = 0; i < nBc; ++i) {
+                pdf_array_push_real(ctx, bc, sanitizeColorComponent(ap->borderColor[i]));
+            }
+        }
+        if (nBg > 0) {
+            pdf_obj* bg = pdf_dict_put_array(ctx, mk, PDF_NAME(BG), nBg);
+            for (int i = 0; i < nBg; ++i) {
+                pdf_array_push_real(ctx, bg,
+                                    sanitizeColorComponent(ap->backgroundColor[i]));
+            }
+        }
+    }
+    if (ap->hasBorderStyle) {
+        pdf_obj* bs = pdf_dict_put_dict(ctx, obj, PDF_NAME(BS), 2);
+        pdf_dict_put_real(ctx, bs, PDF_NAME(W), sanitizeBorderWidth(ap->borderWidth));
+        const char styleName[2] = {ap->borderStyle, '\0'};
+        pdf_dict_put_name(ctx, bs, PDF_NAME(S), styleName);
+    }
+}
+
+// GitHub #459: the widget's /DA and /Q, parsed by MuPDF. POD locals only, and the
+// std::string is assigned OUTSIDE the fz_try region (fz_try discipline). A
+// widget whose /DA cannot be read keeps MuPDF's own defaults (Helv 12, no
+// colour) rather than failing the whole read.
+static void readDefaultAppearance(fz_context* ctx, pdf_annot* widget,
+                                  FormFieldData* out) {
+    const char* font = "Helv";
+    float size = 12.0f;
+    int n = 0;
+    float color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    int q = 0;
+    fz_try(ctx) {
+        pdf_annot_default_appearance(ctx, widget, &font, &size, &n, color);
+    }
+    fz_catch(ctx) {
+        font = "Helv";
+        size = 12.0f;
+        n = 0;
+    }
+    // /Q, through the accessor MuPDF's appearance writer itself uses, so the
+    // live edit aligns as the committed value will (already clamped to 0..2).
+    fz_try(ctx) {
+        q = pdf_annot_quadding(ctx, widget);
+    }
+    fz_catch(ctx) {
+        q = 0;
+    }
+    out->quadding = (q == 1 || q == 2) ? q : 0;
+    out->daFontName = font ? font : "Helv";
+    // Phase-3 security audit: the Tf operand is whatever fz_strtof made of
+    // the file's text -- 1e30, inf, nan and negatives all get through. Keep
+    // it finite and sane here (non-finite or negative -> 0 = auto-size, cap
+    // 1000 pt); FormTool's paint clamps again before any int conversion.
+    out->daFontSize = sanitizeDefaultAppearanceSize(size);
+    out->daColorComponents = sanitizeColorComponentCount(n);
+    for (int i = 0; i < 4; ++i) {
+        out->daColor[static_cast<std::size_t>(i)] = sanitizeColorComponent(color[i]);
+    }
+
+    // GitHub #460: the /DA STRING in effect, byte for byte, so restoreFormField
+    // can rebuild exactly it (including a /DR font name, which the parsed
+    // font above maps to Helv). Same lookup as pdf_annot_default_appearance:
+    // own or inherited /DA, else the AcroForm /DA. POD locals only; the
+    // std::string is assigned after the fz_try region (fz_try discipline).
+    const char* raw = nullptr;
+    size_t rawLen = 0;
+    fz_try(ctx) {
+        pdf_obj* obj = pdf_annot_obj(ctx, widget);
+        pdf_obj* da = pdf_dict_get_inheritable(ctx, obj, PDF_NAME(DA));
+        if (!da) {
+            pdf_page* annotPage = pdf_annot_page(ctx, widget);
+            if (annotPage && annotPage->doc) {
+                da = pdf_dict_getl(ctx, pdf_trailer(ctx, annotPage->doc),
+                                   PDF_NAME(Root), PDF_NAME(AcroForm),
+                                   PDF_NAME(DA), nullptr);
+            }
+        }
+        if (pdf_is_string(ctx, da)) {
+            raw = pdf_to_str_buf(ctx, da);
+            rawLen = pdf_to_str_len(ctx, da);
+        }
+    }
+    fz_catch(ctx) {
+        raw = nullptr;
+        rawLen = 0;
+    }
+    if (raw && rawLen <= kMaxCapturedDefaultAppearanceBytes) {
+        out->defaultAppearanceString.assign(raw, rawLen);
+        out->defaultAppearanceStringCaptured = true;
+    } else if (raw) {
+        // Over the cap: capture the parsed (mapped, sanitised) values, which
+        // is all MuPDF's parser ever reads of the string anyway.
+        //
+        // Phase-4 security audit: the re-print must never truncate. The font
+        // is forced to a base-14 key (MuPDF's mapping already guarantees one;
+        // this does not rely on it). MuPDF's %g (fitz/printf.c fmtfloat)
+        // NEVER uses exponent form: a denormal component such as 1e-45
+        // prints as "." + 44 zeros + up to 9 digits, ~54 chars. Worst case:
+        // "/ZaDb " (6) + size in [0, 1000] (<= ~14) + " Tf " (4) + four
+        // components of <= 55 chars each with their space (220) + "k" (1):
+        // about 250 bytes, so 512 has a 2x margin. If the output still filled
+        // the buffer, nothing is captured and restore falls back to the
+        // default rather than writing a truncated /DA.
+        char printed[512] = {};
+        const char* fontKey = isBase14DefaultAppearanceFont(out->daFontName)
+                                  ? out->daFontName.c_str()
+                                  : "Helv";
+        const float c[4] = {out->daColor[0], out->daColor[1], out->daColor[2],
+                            out->daColor[3]};
+        pdf_print_default_appearance(ctx, printed, static_cast<int>(sizeof printed),
+                                     fontKey, out->daFontSize,
+                                     out->daColorComponents, c);
+        const size_t printedLen = strnlen(printed, sizeof printed);
+        if (printedLen > 0 && printedLen < sizeof printed - 1) {
+            out->defaultAppearanceString.assign(printed, printedLen);
+            out->defaultAppearanceStringCaptured = true;
+        }
+    }
+}
+
+// GitHub #460: one string entry of a widget dictionary, as pointers into the
+// MuPDF object (valid until the dictionary is next modified). POD only.
+struct RawStringEntry {
+    bool present = false;
+    const char* data = nullptr;
+    size_t len = 0;
+};
+
+static RawStringEntry readRawStringEntry(fz_context* ctx, pdf_obj* dict, pdf_obj* key) {
+    RawStringEntry e;
+    pdf_obj* v = pdf_dict_get(ctx, dict, key);
+    if (pdf_is_string(ctx, v)) {
+        e.present = true;
+        e.data = pdf_to_str_buf(ctx, v);
+        e.len = pdf_to_str_len(ctx, v);
+    }
+    return e;
+}
+
+// Write a captured string entry back, or remove it when it was absent.
+static void writeRawStringEntry(fz_context* ctx, pdf_obj* dict, pdf_obj* key,
+                                bool present, const char* data, size_t len) {
+    if (present) {
+        pdf_dict_put_string(ctx, dict, key, data ? data : "", data ? len : 0);
+    } else {
+        pdf_dict_del(ctx, dict, key);
+    }
+}
+
+// GitHub #460: the colour setFieldDefaultAppearance writes, as an RGB triple
+// in [0, 1]. False -- reject -- for an invalid or non-opaque colour, and for
+// an extended-RGB colour (QColor::fromRgbF with a component outside [0, 1])
+// whose components are out of range or non-finite. Any other spec (Rgb, Hsv,
+// Hsl, Cmyk) is converted with toRgb(), whose components are in range by
+// construction.
+static bool defaultAppearanceRgb(const QColor& color, float out[3]) {
+    if (!color.isValid()) return false;
+    if (color.spec() == QColor::ExtendedRgb) {
+        const float c[4] = {color.redF(), color.greenF(), color.blueF(), color.alphaF()};
+        for (float v : c) {
+            if (!std::isfinite(v) || v < 0.0f || v > 1.0f) return false;
+        }
+    }
+    if (color.alpha() != 255) return false;
+    const QColor rgb = color.toRgb();
+    out[0] = sanitizeColorComponent(rgb.redF());
+    out[1] = sanitizeColorComponent(rgb.greenF());
+    out[2] = sanitizeColorComponent(rgb.blueF());
+    return true;
 }
 
 // Helper: Read form field data into FormFieldData struct
@@ -231,6 +520,21 @@ static FormFieldData readWidgetData(
     // Choice widget flags
     if (data.type == FormFieldType::ComboBox) {
         data.isEditable = (data.fieldFlags & PDF_CH_FIELD_IS_EDIT) != 0;
+    }
+
+    // GitHub #458: border and background, so restoreFormField can rebuild
+    // exactly what the widget had.
+    readBorderAppearance(ctx, pdf_annot_obj(ctx, widget), &data.borderAppearance);
+    data.borderAppearanceCaptured = true;
+
+    // GitHub #459: the /DA font, size and colour, for the live edit paint.
+    // A default appearance is a variable-text entry (PDF 32000-1 12.7.3.3):
+    // text and choice fields. Buttons keep the defaults; nothing paints their
+    // text live.
+    if (data.type == FormFieldType::Text ||
+        data.type == FormFieldType::ComboBox ||
+        data.type == FormFieldType::ListBox) {
+        readDefaultAppearance(ctx, widget, &data);
     }
 
     // Choice widget options
@@ -484,6 +788,33 @@ std::string FormManager::setFieldValue(const pdfe::core::Page* page, int widgetI
     );
 }
 
+// Bug 3 (origin/master 596d613f): read a field's /DA string.
+
+std::string FormManager::getFieldDefaultAppearance(const pdfe::core::Page* page,
+                                                   int widgetIndex) {
+    if (!page) {
+        throw std::invalid_argument("Page cannot be null");
+    }
+    pdf_page* pdfPage = pImpl->getPdfPage(page);
+    return pImpl->context->executeReturn<std::string>(
+        [pdfPage, widgetIndex](fz_context* ctx) -> std::string {
+            pdf_annot* widget = getNthWidget(ctx, pdfPage, widgetIndex);
+            if (!widget) {
+                return std::string();
+            }
+            pdf_obj* daObj = pdf_dict_get_inheritable(
+                ctx, pdf_annot_obj(ctx, widget), PDF_NAME(DA));
+            if (!daObj) {
+                return std::string();
+            }
+            const char* da = pdf_to_text_string(ctx, daObj);
+            // pdf_to_text_string returns a borrowed pointer; the std::string is
+            // built as the return value, so no C++ local is live across a call
+            // that could fz_throw (see docs/mupdf-gotchas.md).
+            return da ? std::string(da) : std::string();
+        });
+}
+
 void FormManager::toggleField(const pdfe::core::Page* page, int widgetIndex) {
     if (!page) {
         throw std::invalid_argument("Page cannot be null");
@@ -669,6 +1000,155 @@ void walkAcroFormFields(
     }
 }
 
+// ---- Page-scoped flatten (GitHub #442) -------------------------------------
+//
+// pdf_bake_document bakes the widgets of EVERY page; MuPDF's per-page baker is
+// internal. bakePageWidgets does the same work for one page: each widget's
+// normal appearance becomes a Form XObject drawn at the widget's place in a
+// content stream appended to the page, and the widget is deleted from the
+// page and from the AcroForm field tree. Other pages are not touched: an
+// inherited or shared /Resources (or /XObject) dictionary is copied onto this
+// page before a name is added to it. The AcroForm itself is removed only when
+// no field is left.
+
+// The appearance stream a widget shows (MuPDF's rule: /AP /N, or the /AS
+// state of it).
+pdf_obj* widgetAppearance(fz_context* ctx, pdf_obj* annot)
+{
+    pdf_obj* ap = pdf_dict_get(ctx, annot, PDF_NAME(AP));
+    if (!ap) return nullptr;
+    pdf_obj* n = pdf_dict_get(ctx, ap, PDF_NAME(N));
+    if (pdf_is_stream(ctx, n)) return n;
+    pdf_obj* as = pdf_resolve_indirect_chain(ctx, pdf_dict_get(ctx, annot, PDF_NAME(AS)));
+    pdf_obj* st = pdf_dict_get(ctx, n, as);
+    return pdf_is_stream(ctx, st) ? st : nullptr;
+}
+
+// MuPDF's placement of an appearance: its BBox (through its Matrix) mapped
+// onto the annotation's Rect.
+fz_matrix appearanceToRect(fz_context* ctx, pdf_obj* annot, pdf_obj* ap)
+{
+    const fz_rect rect = pdf_dict_get_rect(ctx, annot, PDF_NAME(Rect));
+    const fz_rect bbox = fz_transform_rect(pdf_dict_get_rect(ctx, ap, PDF_NAME(BBox)),
+                                           pdf_dict_get_matrix(ctx, ap, PDF_NAME(Matrix)));
+    const float bw = bbox.x1 - bbox.x0, bh = bbox.y1 - bbox.y0;
+    const float w = bw != 0 ? (rect.x1 - rect.x0) / bw : 1;
+    const float h = bh != 0 ? (rect.y1 - rect.y0) / bh : 1;
+    return fz_make_matrix(w, 0, 0, h, rect.x0 - bbox.x0 * w, rect.y0 - bbox.y0 * h);
+}
+
+// Removes, recursively, every field whose /Kids became empty (a parent whose
+// last widget was baked). Bounded depth: a cyclic tree ends.
+void pruneEmptyFields(fz_context* ctx, pdf_obj* arr, int depth)
+{
+    if (!pdf_is_array(ctx, arr) || depth > 32) return;
+    for (int i = pdf_array_len(ctx, arr) - 1; i >= 0; --i) {
+        pdf_obj* kids = pdf_dict_get(ctx, pdf_array_get(ctx, arr, i), PDF_NAME(Kids));
+        if (!pdf_is_array(ctx, kids)) continue;
+        pruneEmptyFields(ctx, kids, depth + 1);
+        if (pdf_array_len(ctx, kids) == 0) pdf_array_delete(ctx, arr, i);
+    }
+}
+
+// A dictionary of `parent` under `key` that this page may change: a shallow
+// copy (pdf_copy_dict) of the one it has or inherits, so that a dictionary
+// shared with another page, or a direct one inside a shared parent, is never
+// written to.
+pdf_obj* ownedDict(fz_context* ctx, pdf_obj* parent, pdf_obj* key, pdf_obj* inherited)
+{
+    pdf_obj* d = pdf_dict_get(ctx, parent, key);
+    if (!d) d = inherited;
+    if (!pdf_is_dict(ctx, d)) return pdf_dict_put_dict(ctx, parent, key, 8);
+    pdf_obj* copy = pdf_copy_dict(ctx, d);
+    pdf_dict_put_drop(ctx, parent, key, copy);
+    return copy;
+}
+
+void bakePageWidgets(fz_context* ctx, pdf_page* page)
+{
+    pdf_document* doc = page->doc;
+    pdf_obj* pageObj = page->obj;
+    fz_buffer* buf = nullptr;
+    pdf_obj* prologue = nullptr;
+    fz_var(buf);
+    fz_var(prologue);
+
+    pdf_begin_operation(ctx, doc, "Flatten form fields on page");
+    fz_try(ctx) {
+        for (pdf_annot* w = pdf_first_widget(ctx, page); w; w = pdf_next_widget(ctx, w))
+            pdf_annot_request_synthesis(ctx, w);
+        pdf_update_page(ctx, page);
+
+        if (pdf_first_widget(ctx, page)) {
+            pdf_obj* inheritedRes = pdf_dict_get(ctx, pageObj, PDF_NAME(Resources))
+                                        ? nullptr
+                                        : pdf_dict_get_inheritable(ctx, pageObj, PDF_NAME(Resources));
+            pdf_obj* res = ownedDict(ctx, pageObj, PDF_NAME(Resources), inheritedRes);
+            pdf_obj* xobjects = ownedDict(ctx, res, PDF_NAME(XObject), nullptr);
+
+            // Keep the graphics state balanced, as pdf_bake_document does.
+            pdf_obj* contents = pdf_dict_get(ctx, pageObj, PDF_NAME(Contents));
+            int prepend = 0, append = 0;
+            pdf_count_q_balance(ctx, doc, res, contents, &prepend, &append);
+            if (prepend > 0) {
+                buf = fz_new_buffer(ctx, 64);
+                while (prepend-- > 0) fz_append_string(ctx, buf, "q\n");
+                prologue = pdf_add_stream(ctx, doc, buf, nullptr, 0);
+                fz_drop_buffer(ctx, buf);
+                buf = nullptr;
+            }
+            buf = fz_new_buffer(ctx, 1024);
+            while (append-- > 0) fz_append_string(ctx, buf, "Q\n");
+
+            pdf_annot* w = pdf_first_widget(ctx, page);
+            while (w) {
+                pdf_annot* next = pdf_next_widget(ctx, w);
+                pdf_obj* annotObj = pdf_annot_obj(ctx, w);
+                if (pdf_obj* ap = widgetAppearance(ctx, annotObj)) {
+                    char name[32];
+                    fz_snprintf(name, sizeof name, "Annot%d", pdf_to_num(ctx, annotObj));
+                    pdf_dict_puts(ctx, xobjects, name, ap);
+                    pdf_dict_put(ctx, ap, PDF_NAME(Type), PDF_NAME(XObject));
+                    pdf_dict_put(ctx, ap, PDF_NAME(Subtype), PDF_NAME(Form));
+                    const fz_matrix m = appearanceToRect(ctx, annotObj, ap);
+                    fz_append_printf(ctx, buf, "q\n%g %g %g %g %g %g cm\n/%s Do\nQ\n",
+                                     m.a, m.b, m.c, m.d, m.e, m.f, name);
+                }
+                // Removes it from /Annots and from the AcroForm field tree.
+                pdf_delete_annot(ctx, page, w);
+                w = next;
+            }
+
+            if (!pdf_is_array(ctx, contents)) {
+                pdf_obj* arr = pdf_new_array(ctx, doc, 3);
+                pdf_dict_put_drop(ctx, pageObj, PDF_NAME(Contents), arr);
+                if (prologue) pdf_array_push(ctx, arr, prologue);
+                if (contents) pdf_array_push(ctx, arr, contents);
+                contents = arr;
+            } else if (prologue) {
+                pdf_array_insert(ctx, contents, prologue, 0);
+            }
+            pdf_array_push_drop(ctx, contents, pdf_add_stream(ctx, doc, buf, nullptr, 0));
+
+            pdf_obj* root = pdf_dict_get(ctx, pdf_trailer(ctx, doc), PDF_NAME(Root));
+            pdf_obj* acroform = pdf_dict_get(ctx, root, PDF_NAME(AcroForm));
+            pdf_obj* fields = pdf_dict_get(ctx, acroform, PDF_NAME(Fields));
+            pruneEmptyFields(ctx, fields, 0);
+            if (acroform && pdf_array_len(ctx, fields) == 0)
+                pdf_dict_del(ctx, root, PDF_NAME(AcroForm));
+        }
+        pdf_end_operation(ctx, doc);
+    }
+    fz_always(ctx) {
+        fz_drop_buffer(ctx, buf);
+        pdf_drop_obj(ctx, prologue);
+    }
+    fz_catch(ctx) {
+        pdf_abandon_operation(ctx, doc);
+        fz_rethrow(ctx);
+    }
+}
+
 } // namespace
 
 std::vector<std::string> FormManager::listFieldNames(const pdfe::core::Document* doc)
@@ -844,10 +1324,11 @@ void FormManager::flattenForm(const pdfe::core::Page* page) {
 
     pdf_page* pdfPage = pImpl->getPdfPage(page);
 
+    // Only THIS page's widgets (GitHub #442). pdf_bake_document(.., 0, 1),
+    // used before, baked the widgets of every page of the document.
     pImpl->context->execute(
         [pdfPage](fz_context* ctx) {
-            pdf_document* pdfDoc = pdfPage->doc;
-            pdf_bake_document(ctx, pdfDoc, 0, 1);
+            bakePageWidgets(ctx, pdfPage);
         }
     );
 
@@ -874,16 +1355,63 @@ bool FormManager::hasFormFields(const pdfe::core::Page* page) {
     );
 }
 
+FormFieldBorderAppearance FormManager::defaultBorderAppearance(FormFieldType type) {
+    FormFieldBorderAppearance ap;
+    if (type == FormFieldType::Signature) {
+        // An unsigned signature widget is drawn by MuPDF's own "sign here"
+        // display list (pdf_signature_appearance_unsigned), which ignores /MK.
+        return ap;
+    }
+    // Border: dark slate blue, luminance ~74 of 255 -- an obvious outline.
+    ap.borderColorComponents = 3;
+    ap.borderColor = {0.20f, 0.30f, 0.50f, 0.0f};
+    // Background: very light blue, luminance ~233 of 255 -- visibly shaded,
+    // and light enough that black text stays readable over it.
+    ap.backgroundColorComponents = 3;
+    ap.backgroundColor = {0.88f, 0.92f, 1.00f, 0.0f};
+    // 1pt solid border.
+    ap.hasBorderStyle = true;
+    ap.borderWidth = 1.0f;
+    ap.borderStyle = 'S';
+    return ap;
+}
+
 int FormManager::createFormField(const pdfe::core::Page* page, FormFieldType type,
                                   QRectF rect, const std::string& fieldName) {
+    // GitHub #458: a field the app creates must be visible after placement.
+    return createFormFieldWithAppearance(page, type, rect, fieldName,
+                                         defaultBorderAppearance(type));
+}
+
+int FormManager::createFormFieldWithAppearance(const pdfe::core::Page* page,
+                                               FormFieldType type, QRectF rect,
+                                               const std::string& fieldName,
+                                               const FormFieldBorderAppearance& appearance,
+                                               const FormFieldData* restored) {
     if (!page) {
         throw std::invalid_argument("Page cannot be null");
     }
 
     pdf_page* pdfPage = pImpl->getPdfPage(page);
+    const FormFieldBorderAppearance* ap = &appearance;
+
+    // GitHub #460: what a restore puts back on a variable-text widget -- the
+    // captured /DA string (byte for byte) and a /Q of 1 or 2. Resolved here,
+    // outside the fz_try region, into raw pointers and ints.
+    const bool variableText = type == FormFieldType::Text ||
+                              type == FormFieldType::ComboBox ||
+                              type == FormFieldType::ListBox;
+    const bool restoreDa = restored && variableText &&
+                           restored->defaultAppearanceStringCaptured;
+    const char* daData = restoreDa ? restored->defaultAppearanceString.data() : nullptr;
+    const size_t daLen = restoreDa ? restored->defaultAppearanceString.size() : 0;
+    const int quadding = (restored && variableText &&
+                          (restored->quadding == 1 || restored->quadding == 2))
+                             ? restored->quadding
+                             : 0;
 
     return pImpl->context->executeReturn<int>(
-        [pdfPage, type, rect, &fieldName](fz_context* ctx) -> int {
+        [pdfPage, type, rect, &fieldName, ap, daData, daLen, quadding](fz_context* ctx) -> int {
             pdf_document* pdfDoc = pdfPage->doc;
 
             // DEFECT FIX (meta-audit follow-up F17, gap A1-34): the field type
@@ -993,6 +1521,22 @@ int FormManager::createFormField(const pdfe::core::Page* page, FormFieldType typ
             // Add field to AcroForm Fields array
             pdf_array_push(ctx, fields, obj);
 
+            // GitHub #458: border and background BEFORE the appearance stream
+            // is generated. MuPDF's text/choice writer and its check/radio/
+            // push button writer draw the background and border only from
+            // /MK /BG, /MK /BC and /BS; without them the field is invisible.
+            writeBorderAppearance(ctx, obj, ap);
+
+            // GitHub #460: a restored text/combo/list widget gets back the /DA
+            // it had (replacing the default written above) and its /Q, before
+            // the appearance stream is generated from them.
+            if (daData) {
+                pdf_dict_put_string(ctx, obj, PDF_NAME(DA), daData, daLen);
+            }
+            if (quadding != 0) {
+                pdf_dict_put_int(ctx, obj, PDF_NAME(Q), quadding);
+            }
+
             // Update appearance stream
             pdf_update_annot(ctx, annot);
 
@@ -1060,8 +1604,18 @@ int FormManager::restoreFormField(const pdfe::core::Page* page, const FormFieldD
         throw std::invalid_argument("Page cannot be null");
     }
 
-    // Create the field with the saved data
-    int newIndex = createFormField(page, data.type, data.rect, data.fieldName);
+    // GitHub #458: re-apply the border and background. Data read from a widget
+    // (the delete that this restore undoes) carries the widget's own /MK and
+    // /BS -- the app default for a field the app created, and whatever a field
+    // loaded from a file had. Hand-built data falls back to the app default.
+    const FormFieldBorderAppearance appearance =
+        data.borderAppearanceCaptured ? data.borderAppearance
+                                      : defaultBorderAppearance(data.type);
+
+    // Create the field with the saved data. GitHub #460: `data` also supplies
+    // the captured /DA string and /Q (text, combo and list fields only).
+    int newIndex = createFormFieldWithAppearance(page, data.type, data.rect,
+                                                 data.fieldName, appearance, &data);
 
     // Restore the value
     if (!data.value.empty()) {
@@ -1085,6 +1639,134 @@ int FormManager::restoreFormField(const pdfe::core::Page* page, const FormFieldD
     }
 
     return newIndex;
+}
+
+// ─── GitHub #460: the default appearance of a text/combo/list field ─────────
+
+bool FormManager::setFieldDefaultAppearance(const pdfe::core::Page* page, int widgetIndex,
+                                            const std::string& font, float size,
+                                            const QColor& color) {
+    // Every argument is validated BEFORE the document is touched, so a
+    // rejected call leaves it byte-identical.
+    if (!page || widgetIndex < 0) return false;
+    if (!isBase14DefaultAppearanceFont(font)) return false;
+    if (!isAcceptedDefaultAppearanceSize(size)) return false;
+    float rgb[3] = {0.0f, 0.0f, 0.0f};
+    if (!defaultAppearanceRgb(color, rgb)) return false;
+
+    // The key is one of five 4-letter literals; copy it into a POD buffer so
+    // nothing with a destructor is referenced inside the fz_try region.
+    char fontKey[8] = {};
+    std::copy_n(font.c_str(), std::min<size_t>(font.size(), sizeof fontKey - 1), fontKey);
+    const char* key = fontKey;
+    // -0 compares equal to 0 and is accepted as auto-size; write it as "0",
+    // not "-0" (pdf_print_default_appearance prints with %g).
+    const float writeSize = (size == 0.0f) ? 0.0f : size;
+    const float r = rgb[0];
+    const float g = rgb[1];
+    const float b = rgb[2];
+
+    pdf_page* pdfPage = pImpl->getPdfPage(page);
+    return pImpl->context->executeReturn<bool>(
+        [pdfPage, widgetIndex, key, writeSize, r, g, b](fz_context* ctx) -> bool {
+            pdf_annot* widget = getNthWidget(ctx, pdfPage, widgetIndex);
+            if (!widget) return false;
+            const int t = pdf_widget_type(ctx, widget);
+            if (t != PDF_WIDGET_TYPE_TEXT && t != PDF_WIDGET_TYPE_COMBOBOX &&
+                t != PDF_WIDGET_TYPE_LISTBOX) {
+                return false;
+            }
+            const float c[3] = {r, g, b};
+            pdf_set_annot_default_appearance(ctx, widget, key, writeSize, 3, c);
+
+            // Cap pathological /RV before MuPDF's recursive HTML parser sees it.
+            // A deeply-nested or huge rich-text value would overflow the stack
+            // inside pdf_update_annot (STATUS_STACK_OVERFLOW). When it is
+            // pathological, skip appearance generation and raise
+            // /NeedAppearances so the viewer synthesises the appearance itself.
+            pdf_obj* fieldObj = pdf_annot_obj(ctx, widget);
+            if (richTextValueIsPathological(ctx, fieldObj)) {
+                writeNeedAppearances(ctx, pdfPage->doc, 1);
+                return true;
+            }
+
+            pdf_update_annot(ctx, widget);
+            // origin/master 596d613f's fail-safe, kept in the reconciled
+            // setter: if no appearance could be produced, tell the viewer to
+            // synthesise one rather than show a stale or empty /AP.
+            if (!widgetHasNonEmptyAppearance(ctx, widget)) {
+                writeNeedAppearances(ctx, pdfPage->doc, 1);
+            }
+            return true;
+        });
+}
+
+std::optional<FormFieldOwnDefaultAppearance> FormManager::getFieldOwnDefaultAppearance(
+    const pdfe::core::Page* page, int widgetIndex) {
+    if (!page || widgetIndex < 0) return std::nullopt;
+
+    struct Raw {
+        bool found = false;
+        RawStringEntry da;
+        RawStringEntry ds;
+        RawStringEntry rc;
+    };
+    Raw raw;
+    Raw* out = &raw;
+    pdf_page* pdfPage = pImpl->getPdfPage(page);
+    pImpl->context->execute([pdfPage, widgetIndex, out](fz_context* ctx) {
+        pdf_annot* widget = getNthWidget(ctx, pdfPage, widgetIndex);
+        if (!widget) return;
+        pdf_obj* obj = pdf_annot_obj(ctx, widget);
+        out->found = true;
+        out->da = readRawStringEntry(ctx, obj, PDF_NAME(DA));
+        out->ds = readRawStringEntry(ctx, obj, PDF_NAME(DS));
+        out->rc = readRawStringEntry(ctx, obj, PDF_NAME(RC));
+    });
+    if (!raw.found) return std::nullopt;
+
+    // Copied out of the MuPDF objects here, outside the fz_try region; nothing
+    // has modified the dictionary since the pointers were taken.
+    FormFieldOwnDefaultAppearance s;
+    s.hasDa = raw.da.present;
+    if (raw.da.present) s.da.assign(raw.da.data, raw.da.len);
+    s.hasDs = raw.ds.present;
+    if (raw.ds.present) s.ds.assign(raw.ds.data, raw.ds.len);
+    s.hasRc = raw.rc.present;
+    if (raw.rc.present) s.rc.assign(raw.rc.data, raw.rc.len);
+    return s;
+}
+
+bool FormManager::restoreFieldOwnDefaultAppearance(
+    const pdfe::core::Page* page, int widgetIndex,
+    const FormFieldOwnDefaultAppearance& state) {
+    if (!page || widgetIndex < 0) return false;
+
+    // Raw pointers and sizes only inside the fz_try region.
+    const bool hasDa = state.hasDa;
+    const char* da = state.da.data();
+    const size_t daLen = state.da.size();
+    const bool hasDs = state.hasDs;
+    const char* ds = state.ds.data();
+    const size_t dsLen = state.ds.size();
+    const bool hasRc = state.hasRc;
+    const char* rc = state.rc.data();
+    const size_t rcLen = state.rc.size();
+
+    pdf_page* pdfPage = pImpl->getPdfPage(page);
+    return pImpl->context->executeReturn<bool>(
+        [pdfPage, widgetIndex, hasDa, da, daLen, hasDs, ds, dsLen, hasRc, rc,
+         rcLen](fz_context* ctx) -> bool {
+            pdf_annot* widget = getNthWidget(ctx, pdfPage, widgetIndex);
+            if (!widget) return false;
+            pdf_obj* obj = pdf_annot_obj(ctx, widget);
+            writeRawStringEntry(ctx, obj, PDF_NAME(DA), hasDa, da, daLen);
+            writeRawStringEntry(ctx, obj, PDF_NAME(DS), hasDs, ds, dsLen);
+            writeRawStringEntry(ctx, obj, PDF_NAME(RC), hasRc, rc, rcLen);
+            pdf_dirty_annot(ctx, widget);
+            pdf_update_annot(ctx, widget);
+            return true;
+        });
 }
 
 // Pipeline b3d7f942 phase-1 remediation (GAP-16 AC3): test seam.

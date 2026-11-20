@@ -64,6 +64,14 @@ public:
     void onMouseMove(QMouseEvent* event, int pageIndex, QPointF pdfPoint) override;
     void onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pdfPoint) override;
     void onKeyPress(QKeyEvent* event) override;
+
+    /// form-field-bugs phase-8, bug 6: Esc aborts an in-progress manipulation
+    /// drag (move / resize / rotate of the selected annotation), reverting the
+    /// live preview to its pre-drag geometry so no annotationMoved/Rotated
+    /// command is fired. The selection itself is kept. onKeyPress calls this
+    /// from its Escape branch. See AnnotationTool.
+    bool cancelInProgress() override;
+
     void onMouseDoubleClick(QMouseEvent* event, int pageIndex, QPointF pdfPoint) override;
     QMenu* onContextMenu(QMouseEvent* event, int pageIndex, QPointF pdfPoint) override;
     void onPaintOverlay(QPainter& painter, int pageIndex,

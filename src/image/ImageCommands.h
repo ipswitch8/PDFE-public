@@ -64,6 +64,8 @@ public:
     [[nodiscard]] std::string description() const override;
     [[nodiscard]] int pageIndex() const override;
     void rebindPage(pdfe::core::Page* page) override;
+    /// removeImage refused: nothing changed, UndoManager stacks no entry.
+    [[nodiscard]] bool failed() const override { return failed_; }
 
 private:
     ImageManager* manager_;
@@ -74,6 +76,7 @@ private:
     void* savedImageRef_ = nullptr;
     void* savedContentsRef_ = nullptr;
     bool executed_ = false;
+    bool failed_ = false;
 };
 
 /// Command to resize an image (undoable).
@@ -86,7 +89,9 @@ public:
         pdfe::core::Document* doc,
         const std::string& xobjectName,
         float newWidth, float newHeight,
-        float x, float y);
+        float x, float y,
+        float angleDegrees = 0.0f,
+        int occurrence = 0);  // placement identity with the name (GitHub #421)
     ~ResizeImageCommand() override;
 
     void execute() override;
@@ -95,6 +100,9 @@ public:
     [[nodiscard]] std::string description() const override;
     [[nodiscard]] int pageIndex() const override;
     void rebindPage(pdfe::core::Page* page) override;
+    /// The editor refused the edit: nothing changed and UndoManager stacks
+    /// no entry (image-placement-state phase 2).
+    [[nodiscard]] bool failed() const override { return failed_; }
 
 private:
     ImageManager* manager_;
@@ -103,8 +111,11 @@ private:
     pdfe::core::Document* doc_;
     std::string xobjectName_;
     float newWidth_, newHeight_, x_, y_;
+    float angleDegrees_ = 0.0f;  // orientation kept by the move (GitHub #416)
+    int occurrence_ = 0;         // n-th Do of the name (GitHub #421)
     void* savedContentsRef_ = nullptr;
     bool executed_ = false;
+    bool failed_ = false;
 };
 
 /// Command to rotate an image (undoable).
@@ -118,7 +129,8 @@ public:
         const std::string& xobjectName,
         float angleDegrees,
         float centerX, float centerY,
-        float displayWidth, float displayHeight);
+        float displayWidth, float displayHeight,
+        int occurrence = 0);  // placement identity with the name (GitHub #421)
     ~RotateImageCommand() override;
 
     void execute() override;
@@ -127,6 +139,9 @@ public:
     [[nodiscard]] std::string description() const override;
     [[nodiscard]] int pageIndex() const override;
     void rebindPage(pdfe::core::Page* page) override;
+    /// The editor refused the edit: nothing changed and UndoManager stacks
+    /// no entry (image-placement-state phase 2).
+    [[nodiscard]] bool failed() const override { return failed_; }
 
 private:
     ImageManager* manager_;
@@ -136,8 +151,10 @@ private:
     std::string xobjectName_;
     float angleDegrees_, centerX_, centerY_;
     float displayWidth_, displayHeight_;
+    int occurrence_ = 0;
     void* savedContentsRef_ = nullptr;
     bool executed_ = false;
+    bool failed_ = false;
 };
 
 /// Command to crop an image (undoable).
@@ -151,7 +168,8 @@ public:
         const std::string& xobjectName,
         QRectF cropRect,
         float displayWidth, float displayHeight,
-        float x, float y);
+        float x, float y,
+        int occurrence = 0);  // placement identity with the name (GitHub #421)
     ~CropImageCommand() override;
 
     void execute() override;
@@ -160,6 +178,9 @@ public:
     [[nodiscard]] std::string description() const override;
     [[nodiscard]] int pageIndex() const override;
     void rebindPage(pdfe::core::Page* page) override;
+    /// The editor refused the edit: nothing changed and UndoManager stacks
+    /// no entry (image-placement-state phase 2).
+    [[nodiscard]] bool failed() const override { return failed_; }
 
 private:
     ImageManager* manager_;
@@ -169,8 +190,10 @@ private:
     std::string xobjectName_;
     QRectF cropRect_;
     float displayWidth_, displayHeight_, x_, y_;
+    int occurrence_ = 0;
     void* savedContentsRef_ = nullptr;
     bool executed_ = false;
+    bool failed_ = false;
 };
 
 } // namespace pdfe::image

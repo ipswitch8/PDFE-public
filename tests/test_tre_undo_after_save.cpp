@@ -156,7 +156,13 @@ TEST_F(TreUndoAfterSavePrimitiveTest, PrimitiveSurvivesFullRewriteSave) {
         // does NOT auto-rescale, guaranteeing a real dimension change.
         QImage replacement(40, 30, QImage::Format_RGB888);
         replacement.fill(qRgb(0, 0, 0));
-        ASSERT_TRUE(writer_->replacePageImage(page.get(), doc.get(), replacement));
+        // Image-placement-state phase 6 (GitHub #447): the two-argument form
+        // takes a picture of the whole page and keeps the image's own pixel
+        // size when the image does not cover the page (this fixture's has a
+        // 50 pt margin), so the targeted form is used to write the
+        // replacement as the image itself.
+        ASSERT_TRUE(writer_->replacePageImage(page.get(), doc.get(), replacement,
+                                              *writer_->findPageImageXObject(page.get(), doc.get())));
 
         auto mutated = writer_->findPageImageXObject(page.get(), doc.get());
         ASSERT_TRUE(mutated.has_value());

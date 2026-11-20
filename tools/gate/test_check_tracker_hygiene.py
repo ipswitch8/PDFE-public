@@ -9,8 +9,10 @@ reports clean on a surface it did not actually read.
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib.util
+import io
 import os
 import sys
 
@@ -118,3 +120,100 @@ def test_scan_tracker_reports_a_leak(monkeypatch):
 def test_scan_logs_refuses_when_the_run_list_is_unreadable(monkeypatch):
     monkeypatch.setattr(th, "api_json", lambda gh, path: None)
     assert th.scan_logs(csr, NEEDLES, "gh", "o/r", 25) == 2
+
+
+# --- the live probe: Windows unchanged, Linux CI via PDFE_HYGIENE_PROBE (#407)
+
+class _FakeGuard:
+    """scan_text over the synthetic needle, recording every probe it sees."""
+    def __init__(self):
+        self.seen = []
+
+    def scan_text(self, text, needles):
+        self.seen.append(text)
+        return csr.scan_text(text, needles)
+
+
+def test_windows_keeps_the_computername_probe():
+    probe, src = th.live_probe({"COMPUTERNAME": "ZZSYNTH-HOST",
+                                th.PROBE_ENV: "zzsynth host"}, "u", "win32")
+    assert src == "COMPUTERNAME"
+    assert "ZZSYNTH-HOST" in probe
+
+
+def test_windows_with_no_computername_still_fails_closed():
+    # The env var must not rescue a Windows host: its behaviour is unchanged.
+    assert th.live_probe({th.PROBE_ENV: "zzsynth host"}, "u", "win32") == \
+        (None, "COMPUTERNAME absent/short")
+
+
+def test_linux_uses_the_probe_env_var_when_set():
+    probe, src = th.live_probe({th.PROBE_ENV: "zzsynth host"}, "runner",
+                               "linux")
+    assert src == th.PROBE_ENV
+    assert csr.scan_text(probe, NEEDLES), "the supplied probe must hit"
+
+
+@pytest.mark.parametrize("value", ["", "  ", "abc"])
+def test_linux_a_set_but_short_probe_fails_closed(value):
+    # Set-but-short must NOT fall through to the login name: a misconfigured
+    # secret is reported, not papered over.
+    probe, why = th.live_probe({th.PROBE_ENV: value}, "someone", "linux")
+    assert probe is None and th.PROBE_ENV in why
+
+
+def test_linux_without_the_env_var_falls_back_to_the_login_name():
+    probe, src = th.live_probe({}, "someone", "linux")
+    assert src == "login name" and "someone" in probe
+
+
+def test_linux_with_no_env_var_and_no_login_fails_closed():
+    assert th.live_probe({}, "", "linux")[0] is None
+
+
+def _captured(fn, *args):
+    """(return value, everything printed). capsys is unavailable under this
+    repo's pytest configuration, so capture directly."""
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+        rv = fn(*args)
+    return rv, buf.getvalue()
+
+
+def test_run_controls_passes_with_a_hitting_probe():
+    ok, out = _captured(th.run_controls, _FakeGuard(), NEEDLES,
+                        {th.PROBE_ENV: "zzsynth host"}, "runner", "linux")
+    assert ok is True and "sensitivity PASS" in out
+
+
+def test_run_controls_fails_closed_when_the_probe_hits_nothing():
+    # The CI container's login is `runner`, which is not a needle: without the
+    # secret the control must FAIL, never pass vacuously.
+    ok, out = _captured(th.run_controls, _FakeGuard(), NEEDLES, {}, "runner",
+                        "linux")
+    assert ok is False
+    assert "sensitivity FAIL" in out and th.PROBE_ENV in out
+
+
+def test_run_controls_fails_closed_when_the_probe_is_short():
+    ok, out = _captured(th.run_controls, _FakeGuard(), NEEDLES,
+                        {th.PROBE_ENV: "ab"}, "runner", "linux")
+    assert ok is False and "cannot run" in out
+
+
+def test_the_probe_value_is_never_printed():
+    secret = "zzsynth host"
+    g = _FakeGuard()
+    _, out1 = _captured(th.run_controls, g, NEEDLES, {th.PROBE_ENV: secret},
+                        "runner", "linux")
+    _, out2 = _captured(th.run_controls, g, NEEDLES,
+                        {"COMPUTERNAME": "ZZSYNTHPC"}, "u", "win32")
+    for v in (secret, "ZZSYNTHPC"):
+        assert v not in out1 and v not in out2
+    assert any(secret in s for s in g.seen), "the probe was actually scanned"
+
+
+def test_a_planted_needle_in_log_text_is_still_found():
+    log = "2026-11-16T00:00:00Z ##[group]Run cd zzsynth-host/src\n"
+    assert th.scan_payload([("run 1 job.txt", log)], NEEDLES,
+                           csr.scan_text) == [("run 1 job.txt", "syn")]

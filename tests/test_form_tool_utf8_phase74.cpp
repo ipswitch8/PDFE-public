@@ -33,8 +33,18 @@
 #include "forms/FormTool.h"
 #include "forms/JavaScriptEngine.h"
 
+#include "FormManagerTestSeams.h"   // getFirstWidgetObjForPage (read-only setup)
+
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QClipboard>
+#include <QGuiApplication>
+#include <QCoreApplication>
+#include <QEventLoop>
+#include <QThread>
+
+#include <mupdf/fitz.h>
+#include <mupdf/pdf.h>
 
 #include <filesystem>
 #include <memory>
@@ -49,6 +59,25 @@ const std::string kCjk = "\xE4\xB8\xAD";
 // U+1F600 GRINNING FACE — 4 bytes (F0 9F 98 80). Included because a 4-byte
 // sequence is the one a "step two bytes" half-fix still splits.
 const std::string kEmoji = "\xF0\x9F\x98\x80";
+
+// Put @p text on the clipboard and confirm it actually landed, retrying to
+// absorb the Windows/RDP ownership race (rdpclip transiently owns the
+// clipboard, so a single setText can be swallowed). Budget sized like
+// tests/support/ClipboardTestUtil.h for a loaded 16-shard run on a Server-2019
+// RDP host. Returns true once the clipboard reads back the written value.
+bool setClipboardTextVerified(const QString& text,
+                              int maxAttempts = 60, int delayMs = 50) {
+    QClipboard* cb = QGuiApplication::clipboard();
+    if (!cb) return false;
+    for (int i = 0; i < maxAttempts; ++i) {
+        cb->setText(text);
+        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents,
+                                        delayMs);
+        if (cb->text() == text) return true;
+        QThread::msleep(static_cast<unsigned long>(delayMs));
+    }
+    return false;
+}
 
 } // namespace
 
@@ -109,6 +138,33 @@ protected:
     {
         QKeyEvent ev(QEvent::KeyPress, key, Qt::NoModifier);
         tool->onKeyPress(&ev);
+    }
+
+    /// Deliver a Ctrl+<key> through the real onKeyPress path. The event text is
+    /// irrelevant to the clipboard branch (it reads the clipboard, not the
+    /// event), so it is left empty.
+    void ctrlKey(int key)
+    {
+        QKeyEvent ev(QEvent::KeyPress, key, Qt::ControlModifier);
+        tool->onKeyPress(&ev);
+    }
+
+    /// Begin editing the editable text field named @p name (e.g. "Comments" for
+    /// the multiline field). Returns its widget index, or -1 if not found.
+    int beginEditingFieldNamed(const std::string& name)
+    {
+        const auto fields = manager->getFormFields(page.get());
+        for (const auto& f : fields) {
+            if (f.type == pdfe::forms::FormFieldType::Text && !f.isReadOnly &&
+                f.fieldName == name) {
+                QMouseEvent mouseEvent(QEvent::MouseButtonPress, QPointF(0, 0),
+                                       Qt::LeftButton, Qt::LeftButton,
+                                       Qt::NoModifier);
+                tool->onMousePress(&mouseEvent, 0, f.rect.center());
+                return f.widgetIndex;
+            }
+        }
+        return -1;
     }
 
     const std::string& buffer() const { return tool->editBufferForTesting(); }
@@ -426,4 +482,148 @@ TEST(Utf8Boundaries, MovementTerminatesOnMalformedInput) {
     EXPECT_EQ(codepointCount(""), 0u);
     EXPECT_EQ(codepointCount("abc"), 3u);
     EXPECT_EQ(codepointCount(kEAcute + kCjk + kEmoji), 3u);
+}
+
+// =====================================================================
+// form-field-bugs phase-4, bug-11 — Ctrl+V paste into a form text field.
+//
+// Before the fix, FormTool::onKeyPress had no Qt::ControlModifier branch, so
+// Ctrl+V's control character (not isPrint()) was dropped and nothing pasted;
+// text could only be typed by hand. These assert on the ACTUAL editBuffer_ /
+// committed field value, not on a function being called.
+// =====================================================================
+
+TEST_F(FormToolUtf8Test, CtrlVPastesClipboardTextAtCaret) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+    const int idx = beginEditingTextField();
+    ASSERT_GE(idx, 0) << "test_form.pdf must contain an editable text field";
+    ASSERT_TRUE(tool->isEditingField());
+
+    ASSERT_TRUE(setClipboardTextVerified(QStringLiteral("Hello World")))
+        << "could not place known text on the clipboard";
+
+    ctrlKey(Qt::Key_V);
+
+    EXPECT_EQ(buffer(), "Hello World")
+        << "Ctrl+V did not insert the clipboard text into the edit buffer";
+    EXPECT_EQ(tool->cursorPositionForTesting(),
+              static_cast<int>(std::string("Hello World").size()))
+        << "caret must advance to the end of the pasted text";
+
+    // And the value the commit writes into the document is the pasted text.
+    tool->deactivate();
+    const auto after = manager->getFormField(page.get(), idx);
+    EXPECT_EQ(after.value, "Hello World")
+        << "the committed field value is not the pasted text";
+}
+
+TEST_F(FormToolUtf8Test, CtrlVInsertsAtTheCaretNotTheEnd) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+    ASSERT_GE(beginEditingTextField(), 0);
+
+    type("AB");
+    pressKey(Qt::Key_Left);                       // caret between A and B
+    ASSERT_EQ(tool->cursorPositionForTesting(), 1);
+
+    ASSERT_TRUE(setClipboardTextVerified(QStringLiteral("X")));
+    ctrlKey(Qt::Key_V);
+
+    EXPECT_EQ(buffer(), "AXB")
+        << "paste must land at the caret, not be appended";
+    EXPECT_EQ(tool->cursorPositionForTesting(), 2);
+}
+
+TEST_F(FormToolUtf8Test, CtrlVPreservesMultiByteUtf8) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+    ASSERT_GE(beginEditingTextField(), 0);
+
+    const std::string multi = kEAcute + kCjk + kEmoji;
+    ASSERT_TRUE(setClipboardTextVerified(QString::fromStdString(multi)));
+
+    ctrlKey(Qt::Key_V);
+
+    EXPECT_EQ(buffer(), multi)
+        << "pasted multi-byte text must round-trip through the edit buffer";
+    EXPECT_TRUE(pdfe::core::utf8::isValid(buffer()))
+        << "paste left invalid UTF-8 in the buffer";
+}
+
+TEST_F(FormToolUtf8Test, CtrlVCollapsesNewlinesInASingleLineField) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+    // FirstName / LastName are single-line (Ff 0); beginEditingTextField picks
+    // the first editable text field, which is single-line FirstName.
+    const int idx = beginEditingTextField();
+    ASSERT_GE(idx, 0);
+    ASSERT_FALSE(manager->getFormField(page.get(), idx).isMultiline)
+        << "this case requires a single-line field";
+
+    ASSERT_TRUE(setClipboardTextVerified(QStringLiteral("line1\r\nline2\nline3")));
+    ctrlKey(Qt::Key_V);
+
+    // A single-line field cannot represent a break: newline runs collapse to a
+    // single space, and no stray carriage return survives.
+    EXPECT_EQ(buffer(), "line1 line2 line3")
+        << "newlines in a single-line field must collapse to spaces";
+    EXPECT_EQ(buffer().find('\n'), std::string::npos);
+    EXPECT_EQ(buffer().find('\r'), std::string::npos);
+}
+
+TEST_F(FormToolUtf8Test, CtrlVKeepsNewlinesInAMultilineField) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+    // "Comments" is the multiline field (Ff 4096) in test_form.pdf.
+    const int idx = beginEditingFieldNamed("Comments");
+    ASSERT_GE(idx, 0) << "test_form.pdf must contain the multiline Comments field";
+    ASSERT_TRUE(manager->getFormField(page.get(), idx).isMultiline)
+        << "Comments must be a multiline field";
+
+    ASSERT_TRUE(setClipboardTextVerified(QStringLiteral("line1\r\nline2")));
+    ctrlKey(Qt::Key_V);
+
+    // Line breaks are legal here and must survive; only CR is normalized to LF.
+    EXPECT_EQ(buffer(), "line1\nline2")
+        << "a multiline field must keep newlines (CR normalized to LF)";
+}
+
+TEST_F(FormToolUtf8Test, CtrlVIsRefusedOnAReadOnlyField) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+    const int idx = beginEditingTextField();
+    ASSERT_GE(idx, 0);
+    ASSERT_TRUE(tool->isEditingField());
+
+    ASSERT_TRUE(setClipboardTextVerified(QStringLiteral("SHOULD-NOT-PASTE")));
+
+    // Make the field read-only mid-edit by setting its /Ff read-only bit (1)
+    // directly on the widget object. getFirstWidgetObjForPage returns the first
+    // widget (FirstName == widget index 0), which is the field we are editing.
+    pdf_obj* widgetObj = getFirstWidgetObjForPage(context.get(), page.get());
+    ASSERT_NE(widgetObj, nullptr);
+    context->execute([&](fz_context* ctx) {
+        pdf_dict_put_int(ctx, widgetObj, PDF_NAME(Ff), 1 /* read-only */);
+    });
+    ASSERT_TRUE(manager->getFormField(page.get(), idx).isReadOnly)
+        << "the field must actually be read-only for this test to mean anything";
+
+    ctrlKey(Qt::Key_V);
+
+    EXPECT_TRUE(buffer().empty())
+        << "paste into a read-only field must be refused; buffer holds "
+        << buffer();
+}
+
+TEST_F(FormToolUtf8Test, CtrlCXAAreNoOpsWithNoSelectionModel) {
+    // FormTool has no selection model, so Copy / Cut / Select-All are scoped
+    // out. They must be inert — never corrupt the buffer with a control glyph
+    // nor delete text.
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+    ASSERT_GE(beginEditingTextField(), 0);
+
+    type("keep");
+    ASSERT_EQ(buffer(), "keep");
+
+    ctrlKey(Qt::Key_A);
+    ctrlKey(Qt::Key_C);
+    ctrlKey(Qt::Key_X);
+
+    EXPECT_EQ(buffer(), "keep")
+        << "Ctrl+A/C/X must leave the buffer untouched (no selection model)";
 }

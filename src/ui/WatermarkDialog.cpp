@@ -99,8 +99,15 @@ void WatermarkDialog::setupUi() {
     rotationSpin_->setAccessibleName("Watermark Rotation");
     rotationSpin_->setRange(-180.0, 180.0);
     rotationSpin_->setSingleStep(5.0);
-    rotationSpin_->setValue(45.0);
+    rotationSpin_->setValue(kTextDefaultRotation);
     rotationSpin_->setSuffix(tr("°"));
+    // Rotation and Position apply in both modes, to the text and to the image
+    // (GitHub #451). Until the user edits Rotation it follows the mode's
+    // default: 45 degrees for text, upright (0) for an image, as an image
+    // watermark always was. Once edited, the user's value is kept.
+    rotationSpin_->setToolTip(
+        tr("Turns the watermark text or image counter-clockwise by this angle. "
+           "Defaults to 45° for text and 0° (upright) for an image."));
     form->addRow(tr("Rotation:"), rotationSpin_);
 
     positionCombo_ = new QComboBox(this);
@@ -111,6 +118,8 @@ void WatermarkDialog::setupUi() {
     positionCombo_->addItem(tr("Top Right"), "top-right");
     positionCombo_->addItem(tr("Bottom Left"), "bottom-left");
     positionCombo_->addItem(tr("Bottom Right"), "bottom-right");
+    positionCombo_->setToolTip(
+        tr("Where the watermark text or image is placed on the page as it is shown."));
     form->addRow(tr("Position:"), positionCombo_);
 
     // Phase 4e: page-range controls
@@ -154,6 +163,10 @@ void WatermarkDialog::setupUi() {
     // Phase 4e wiring
     connect(modeCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
         this, [this](int) { updateModeVisibility(); });
+    connect(rotationSpin_, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+        this, [this](double) {
+            if (!settingRotation_) rotationUserSet_ = true;
+        });
     connect(rangeCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
         this, [this](int) {
             rangeExplicitEdit_->setEnabled(
@@ -186,38 +199,33 @@ void WatermarkDialog::updateModeVisibility() {
     imagePathEdit_->setEnabled(image);
     imageBrowseButton_->setEnabled(image);
     textEdit_->setEnabled(!image);
+
+    // The mode's default Rotation, unless the user has set one.
+    if (!rotationUserSet_) {
+        settingRotation_ = true;
+        rotationSpin_->setValue(image ? kImageDefaultRotation : kTextDefaultRotation);
+        settingRotation_ = false;
+    }
 }
 
-void WatermarkDialog::onApply() {
-    if (!document_) {
-        statusLabel_->setText(tr("No document loaded"));
-        return;
-    }
-
-    QString outputPath = QFileDialog::getSaveFileName(
-        this, tr("Save Watermarked PDF"), QString(), tr("PDF Files (*.pdf)"));
-    if (outputPath.isEmpty()) return;
-
+pdfe::batch::WatermarkConfig WatermarkDialog::config() const {
     pdfe::batch::WatermarkConfig cfg;
     cfg.text     = textEdit_->text().toStdString();
     cfg.opacity  = static_cast<float>(opacitySpin_->value());
     cfg.fontSize = static_cast<float>(fontSizeSpin_->value());
     cfg.rotation = static_cast<float>(rotationSpin_->value());
     cfg.position = positionCombo_->currentData().toString().toStdString();
+    return cfg;
+}
 
+pdfe::batch::WatermarkExtConfig WatermarkDialog::extConfig() const {
     pdfe::batch::WatermarkExtConfig ext;
     ext.mode      = modeCombo_->currentData().toString().toStdString();
     ext.imagePath = imagePathEdit_->text().toStdString();
     ext.rangeMode = rangeCombo_->currentData().toString().toStdString();
-
-    if (ext.mode == "image" && ext.imagePath.empty()) {
-        QMessageBox::warning(this, tr("No Image"),
-            tr("Please select an image file for the watermark."));
-        return;
-    }
     if (ext.rangeMode == "explicit") {
         const QString raw = rangeExplicitEdit_->text();
-        const int total = document_->pageCount();
+        const int total = document_ ? document_->pageCount() : 0;
         const auto parts = raw.split(QRegularExpression("[,\\s]+"), Qt::SkipEmptyParts);
         for (const QString& part : parts) {
             if (part.contains('-')) {
@@ -240,11 +248,32 @@ void WatermarkDialog::onApply() {
         ext.explicitPages.erase(
             std::unique(ext.explicitPages.begin(), ext.explicitPages.end()),
             ext.explicitPages.end());
-        if (ext.explicitPages.empty()) {
-            QMessageBox::warning(this, tr("Invalid Range"),
-                tr("The custom page range is empty or invalid."));
-            return;
-        }
+    }
+    return ext;
+}
+
+void WatermarkDialog::onApply() {
+    if (!document_) {
+        statusLabel_->setText(tr("No document loaded"));
+        return;
+    }
+
+    QString outputPath = QFileDialog::getSaveFileName(
+        this, tr("Save Watermarked PDF"), QString(), tr("PDF Files (*.pdf)"));
+    if (outputPath.isEmpty()) return;
+
+    const pdfe::batch::WatermarkConfig cfg = config();
+    const pdfe::batch::WatermarkExtConfig ext = extConfig();
+
+    if (ext.mode == "image" && ext.imagePath.empty()) {
+        QMessageBox::warning(this, tr("No Image"),
+            tr("Please select an image file for the watermark."));
+        return;
+    }
+    if (ext.rangeMode == "explicit" && ext.explicitPages.empty()) {
+        QMessageBox::warning(this, tr("Invalid Range"),
+            tr("The custom page range is empty or invalid."));
+        return;
     }
 
     // Phase 4e: go directly through applyWatermarkExt to honor mode/range.

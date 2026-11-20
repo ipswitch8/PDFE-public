@@ -35,6 +35,12 @@ void UndoManager::execute(std::unique_ptr<Command> cmd) {
         // Execute the command
         cmd->execute();
 
+        // A command that reports failure changed nothing: it gets no undo
+        // entry and the redo stack is kept (image-placement-state phase 2).
+        if (cmd->failed()) {
+            return;
+        }
+
         // Clear redo stack when a new command is executed
         redoStack_.clear();
 

@@ -66,14 +66,20 @@ void InsertImageCommand::undo()
     if (!executed_) return;
     if (!page_) return;  // rebound to null (page gone) → safe no-op. See SaveWithRebind.h step 5.
 
-    // Restore the original content stream and remove the inserted image
+    // GitHub #434: undo takes away exactly what execute() added - the
+    // inserted placement and its XObject resource - and nothing else.
+    // Restoring the pre-insert content snapshot removes the placement (and
+    // restores every other byte exactly); the resource the insert added under
+    // the name it reported (result_.imageInfo) then has no user left and is
+    // removed. The old code called removeImage(imageIndex) AFTER the restore,
+    // with an index that was never filled in (-1) and a placement that was
+    // already gone, so the XObject stayed in the page resources. redo()
+    // re-runs execute(), which inserts it again.
     if (savedContentsRef_) {
-        // Save the image ref before removing it, so redo can re-insert
         manager_->restoreImage(page_, doc_, result_.imageInfo, nullptr, savedContentsRef_);
-
-        // Remove the image from XObject dict
-        auto removeResult = manager_->removeImage(page_, doc_, result_.imageInfo.imageIndex);
-        (void)removeResult;
+        if (result_.success) {
+            manager_->removeImageResourceIfUnused(page_, doc_, result_.imageInfo.xobjectName);
+        }
     }
 
     doc_->markPageDirty(page_->index());
@@ -122,7 +128,17 @@ void RemoveImageCommand::execute()
     savedImageRef_ = manager_->saveImageRef(page_, doc_, info.xobjectName);
     savedContentsRef_ = manager_->saveContentsRef(page_, doc_);
 
-    manager_->removeImage(page_, doc_, imageIndex_);
+    const ImageOperationResult r = manager_->removeImage(page_, doc_, imageIndex_);
+    if (!r.success) {
+        // Nothing was removed (bad index, or an image inside a Form XObject):
+        // no undo entry, page left clean (image-placement-state phase 2).
+        if (savedImageRef_) { manager_->releaseRef(savedImageRef_); savedImageRef_ = nullptr; }
+        if (savedContentsRef_) { manager_->releaseRef(savedContentsRef_); savedContentsRef_ = nullptr; }
+        failed_ = true;
+        executed_ = false;
+        return;
+    }
+    failed_ = false;
     doc_->markPageDirty(page_->index());
     executed_ = true;
 }
@@ -172,10 +188,12 @@ ResizeImageCommand::ResizeImageCommand(
     pdfe::core::Document* doc,
     const std::string& xobjectName,
     float newWidth, float newHeight,
-    float x, float y)
+    float x, float y,
+    float angleDegrees,
+    int occurrence)
     : manager_(manager), editor_(editor), page_(page), doc_(doc),
       xobjectName_(xobjectName), newWidth_(newWidth), newHeight_(newHeight),
-      x_(x), y_(y)
+      x_(x), y_(y), angleDegrees_(angleDegrees), occurrence_(occurrence)
 {
 }
 
@@ -199,7 +217,20 @@ void ResizeImageCommand::execute()
         savedContentsRef_ = nullptr;
     }
     savedContentsRef_ = manager_->saveContentsRef(page_, doc_);
-    editor_->resizeImage(page_, doc_, xobjectName_, newWidth_, newHeight_, x_, y_);
+    const bool ok = editor_->resizeImage(page_, doc_, PlacementId{xobjectName_, occurrence_},
+                         newWidth_, newHeight_, x_, y_, angleDegrees_);
+    if (!ok) {
+        // The editor refused (placement not found, inside a Form XObject,
+        // empty crop, ...): nothing changed. Record the failure so the
+        // UndoManager stacks no entry, leave the page clean, and keep undo a
+        // no-op (image-placement-state phase 2).
+        manager_->releaseRef(savedContentsRef_);
+        savedContentsRef_ = nullptr;
+        failed_ = true;
+        executed_ = false;
+        return;
+    }
+    failed_ = false;
     doc_->markPageDirty(page_->index());
     executed_ = true;
 }
@@ -235,11 +266,13 @@ RotateImageCommand::RotateImageCommand(
     const std::string& xobjectName,
     float angleDegrees,
     float centerX, float centerY,
-    float displayWidth, float displayHeight)
+    float displayWidth, float displayHeight,
+    int occurrence)
     : manager_(manager), editor_(editor), page_(page), doc_(doc),
       xobjectName_(xobjectName), angleDegrees_(angleDegrees),
       centerX_(centerX), centerY_(centerY),
-      displayWidth_(displayWidth), displayHeight_(displayHeight)
+      displayWidth_(displayWidth), displayHeight_(displayHeight),
+      occurrence_(occurrence)
 {
 }
 
@@ -263,8 +296,21 @@ void RotateImageCommand::execute()
         savedContentsRef_ = nullptr;
     }
     savedContentsRef_ = manager_->saveContentsRef(page_, doc_);
-    editor_->rotateImage(page_, doc_, xobjectName_, angleDegrees_,
-                         centerX_, centerY_, displayWidth_, displayHeight_);
+    const bool ok = editor_->rotateImage(page_, doc_, PlacementId{xobjectName_, occurrence_},
+                         angleDegrees_, centerX_, centerY_,
+                         displayWidth_, displayHeight_);
+    if (!ok) {
+        // The editor refused (placement not found, inside a Form XObject,
+        // empty crop, ...): nothing changed. Record the failure so the
+        // UndoManager stacks no entry, leave the page clean, and keep undo a
+        // no-op (image-placement-state phase 2).
+        manager_->releaseRef(savedContentsRef_);
+        savedContentsRef_ = nullptr;
+        failed_ = true;
+        executed_ = false;
+        return;
+    }
+    failed_ = false;
     doc_->markPageDirty(page_->index());
     executed_ = true;
 }
@@ -300,11 +346,12 @@ CropImageCommand::CropImageCommand(
     const std::string& xobjectName,
     QRectF cropRect,
     float displayWidth, float displayHeight,
-    float x, float y)
+    float x, float y,
+    int occurrence)
     : manager_(manager), editor_(editor), page_(page), doc_(doc),
       xobjectName_(xobjectName), cropRect_(cropRect),
       displayWidth_(displayWidth), displayHeight_(displayHeight),
-      x_(x), y_(y)
+      x_(x), y_(y), occurrence_(occurrence)
 {
 }
 
@@ -328,8 +375,20 @@ void CropImageCommand::execute()
         savedContentsRef_ = nullptr;
     }
     savedContentsRef_ = manager_->saveContentsRef(page_, doc_);
-    editor_->cropImage(page_, doc_, xobjectName_, cropRect_,
+    const bool ok = editor_->cropImage(page_, doc_, PlacementId{xobjectName_, occurrence_}, cropRect_,
                        displayWidth_, displayHeight_, x_, y_);
+    if (!ok) {
+        // The editor refused (placement not found, inside a Form XObject,
+        // empty crop, ...): nothing changed. Record the failure so the
+        // UndoManager stacks no entry, leave the page clean, and keep undo a
+        // no-op (image-placement-state phase 2).
+        manager_->releaseRef(savedContentsRef_);
+        savedContentsRef_ = nullptr;
+        failed_ = true;
+        executed_ = false;
+        return;
+    }
+    failed_ = false;
     doc_->markPageDirty(page_->index());
     executed_ = true;
 }

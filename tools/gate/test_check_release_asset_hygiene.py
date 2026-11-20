@@ -85,6 +85,64 @@ def test_source_statement_is_case_insensitive_but_repo_exact():
         "corresponding source: https://github.com/other/repo", "o/r")
 
 
+def test_source_statement_repo_must_not_be_a_mere_prefix():
+    # "ipswitch8/PDFE" is a prefix of "ipswitch8/PDFE-public". A body naming
+    # only the public mirror is not a source offer for the dev repo's release.
+    body = "corresponding source: https://github.com/ipswitch8/PDFE-public"
+    assert not rah.source_statement_ok(body, "ipswitch8/PDFE")
+    assert rah.source_statement_ok(body, "ipswitch8/PDFE-public")
+    assert rah.source_statement_ok(
+        "corresponding source: https://github.com/ipswitch8/PDFE/tree/v1.0",
+        "ipswitch8/PDFE")
+    # A full stop that ends the sentence still ends the name...
+    assert rah.source_statement_ok(
+        "The corresponding source is at https://github.com/ipswitch8/PDFE.",
+        "ipswitch8/PDFE")
+    # ...but one that continues it names a different repository.
+    assert not rah.source_statement_ok(
+        "corresponding source: https://github.com/o/r.js", "o/r")
+
+
+# A release now carries every platform's files (one release per version). The
+# Windows notes and the Linux section each carry a source statement; the check
+# must accept the combined body and still refuse one that names no source.
+_WINDOWS_NOTES = (
+    "PDFE **v1.2.3**\n\n## Assets\n- `PDFE-1.2.3-win64.exe`\n\n"
+    "## Corresponding source\nPDFE is licensed under AGPL-3.0. The complete "
+    "corresponding source for this release is the `v1.2.3` snapshot in this "
+    "public repository: https://github.com/o/r\n")
+
+
+def test_a_combined_windows_and_linux_body_names_the_source():
+    pub = _load_pub()
+    section = pub.linux_section("o/r", "v1.2.3", "1.2.3", None, _SHAS)
+    body = pub.merge_notes(_WINDOWS_NOTES, section)
+    assert rah.source_statement_ok(body, "o/r")
+    # The Linux section alone is also a complete offer (create path).
+    assert rah.source_statement_ok(pub.merge_notes("", section), "o/r")
+
+
+def test_a_combined_body_with_no_source_statement_is_still_refused():
+    body = ("## Windows\n- `PDFE-1.2.3-win64.exe`\n\n## Linux\n"
+            "- `PDFE-1.2.3-x86_64.AppImage`\n")
+    assert not rah.source_statement_ok(body, "o/r")
+
+
+_SHAS = {n: "%064x" % i for i, n in enumerate(
+    ["PDFE-1.2.3-x86_64.AppImage", "pdfe_1.2.3_amd64.deb",
+     "pdfe-1.2.3-1.x86_64.rpm", "install.sh"])}
+
+
+def _load_pub():
+    root = os.path.dirname(os.path.dirname(_HERE))
+    spec = importlib.util.spec_from_file_location(
+        "pub", os.path.join(root, "tools", "packaging",
+                            "publish-linux-release.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 # --- asset_verdict: the never-vacuous promise ---------------------------------
 
 def test_verdict_refuses_zero_assets():

@@ -30,6 +30,8 @@ public:
     void onPaintOverlay(QPainter& painter, int pageIndex,
                         float zoom, QPointF pageOrigin, float pageHeightPt) override;
 
+    /// Esc-cancel an in-progress link rubber-band (bug 6). See AnnotationTool.
+    bool cancelInProgress() override;
 
     /// Set a default URI prompt text (e.g., "https://" or "#page=").
     void setDefaultUri(const QString& uri) { defaultUri_ = uri; }

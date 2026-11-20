@@ -409,6 +409,55 @@ causes the FormTool to enter that specific creation mode.
 6. Repeat for Push Button (should be a clickable button style) and
    Signature (should be a signature field outline).
 
+### Form field font, size and colour (Form Properties → Font)
+
+GitHub #460. Selecting a text, combo box or list box field with the Form
+tool fills the **Font** group of the **Form Properties** panel from the
+field's default appearance:
+
+- **Family**: Helvetica, Times or Courier, the base-14 fonts every PDF
+  viewer has. Symbol and ZapfDingbats are listed only when the field
+  already uses one, because typed text in either comes out as symbols.
+- **Size**: 1 to 1000 pt, or **Auto** (0) to fit the text to the field.
+  The size is applied when you press Enter or leave the box, not at
+  each arrow click.
+- **Color**: opens a colour picker.
+- **Bold and italic** are not offered. The bundled MuPDF draws a field
+  whose default appearance names a bold or italic variant (for example
+  `/HeBo`) in the regular face, so a bold setting would not show on the
+  page. The setter refuses those names.
+
+The controls are disabled for a read-only field. Each change is one undo
+step (Ctrl+Z); consecutive changes to one field are never merged into one
+step. It can be made while you are
+typing into the field: the typing is kept, shows in the new font, and
+is written when you leave the field. The group is hidden for check
+boxes, radio buttons, push buttons and signature fields. The Edit Text
+toolbar is hidden under the Form tool (and every other tool except Edit
+Text), because its controls only apply to the Edit Text tool.
+
+**Covered by:** `test_form_textfield_ui.cpp` (`FormFieldFontPanel.*`,
+`FormFieldFontMainWindow.*`, `FormFieldFontToolbar.*`) and the probes
+`FormTextfieldPanelState.PropertiesPanelExposesFontControls` and
+`FormTextfieldToolbarState.TextEditToolbarIsHiddenUnderTheFormTool` in
+`test_form_textfield_state.cpp`; the read-only, bold/italic and undo rules
+by `FormFieldReconcilePanel.*`, `FormFieldReconcileStyle.*` and
+`FormFieldReconcileCommand.*` in `test_form_reconcile.cpp`.
+**Gap:** the real colour dialog (the tests answer it through a seam) and
+a visual check of the rendered font.
+**Steps:**
+
+1. Open `test_form.pdf` and choose the Form tool. If a field-type button
+   is down (field-creation mode), press Esc: placement is sticky, and Esc
+   or a tool switch returns the tool to selecting fields.
+2. Click the FirstName field and type a few characters.
+3. Without leaving the field, in Form Properties → Font choose Times,
+   set Size to 18 and press Enter, then pick red with Color.
+4. The typed characters should stay and redraw in red 18 pt Times.
+5. Click outside the field. The value should be kept in that font.
+6. Ctrl+Z steps back one change at a time: first the committed value,
+   then the colour, the size and the family.
+
 ### SignDialog invisible + certification controls
 
 **Covered by:** `test_sign_dialog.cpp` + `test_invisible_and_certification_signatures.cpp` (via direct `SignatureManager::signField`).

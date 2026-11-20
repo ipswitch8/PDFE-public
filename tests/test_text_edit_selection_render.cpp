@@ -340,12 +340,16 @@ TEST_F(TextEditSelectionRenderTest, ClickOutsideClearsSelection) {
     clickAndDragSelectFirstChars(0, 3);
     ASSERT_TRUE(tool_->hasTextSelection());
 
-    // Click far outside any text
+    // Click far outside any text. The selection on the prior span must clear.
     mousePressAt(QPointF(10000, 10000));
     EXPECT_FALSE(tool_->hasTextSelection())
         << "Click outside the active span must clear the selection.";
-    EXPECT_FALSE(tool_->isEditing())
-        << "Click outside should also commit + exit editing.";
+    // Bug 9 (phase-11): an empty-area left-click now commits the prior edit and
+    // opens a NEW empty text run at the click (so blank space is typable),
+    // rather than exiting edit mode. So the tool is still editing — but a fresh
+    // span with no selection — not back to a no-edit state.
+    EXPECT_TRUE(tool_->isEditing())
+        << "Click outside commits the prior edit and starts a new text run.";
 }
 
 // ─────────────────────────────────────────────────────────────────────

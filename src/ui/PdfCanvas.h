@@ -385,13 +385,20 @@ signals:
     /// CreateRedactionCommand path is used as for a user drag.
     void redactionMarkRequested(int pageIndex, QRectF pdfRect);
 
-    /// Defect #4 (per-region tool routing): emitted when the text-edit tool is
+    /// Defect-4 (per-region tool routing): emitted when the text-edit tool is
     /// active but the user clicks a location with NO live-font text span that
     /// lies over a scanned image block. MainWindow switches to the region/TRE
     /// tool so the scanned block can be edited — without the page-wide
     /// hasTextContent() decision forcing the whole mixed-content page onto one
     /// tool. pdfPoint is the PDF-space coordinate under the click.
     void regionToolRequested(int pageIndex, QPointF pdfPoint);
+
+    /// GitHub #460: emitted by clearTextEditTool() when it actually destroys a
+    /// TextEditTool -- which every annotation-tool switch does, through
+    /// setCurrentTool(). MainWindow hides the text-edit toolbar on it: the
+    /// toolbar's formatting signals are connected to that tool, so once the
+    /// tool is gone a visible toolbar is a set of controls wired to nothing.
+    void textEditToolReleased();
 
 protected:
     void paintEvent(QPaintEvent* event) override;

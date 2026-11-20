@@ -190,37 +190,87 @@ shellcheck packaging/linux/install.sh tools/packaging/*.sh
 
 ## 5. Publish (manual)
 
-Only after section 4 passes, and from the commit the release is tagged on.
-Put the four SHA-256 values and the install commands in the release notes.
+Only after section 4 passes.
+
+**One release per version.** A version has one GitHub release, `v<version>`,
+and every platform's files go into it. GitHub marks one release "Latest" and
+the repository's front page links to that one only. v0.5.3 shipped Linux on a
+separate `v0.5.3-linux` release, so the front page showed the Windows
+installer and no Linux packages. Whichever platform publishes first creates
+the release; the other uploads into it. There are no more `-linux` tags.
+
+**One version tag never covers two source trees.** So Windows and Linux build
+the version from the same commit, the one `v<version>` is tagged on. If they
+cannot, do not tag the Linux build `v<version>`; the helper below refuses to
+publish packages under a tag that is not the commit they were built from.
+
+The helper uploads these seven files:
+
+- `PDFE-<version>-x86_64.AppImage` and `PDFE-<version>-x86_64.AppImage.sha256`
+- `pdfe_<version>_amd64.deb` and `pdfe_<version>_amd64.deb.sha256`
+- `pdfe-<version>-1.x86_64.rpm` and `pdfe-<version>-1.x86_64.rpm.sha256`
+- `install.sh`
+
+If the tag does not exist yet (Linux publishes first), create it on the build
+commit. If Windows published first, the tag is already there; check it is
+the commit you built:
 
 ```
-git tag -a v<tag> -m "PDFE <version> for Linux"
-git push origin v<tag>
-gh release create v<tag> --verify-tag --title "PDFE <version> for Linux" \
-    --notes-file docs/release-notes/v<tag>.md \
-    dist/PDFE-<version>-x86_64.AppImage dist/PDFE-<version>-x86_64.AppImage.sha256 \
-    dist/pdfe_<version>_amd64.deb dist/pdfe_<version>_amd64.deb.sha256 \
-    dist/pdfe-<version>-1.x86_64.rpm dist/pdfe-<version>-1.x86_64.rpm.sha256 \
-    packaging/linux/install.sh
-python3 tools/gate/check_release_asset_hygiene.py --release v<tag>
+git tag -a v<version> -m "PDFE <version>"
+git push origin v<version>
 ```
+
+Then run the helper, first without `--apply` to see the plan, then with it:
+
+```
+python3 tools/packaging/publish-linux-release.py --tag v<version>
+python3 tools/packaging/publish-linux-release.py --tag v<version> --apply
+python3 tools/gate/check_release_asset_hygiene.py --release v<version>
+```
+
+The helper:
+
+- checks that `v<version>` is the commit the packages were built from
+  (`--built-from`, default HEAD);
+- checks that each `.sha256` file matches its package, and scans all seven
+  files with the release-asset scan;
+- creates the release if it is absent, with `--verify-tag`, so it never
+  creates a tag;
+- uploads only the files the release lacks. A file already there with the
+  same SHA-256 is skipped. One with a different SHA-256 stops the run before
+  anything changes, because a shipped download is never replaced
+  automatically;
+- writes a Linux section into the release notes between
+  `<!-- pdfe-linux:begin -->` and `<!-- pdfe-linux:end -->` markers. The
+  section has the download links, the SHA-256 values, the install commands
+  and a corresponding-source statement. Everything outside the markers,
+  such as the Windows notes, is kept as it was, and a second run changes
+  nothing;
+- re-reads the release afterwards and checks that all seven files are there.
+
+Without `--apply` it changes nothing and prints the uploads and the notes diff.
 
 The release body must have a corresponding-source section with the phrase
-"corresponding source" and a link to the tagged tree. The `--release` check
-fails without it.
+"corresponding source" and a link to the repository the release is on. The
+`--release` check fails without it. The Linux section carries one, and so do
+the Windows notes.
 
-If Windows ships the same version from a different commit, give the Linux
-release a tag of its own. v0.5.3 did this with `v0.5.3-linux`. One version
-tag must never cover two different source trees.
+`--source-tag` is for attaching packages to a release whose tag points at a
+different commit, as v0.5.3 needed: its Windows build came from an earlier
+commit, and the Linux build is tagged `v0.5.3-linux`. The helper then checks
+`--source-tag` against the build commit, and the Linux section says the files
+were built from that tag. Do not use it for a new version: build both
+platforms from one commit instead.
 
-For the public repository, publish the snapshot of the tagged tree, then the
-release with the same seven assets:
+For the public repository, publish the snapshot of the tagged tree first,
+then run the helper against the public repository:
 
 ```
-python3 tools/ops/publish_snapshot.py --ref v<tag> --public-repo ipswitch8/PDFE-public --version v<tag>
+python3 tools/ops/publish_snapshot.py --ref v<version> --public-repo ipswitch8/PDFE-public --version v<version>
+python3 tools/packaging/publish-linux-release.py --tag v<version> --repo ipswitch8/PDFE-public --apply
 ```
 
-Its release body's corresponding-source section names
+The corresponding-source link then names
 https://github.com/ipswitch8/PDFE-public.
 
 `install.sh` installs only from a local AppImage the user has already
@@ -266,3 +316,17 @@ everything it installed.
   that would shadow the new one, unless `--keep-old-install` is given.
 
 Running it again is safe.
+
+**On GNOME, dialogs move with the main window.** The Open and Save dialogs,
+and every other dialog that blocks the window behind it, are attached to the
+PDFE window: dragging a dialog's title bar moves the whole window. This is
+GNOME's default for every application (mutter's `attach-modal-dialogs`), not
+something PDFE does, and Windows has no such behaviour. Users who want
+dialogs to move on their own can turn it off for all applications:
+
+```
+gsettings set org.gnome.mutter attach-modal-dialogs false
+```
+
+`true` restores GNOME's default. GNOME Tweaks has the same switch, labelled
+"Attach Modal Dialogs".

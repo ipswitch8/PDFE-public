@@ -17,6 +17,9 @@
 #include "core/MuPdfContext.h"
 #include "core/Page.h"
 
+#include "annotations/AnnotationManager.h"
+#include "annotations/AnnotationData.h"
+#include "annotations/AnnotationType.h"
 #include "redaction/RedactionManager.h"
 #include "signatures/SignatureManager.h"
 #include "signatures/SignatureCoverageAnalyzer.h"
@@ -26,6 +29,13 @@
 
 #include "helpers/RoundTripHelper.h"
 
+#include "core/TextExtractor.h"
+#include "textedit/TextEditModel.h"
+
+#include <QPointF>
+#include <QRectF>
+
+#include <algorithm>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -772,6 +782,560 @@ TEST_F(FlattenSignedFormTest, FlattenPreservesExistingSignatureFieldIntegrity)
                       << " (" << q2.note << ")" << std::endl;
         }
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Bug 8 (GitHub form-field-bugs phase-7) — a form field CREATED in-session
+// must round-trip through save -> reopen as an INTERACTIVE form field, not
+// a flattened static appearance.
+//
+// This is distinct from every FormRoundTripTest above: those SET A VALUE on
+// a field that already existed in the fixture. This one CREATES the widget
+// (FormManager::createFormField, the model path MainWindow drives from the
+// Form Tool), gives it a value, saves through the REAL Document save path,
+// reopens in a FRESH context/Document/FormManager, and proves the reopened
+// object is still an interactive /Tx widget.
+//
+// The operator's clarified symptom has three post-reopen states:
+//   (i)   ABSENT     — no widget at all (empty-field / blank-/AP overlap).
+//   (ii)  FLATTENED  — value visible as a static appearance, but NOT a
+//                      fillable field (widget /FT + AcroForm /Fields + page
+//                      /Annots identity lost; only /AP survives). REJECT.
+//   (iii) INTERACTIVE — widget present in the form model, fillable,
+//                      hit-testable, value intact. REQUIRE.
+//
+// The oracle therefore asserts, on the reopened file:
+//   (a) present in page /Annots as a /FT=/Tx widget (getFormFields) AND in
+//       AcroForm /Fields (listFieldNames) — the two halves of "is a field".
+//   (b) value intact AND fillable (setFieldValue on the reopened widget
+//       actually changes the stored value).
+//   (c) hit-testable at its rect centre (getFormFieldAt).
+//   (d) the EXTRA proof that it is a real widget, not flattened page
+//       content: the created field's /AP text must NOT be reachable as an
+//       EDITABLE TRE page-content span. A flattened field bakes a Form
+//       XObject into the PAGE CONTENT stream, which the TextEditTool's model
+//       (TextExtractor page-content pass) exposes as an editable span; a live
+//       widget's glyphs live in the ANNOTATION /AP and are not page content.
+//       See the empirically-pinned assertion below.
+// ─────────────────────────────────────────────────────────────────────
+
+class CreatedFieldRoundTripTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        ctx_ = std::make_shared<pdfe::core::MuPdfContext>();
+        srcFixture_ =
+            std::filesystem::path(TEST_FIXTURES_DIR) / "test_form.pdf";
+        ASSERT_TRUE(std::filesystem::exists(srcFixture_))
+            << "test_form.pdf fixture missing at " << srcFixture_;
+
+        const ::testing::TestInfo* info =
+            ::testing::UnitTest::GetInstance()->current_test_info();
+        tempDir_ = std::filesystem::temp_directory_path()
+                   / "pdfe_created_field_roundtrip" / info->name();
+        std::filesystem::remove_all(tempDir_);
+        std::filesystem::create_directories(tempDir_);
+    }
+
+    void TearDown() override { ctx_.reset(); }
+
+    // Copy the fixture to a WRITABLE temp and open it from there, so the
+    // Document's filePath() is the temp file — the precondition for the
+    // incremental-save routing in Document::save (path == filePath).
+    std::unique_ptr<pdfe::core::Document> openWritableCopy(
+        const std::string& tag, std::filesystem::path& outPath)
+    {
+        outPath = tempDir_ / (tag + ".pdf");
+        std::filesystem::copy_file(
+            srcFixture_, outPath,
+            std::filesystem::copy_options::overwrite_existing);
+        return pdfe::core::Document::open(ctx_, outPath);
+    }
+
+    static std::vector<char> readAllBytes(const std::filesystem::path& p) {
+        std::ifstream in(p, std::ios::binary);
+        return std::vector<char>((std::istreambuf_iterator<char>(in)),
+                                 std::istreambuf_iterator<char>());
+    }
+
+    // The three-state classification the operator described.
+    enum class ReopenState { Absent, Flattened, Interactive };
+
+    static const char* StateName(ReopenState s) {
+        switch (s) {
+            case ReopenState::Absent:      return "ABSENT";
+            case ReopenState::Flattened:   return "FLATTENED";
+            case ReopenState::Interactive: return "INTERACTIVE";
+        }
+        return "?";
+    }
+
+    // Reopen `path` in a FRESH context + Document + FormManager and classify
+    // the created field. `fieldName`/`value`/`rect` are what was created.
+    ReopenState classifyReopened(const std::filesystem::path& path,
+                                 const std::string& fieldName,
+                                 const std::string& value,
+                                 const QRectF& rect,
+                                 bool& textIsEditablePageSpan)
+    {
+        textIsEditablePageSpan = false;
+
+        auto reCtx = std::make_shared<pdfe::core::MuPdfContext>();
+        auto reDoc = pdfe::core::Document::open(reCtx, path);
+        EXPECT_NE(reDoc, nullptr);
+        if (!reDoc) return ReopenState::Absent;
+        FormManager reMgr(reCtx);
+        auto rePage = reDoc->page(0);
+
+        // (d) FIRST, before any refill mutates the appearance: is the created
+        //     field's value text reachable as an EDITABLE TRE page-content
+        //     span? A live widget's /AP glyphs are annotation content, not an
+        //     editable page-content span, so spanAtPoint at the field centre
+        //     must NOT resolve to a span whose text is the field value.
+        {
+            pdfe::core::TextExtractor extractor(reCtx);
+            auto blocks = extractor.extract(rePage.get());
+            pdfe::textedit::TextEditModel model(blocks);
+            const QPointF centre = rect.center();
+            const int span = model.spanAtPoint(centre);
+            if (span >= 0) {
+                const std::u32string& t = model.span(span).text;
+                std::u32string want(value.begin(), value.end());
+                if (t.find(want) != std::u32string::npos) {
+                    textIsEditablePageSpan = true;
+                }
+            }
+        }
+
+        // (a) widget half: enumerated in page /Annots as a /Tx widget.
+        auto fields = reMgr.getFormFields(rePage.get());
+        int reIdx = -1;
+        FormFieldData ref;
+        for (const auto& f : fields) {
+            if (f.fieldName == fieldName) { reIdx = f.widgetIndex; ref = f; }
+        }
+        // (a) AcroForm half: present in the AcroForm /Fields array.
+        auto acroNames = reMgr.listFieldNames(reDoc.get());
+        const bool inAcroForm =
+            std::find(acroNames.begin(), acroNames.end(), fieldName)
+            != acroNames.end();
+
+        if (reIdx < 0 && !inAcroForm) {
+            // No widget, no field — either genuinely absent, or baked into
+            // static content (flattened). Distinguish by whether the text is
+            // now page content.
+            return textIsEditablePageSpan ? ReopenState::Flattened
+                                          : ReopenState::Absent;
+        }
+        if (reIdx < 0 || ref.type != FormFieldType::Text || !inAcroForm) {
+            // The appearance/name survived but the interactive /Tx identity in
+            // BOTH structures did not — the operator's "looks like text, not a
+            // fillable field" state.
+            return ReopenState::Flattened;
+        }
+
+        // It presents as an interactive /Tx widget — now prove it behaves like
+        // one: value intact, fillable, hit-testable.
+        EXPECT_EQ(ref.value, value)
+            << "created field value did not survive save/reopen";
+
+        auto hit = reMgr.getFormFieldAt(rePage.get(), rect.center());
+        EXPECT_TRUE(hit.has_value())
+            << "created field is not hit-testable at its rect centre "
+               "after reopen";
+        if (hit.has_value()) EXPECT_EQ(*hit, reIdx);
+
+        reMgr.setFieldValue(rePage.get(), reIdx, "REFILLED_AFTER_REOPEN");
+        EXPECT_EQ(reMgr.getFormField(rePage.get(), reIdx).value,
+                  "REFILLED_AFTER_REOPEN")
+            << "reopened field is present but NOT fillable — not a live widget";
+
+        return ReopenState::Interactive;
+    }
+
+    // Pick a widget-sized rect in PDF user space that overlaps NONE of the
+    // fixture's existing widgets. Without this a created field dropped on top
+    // of a pre-existing one makes getFormFieldAt resolve the EARLIER widget
+    // (pdf_first_widget order), which is a fixture collision, not a product
+    // defect. All rects here are in the same PDF user space as pdf_annot_rect,
+    // FormFieldData.rect and Page::boundingBox, so the intersection test and
+    // the later centre hit-test are directly comparable.
+    QRectF chooseFreeRect(pdfe::core::Document& doc, FormManager& mgr) {
+        auto page = doc.page(0);
+        const QRectF box = page->boundingBox();
+        const auto existing = mgr.getFormFields(page.get());
+        const double w = 120.0, h = 20.0, margin = 10.0;
+        for (double y = box.top() + margin;
+             y + h + margin <= box.bottom(); y += (h + 2 * margin)) {
+            for (double x = box.left() + margin;
+                 x + w + margin <= box.right(); x += (w + 2 * margin)) {
+                const QRectF cand(x, y, w, h);
+                const QRectF probe =
+                    cand.adjusted(-margin, -margin, margin, margin);
+                bool clash = false;
+                for (const auto& f : existing) {
+                    if (f.rect.intersects(probe)) { clash = true; break; }
+                }
+                if (!clash) return cand;
+            }
+        }
+        // Fallback: the fixture is impossibly crowded — still return something
+        // inside the page so the test fails loudly rather than silently.
+        return QRectF(box.left() + margin, box.top() + margin, w, h);
+    }
+
+    std::shared_ptr<pdfe::core::MuPdfContext> ctx_;
+    std::filesystem::path srcFixture_;
+    std::filesystem::path tempDir_;
+};
+
+// The REAL UI path: the Form Tool create callback parks the page AND calls
+// markRequiresFullRewrite(), so an ensuing File>Save takes Document::save's
+// full-rewrite branch. This must round-trip the created field as interactive.
+TEST_F(CreatedFieldRoundTripTest, CreatedTextFieldSurvivesFullRewriteSave) {
+    const std::string kName  = "pdfe_created_tf_full";
+    const std::string kValue = "PDFE_CREATED_FIELD_8_FULL";
+
+    std::filesystem::path path;
+    auto doc = openWritableCopy("created_full", path);
+    ASSERT_NE(doc, nullptr);
+
+    FormManager mgr(ctx_);
+    const QRectF kRect = chooseFreeRect(*doc, mgr);
+    auto page = doc->page(0);
+    int idx = mgr.createFormField(page.get(), FormFieldType::Text, kRect, kName);
+    ASSERT_GE(idx, 0);
+    mgr.setFieldValue(page.get(), idx, kValue);
+    page.reset();
+
+    // Mirror MainWindow's Form-Tool create callback and save to the same file,
+    // exactly as Ctrl+S after a field creation does.
+    doc->markRequiresFullRewrite();
+    ASSERT_NO_THROW(doc->save(path));
+    doc.reset();
+
+    bool textIsPageSpan = false;
+    ReopenState state =
+        classifyReopened(path, kName, kValue, kRect, textIsPageSpan);
+    std::cout << "[ created  ] full-rewrite save -> " << StateName(state)
+              << "  (value text is editable page span: "
+              << (textIsPageSpan ? "YES" : "no") << ")" << std::endl;
+    RecordProperty("full_rewrite_state", StateName(state));
+
+    EXPECT_EQ(state, ReopenState::Interactive)
+        << "A field created in-session and saved via the real full-rewrite "
+           "path must reopen as an INTERACTIVE /Tx form field, not "
+        << StateName(state) << ".";
+    EXPECT_FALSE(textIsPageSpan)
+        << "The created field's value is reachable as an EDITABLE page-content "
+           "span after reopen — it was flattened into page content, not kept "
+           "as a widget appearance.";
+}
+
+// The incremental-save branch. The MainWindow comment at :12312 states the
+// incremental writer was VERIFIED not to append a freshly-created widget,
+// which is why the create callback forces a full rewrite. This test drives
+// that branch directly (no markRequiresFullRewrite) so the behaviour is
+// pinned rather than assumed: if the widget is dropped/flattened here, the
+// full-rewrite forcing is load-bearing and must stay.
+TEST_F(CreatedFieldRoundTripTest, CreatedTextFieldThroughIncrementalSave) {
+    const std::string kName  = "pdfe_created_tf_incr";
+    const std::string kValue = "PDFE_CREATED_FIELD_8_INCR";
+
+    std::filesystem::path path;
+    auto doc = openWritableCopy("created_incr", path);
+    ASSERT_NE(doc, nullptr);
+
+    FormManager mgr(ctx_);
+    const QRectF kRect = chooseFreeRect(*doc, mgr);
+    auto page = doc->page(0);
+    int idx = mgr.createFormField(page.get(), FormFieldType::Text, kRect, kName);
+    ASSERT_GE(idx, 0);
+    mgr.setFieldValue(page.get(), idx, kValue);
+    page.reset();
+
+    // Capture the on-disk bytes BEFORE the save. An incremental-staged save
+    // APPENDS a revision, leaving these bytes as a strict prefix of the output;
+    // a full rewrite GCs and renumbers, so the prefix would NOT survive. This
+    // is how we PROVE the incremental branch actually ran (a passing round-trip
+    // alone would not — a full rewrite preserves the field too).
+    const std::vector<char> preSaveBytes = readAllBytes(path);
+    ASSERT_FALSE(preSaveBytes.empty());
+
+    // Deliberately DO NOT markRequiresFullRewrite — save() to the same file
+    // takes the incremental-staged branch.
+    ASSERT_NO_THROW(doc->save(path));
+    doc.reset();
+
+    const std::vector<char> postSaveBytes = readAllBytes(path);
+    ASSERT_GE(postSaveBytes.size(), preSaveBytes.size())
+        << "incremental save must not shrink the file";
+    const bool prefixPreserved =
+        std::equal(preSaveBytes.begin(), preSaveBytes.end(),
+                   postSaveBytes.begin());
+    EXPECT_TRUE(prefixPreserved)
+        << "the original bytes are NOT a prefix of the saved file — this save "
+           "did NOT take the incremental-append branch, so the test is not "
+           "exercising the branch it claims to.";
+    std::cout << "[ branch   ] incremental-append confirmed: prefix preserved="
+              << (prefixPreserved ? "yes" : "NO") << ", grew "
+              << (postSaveBytes.size() - preSaveBytes.size()) << " bytes"
+              << std::endl;
+
+    bool textIsPageSpan = false;
+    ReopenState state =
+        classifyReopened(path, kName, kValue, kRect, textIsPageSpan);
+    std::cout << "[ created  ] incremental save -> " << StateName(state)
+              << "  (value text is editable page span: "
+              << (textIsPageSpan ? "YES" : "no") << ")" << std::endl;
+    RecordProperty("incremental_state", StateName(state));
+
+    // The created field must round-trip as interactive regardless of which
+    // save branch runs — a user is not required to know about the rewrite
+    // flag. If this branch flattens/drops it, the product fix is to ensure
+    // creation routes to (or the incremental writer captures) the widget.
+    EXPECT_EQ(state, ReopenState::Interactive)
+        << "A field created in-session and saved via the incremental branch "
+           "must reopen as an INTERACTIVE /Tx form field, not "
+        << StateName(state) << ".";
+}
+
+// ─── Cross-tool audit: OTHER created overlay objects through the SAME
+//     save branches (per the enforced "check all related tools" criterion) ──
+//
+// The triage's STRONG LEAD: MainWindow::onAnnotationCreatedByTool does NOT
+// call markRequiresFullRewrite (unlike createFormField), so a tool-created
+// annotation saved with File>Save takes the INCREMENTAL branch. Every
+// existing AnnotationRoundTripTest uses SaveAndReopen (== saveAs, a FULL
+// REWRITE), so the incremental branch for a freshly-created annotation was
+// UNCOVERED. This pins it: a created FreeText (text box) annotation must
+// survive an incremental save, or the markRequiresFullRewrite omission is a
+// real bug-8 recurrence for annotations.
+
+TEST_F(CreatedFieldRoundTripTest, CreatedFreeTextAnnotThroughIncrementalSave) {
+    const std::string kContents = "PDFE_CREATED_ANNOT_8_INCR";
+
+    std::filesystem::path path;
+    auto doc = openWritableCopy("created_annot_incr", path);
+    ASSERT_NE(doc, nullptr);
+
+    pdfe::annotations::AnnotationManager am(ctx_);
+    auto page = doc->page(0);
+    auto created = am.createAnnotation(
+        page.get(), pdfe::annotations::AnnotationType::FreeText,
+        QRectF(120.0, 300.0, 180.0, 40.0));
+    am.setContents(page.get(), created.annotIndex, kContents);
+    page.reset();
+
+    // Mirror onAnnotationCreatedByTool: NO markRequiresFullRewrite → the
+    // File>Save of a tool-created annotation runs the incremental branch.
+    ASSERT_NO_THROW(doc->save(path));
+    doc.reset();
+
+    auto reCtx = std::make_shared<pdfe::core::MuPdfContext>();
+    auto reDoc = pdfe::core::Document::open(reCtx, path);
+    ASSERT_NE(reDoc, nullptr);
+    pdfe::annotations::AnnotationManager reAm(reCtx);
+    auto annots = reAm.getAnnotations(reDoc->page(0).get());
+
+    bool found = false;
+    for (const auto& a : annots) {
+        if (a.type == pdfe::annotations::AnnotationType::FreeText &&
+            a.contents == kContents) { found = true; break; }
+    }
+    std::cout << "[ created  ] FreeText annot incremental save -> "
+              << (found ? "SURVIVED" : "DROPPED") << std::endl;
+    EXPECT_TRUE(found)
+        << "A tool-created FreeText annotation did NOT survive an incremental "
+           "save — onAnnotationCreatedByTool omits markRequiresFullRewrite, so "
+           "this is the annotation form of bug 8 and the fix is to mark the "
+           "session for a full rewrite there (as createFormField does).";
+}
+
+// Another field TYPE (checkbox, /Btn) created in-session through the
+// incremental branch — proves the round-trip is not /Tx-specific.
+TEST_F(CreatedFieldRoundTripTest, CreatedCheckboxFieldThroughIncrementalSave) {
+    const std::string kName = "pdfe_created_cb_incr";
+
+    std::filesystem::path path;
+    auto doc = openWritableCopy("created_cb_incr", path);
+    ASSERT_NE(doc, nullptr);
+
+    FormManager mgr(ctx_);
+    const QRectF rect = chooseFreeRect(*doc, mgr);
+    auto page = doc->page(0);
+    int idx = mgr.createFormField(page.get(), FormFieldType::Checkbox, rect,
+                                  kName);
+    ASSERT_GE(idx, 0);
+    mgr.toggleField(page.get(), idx);  // set it On
+    auto onValue = mgr.getFormField(page.get(), idx).value;
+    page.reset();
+
+    ASSERT_NO_THROW(doc->save(path));  // incremental branch
+    doc.reset();
+
+    auto reCtx = std::make_shared<pdfe::core::MuPdfContext>();
+    auto reDoc = pdfe::core::Document::open(reCtx, path);
+    ASSERT_NE(reDoc, nullptr);
+    FormManager reMgr(reCtx);
+    auto fields = reMgr.getFormFields(reDoc->page(0).get());
+    int reIdx = -1;
+    FormFieldData ref;
+    for (const auto& f : fields) {
+        if (f.fieldName == kName) { reIdx = f.widgetIndex; ref = f; }
+    }
+    auto acroNames = reMgr.listFieldNames(reDoc.get());
+    const bool inAcroForm =
+        std::find(acroNames.begin(), acroNames.end(), kName) != acroNames.end();
+
+    std::cout << "[ created  ] Checkbox field incremental save -> "
+              << (reIdx >= 0 && inAcroForm ? "INTERACTIVE" : "LOST")
+              << std::endl;
+    ASSERT_GE(reIdx, 0)
+        << "created checkbox absent from page /Annots widgets after reopen";
+    EXPECT_EQ(ref.type, FormFieldType::Checkbox)
+        << "reopened checkbox is not a /Btn form field (flattened?)";
+    EXPECT_TRUE(inAcroForm)
+        << "created checkbox absent from AcroForm /Fields after reopen";
+    EXPECT_EQ(ref.value, onValue)
+        << "created checkbox toggled state did not survive save/reopen";
+}
+
+// Choice / dropdown field (ComboBox, /Ch) created in-session through the
+// incremental branch — the SAME createFormField/markRequiresFullRewrite path
+// the "Combo Box" toolbar action (MainWindow.cpp) drives. Acceptance
+// criterion #3 names checkbox AND choice/dropdown; this closes the choice half.
+TEST_F(CreatedFieldRoundTripTest, CreatedComboBoxFieldThroughIncrementalSave) {
+    const std::string kName  = "pdfe_created_combo_incr";
+    const std::string kValue = "PDFE_CREATED_COMBO_8_INCR";
+
+    std::filesystem::path path;
+    auto doc = openWritableCopy("created_combo_incr", path);
+    ASSERT_NE(doc, nullptr);
+
+    FormManager mgr(ctx_);
+    const QRectF rect = chooseFreeRect(*doc, mgr);
+    auto page = doc->page(0);
+    int idx = mgr.createFormField(page.get(), FormFieldType::ComboBox, rect,
+                                  kName);
+    ASSERT_GE(idx, 0);
+    mgr.setFieldValue(page.get(), idx, kValue);
+    ASSERT_EQ(mgr.getFormField(page.get(), idx).value, kValue)
+        << "pre-save: combo field must accept a /V value";
+    page.reset();
+
+    ASSERT_NO_THROW(doc->save(path));  // incremental branch (no full-rewrite mark)
+    doc.reset();
+
+    auto reCtx = std::make_shared<pdfe::core::MuPdfContext>();
+    auto reDoc = pdfe::core::Document::open(reCtx, path);
+    ASSERT_NE(reDoc, nullptr);
+    FormManager reMgr(reCtx);
+    auto rePage = reDoc->page(0);
+
+    // (d) FIRST: the combo's displayed value must NOT be an editable TRE
+    //     page-content span (widget /AP, not flattened page content).
+    bool textIsPageSpan = false;
+    {
+        pdfe::core::TextExtractor extractor(reCtx);
+        auto blocks = extractor.extract(rePage.get());
+        pdfe::textedit::TextEditModel model(blocks);
+        const int span = model.spanAtPoint(rect.center());
+        if (span >= 0) {
+            const std::u32string& t = model.span(span).text;
+            std::u32string want(kValue.begin(), kValue.end());
+            if (t.find(want) != std::u32string::npos) textIsPageSpan = true;
+        }
+    }
+
+    // (a) /Ch widget present in page /Annots AND AcroForm /Fields.
+    auto fields = reMgr.getFormFields(rePage.get());
+    int reIdx = -1;
+    FormFieldData ref;
+    for (const auto& f : fields) {
+        if (f.fieldName == kName) { reIdx = f.widgetIndex; ref = f; }
+    }
+    auto acroNames = reMgr.listFieldNames(reDoc.get());
+    const bool inAcroForm =
+        std::find(acroNames.begin(), acroNames.end(), kName) != acroNames.end();
+
+    std::cout << "[ created  ] ComboBox field incremental save -> "
+              << (reIdx >= 0 && inAcroForm && ref.type == FormFieldType::ComboBox
+                      ? "INTERACTIVE" : "LOST")
+              << "  (value text is editable page span: "
+              << (textIsPageSpan ? "YES" : "no") << ")" << std::endl;
+
+    ASSERT_GE(reIdx, 0)
+        << "created combo box absent from page /Annots widgets after reopen";
+    EXPECT_EQ(ref.type, FormFieldType::ComboBox)
+        << "reopened object is not a /Ch (choice) form field (flattened?)";
+    EXPECT_TRUE(inAcroForm)
+        << "created combo box absent from AcroForm /Fields after reopen";
+    // (b) value intact.
+    EXPECT_EQ(ref.value, kValue)
+        << "created combo box value did not survive save/reopen";
+    // (c) hit-testable at its rect centre.
+    auto hit = reMgr.getFormFieldAt(rePage.get(), rect.center());
+    ASSERT_TRUE(hit.has_value())
+        << "created combo box is not hit-testable at its rect centre";
+    EXPECT_EQ(*hit, reIdx);
+    // (b) fillable: a fresh setFieldValue on the reopened widget changes /V.
+    reMgr.setFieldValue(rePage.get(), reIdx, "COMBO_REFILLED");
+    EXPECT_EQ(reMgr.getFormField(rePage.get(), reIdx).value, "COMBO_REFILLED")
+        << "reopened combo box is present but NOT fillable — not a live widget";
+    // (d) assertion.
+    EXPECT_FALSE(textIsPageSpan)
+        << "the created combo's value is reachable as an EDITABLE page-content "
+           "span after reopen — it was flattened into page content, not kept "
+           "as a widget appearance.";
+}
+
+// ListBox (/Ch, the other choice/dropdown type) — same path, confirming the
+// choice round-trip is not Combo-flag-specific.
+TEST_F(CreatedFieldRoundTripTest, CreatedListBoxFieldThroughIncrementalSave) {
+    const std::string kName  = "pdfe_created_listbox_incr";
+    const std::string kValue = "PDFE_CREATED_LISTBOX_8_INCR";
+
+    std::filesystem::path path;
+    auto doc = openWritableCopy("created_listbox_incr", path);
+    ASSERT_NE(doc, nullptr);
+
+    FormManager mgr(ctx_);
+    const QRectF rect = chooseFreeRect(*doc, mgr);
+    auto page = doc->page(0);
+    int idx = mgr.createFormField(page.get(), FormFieldType::ListBox, rect,
+                                  kName);
+    ASSERT_GE(idx, 0);
+    mgr.setFieldValue(page.get(), idx, kValue);
+    page.reset();
+
+    ASSERT_NO_THROW(doc->save(path));  // incremental branch
+    doc.reset();
+
+    auto reCtx = std::make_shared<pdfe::core::MuPdfContext>();
+    auto reDoc = pdfe::core::Document::open(reCtx, path);
+    ASSERT_NE(reDoc, nullptr);
+    FormManager reMgr(reCtx);
+    auto fields = reMgr.getFormFields(reDoc->page(0).get());
+    int reIdx = -1;
+    FormFieldData ref;
+    for (const auto& f : fields) {
+        if (f.fieldName == kName) { reIdx = f.widgetIndex; ref = f; }
+    }
+    auto acroNames = reMgr.listFieldNames(reDoc.get());
+    const bool inAcroForm =
+        std::find(acroNames.begin(), acroNames.end(), kName) != acroNames.end();
+
+    std::cout << "[ created  ] ListBox field incremental save -> "
+              << (reIdx >= 0 && inAcroForm && ref.type == FormFieldType::ListBox
+                      ? "INTERACTIVE" : "LOST") << std::endl;
+    ASSERT_GE(reIdx, 0)
+        << "created list box absent from page /Annots widgets after reopen";
+    EXPECT_EQ(ref.type, FormFieldType::ListBox)
+        << "reopened object is not a /Ch (list) form field (flattened?)";
+    EXPECT_TRUE(inAcroForm)
+        << "created list box absent from AcroForm /Fields after reopen";
+    EXPECT_EQ(ref.value, kValue)
+        << "created list box value did not survive save/reopen";
 }
 
 } // namespace

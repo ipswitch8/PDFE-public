@@ -2,6 +2,7 @@
 #include "AnnotationData.h"
 #include "AnnotationType.h"
 #include <QMouseEvent>
+#include <QKeyEvent>
 #include <QPainter>
 #include <QPointF>
 #include <QMenu>
@@ -97,6 +98,21 @@ public:
     /// that cache no indices.
     virtual void onAnnotationsChanged() {}
 
+    /// Abort any placement / drag this tool currently has in progress.
+    ///
+    /// form-field-bugs phase-8, bug 6 ("Esc should cancel an in-progress
+    /// click/drag-to-place"). Returns true when something WAS in progress and
+    /// has now been discarded: the in-progress flag is cleared, the partial
+    /// rubber-band geometry is dropped, any "mode exited" callback is fired, and
+    /// NO partial element is left in the document or overlay model. Returns
+    /// false when the tool was idle (nothing to cancel).
+    ///
+    /// Reached from onKeyPress() on Escape. Drag tools that do not override
+    /// onKeyPress get the dispatch for free via the base onKeyPress below; a
+    /// tool that overrides onKeyPress (FormTool, SelectTool) must call this
+    /// itself from its Escape branch. Default: nothing in progress.
+    virtual bool cancelInProgress() { return false; }
+
     /// Set the default color for annotations created by this tool.
     /// @param color The color to use
     virtual void setColor(QColor color) { (void)color; }
@@ -121,7 +137,20 @@ public:
 
     /// Handle key press event (for tools that need keyboard input).
     /// @param event The key event
-    virtual void onKeyPress(QKeyEvent* event) { (void)event; }
+    ///
+    /// form-field-bugs phase-8, bug 6: the base dispatch routes Escape to
+    /// cancelInProgress(), so every drag tool that does NOT override onKeyPress
+    /// (Shape / Ink / Link / Stamp / Crop / Redaction / TreRegion / TextMarkup)
+    /// aborts an in-progress placement with Esc. Qt delivers key events already
+    /// accepted and this does not touch the flag for a non-Escape key, so the
+    /// prior behaviour (and navigation fall-through) is unchanged for them.
+    /// Tools that DO override onKeyPress (FormTool, SelectTool) call
+    /// cancelInProgress() from their own Escape branch instead.
+    virtual void onKeyPress(QKeyEvent* event) {
+        if (event && event->key() == Qt::Key_Escape) {
+            cancelInProgress();
+        }
+    }
 
     /// Handle mouse double-click event.
     virtual void onMouseDoubleClick(QMouseEvent* event, int pageIndex, QPointF pdfPoint) {

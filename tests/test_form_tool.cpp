@@ -5,12 +5,14 @@
 #include "core/MuPdfContext.h"
 #include "core/UndoManager.h"
 #include "forms/FormManager.h"
+#include "forms/FormCommands.h"
 #include "forms/FormTool.h"
 #include "forms/JavaScriptEngine.h"
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <filesystem>
 #include <memory>
+#include <vector>
 
 class FormToolTest : public ::testing::Test {
 protected:
@@ -359,18 +361,30 @@ TEST_F(FormToolTest, ClickSignatureFieldEmitsActivation_Issue328) {
         << "the clicked signature field should also become selected";
 }
 
-// GitHub #369 — the REAL toolbar flow: arm creation mode, drag-place a
-// signature field, then CLICK it. The defect had two gates:
+// GitHub #369, ADAPTED for form-field-bugs phase-9 (bug 10, sticky placement).
+//
+// ORIGINAL #369 intent: after placing a signature field through the real
+// toolbar flow (arm creation mode, drag-place), a CLICK on that field must be
+// able to reach the #328 signing activation, rather than forever re-entering
+// the rubber-band. The defect had two gates:
 //   1. Nothing ever reset creationFieldType_ after a placement, so every
 //      later click re-entered the rubber-band branch and the #328 activation
 //      wiring was unreachable (a plain click died on the <10pt minimum).
 //   2. The `widgetIdx != selectedWidget_` gate made a re-click on the
 //      already-selected field inert.
-// Steps 3-5 below fail against the pre-fix code. The #328 test above bypasses
-// creation mode by creating the field via FormManager directly — this one
-// does NOT: the field is placed through the exact press/drag/release path the
-// toolbar flow takes, which is the coverage gap the root-cause audit named.
-TEST_F(FormToolTest, CreationModeExitsAfterPlacementAndClickActivates_Issue369) {
+//
+// WHAT PHASE-9 CHANGED, AND WHY THIS TEST WAS UPDATED: #369 originally bought
+// its reachability by AUTO-EXITING creation mode after every placement. Bug 10
+// requires the OPPOSITE — placement is now STICKY so many fields can be placed
+// without re-arming. The old assertion "placing a field exits creation mode"
+// therefore now asserts the wrong behaviour and is replaced by its sticky
+// counterpart. #369's real requirement (reachability of the placed field) is
+// preserved and still asserted here, but it is reached through the EXPLICIT
+// exit path — Esc — exactly as the new design intends: sticky place, Esc to
+// exit, then interaction-mode clicks select/activate. Gate #2 (the re-click
+// swallow) is untouched by phase-9 and is still asserted in step (6).
+TEST_F(FormToolTest,
+       StickyPlacementStaysArmed_ExplicitExitRestoresClickActivation_Issue369) {
     ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
 
     // (1) Arm creation mode, exactly as MainWindow does when the toolbar's
@@ -412,12 +426,27 @@ TEST_F(FormToolTest, CreationModeExitsAfterPlacementAndClickActivates_Issue369) 
     ASSERT_GE(createdWidget, 0) << "the drag must have created the field";
     ASSERT_EQ(createdType, pdfe::forms::FormFieldType::Signature);
 
-    // (3) THE FIX'S MECHANISM: the tool dropped back to interaction mode and
-    // told the UI. Pre-fix, creationFieldType_ stayed Signature forever.
+    // (3) PHASE-9 STICKY MECHANISM: the tool STAYS armed after a placement, and
+    // DID NOT notify the UI — so the toolbar action stays checked and the next
+    // drag would place another field. (Pre-phase-9 this asserted the opposite:
+    // auto-exit + exitedCallbackFired.)
+    EXPECT_TRUE(tool->isCreationMode())
+        << "bug 10: placement is sticky — the tool stays armed after a placement";
+    EXPECT_EQ(tool->creationFieldType(), pdfe::forms::FormFieldType::Signature)
+        << "bug 10: the armed field type is unchanged after a placement";
+    EXPECT_FALSE(exitedCallbackFired)
+        << "bug 10: a placement must NOT fire creationModeExited (no auto-exit)";
+
+    // (4) EXPLICIT EXIT restores #369 reachability: Esc leaves creation mode and
+    // notifies the UI (so the toolbar action unchecks). This is the user action
+    // that trades the sticky rubber-band for interaction-mode selection.
+    QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    tool->onKeyPress(&esc);
     EXPECT_FALSE(tool->isCreationMode())
-        << "GitHub #369: placing a field must exit creation mode";
+        << "GitHub #369 (via explicit exit): Esc must leave creation mode";
     EXPECT_TRUE(exitedCallbackFired)
-        << "GitHub #369: the UI must be notified so the toolbar action unchecks";
+        << "GitHub #369 (via explicit exit): the UI must be notified so the "
+           "toolbar action unchecks";
 
     int activations = 0;
     int gotPage = -1, gotWidget = -1;
@@ -441,8 +470,10 @@ TEST_F(FormToolTest, CreationModeExitsAfterPlacementAndClickActivates_Issue369) 
     ASSERT_EQ(fieldData.type, pdfe::forms::FormFieldType::Signature);
     QPointF center = fieldData.rect.center();
 
-    // (4) First click on the placed field: must reach the #328 activation —
-    // pre-fix this press re-entered the rubber-band branch instead.
+    // (5) First click on the placed field: must reach the #328 activation —
+    // pre-fix this press re-entered the rubber-band branch instead. After the
+    // explicit Esc exit above, the tool is in interaction mode, so this click
+    // hit-tests and selects/activates the field (the #369 reachability property).
     QMouseEvent click1(QEvent::MouseButtonPress, QPointF(0, 0),
                        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
     tool->onMousePress(&click1, 0, center);
@@ -451,11 +482,331 @@ TEST_F(FormToolTest, CreationModeExitsAfterPlacementAndClickActivates_Issue369) 
     EXPECT_EQ(gotPage, page->index());
     EXPECT_EQ(gotWidget, sigIdx);
 
-    // (5) Re-click while the field is still selected: must fire AGAIN —
-    // pre-fix the widgetIdx != selectedWidget_ gate swallowed it.
+    // (6) Re-click while the field is still selected: must fire AGAIN —
+    // pre-fix the widgetIdx != selectedWidget_ gate swallowed it. Phase-9 does
+    // not touch this gate; still asserted to prevent a #369 regression.
     QMouseEvent click2(QEvent::MouseButtonPress, QPointF(0, 0),
                        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
     tool->onMousePress(&click2, 0, center);
     EXPECT_EQ(activations, 2)
         << "GitHub #369: re-clicking the selected signature field must re-activate signing";
+}
+
+// ============================================================================
+// form-field-bugs phase-9, bug 10 — placement/creation tools must be STICKY:
+// after placing one field the tool stays armed so the next drag places another,
+// WITHOUT re-clicking the toolbar button. The tool is left ONLY by an explicit
+// action (Esc — phase-8 cancelInProgress — or a tool switch / deactivate), never
+// automatically after a placement. See docs/audit/
+// form-field-bugs-phase-9-sticky-audit.md for the cross-tool audit.
+// ============================================================================
+
+// Helper: drive one press/drag/release placement of the armed field type over
+// @p rect, routing fieldCreated through the real FormManager create path so the
+// field actually exists afterwards. Returns the created widget handle (or -1).
+namespace {
+int placeFieldViaDrag(pdfe::forms::FormTool* tool,
+                      pdfe::forms::FormManager* manager,
+                      pdfe::core::Page* page, const QRectF& rect,
+                      const std::string& name) {
+    int createdWidget = -1;
+    tool->fieldCreated = [&](int, pdfe::forms::FormFieldType type, QRectF r) {
+        createdWidget = manager->createFormField(page, type, r, name);
+    };
+    QMouseEvent press(QEvent::MouseButtonPress, QPointF(0, 0),
+                      Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMousePress(&press, 0, rect.topLeft());
+    QMouseEvent move(QEvent::MouseMove, QPointF(0, 0),
+                     Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMouseMove(&move, 0, rect.bottomRight());
+    QMouseEvent release(QEvent::MouseButtonRelease, QPointF(0, 0),
+                        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMouseRelease(&release, 0, rect.bottomRight());
+    return createdWidget;
+}
+} // namespace
+
+// The core of bug 10: one placement leaves the tool ARMED (not dropped back to
+// interaction mode) so a second placement needs no re-arming.
+TEST_F(FormToolTest, StickyPlacement_ToolStaysArmedAfterOnePlacement) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+
+    tool->setCreationFieldType(pdfe::forms::FormFieldType::Text);
+    ASSERT_TRUE(tool->isCreationMode());
+
+    bool exited = false;
+    tool->creationModeExited = [&]() { exited = true; };
+
+    int w = placeFieldViaDrag(tool.get(), manager.get(), page.get(),
+                              QRectF(72, 72, 120, 24), "Sticky1");
+    ASSERT_GE(w, 0) << "the drag must have created a field";
+
+    // The whole point of the fix: still armed, same type, no exit notification.
+    EXPECT_TRUE(tool->isCreationMode())
+        << "bug 10: the tool must stay armed after a placement";
+    EXPECT_EQ(tool->creationFieldType(), pdfe::forms::FormFieldType::Text)
+        << "bug 10: the armed field type is unchanged after a placement";
+    EXPECT_FALSE(exited)
+        << "bug 10: a placement must NOT fire creationModeExited";
+}
+
+// Two consecutive drags both create fields with NO re-arming between them —
+// the behaviour a user gets from the sticky tool. Oracle: field count rises by
+// exactly two.
+TEST_F(FormToolTest, StickyPlacement_TwoConsecutivePlacementsBothCreate) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+
+    const size_t before = manager->getFormFields(page.get()).size();
+
+    tool->setCreationFieldType(pdfe::forms::FormFieldType::Text);
+    ASSERT_TRUE(tool->isCreationMode());
+
+    int w1 = placeFieldViaDrag(tool.get(), manager.get(), page.get(),
+                               QRectF(72, 72, 120, 24), "Sticky_A");
+    ASSERT_GE(w1, 0) << "first placement must create a field";
+    ASSERT_TRUE(tool->isCreationMode())
+        << "bug 10: tool must remain armed WITHOUT re-clicking the toolbar";
+
+    // Second placement — NO setCreationFieldType() in between.
+    int w2 = placeFieldViaDrag(tool.get(), manager.get(), page.get(),
+                               QRectF(72, 150, 120, 24), "Sticky_B");
+    ASSERT_GE(w2, 0) << "second placement must create a field with no re-arming";
+
+    const size_t after = manager->getFormFields(page.get()).size();
+    EXPECT_EQ(after, before + 2)
+        << "bug 10: two consecutive sticky placements must create two fields";
+    EXPECT_TRUE(tool->isCreationMode())
+        << "bug 10: the tool is still armed after the second placement";
+}
+
+// Explicit exit via a TOOL SWITCH (deactivate) also leaves creation mode and
+// notifies the UI — the other half of "left only by an explicit action". After
+// it, the tool is in interaction mode and a click can select a placed field.
+TEST_F(FormToolTest, StickyPlacement_DeactivateExitsCreationModeAndNotifies) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+
+    tool->setCreationFieldType(pdfe::forms::FormFieldType::Text);
+    bool exited = false;
+    tool->creationModeExited = [&]() { exited = true; };
+
+    int w = placeFieldViaDrag(tool.get(), manager.get(), page.get(),
+                              QRectF(72, 72, 120, 24), "StickySwitch");
+    ASSERT_GE(w, 0);
+    ASSERT_TRUE(tool->isCreationMode()) << "sticky: still armed after placement";
+    ASSERT_FALSE(exited) << "sticky: placement did not notify exit";
+
+    // Switching tools tears the FormTool down (deactivate) — an explicit exit.
+    tool->deactivate();
+    EXPECT_FALSE(tool->isCreationMode())
+        << "bug 10: a tool switch (deactivate) leaves creation mode";
+    EXPECT_TRUE(exited)
+        << "bug 10: the tool switch notifies the UI so the toolbar unchecks";
+}
+
+// ============================================================================
+// form-field-bugs phase-6, bug-4 — a placed field cannot be re-edited or
+// deleted after content is added and focus leaves. Two independently-grounded
+// sub-defects (see docs/audit/form-field-bugs-phase-6-lifecycle-audit.md):
+//   (A) DELETE: a field SELECTED but NOT editing had no keyboard delete path —
+//       onKeyPress handled Delete/Backspace only while isEditing_ (erase a
+//       char); DeleteFormFieldCommand existed but the sole trigger was the
+//       toolbar's Delete Field button (#253). FIX: Delete/Backspace on a
+//       selected, non-editing field removes it (undoably), routed through a
+//       host callback that parks the Page in commandPages_.
+//   (B) RE-EDIT: the triage leads suspected getFormFieldAt could not resolve a
+//       just-created+committed field. The repro test below drives exactly that
+//       sequence headlessly; see the audit doc for the outcome and why.
+// ============================================================================
+
+// (A) Delete half, standalone fallback path. A placed TEXT field is reached in
+// the "selected, not editing" state via Escape (which exits the edit but keeps
+// the selection), then Delete removes it. Oracle: field count drops by one and
+// the field stops being hit-testable; undo restores both. No host callback is
+// wired here, so this exercises onKeyPress's direct (unparked) fallback execute.
+TEST_F(FormToolTest, DeleteKeyRemovesSelectedTextFieldAndUndoRestores_Bug4) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+
+    const int countBefore = static_cast<int>(manager->getFormFields(page.get()).size());
+
+    // Place a text field (rect proven non-overlapping on this fixture by the
+    // #328/#369 tests above).
+    const QRectF rect(72, 72, 180, 30);
+    ASSERT_GE(manager->createFormField(
+                  page.get(), pdfe::forms::FormFieldType::Text, rect,
+                  "Bug4DeleteField"),
+              0);
+
+    // Resolve the page-widget-list index of the field just placed.
+    int idx = -1;
+    for (const auto& f : manager->getFormFields(page.get())) {
+        if (f.fieldName == "Bug4DeleteField") { idx = f.widgetIndex; break; }
+    }
+    ASSERT_GE(idx, 0) << "created field not enumerated";
+    const QPointF center = manager->getFormField(page.get(), idx).rect.center();
+    EXPECT_EQ(static_cast<int>(manager->getFormFields(page.get()).size()),
+              countBefore + 1);
+
+    // Click selects + starts editing (Text case), then Escape exits the edit but
+    // keeps the selection — the "selected, not editing" state the delete path
+    // requires.
+    QMouseEvent click(QEvent::MouseButtonPress, QPointF(0, 0),
+                      Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMousePress(&click, 0, center);
+    ASSERT_EQ(tool->selectedFieldIndex(), idx);
+    ASSERT_TRUE(tool->isEditingField());
+    QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    tool->onKeyPress(&esc);
+    ASSERT_FALSE(tool->isEditingField());
+    ASSERT_EQ(tool->selectedFieldIndex(), idx)
+        << "Escape must keep the field selected (only exit the edit)";
+
+    // Delete removes the selected field.
+    QKeyEvent del(QEvent::KeyPress, Qt::Key_Delete, Qt::NoModifier);
+    tool->onKeyPress(&del);
+
+    EXPECT_EQ(tool->selectedFieldIndex(), -1)
+        << "selection must be dropped after the field is deleted";
+    EXPECT_EQ(static_cast<int>(manager->getFormFields(page.get()).size()),
+              countBefore)
+        << "Delete must remove the selected field";
+    EXPECT_FALSE(manager->getFormFieldAt(page.get(), center).has_value())
+        << "the deleted field must no longer be hit-testable";
+
+    // The delete is undoable.
+    ASSERT_TRUE(undoManager->canUndo())
+        << "Delete must push an undoable DeleteFormFieldCommand";
+    ASSERT_NO_THROW(undoManager->undo());
+    EXPECT_EQ(static_cast<int>(manager->getFormFields(page.get()).size()),
+              countBefore + 1)
+        << "undo must restore the deleted field";
+    EXPECT_TRUE(manager->getFormFieldAt(page.get(), center).has_value())
+        << "the restored field must be hit-testable again";
+}
+
+// (A) Delete half, HOST (parked-page) path — the production wiring. The host
+// callback is wired EXACTLY as MainWindow wires deleteSelectedField (park the
+// Page in a commandPages vector, execute DeleteFormFieldCommand, return true).
+// Oracles: the callback fires once with the right page/widget; the field count
+// drops by EXACTLY one (true ⇒ FormTool must NOT also run its fallback execute,
+// i.e. no double delete); selection clears; undo restores. Uses Backspace to
+// cover the second accepted key.
+TEST_F(FormToolTest, DeleteKeyHostPathParksPageNoDoubleDelete_Bug4) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+
+    const int countBefore = static_cast<int>(manager->getFormFields(page.get()).size());
+    const QRectF rect(72, 72, 180, 30);
+    ASSERT_GE(manager->createFormField(
+                  page.get(), pdfe::forms::FormFieldType::Text, rect,
+                  "Bug4HostField"),
+              0);
+    int idx = -1;
+    for (const auto& f : manager->getFormFields(page.get())) {
+        if (f.fieldName == "Bug4HostField") { idx = f.widgetIndex; break; }
+    }
+    ASSERT_GE(idx, 0);
+    const QPointF center = manager->getFormField(page.get(), idx).rect.center();
+
+    // Model MainWindow's page registry + deleteSelectedField wiring.
+    std::vector<std::unique_ptr<pdfe::core::Page>> commandPages;
+    int calls = 0, gotPage = -999, gotWidget = -999;
+    tool->deleteSelectedField =
+        [&](int pageIndex, int widgetIndex) -> bool {
+            ++calls; gotPage = pageIndex; gotWidget = widgetIndex;
+            auto p = document->page(pageIndex);
+            if (!p) return false;
+            auto* pagePtr = p.get();
+            commandPages.push_back(std::move(p));
+            undoManager->execute(
+                std::make_unique<pdfe::forms::DeleteFormFieldCommand>(
+                    manager.get(), pagePtr, widgetIndex));
+            return true;
+        };
+
+    // Select (not editing) via click + Escape, then Backspace.
+    QMouseEvent click(QEvent::MouseButtonPress, QPointF(0, 0),
+                      Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMousePress(&click, 0, center);
+    QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    tool->onKeyPress(&esc);
+    ASSERT_EQ(tool->selectedFieldIndex(), idx);
+    ASSERT_FALSE(tool->isEditingField());
+
+    QKeyEvent bks(QEvent::KeyPress, Qt::Key_Backspace, Qt::NoModifier);
+    tool->onKeyPress(&bks);
+
+    EXPECT_EQ(calls, 1) << "the host delete callback must fire exactly once";
+    EXPECT_EQ(gotPage, page->index());
+    EXPECT_EQ(gotWidget, idx);
+    EXPECT_EQ(tool->selectedFieldIndex(), -1);
+    EXPECT_EQ(static_cast<int>(manager->getFormFields(page.get()).size()),
+              countBefore)
+        << "field count must drop by exactly one — a handled host delete must "
+           "NOT also trigger FormTool's fallback execute (no double delete)";
+    EXPECT_EQ(static_cast<int>(commandPages.size()), 1)
+        << "the host must have parked the Page for the delete command";
+
+    ASSERT_TRUE(undoManager->canUndo());
+    ASSERT_NO_THROW(undoManager->undo());
+    EXPECT_EQ(static_cast<int>(manager->getFormFields(page.get()).size()),
+              countBefore + 1)
+        << "undo of the parked delete must restore the field";
+}
+
+// (B) Re-edit half, headless repro. Drives the EXACT sequence the triage named
+// as NEEDS-RUNTIME-REPRO: create a text field → click to edit → type → click
+// away (commit + deselect) → re-click. The decisive oracle is whether
+// getFormFieldAt resolves the just-created+committed field, and whether a
+// re-click re-selects and re-enters editing with the committed value. See the
+// audit doc for the interpretation of the result.
+TEST_F(FormToolTest, PlacedTextFieldStaysReEditableAfterCommitAndClickAway_Bug4) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+
+    const QRectF rect(72, 72, 180, 30);
+    ASSERT_GE(manager->createFormField(
+                  page.get(), pdfe::forms::FormFieldType::Text, rect,
+                  "Bug4ReEditField"),
+              0);
+    int idx = -1;
+    for (const auto& f : manager->getFormFields(page.get())) {
+        if (f.fieldName == "Bug4ReEditField") { idx = f.widgetIndex; break; }
+    }
+    ASSERT_GE(idx, 0);
+    const QPointF center = manager->getFormField(page.get(), idx).rect.center();
+
+    // Click to edit, type a value.
+    QMouseEvent click1(QEvent::MouseButtonPress, QPointF(0, 0),
+                       Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMousePress(&click1, 0, center);
+    ASSERT_TRUE(tool->isEditingField());
+    for (char c : std::string("Hi")) {
+        QKeyEvent k(QEvent::KeyPress, 0, Qt::NoModifier, QString(QChar(c)));
+        tool->onKeyPress(&k);
+    }
+
+    // Click away commits the value and deselects (the "focus leaves" step).
+    QMouseEvent clickAway(QEvent::MouseButtonPress, QPointF(0, 0),
+                          Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMousePress(&clickAway, 0, QPointF(-100, -100));
+    EXPECT_EQ(manager->getFormField(page.get(), idx).value, "Hi")
+        << "click-away must commit the typed value";
+    EXPECT_EQ(tool->selectedFieldIndex(), -1) << "click-away must deselect";
+
+    // DECISIVE ORACLE: the committed field is still hit-testable at its rect, and
+    // resolves to the same widget index.
+    auto hit = manager->getFormFieldAt(page.get(), center);
+    ASSERT_TRUE(hit.has_value())
+        << "a just-created+committed field must remain hit-testable (re-edit repro)";
+    EXPECT_EQ(hit.value(), idx)
+        << "getFormFieldAt must resolve the committed field to its original index";
+
+    // Re-click must re-select AND re-enter editing with the committed value.
+    QMouseEvent click2(QEvent::MouseButtonPress, QPointF(0, 0),
+                       Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMousePress(&click2, 0, center);
+    EXPECT_EQ(tool->selectedFieldIndex(), idx)
+        << "re-click must re-select the field";
+    EXPECT_TRUE(tool->isEditingField())
+        << "re-click on a text field must re-enter editing";
+    EXPECT_EQ(tool->editBufferForTesting(), "Hi")
+        << "re-entered edit must load the committed value";
 }

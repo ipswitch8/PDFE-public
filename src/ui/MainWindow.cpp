@@ -90,6 +90,8 @@
 
 #include <fstream>
 #include "TextEditToolBar.h"
+#include "FlowToolBar.h"      // form-field-bugs phase-10 (bug 7): wrapping toolbar
+#include "WrappingToolBar.h"  // form-field-bugs phase-10 (bug 7): wrapping QToolBar
 #include "FormFieldPropertiesPanel.h"
 #include "../fonts/EmbeddedFontAnalyzer.h"
 #include "../fonts/FontAnalysisCache.h"
@@ -193,6 +195,8 @@
 #include <QKeyEvent>   // GitHub #295: ShortcutTraceFilter inspects key events
 #include <QIcon>
 #include <QFileInfo>
+#include <optional>
+#include <cmath>
 #include <QRegularExpression>
 #include <QSignalBlocker>
 #include <QPrinter>
@@ -3582,6 +3586,23 @@ MainWindow::MainWindow(QWidget* parent)
         pushForActionAndProxies(redoAction_, redoEnabledChanged);
     });
 
+    // GitHub #460: the text-edit toolbar is shown only while a TextEditTool
+    // exists. Every annotation-tool switch (the Form tool among them, and the
+    // tools installed from menus outside onAnnotationToolSelected) destroys the
+    // TextEditTool inside PdfCanvas::setCurrentTool, and the toolbar's
+    // formatting connections die with it. Before this, the Form tool left the
+    // toolbar showing, wired to nothing: a font chosen there went nowhere.
+    // Hiding it here, on the canvas's own notification, covers every path
+    // rather than each tool branch remembering to. Switching back to Edit Text
+    // shows it again (the textEditToolAction_ branch of
+    // onAnnotationToolSelected).
+    connect(canvas_, &PdfCanvas::textEditToolReleased, this, [this]() {
+        if (textEditToolBar_) {
+            textEditToolBar_->setVisible(false);
+            textEditToolBar_->clearFontInfo();
+        }
+    });
+
     // Connect canvas signals
     connect(canvas_, &PdfCanvas::pageChanged, this, &MainWindow::onPageChanged);
     connect(canvas_, &PdfCanvas::zoomChanged, this, &MainWindow::onZoomChanged);
@@ -3623,7 +3644,7 @@ MainWindow::MainWindow(QWidget* parent)
             updateWindowTitle();
         });
 
-    // Defect #4 (per-region tool routing): on a mixed-content page the text
+    // Defect-4 (per-region tool routing): on a mixed-content page the text
     // tool is the page default, but a click on a scanned image block with no
     // live text span under it belongs to the region/TRE tool. PdfCanvas emits
     // regionToolRequested for that click; switch tools here so the routing is
@@ -5166,21 +5187,48 @@ void MainWindow::createActions()
     imageRemoveAction_->setEnabled(false);
     connect(imageRemoveAction_, &QAction::triggered, this, &MainWindow::onImageRemove);
 
+    // GitHub #422/#432 (docs/image-placement-model.md, "Image actions in the
+    // UI"): the three rotate actions are RELATIVE - each turns the selected
+    // image further, clockwise, from the angle the page holds. The menu text
+    // of the first is kept for the UI harness, which finds it by that label.
     imageRotateAction_ = new QAction(tr("Rotate Image..."), this);
     imageRotateAction_->setObjectName("imageRotateAction");
-    imageRotateAction_->setStatusTip(tr("Rotate the selected image"));
+    imageRotateAction_->setStatusTip(tr("Rotate the selected image a further 90° clockwise"));
+    imageRotateAction_->setToolTip(tr("Rotate the selected image a further 90° clockwise"));
     imageRotateAction_->setEnabled(false);
     connect(imageRotateAction_, &QAction::triggered, this, &MainWindow::onImageRotate90);
 
+    imageRotate180Action_ = new QAction(tr("Rotate Image 180°"), this);
+    imageRotate180Action_->setObjectName("imageRotate180Action");
+    imageRotate180Action_->setStatusTip(tr("Rotate the selected image a further half turn"));
+    imageRotate180Action_->setToolTip(tr("Rotate the selected image a further half turn"));
+    imageRotate180Action_->setEnabled(false);
+    connect(imageRotate180Action_, &QAction::triggered, this, &MainWindow::onImageRotate180);
+
+    imageRotate270Action_ = new QAction(tr("Rotate Image 270° Clockwise"), this);
+    imageRotate270Action_->setObjectName("imageRotate270Action");
+    imageRotate270Action_->setStatusTip(
+        tr("Rotate the selected image a further 270° clockwise (90° counter-clockwise)"));
+    imageRotate270Action_->setToolTip(
+        tr("Rotate the selected image a further 270° clockwise (90° counter-clockwise)"));
+    imageRotate270Action_->setEnabled(false);
+    connect(imageRotate270Action_, &QAction::triggered, this, &MainWindow::onImageRotate270);
+
     imageCropAction_ = new QAction(tr("Crop Image..."), this);
     imageCropAction_->setObjectName("imageCropAction");
-    imageCropAction_->setStatusTip(tr("Crop the selected image"));
+    // docs/image-placement-model.md, "Crop and Resize actions": a fixed step
+    // (keep the central 80% of what is visible), composed with any crop.
+    imageCropAction_->setStatusTip(
+        tr("Crop the selected image to the central 80% of its visible area"));
     imageCropAction_->setEnabled(false);
     connect(imageCropAction_, &QAction::triggered, this, &MainWindow::onImageCrop);
 
     imageResizeAction_ = new QAction(tr("Resi&ze Image..."), this);
     imageResizeAction_->setObjectName("imageResizeAction");
-    imageResizeAction_->setStatusTip(tr("Resize the selected image"));
+    // Fixed step: half the size, rotation, flips and crop kept. Any other
+    // size is set in the Image Properties panel or with the handles.
+    imageResizeAction_->setStatusTip(
+        tr("Resize the selected image to half its size (set any size in Image Properties)"));
     imageResizeAction_->setEnabled(false);
     connect(imageResizeAction_, &QAction::triggered, this, &MainWindow::onImageResize);
 
@@ -5706,6 +5754,8 @@ void MainWindow::createMenus()
     imageMenu->addSeparator();
     imageMenu->addAction(imageRemoveAction_);
     imageMenu->addAction(imageRotateAction_);
+    imageMenu->addAction(imageRotate180Action_);
+    imageMenu->addAction(imageRotate270Action_);
     imageMenu->addAction(imageCropAction_);
     imageMenu->addAction(imageResizeAction_);
 
@@ -6029,7 +6079,14 @@ void MainWindow::createToolBar()
     // .qrc — see the global-scope forward declaration above). Idempotent.
     ::qInitResources_action_icons();
 
-    QToolBar* toolBar = addToolBar(tr("Main Toolbar"));
+    // form-field-bugs phase-10 (bug 7): a WrappingToolBar wraps its buttons to
+    // additional rows instead of hiding overflow behind the extension chevron.
+    // It IS-A QToolBar that keeps its real QActions, so ToolbarLayoutManager
+    // (capture/apply), buildToolbarActionRegistry() and findChild<QToolBar*> are
+    // unaffected — see WrappingToolBar.h and
+    // docs/audit/form-field-bugs-phase-10-toolbar-wrap-audit.md.
+    auto* toolBar = new pdfe::ui::WrappingToolBar(tr("Main Toolbar"), this);
+    addToolBar(toolBar);
     toolBar->setObjectName("mainToolBar");
     toolBar->setMovable(false);
     // bugfix-3e91a7c4 #1/#2: show icon + label per button so the toolbar reads
@@ -6107,7 +6164,16 @@ QImage MainWindow::resolveLibraryStampImage(const QString& libraryName)
 
 void MainWindow::createAnnotationToolBar()
 {
-    annotationToolBar_ = addToolBar(tr("Annotation Toolbar"));
+    // form-field-bugs phase-10 (bug 7): the annotation toolbar (~16 actions +
+    // colour picker) is the real overflow case — a WrappingToolBar wraps its
+    // buttons to rows instead of the extension chevron, while remaining a real
+    // QToolBar that owns its QActions so the customization/registry machinery
+    // (ToolbarLayoutManager capture/apply, buildToolbarActionRegistry,
+    // findChild<QToolBar*>("annotationToolBar")) keeps working unchanged. See
+    // docs/audit/form-field-bugs-phase-10-toolbar-wrap-audit.md.
+    annotationToolBar_ = new pdfe::ui::WrappingToolBar(tr("Annotation Toolbar"),
+                                                       this);
+    addToolBar(annotationToolBar_);
     annotationToolBar_->setObjectName("annotationToolBar");
     annotationToolBar_->setMovable(false);
     // bugfix-3e91a7c4 #1/#2: icon + label per tool button.
@@ -6120,7 +6186,20 @@ void MainWindow::createAnnotationToolBar()
     textEditToolBar_->setVisible(false);
 
     // Form field toolbar (hidden by default, shown when form tool is active)
-    formToolBar_ = addToolBar(tr("Form Fields"));
+    //
+    // form-field-bugs phase-10 (bug 7): the form toolbar's eight text-beside-
+    // icon buttons overflow a narrow window. A stock QToolBar would hide the
+    // overflow behind an extension chevron; make it a WrappingToolBar — the same
+    // QToolBar subclass the main/annotation bars use — so the buttons WRAP to
+    // additional rows and ALL stay visible by default, while the bar remains a
+    // real QToolBar that OWNS its real QActions (incl. separators) on its own
+    // actions() list. That ownership is what the grouping test
+    // (UiStructureBugs.FormToolbarGroupsFieldsWithSeparators) reads, and it was
+    // lost when the field buttons were hosted in a plain FlowToolBar widget whose
+    // separators never appeared on the QToolBar's actions(). See
+    // docs/audit/form-field-bugs-phase-10-toolbar-wrap-audit.md.
+    formToolBar_ = new pdfe::ui::WrappingToolBar(tr("Form Fields"), this);
+    addToolBar(formToolBar_);
     formToolBar_->setObjectName("FormToolBar");
     formToolBar_->setVisible(false);
     // bugfix-3e91a7c4 #1: label buttons and group the field types with
@@ -6841,6 +6920,11 @@ void MainWindow::createDockPanels()
     connect(formPropertiesPanel_, &FormFieldPropertiesPanel::fieldValueChanged,
             this, &MainWindow::onFormFieldValueChanged);
 
+    // GitHub #460 / pipeline form-reconcile: the panel's ONE font signal goes
+    // to the ONE slot, onFormFieldFontChanged (see the comment there).
+    connect(formPropertiesPanel_, &FormFieldPropertiesPanel::fieldFontChangeRequested,
+            this, &MainWindow::onFormFieldFontChanged);
+
     formPropertiesDock_ = new QDockWidget(tr("Form Properties"), this);
     formPropertiesDock_->setObjectName("formPropertiesDock");
     formPropertiesDock_->setWidget(formPropertiesPanel_);
@@ -7067,6 +7151,19 @@ void MainWindow::createDockPanels()
     imagePropertiesDock_->setWidget(imagePropertiesPanel_);
     addDockWidget(Qt::RightDockWidgetArea, imagePropertiesDock_);
     imagePropertiesDock_->hide();
+    // GitHub #423 (docs/image-placement-model.md, "Image actions in the UI"):
+    // every panel control does what the matching menu action does, on the
+    // selected placement as the page holds it, keeping rotation and crop.
+    connect(imagePropertiesPanel_, &pdfe::image::ImagePropertiesPanel::resizeRequested,
+            this, [this](float w, float h) { resizeSelectedImageTo(w, h); });
+    connect(imagePropertiesPanel_, &pdfe::image::ImagePropertiesPanel::rotationRequested,
+            this, [this](float angle) { rotateSelectedImageTo(angle); });
+    connect(imagePropertiesPanel_, &pdfe::image::ImagePropertiesPanel::cropRequested,
+            this, &MainWindow::onImageCrop);
+    connect(imagePropertiesPanel_, &pdfe::image::ImagePropertiesPanel::extractRequested,
+            this, &MainWindow::onImageExtract);
+    connect(imagePropertiesPanel_, &pdfe::image::ImagePropertiesPanel::removeRequested,
+            this, &MainWindow::onImageRemove);
 
     // Sticky note popup.
     // Pipeline b3f19d72 phase-6 (P8-BUG-1): parented to MainWindow (not
@@ -8856,6 +8953,15 @@ void MainWindow::onUndo()
         const bool structuralCmd = undone && undone->affectsPageStructure();
         const int thumbPage = undone ? undone->affectedThumbnailPage() : -1;
         const int pageCountBefore = document_ ? document_->pageCount() : 0;
+        // docs/image-placement-model.md: the image tool and the properties
+        // panel show the page. Remember the selected placement so it can be
+        // re-read once the undo has changed the page.
+        std::optional<std::pair<std::string, int>> imageSel;
+        if (imageTool_ && imageTool_->hasSelection() && canvas_ &&
+            canvas_->imageTool() == imageTool_.get()) {
+            imageSel.emplace(imageTool_->selectedImage().xobjectName,
+                             imageTool_->selectedImage().occurrence);
+        }
         undoManager_->undo();
         const int pageCountAfter = document_ ? document_->pageCount() : 0;
 
@@ -8915,6 +9021,9 @@ void MainWindow::onUndo()
             if (applyRedactionsAction_)
                 applyRedactionsAction_->setEnabled(!marks.empty());
         }
+        if (imageSel && document_ && canvas_) {
+            resyncImageToolAfterEdit(canvas_->currentPage(), imageSel->first, imageSel->second);
+        }
         updateWindowTitle();
     }
 }
@@ -8931,6 +9040,15 @@ void MainWindow::onRedo()
         const bool structuralCmd = redone && redone->affectsPageStructure();
         const int thumbPage = redone ? redone->affectedThumbnailPage() : -1;
         const int pageCountBefore = document_ ? document_->pageCount() : 0;
+        // docs/image-placement-model.md: the image tool and the properties
+        // panel show the page. Remember the selected placement so it can be
+        // re-read once the redo has changed the page.
+        std::optional<std::pair<std::string, int>> imageSel;
+        if (imageTool_ && imageTool_->hasSelection() && canvas_ &&
+            canvas_->imageTool() == imageTool_.get()) {
+            imageSel.emplace(imageTool_->selectedImage().xobjectName,
+                             imageTool_->selectedImage().occurrence);
+        }
         undoManager_->redo();
         const int pageCountAfter = document_ ? document_->pageCount() : 0;
 
@@ -8971,6 +9089,9 @@ void MainWindow::onRedo()
             redactionPanel_->setMarks(marks);
             if (applyRedactionsAction_)
                 applyRedactionsAction_->setEnabled(!marks.empty());
+        }
+        if (imageSel && document_ && canvas_) {
+            resyncImageToolAfterEdit(canvas_->currentPage(), imageSel->first, imageSel->second);
         }
         updateWindowTitle();
     }
@@ -9515,7 +9636,7 @@ QString MainWindow::currentPageOcrText()
     if (pageIdx < 0 || pageIdx >= document_->pageCount()) {
         return QString();
     }
-    // Defect #3: OCR with a PER-REGION script-aware language instead of the
+    // Defect-3: OCR with a PER-REGION script-aware language instead of the
     // doc-wide English baked at open. A whole-page OSD only sees the majority
     // script (a Latin body hides an Arabic block); detectPageLanguages runs OSD
     // per region and returns the union — e.g. "eng+ara" — so BOTH the Latin and
@@ -10646,10 +10767,7 @@ void MainWindow::closeDocument()
     cutAction_->setEnabled(false);
     pasteAction_->setEnabled(false);
     selectAllAction_->setEnabled(false);
-    imageRemoveAction_->setEnabled(false);
-    imageRotateAction_->setEnabled(false);
-    imageCropAction_->setEnabled(false);
-    imageResizeAction_->setEnabled(false);
+    updateImageActionsFor(nullptr);
     zoomInAction_->setEnabled(false);
     zoomOutAction_->setEnabled(false);
     fitWidthAction_->setEnabled(false);
@@ -10990,6 +11108,42 @@ void MainWindow::onAnnotationToolSelected(QAction* action)
                      << "bbox=" << spanInfo.boundingBox
                      << "formattingRuns=" << spanInfo.formattingRuns.size()
                      << "textChanged=" << (oldText != newText);
+
+            // Bug 9 (phase-11): a span the Edit Text tool created in empty page
+            // space has no source run for the find-and-replace editor to match.
+            // Route it to a content-stream WRITE (InsertTextRunCommand) instead
+            // of EditTextCommand, which can only MODIFY an existing run.
+            if (spanInfo.isNewInsertion) {
+                if (newText.empty() || !pdfContentWriter_) {
+                    return;  // nothing typed, or no writer available
+                }
+                const QString qNew = QString::fromUcs4(
+                    reinterpret_cast<const char32_t*>(newText.data()),
+                    static_cast<int>(newText.size()));
+                pdfe::tre::PdfRect rect;
+                rect.x0 = spanInfo.boundingBox.left();
+                rect.y0 = spanInfo.boundingBox.top();
+                rect.x1 = spanInfo.boundingBox.right();
+                rect.y1 = spanInfo.boundingBox.bottom();
+                pdfe::tre::RgbColor color;
+                color.r = static_cast<uint8_t>((spanInfo.textColor >> 16) & 0xFF);
+                color.g = static_cast<uint8_t>((spanInfo.textColor >> 8) & 0xFF);
+                color.b = static_cast<uint8_t>(spanInfo.textColor & 0xFF);
+                auto insertCmd = std::make_unique<pdfe::tre::InsertTextRunCommand>(
+                    document_.get(), muPdfContext_, pdfContentWriter_.get(),
+                    pageIndex, rect, qNew.toStdString(),
+                    spanInfo.fontName.empty() ? std::string("Helvetica")
+                                              : spanInfo.fontName,
+                    spanInfo.fontSize > 0.0f ? spanInfo.fontSize : 12.0f,
+                    color, spanInfo.isBold, spanInfo.isItalic);
+                undoManager_->execute(std::move(insertCmd));
+                updateWindowTitle();
+                if (canvas_) {
+                    canvas_->refreshPage(pageIndex);
+                }
+                return;
+            }
+
             // Create an undo command for the text edit
             auto cmd = std::make_unique<pdfe::textedit::EditTextCommand>(
                 document_.get(),
@@ -11765,6 +11919,29 @@ void MainWindow::onAnnotationToolSelected(QAction* action)
                 canvas_->refreshPage(pageIndex);
             }
         };
+        // form-field-bugs phase-2, bug-5 (undo-after-edit crash). The canvas
+        // inline-edit commit must PARK its Page in commandPages_ so the
+        // SetFieldValueCommand joins the same drain+rebind lifetime machinery
+        // the panel-edit path (onFormFieldValueChanged) and every other command
+        // site use. Previously FormTool::commitEdit executed the command itself
+        // against page_ (== toolPage_.get(), a single-slot holder); a page/tool
+        // switch or the full-rewrite save that field creation forces freed that
+        // Page, leaving the stacked command dangling → undo() crashed on freed
+        // memory. This mirrors onFormFieldValueChanged's parked-page build for
+        // the text-value case.
+        formTool->commitFieldValue =
+            [this](int pageIndex, int widgetIndex,
+                   const std::string& newValue) -> bool {
+                if (!document_ || !formManager_ || !undoManager_) return false;
+                auto page = document_->page(pageIndex);
+                if (!page) return false;
+                auto* pagePtr = page.get();
+                commandPages_.push_back(std::move(page));
+                undoManager_->execute(
+                    std::make_unique<pdfe::forms::SetFieldValueCommand>(
+                        formManager_.get(), pagePtr, widgetIndex, newValue));
+                return true;
+            };
         formTool->fieldCreated = [this](int pageIndex, pdfe::forms::FormFieldType type, QRectF rect) {
             createFormField(pageIndex, type, rect);
         };
@@ -11784,9 +11961,11 @@ void MainWindow::onAnnotationToolSelected(QAction* action)
                 onSignatureFieldActivated(pageIndex, widgetIndex);
             });
         };
-        // GitHub #369 — the tool drops back to interaction mode after a field
-        // is placed (see FormTool::onMouseRelease); uncheck the armed
-        // field-type action so the toolbar reflects it. Programmatic
+        // GitHub #369 + form-field-bugs phase-9 (sticky placement) — the tool
+        // now STAYS armed after a placement and leaves creation mode only on an
+        // EXPLICIT exit (Esc or a tool switch; see FormTool::onMouseRelease and
+        // cancelInProgress); uncheck the armed field-type action when that
+        // happens so the toolbar reflects it. Programmatic
         // setChecked(false) is allowed even inside the exclusive QActionGroup
         // (exclusivity constrains user toggles, not code).
         formTool->creationModeExited = [this]() {
@@ -11800,6 +11979,39 @@ void MainWindow::onAnnotationToolSelected(QAction* action)
                 }
             }
         };
+
+        // form-field-bugs phase-6, bug-4 — delete the selected form field from
+        // the keyboard (Delete/Backspace on a selected, non-editing field; a
+        // text field reaches that state via Escape). PARKS the Page in
+        // commandPages_ exactly like the Delete Field toolbar action (#253) and
+        // the commitFieldValue path above, so the DeleteFormFieldCommand joins
+        // the same drain+rebind lifetime machinery and an undo of the delete
+        // cannot dangle (the bug-5 use-after-free class). Returning true tells
+        // FormTool the host handled it, so it does NOT also run its unparked
+        // fallback execute (no double delete).
+        formTool->deleteSelectedField =
+            [this](int pageIndex, int widgetIndex) -> bool {
+                if (!document_ || !formManager_ || !undoManager_) return false;
+                auto page = document_->page(pageIndex);
+                if (!page) return false;
+                auto* pagePtr = page.get();
+                commandPages_.push_back(std::move(page));
+                undoManager_->execute(
+                    std::make_unique<pdfe::forms::DeleteFormFieldCommand>(
+                        formManager_.get(), pagePtr, widgetIndex));
+                if (formPropertiesPanel_) {
+                    formPropertiesPanel_->clear();
+                }
+                if (canvas_) {
+                    canvas_->refreshPage(pageIndex);
+                }
+                updateWindowTitle();
+                if (statusBar_) {
+                    statusBar_->showMessage(
+                        tr("Form field deleted (Ctrl+Z to undo)."), 3000);
+                }
+                return true;
+            };
 
         // Show the form toolbar. The field-type actions are connected ONCE in
         // setupToolBars() and resolve the live tool through canvas_ at trigger
@@ -12311,15 +12523,28 @@ void MainWindow::createFormField(int pageIndex,
         undoManager_->execute(std::move(cmd));
         // c82a1f37 P5: creating a form field adds a new widget annotation to
         // the page /Annots AND a new entry to the AcroForm /Fields array — a
-        // STRUCTURAL addition. The incremental-save path (do_incremental=1)
-        // does NOT append the newly-created widget (verified: an incremental
-        // Ctrl+S left the saved widget count unchanged, while a full-rewrite
-        // saveAs persisted it), and Document::save() reopens the file after
-        // writing, so the field was silently lost from the live doc too.
-        // Mark the session for a full rewrite — the same guard page ops and
-        // rotation use — so the created field actually persists. (The deeper
-        // question of why MuPDF's incremental writer drops the new widget is
-        // noted for later verification.)
+        // STRUCTURAL addition. Mark the session for a full rewrite — the same
+        // guard page ops and rotation use — so the created field persists.
+        //
+        // form-field-bugs phase-7 UPDATE (bug 8). The old form of this comment
+        // claimed the incremental-save path "does NOT append the newly-created
+        // widget". That is NO LONGER TRUE on MuPDF 1.26.10 and was almost
+        // certainly a pre-upgrade artifact: FormRoundTripTest's
+        // CreatedTextFieldThroughIncrementalSave (tests/test_form_roundtrip.cpp)
+        // drives createFormField + setFieldValue + a real incremental
+        // Document::save (branch PROVEN — the original bytes remain a strict
+        // prefix of the appended output) and the field reopens as a fully
+        // INTERACTIVE /Tx widget (present in page /Annots AND AcroForm /Fields,
+        // fillable, hit-testable, value intact, NOT flattened to page content).
+        // The checkbox and FreeText-annotation incremental cases pass likewise.
+        //
+        // The markRequiresFullRewrite() below is therefore KEPT as belt-and-
+        // braces, NOT because incremental drops the widget: a structural
+        // addition saved via a full rewrite persists independently of the
+        // MuPDF incremental writer's behaviour, and this is the same structural
+        // guard page ops/rotation already use. Do not remove it on the strength
+        // of "incremental works now" — the round-trip tests guard the OUTCOME,
+        // this guards the ROUTE.
         if (document_) {
             document_->markRequiresFullRewrite();
         }
@@ -13518,6 +13743,111 @@ void MainWindow::onFormFieldValueChanged(pdfe::forms::FormFieldData data)
 
     canvas_->refreshPage(currentPageIndex);
     updateWindowTitle();
+}
+
+// GitHub #460 — the panel's font group (family, size, colour) for text,
+// combo and list fields.
+//
+// A SLOT, declared in MainWindow.h (pipeline form-reconcile: origin/master
+// 596d613f had already declared onFormFieldFontChanged there, so the one
+// handler took that slot; a member function does not change the class
+// layout).
+//
+// ONE SetFieldAppearanceCommand PER COMMITTED CHANGE. The panel emits once
+// per family selection, per committed size (editingFinished) and per
+// colour chosen; the command never merges, so each is one undo step.
+//
+// NO markPageDirty / onPageContentChanged HERE. PdfCanvas::
+// onPageContentChanged calls FormTool::onAnnotationsChanged, which ends
+// the edit in progress and clears its buffer -- a font change made while
+// the user is typing into the field would throw the typing away. The
+// command changes only the widget's /DA and appearance stream, not the
+// annotation set, so refreshPage (re-render the page tiles) is all that is
+// needed. FormTool's live-edit overlay re-reads the field on every paint,
+// so it picks the new font up by itself, and commit writes the typed
+// value under the new /DA.
+void MainWindow::onFormFieldFontChanged(pdfe::forms::FormFieldData field,
+                                        pdfe::ui::FormFieldFontRequest request)
+{
+    if (!document_ || !formManager_ || !canvas_ || !undoManager_) return;
+    if (!FormFieldPropertiesPanel::fieldTypeHasFontControls(field.type)) return;
+
+    const int pageIndex = field.pageIndex;
+    if (pageIndex < 0 || pageIndex >= document_->pageCount()) return;
+    auto page = document_->page(pageIndex);
+    if (!page) return;
+
+    // The panel's widget index was taken when the field was selected. If
+    // the page's field set changed since (a field deleted or added by an
+    // undo, say) the same index may now name a different field, and the
+    // command would restyle that one. Re-read the field and refuse unless
+    // it is still the one the panel shows.
+    pdfe::forms::FormFieldData current;
+    try {
+        current = formManager_->getFormField(page.get(), field.widgetIndex);
+    } catch (const std::exception&) {
+        if (statusBar_) {
+            statusBar_->showMessage(
+                tr("That form field no longer exists; select it again."), 3000);
+        }
+        formPropertiesPanel_->clear();
+        return;
+    }
+    if (current.type != field.type || current.fieldName != field.fieldName ||
+        current.rect != field.rect) {
+        if (statusBar_) {
+            statusBar_->showMessage(
+                tr("The form fields on this page changed; select the field again."),
+                3000);
+        }
+        formPropertiesPanel_->clear();
+        return;
+    }
+
+    // Only the property the user changed comes from the panel. The other
+    // two come from the document as it is NOW, so a panel showing a stale
+    // value cannot write it back.
+    std::string font = current.daFontName;
+    float size = pdfe::forms::sanitizeDefaultAppearanceSize(current.daFontSize);
+    QColor color(0, 0, 0);
+    {
+        using pdfe::forms::sanitizeColorComponent;
+        const auto c = [&current](int i) {
+            return sanitizeColorComponent(current.daColor[i]);
+        };
+        switch (pdfe::forms::sanitizeColorComponentCount(current.daColorComponents)) {
+            case 1: color = QColor::fromRgbF(c(0), c(0), c(0)); break;
+            case 3: color = QColor::fromRgbF(c(0), c(1), c(2)); break;
+            case 4: color = QColor::fromCmykF(c(0), c(1), c(2), c(3)).toRgb(); break;
+            default: break;
+        }
+    }
+    using Prop = pdfe::ui::FormFieldFontRequest::Property;
+    switch (request.changed) {
+        case Prop::Family: font = request.font; break;
+        case Prop::Size: size = request.size; break;
+        case Prop::Color: color = request.color; break;
+    }
+
+    // Validate before anything reaches the undo stack. The setter rejects
+    // the same inputs, but a rejected SetFieldAppearanceCommand would still
+    // sit on the stack as an undo step that does nothing.
+    if (!pdfe::forms::isBase14DefaultAppearanceFont(font) ||
+        !pdfe::forms::isAcceptedDefaultAppearanceSize(size) ||
+        !color.isValid() || color.alpha() != 255) {
+        return;
+    }
+
+    commandPages_.push_back(std::move(page));
+    auto* pagePtr = commandPages_.back().get();
+    undoManager_->execute(std::make_unique<pdfe::forms::SetFieldAppearanceCommand>(
+        formManager_.get(), pagePtr, field.widgetIndex, font, size, color));
+
+    canvas_->refreshPage(pageIndex);
+    updateWindowTitle();
+    if (statusBar_) {
+        statusBar_->showMessage(tr("Form field font changed (Ctrl+Z to undo)."), 3000);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -15263,26 +15593,50 @@ void MainWindow::onImageToolSelected()
             auto page = document_->page(pageIdx);
             if (!page) return;
 
+            // A placement inside a Form XObject is refused by the command and
+            // stays selected; any other removal takes the selection with it.
+            const bool refusedForm = imageTool_ && imageTool_->hasSelection() &&
+                                     imageTool_->selectedImage().imageIndex == imageIndex &&
+                                     imageTool_->selectedImage().inFormXObject;
             auto cmd = std::make_unique<pdfe::image::RemoveImageCommand>(
                 imageManager_.get(), page.get(), document_.get(), imageIndex);
             commandPages_.push_back(std::move(page));
             undoManager_->execute(std::move(cmd));
             canvas_->refreshPage(pageIdx);
+            // Re-read the tool from the page: the removed placement is gone,
+            // and the occurrences after it have moved down, so nothing is
+            // reselected (the panel clears and the image actions disable).
+            if (!refusedForm) resyncImageToolAfterEdit(pageIdx, std::string(), -1);
         });
 
         connect(imageTool_.get(), &pdfe::image::ImageTool::resizeRequested,
-                this, [this](const std::string& xobjectName, float w, float h, float x, float y) {
-            if (!document_ || !imageManager_ || !imageContentEditor_) return;
+                this, [this](const std::string& xobjectName, float w, float h, float x, float y,
+                             float angleDegrees) {
+            if (!document_ || !imageManager_ || !imageContentEditor_ || !imageTool_) return;
             int pageIdx = canvas_->currentPage();
             auto page = document_->page(pageIdx);
             if (!page) return;
 
+            // docs/image-placement-model.md: the placement is name + occurrence
+            // (GitHub #421); a placement inside a Form XObject is not editable.
+            const pdfe::image::PageImageInfo sel = imageTool_->selectedImage();
+            if (sel.xobjectName == xobjectName && sel.inFormXObject) return;
+            const int occurrence = sel.xobjectName == xobjectName ? sel.occurrence : 0;
+            // GitHub #416: the move/resize keeps the image's orientation.
             auto cmd = std::make_unique<pdfe::image::ResizeImageCommand>(
                 imageManager_.get(), imageContentEditor_.get(), page.get(), document_.get(),
-                xobjectName, w, h, x, y);
+                xobjectName, w, h, x, y, angleDegrees, occurrence);
             commandPages_.push_back(std::move(page));
             undoManager_->execute(std::move(cmd));
             canvas_->refreshPage(pageIdx);
+
+            // GitHub #416: re-read the overlay from the page, as the rotate
+            // handler below does (GitHub #391(c)). Without it the tool kept its
+            // pre-edit cache, so the outline showed whatever it last knew
+            // rather than what the commit actually wrote.
+            // By identity (name + occurrence), so the second copy stays the
+            // selected one after its edit.
+            resyncImageToolAfterEdit(pageIdx, xobjectName, occurrence);
         });
 
         connect(imageTool_.get(), &pdfe::image::ImageTool::rotateRequested,
@@ -15292,12 +15646,18 @@ void MainWindow::onImageToolSelected()
             auto page = document_->page(pageIdx);
             if (!page) return;
 
-            const auto& img = imageTool_->selectedImage();
+            // docs/image-placement-model.md: the placement is name + occurrence
+            // (GitHub #421); a placement inside a Form XObject is not editable.
+            const pdfe::image::PageImageInfo sel = imageTool_->selectedImage();
+            if (sel.xobjectName == xobjectName && sel.inFormXObject) return;
+            const int occurrence = sel.xobjectName == xobjectName ? sel.occurrence : 0;
+            const auto& img = sel;
             float cx = img.boundingBox.center().x();
             float cy = img.boundingBox.center().y();
             auto cmd = std::make_unique<pdfe::image::RotateImageCommand>(
                 imageManager_.get(), imageContentEditor_.get(), page.get(), document_.get(),
-                xobjectName, angleDegrees, cx, cy, img.displayWidth, img.displayHeight);
+                xobjectName, angleDegrees, cx, cy, img.displayWidth, img.displayHeight,
+                occurrence);
             commandPages_.push_back(std::move(page));
             undoManager_->execute(std::move(cmd));
             canvas_->refreshPage(pageIdx);
@@ -15312,12 +15672,7 @@ void MainWindow::onImageToolSelected()
             // up the committed orientation. Keep the page alive via toolPage_,
             // exactly as onImageToolSelected does for the tool's page pointer
             // (the command above already owns its own page in commandPages_).
-            auto refreshed = document_->page(pageIdx);
-            if (refreshed) {
-                toolPage_ = std::move(refreshed);
-                imageTool_->setPage(toolPage_.get(), document_.get());
-                imageTool_->selectImage(xobjectName);
-            }
+            resyncImageToolAfterEdit(pageIdx, xobjectName, occurrence);
         });
 
         connect(imageTool_.get(), &pdfe::image::ImageTool::cropRequested,
@@ -15327,31 +15682,37 @@ void MainWindow::onImageToolSelected()
             auto page = document_->page(pageIdx);
             if (!page) return;
 
-            const auto& img = imageTool_->selectedImage();
+            // docs/image-placement-model.md: the placement is name + occurrence
+            // (GitHub #421); a placement inside a Form XObject is not editable.
+            const pdfe::image::PageImageInfo sel = imageTool_->selectedImage();
+            if (sel.xobjectName == xobjectName && sel.inFormXObject) return;
+            const int occurrence = sel.xobjectName == xobjectName ? sel.occurrence : 0;
+            const auto& img = sel;
             auto cmd = std::make_unique<pdfe::image::CropImageCommand>(
                 imageManager_.get(), imageContentEditor_.get(), page.get(), document_.get(),
                 xobjectName, cropRect, img.displayWidth, img.displayHeight,
                 static_cast<float>(img.boundingBox.x()),
-                static_cast<float>(img.boundingBox.y()));
+                static_cast<float>(img.boundingBox.y()), occurrence);
             commandPages_.push_back(std::move(page));
             undoManager_->execute(std::move(cmd));
             canvas_->refreshPage(pageIdx);
+
+            // GitHub #431: re-read the tool (and so the overlay and the
+            // properties panel) from the page, as the resize and rotate
+            // handlers do. A crop changes the visible region - the outline,
+            // its centre and the handles - so without this the tool kept
+            // drawing and editing the pre-crop rect.
+            resyncImageToolAfterEdit(pageIdx, xobjectName, occurrence);
         });
 
         connect(imageTool_.get(), &pdfe::image::ImageTool::imageSelected,
-                this, [this](const pdfe::image::PageImageInfo&) {
-            imageRemoveAction_->setEnabled(true);
-            imageRotateAction_->setEnabled(true);
-            imageCropAction_->setEnabled(true);
-            imageResizeAction_->setEnabled(true);
+                this, [this](const pdfe::image::PageImageInfo& info) {
+            updateImageActionsFor(&info);
         });
 
         connect(imageTool_.get(), &pdfe::image::ImageTool::imageDeselected,
                 this, [this]() {
-            imageRemoveAction_->setEnabled(false);
-            imageRotateAction_->setEnabled(false);
-            imageCropAction_->setEnabled(false);
-            imageResizeAction_->setEnabled(false);
+            updateImageActionsFor(nullptr);
         });
     }
 
@@ -15400,7 +15761,13 @@ void MainWindow::onInsertImage()
     QSize sourceSize;
     {
         QImageReader reader(filePath);
+        reader.setDecideFormatFromContent(true);  // as insertImage reads it
         sourceSize = reader.size();  // header only; does not decode the image
+        // GitHub #436: insert applies the EXIF orientation, so a photo turned
+        // a quarter turn is placed with the proportions it is shown with.
+        if (sourceSize.isValid() &&
+            (reader.transformation() & QImageIOHandler::TransformationRotate90))
+            sourceSize.transpose();
     }
 
     pdfe::image::InsertImageOptions opts;
@@ -15475,8 +15842,12 @@ void MainWindow::onInsertImage()
         // handles paint and the image-toolbar actions stay disabled until the
         // user clicks it. Select it by the XObject identity the insert produced
         // so the handles are live and the actions enabled with no extra click.
+        // By the identity the insert reported (name + occurrence, GitHub
+        // #434), so it is exactly the placement just added.
         if (imageTool_ && !insertedXObject.empty()) {
-            imageTool_->selectImage(insertedXObject);
+            if (!imageTool_->selectPlacement(insertedXObject,
+                                             insertCmd->result().imageInfo.occurrence))
+                imageTool_->selectImage(insertedXObject);
         }
     }
 }
@@ -15587,16 +15958,24 @@ void MainWindow::onStripExif()
 {
     if (!document_ || !exifStripper_) return;
 
-    int count = exifStripper_->stripAllImages(document_.get());
-
-    if (count > 0) {
-        QMessageBox::information(this, tr("Strip Image Metadata"),
-            tr("Stripped metadata from %1 image(s).").arg(count));
-        canvas_->refreshAllPages();
-    } else {
-        QMessageBox::information(this, tr("Strip Image Metadata"),
-            tr("No images found to strip metadata from."));
-    }
+    // Report what really happened: removed, already clean, and not processed
+    // (their metadata may remain) are counted separately. Inline JPEG images
+    // are never processed, so they warn too.
+    const auto report = exifStripper_->stripAllImagesReport(document_.get());
+    const QString summary = pdfe::image::ExifStripper::describe(report);
+    if (report.stripped > 0) canvas_->refreshAllPages();
+    // A named box (not the static helpers) so tests and UI automation can
+    // find it: a warning when an image could not be processed or inline JPEG
+    // images were skipped, an information box otherwise.
+    const bool incomplete = report.failed > 0 || report.inlineNotProcessed > 0;
+    QMessageBox box(this);
+    box.setObjectName(QStringLiteral("stripImageMetadataResultDialog"));
+    box.setAccessibleName(tr("Strip Image Metadata result"));
+    box.setWindowTitle(tr("Strip Image Metadata"));
+    box.setIcon(incomplete ? QMessageBox::Warning : QMessageBox::Information);
+    box.setText(summary);
+    box.setStandardButtons(QMessageBox::Ok);
+    box.exec();
 }
 
 void MainWindow::onDocumentMetadata()
@@ -15971,52 +16350,176 @@ void MainWindow::onImageRemove()
 {
     if (!imageTool_ || !imageTool_->hasSelection()) return;
     const auto& img = imageTool_->selectedImage();
+    if (img.inFormXObject) return;  // not removable (docs/image-placement-model.md)
     emit imageTool_->removeRequested(img.imageIndex);
 }
 
 void MainWindow::onImageRotate90()
 {
-    if (!imageTool_ || !imageTool_->hasSelection()) return;
-    const auto& img = imageTool_->selectedImage();
-    emit imageTool_->rotateRequested(img.xobjectName, 90.0f);
+    // GitHub #422: relative. Twice is a half turn; on an image at 30° it gives 120°.
+    rotateSelectedImageBy(90.0f);
 }
 
 void MainWindow::onImageRotate180()
 {
-    if (!imageTool_ || !imageTool_->hasSelection()) return;
-    const auto& img = imageTool_->selectedImage();
-    emit imageTool_->rotateRequested(img.xobjectName, 180.0f);
+    rotateSelectedImageBy(180.0f);  // GitHub #432
 }
 
 void MainWindow::onImageRotate270()
 {
-    if (!imageTool_ || !imageTool_->hasSelection()) return;
-    const auto& img = imageTool_->selectedImage();
-    emit imageTool_->rotateRequested(img.xobjectName, 270.0f);
+    rotateSelectedImageBy(270.0f);  // GitHub #432
 }
 
 void MainWindow::onImageCrop()
 {
-    if (!imageTool_ || !imageTool_->hasSelection()) return;
-    const auto& img = imageTool_->selectedImage();
-    // Use center 80% as default crop region
-    float w = static_cast<float>(img.boundingBox.width()) * 0.8f;
-    float h = static_cast<float>(img.boundingBox.height()) * 0.8f;
-    float x = static_cast<float>(img.boundingBox.x()) + static_cast<float>(img.boundingBox.width()) * 0.1f;
-    float y = static_cast<float>(img.boundingBox.y()) + static_cast<float>(img.boundingBox.height()) * 0.1f;
-    emit imageTool_->cropRequested(img.xobjectName, QRectF(x, y, w, h));
+    // docs/image-placement-model.md, "Crop and Resize actions": Image > Crop
+    // keeps the central 80% of what is VISIBLE now. The rect is given in the
+    // placement's visible upright frame (boundingBox), which is the frame
+    // cropImage takes; the editor intersects it with any existing crop, so a
+    // second Crop narrows the first, and it keeps the rotation, flips and skew.
+    const auto img = selectedImagePlacementOnPage();
+    if (!img || img->inFormXObject) return;
+    const QRectF b = img->boundingBox;
+    const QRectF crop(b.x() + b.width() * 0.1, b.y() + b.height() * 0.1,
+                      b.width() * 0.8, b.height() * 0.8);
+    emit imageTool_->cropRequested(img->xobjectName, crop);
 }
 
 void MainWindow::onImageResize()
 {
-    if (!imageTool_ || !imageTool_->hasSelection()) return;
-    const auto& img = imageTool_->selectedImage();
-    // Use 50% scale as default resize
-    float newW = img.displayWidth * 0.5f;
-    float newH = img.displayHeight * 0.5f;
-    emit imageTool_->resizeRequested(img.xobjectName, newW, newH,
-        static_cast<float>(img.boundingBox.x()),
-        static_cast<float>(img.boundingBox.y()));
+    // docs/image-placement-model.md, "Crop and Resize actions": a fixed step to
+    // half the size, about the visible centre, keeping rotation and crop. Any
+    // other size is set in the properties panel or with the handles.
+    const auto img = selectedImagePlacementOnPage();
+    if (!img || img->inFormXObject) return;
+    resizeSelectedImageTo(img->displayWidth * 0.5f, img->displayHeight * 0.5f);
+}
+
+void MainWindow::onImageExtract()
+{
+    const auto img = selectedImagePlacementOnPage();
+    if (!img || img->inFormXObject || !document_ || !imageManager_ || !canvas_) return;
+
+    // The file-dialog seam first (inert in production), as the other save
+    // paths do, so a headless test can drive the real path.
+    QString fileName = pdfe::ui::testseam::takeFileDialogPath();
+    if (fileName.isEmpty()) {
+        fileName = QFileDialog::getSaveFileName(
+            this, tr("Extract Image"),
+            QString::fromStdString(img->xobjectName) + QStringLiteral(".png"),
+            tr("PNG Image (*.png);;JPEG Image (*.jpg *.jpeg);;TIFF Image (*.tif *.tiff);;"
+               "BMP Image (*.bmp)"));
+    }
+    if (fileName.isEmpty()) return;
+    if (QFileInfo(fileName).suffix().isEmpty()) fileName += QStringLiteral(".png");
+
+    // GitHub #240: a file written out obeys the same network policy as Save As.
+    if (pdfe::core::path_security::is_unc_or_remote(fileName.toStdWString()) &&
+        (!appSettings_ || !appSettings_->allowUserNetworkPaths())) {
+        if (statusBar_) {
+            statusBar_->showMessage(
+                tr("Extract refused: network locations are turned off"), 5000);
+        }
+        return;
+    }
+
+    auto page = document_->page(canvas_->currentPage());
+    const bool ok = page && imageManager_->extractImageToFile(
+                                page.get(), document_.get(), img->imageIndex,
+                                fileName.toStdString());
+    if (statusBar_) {
+        statusBar_->showMessage(
+            ok ? tr("Image extracted to %1").arg(QFileInfo(fileName).fileName())
+               : tr("The image could not be extracted to %1")
+                     .arg(QFileInfo(fileName).fileName()),
+            5000);
+    }
+}
+
+std::optional<pdfe::image::PageImageInfo> MainWindow::selectedImagePlacementOnPage()
+{
+    if (!document_ || !imageManager_ || !imageTool_ || !canvas_ ||
+        !imageTool_->hasSelection())
+        return std::nullopt;
+    const pdfe::image::PageImageInfo sel = imageTool_->selectedImage();
+    auto page = document_->page(canvas_->currentPage());
+    if (!page) return std::nullopt;
+    for (const auto& info : imageManager_->enumerateImages(page.get(), document_.get())) {
+        if (info.xobjectName == sel.xobjectName && info.occurrence == sel.occurrence &&
+            info.inFormXObject == sel.inFormXObject)
+            return info;
+    }
+    return std::nullopt;
+}
+
+void MainWindow::rotateSelectedImageBy(float deltaDegrees)
+{
+    const auto img = selectedImagePlacementOnPage();
+    if (!img || img->inFormXObject) return;
+    // The angle the page holds, visually clockwise, plus the step.
+    float angle = std::fmod(pdfe::image::visualClockwiseDegrees(*img) + deltaDegrees, 360.0f);
+    if (angle < 0.0f) angle += 360.0f;
+    emit imageTool_->rotateRequested(img->xobjectName, angle);
+}
+
+void MainWindow::rotateSelectedImageTo(float angleDegrees)
+{
+    const auto img = selectedImagePlacementOnPage();
+    if (!img || img->inFormXObject) return;
+    emit imageTool_->rotateRequested(img->xobjectName, angleDegrees);
+}
+
+void MainWindow::resizeSelectedImageTo(float w, float h)
+{
+    const auto img = selectedImagePlacementOnPage();
+    if (!img || img->inFormXObject || !(w > 0.0f) || !(h > 0.0f) ||
+        !(img->displayWidth > 0.0f) || !(img->displayHeight > 0.0f))
+        return;
+    // w x h is the FULL (uncropped) size, as the panel shows it. Scale the
+    // visible region about its centre and convert back to the full placement
+    // rect resizeImage takes; the crop keeps its place inside the image and
+    // the rotation, flips and skew are kept (GitHub #416/#423).
+    const QRectF visible = img->boundingBox;
+    const double sx = static_cast<double>(w) / img->displayWidth;
+    const double sy = static_cast<double>(h) / img->displayHeight;
+    QRectF scaled(0.0, 0.0, visible.width() * sx, visible.height() * sy);
+    scaled.moveCenter(visible.center());
+    const QRectF full = pdfe::image::placementRectForVisibleRect(*img, visible, scaled);
+    emit imageTool_->resizeRequested(img->xobjectName,
+                                     static_cast<float>(full.width()),
+                                     static_cast<float>(full.height()),
+                                     static_cast<float>(full.x()),
+                                     static_cast<float>(full.y()),
+                                     pdfe::image::visualClockwiseDegrees(*img));
+}
+
+void MainWindow::resyncImageToolAfterEdit(int pageIdx, const std::string& name, int occurrence)
+{
+    if (!document_ || !imageTool_) return;
+    auto refreshed = document_->page(pageIdx);
+    if (!refreshed) return;
+    // Copy first: callers may pass a reference into the tool's own list,
+    // which setPage refills.
+    const std::string id = name;
+    toolPage_ = std::move(refreshed);
+    pdfe::image::resyncImageToolPlacement(*imageTool_, toolPage_.get(), document_.get(),
+                                          id, occurrence);
+}
+
+void MainWindow::updateImageActionsFor(const pdfe::image::PageImageInfo* info)
+{
+    // docs/image-placement-model.md: a placement inside a Form XObject is
+    // selectable but not editable, so its edit actions are disabled and say why.
+    const bool editable = info && !info->inFormXObject;
+    const QString formWhy =
+        tr("This image is drawn inside a Form XObject, which may be shared with "
+           "other pages, so it cannot be edited here.");
+    for (QAction* a : {imageRemoveAction_, imageRotateAction_, imageRotate180Action_,
+                       imageRotate270Action_, imageCropAction_, imageResizeAction_}) {
+        if (!a) continue;
+        a->setEnabled(editable);
+        a->setToolTip(info && info->inFormXObject ? formWhy : a->statusTip());
+    }
 }
 
 // --- Pipeline E phase-10: Customizable toolbars ---

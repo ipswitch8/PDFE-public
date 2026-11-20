@@ -102,6 +102,15 @@ struct TextSpan {
     /// Distinguishes "genuinely black text" from "no color captured".
     bool textColorKnown = false;
 
+    /// True when this span was created in empty page space by the Edit Text
+    /// tool (bug 9) rather than extracted from an existing glyph run. It has
+    /// no source text run in the content stream, so a commit must WRITE a new
+    /// run (PdfContentWriter via InsertTextRunCommand) instead of routing
+    /// through the find-and-replace editor (EditTextCommand), which can only
+    /// modify an existing run. The flag travels on the TextSpan copy handed to
+    /// TextEditTool::textEdited so the commit site can pick the right command.
+    bool isNewInsertion = false;
+
     /// Per-character bounding boxes in PDF coordinates (from source TextChars).
     std::vector<QRectF> charQuads;
 
@@ -144,6 +153,14 @@ public:
     [[nodiscard]] int spanAtPoint(const QPointF& pdfPoint) const;
     /// Returns character index within a span closest to the point.
     [[nodiscard]] int charIndexAtPoint(int spanIndex, const QPointF& pdfPoint) const;
+
+    /// Append a new, empty editable span at @p bbox (PDF/fitz coordinates,
+    /// Y-down — the same space as spanAtPoint), carrying @p fontName and
+    /// @p fontSize and marked isNewInsertion. Used by TextEditTool when the
+    /// user clicks empty page space to start a brand-new text run (bug 9).
+    /// Returns the new span's index.
+    int addEmptySpan(const QRectF& bbox, const std::string& fontName,
+                     float fontSize);
 
     // Editing
     void replaceSpanText(int spanIndex, const std::u32string& newText);

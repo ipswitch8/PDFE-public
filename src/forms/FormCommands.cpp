@@ -295,6 +295,99 @@ std::string DeleteFormFieldCommand::description() const
 }
 
 // ============================================================================
+// SetFieldAppearanceCommand (GitHub #460)
+// ============================================================================
+
+SetFieldAppearanceCommand::SetFieldAppearanceCommand(
+    FormManager* manager,
+    pdfe::core::Page* page,
+    int widgetIndex,
+    const std::string& font,
+    float size,
+    const QColor& color
+)
+    : manager_(manager)
+    , page_(page)
+    , widgetIndex_(widgetIndex)
+    , font_(font)
+    , size_(size)
+    , color_(color)
+{
+}
+
+void SetFieldAppearanceCommand::execute()
+{
+    if (!manager_ || !page_) return;
+    if (executed_) {
+        // Idempotent: re-apply without re-taking the undo snapshot (see the
+        // class comment on UndoManager's double execute).
+        redo();
+        return;
+    }
+    const auto before = manager_->getFieldOwnDefaultAppearance(page_, widgetIndex_);
+    if (!before) {
+        executed_ = true;  // bad index: nothing to do, undo/redo are no-ops
+        return;
+    }
+    // Phase-4 security audit: the setter can throw part-way (MuPDF writes /DA
+    // and deletes /DS and /RC before pdf_update_annot runs). Put the snapshot
+    // back, best effort, and rethrow, leaving the command un-executed, so a
+    // half-applied change never stays behind a no-op undo.
+    bool applied = false;
+    try {
+        applied = manager_->setFieldDefaultAppearance(page_, widgetIndex_, font_,
+                                                      size_, color_);
+    } catch (...) {
+        try {
+            manager_->restoreFieldOwnDefaultAppearance(page_, widgetIndex_, *before);
+        } catch (...) {
+            // The original error is the one to report.
+        }
+        throw;
+    }
+    if (applied) {
+        before_ = *before;
+        const auto after = manager_->getFieldOwnDefaultAppearance(page_, widgetIndex_);
+        if (after) after_ = *after;
+    }
+    // State only after the call returned.
+    applied_ = applied;
+    executed_ = true;
+}
+
+void SetFieldAppearanceCommand::undo()
+{
+    if (!executed_ || !applied_) return;
+    if (!page_) return;  // rebound to null (page gone) → safe no-op.
+    manager_->restoreFieldOwnDefaultAppearance(page_, widgetIndex_, before_);
+}
+
+void SetFieldAppearanceCommand::redo()
+{
+    if (!executed_ || !applied_) return;
+    if (!page_) return;  // rebound to null (page gone) → safe no-op.
+    manager_->restoreFieldOwnDefaultAppearance(page_, widgetIndex_, after_);
+}
+
+std::string SetFieldAppearanceCommand::description() const
+{
+    return "Set Field Font";
+}
+
+bool SetFieldAppearanceCommand::mergeWith(const pdfe::commands::Command* /*other*/)
+{
+    // Never merges: one appearance change, one undo step (see the header).
+    return false;
+}
+
+int SetFieldAppearanceCommand::mergeId() const
+{
+    // 0 = "never merge" to UndoManager::execute, which then never runs this
+    // command's execute() twice.
+    return 0;
+}
+
+// ============================================================================
 // Save-path page rebind (pipeline f4a82c1e Phase 3a) — every form command
 // caches a raw Page*; report its index before a save drops the holders and
 // re-point it at the freshly-resolved page afterwards so undo stays valid.
@@ -317,5 +410,8 @@ void CreateFormFieldCommand::rebindPage(pdfe::core::Page* page) { page_ = page; 
 
 int DeleteFormFieldCommand::pageIndex() const { return page_ ? page_->index() : -1; }
 void DeleteFormFieldCommand::rebindPage(pdfe::core::Page* page) { page_ = page; }
+
+int SetFieldAppearanceCommand::pageIndex() const { return page_ ? page_->index() : -1; }
+void SetFieldAppearanceCommand::rebindPage(pdfe::core::Page* page) { page_ = page; }
 
 } // namespace pdfe::forms

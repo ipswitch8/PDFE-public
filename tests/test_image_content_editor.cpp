@@ -321,11 +321,18 @@ TEST_F(ImageContentEditorTest, RotateImage_NullDoc) {
     EXPECT_FALSE(result);
 }
 
-// Test 9: CropImage_Success - the committed placement carries the requested
-// ASYMMETRIC display extent, re-enumerated from the rewritten content stream.
-// (enumerateImages derives geometry from the image draw CTM, which the crop
-// writer composes from displayWidth/displayHeight; a boolean-only oracle
-// survived a writer that discarded those.)
+// Test 9: CropImage_Success - the committed crop is the requested ASYMMETRIC
+// region, re-enumerated from the rewritten content stream. (A boolean-only
+// oracle survived a writer that discarded the requested geometry.)
+//
+// Adjusted for docs/image-placement-model.md (pipeline image-placement-state,
+// phase 2): this test used to require the crop to RE-PLACE the image at the
+// displayWidth/displayHeight it was passed and to report the uncropped image as
+// its outline. Both were the defects GitHub #417 and #420: a crop now keeps the
+// placement (displayWidth/Height stay the full image) and the outline
+// (boundingBox) is the visible, cropped region. The intent - the committed
+// geometry is exactly what was asked for, asymmetric so a swap or a hardcoded
+// square cannot pass - is kept.
 TEST_F(ImageContentEditorTest, CropImage_Success) {
     if (!std::filesystem::exists(pdfPath_)) {
         GTEST_SKIP() << "Test fixture not available: " << pdfPath_;
@@ -340,15 +347,16 @@ TEST_F(ImageContentEditorTest, CropImage_Success) {
     auto before = manager_->enumerateImages(page.get(), doc.get());
     ASSERT_FALSE(before.empty());
     const PageImageInfo img0 = before[0];
+    ASSERT_NEAR(img0.rotationRadians, 0.0f, 1e-4f) << "fixture image is upright";
 
-    // Asymmetric crop rect AND asymmetric committed display extent, so neither
-    // a swap nor a hardcoded prior (square) value can satisfy the oracle.
-    QRectF cropRect(37.0, 59.0, 83.0, 61.0);
-    const float kDispW = 180.0f;
-    const float kDispH = 120.0f;
+    // Asymmetric crop rect inside the visible image: 60% x 30%, off-centre.
+    const QRectF b = img0.boundingBox;
+    const QRectF cropRect(b.x() + 0.10 * b.width(), b.y() + 0.20 * b.height(),
+                          0.60 * b.width(), 0.30 * b.height());
 
     bool result = editor_->cropImage(
-        page.get(), doc.get(), img0.xobjectName, cropRect, kDispW, kDispH,
+        page.get(), doc.get(), img0.xobjectName, cropRect,
+        img0.displayWidth, img0.displayHeight,
         static_cast<float>(img0.boundingBox.x()),
         static_cast<float>(img0.boundingBox.y()));
     EXPECT_TRUE(result);
@@ -363,15 +371,21 @@ TEST_F(ImageContentEditorTest, CropImage_Success) {
     ASSERT_TRUE(found) << "Cropped image " << img0.xobjectName
                        << " must still be enumerable after crop";
 
-    EXPECT_NEAR(cropped.displayWidth, kDispW, 0.5f)
-        << "Committed display width must equal the requested " << kDispW;
-    EXPECT_NEAR(cropped.displayHeight, kDispH, 0.5f)
-        << "Committed display height must equal the requested " << kDispH;
-    EXPECT_NEAR(static_cast<float>(cropped.boundingBox.width()), kDispW, 0.5f);
-    EXPECT_NEAR(static_cast<float>(cropped.boundingBox.height()), kDispH, 0.5f);
+    EXPECT_TRUE(cropped.cropped);
+    // The placement itself is unchanged (GitHub #417).
+    EXPECT_NEAR(cropped.displayWidth, img0.displayWidth, 0.05f)
+        << "a crop must not rescale the image";
+    EXPECT_NEAR(cropped.displayHeight, img0.displayHeight, 0.05f);
+    for (int i = 0; i < 6; ++i)
+        EXPECT_NEAR(cropped.ctm[i], img0.ctm[i], 0.01f) << "ctm[" << i << "] changed by a crop";
+    // The outline is exactly the requested region (GitHub #420).
+    EXPECT_NEAR(cropped.boundingBox.x(), cropRect.x(), 0.05);
+    EXPECT_NEAR(cropped.boundingBox.y(), cropRect.y(), 0.05);
+    EXPECT_NEAR(cropped.boundingBox.width(), cropRect.width(), 0.05);
+    EXPECT_NEAR(cropped.boundingBox.height(), cropRect.height(), 0.05);
     // Guard the asymmetry explicitly (a square-collapsing mutation must fail).
-    EXPECT_GT(std::abs(cropped.displayWidth - cropped.displayHeight), 10.0f)
-        << "Committed extent must stay asymmetric (180x120)";
+    EXPECT_GT(std::abs(cropped.boundingBox.width() - cropped.boundingBox.height()), 10.0)
+        << "Committed crop must stay asymmetric";
 
     page.reset();
     doc.reset();

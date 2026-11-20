@@ -252,7 +252,12 @@ def source_statement_ok(body, repo):
     low = body.lower()
     if "corresponding source" not in low:
         return False
-    return bool(re.search(r"github\.com/%s" % re.escape(repo.lower()), low))
+    # The repo name must END where the match ends: "ipswitch8/PDFE" is a prefix
+    # of "ipswitch8/PDFE-public", and an offer naming the other repo is not an
+    # offer of this one's source. A full stop ending the sentence is fine; one
+    # that continues the name (".js") is not.
+    return bool(re.search(r"github\.com/%s(?![\w-]|\.[\w-])"
+                          % re.escape(repo.lower()), low))
 
 
 def asset_verdict(assets_scanned, hits, extraction_failures):

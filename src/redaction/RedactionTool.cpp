@@ -63,6 +63,19 @@ void RedactionTool::onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pd
     }
 }
 
+bool RedactionTool::cancelInProgress()
+{
+    // Bug 6: Esc mid-drag aborts the redaction rubber-band. Clearing isDrawing_
+    // makes the pending onMouseRelease an early-out, so the redactionCreated
+    // callback never fires and no redaction mark is added.
+    if (!isDrawing_) {
+        return false;
+    }
+    isDrawing_ = false;
+    currentPageIndex_ = -1;
+    return true;
+}
+
 void RedactionTool::onPaintOverlay(QPainter& painter, int pageIndex,
                                     float zoom, QPointF pageOrigin, float pageHeightPt)
 {

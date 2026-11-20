@@ -149,6 +149,20 @@ int TextEditModel::charIndexAtPoint(int spanIndex, const QPointF& pdfPoint) cons
     return bestIndex;
 }
 
+int TextEditModel::addEmptySpan(const QRectF& bbox, const std::string& fontName,
+                                float fontSize)
+{
+    TextSpan span;
+    span.boundingBox = bbox;
+    span.fontName = fontName;
+    span.fontSize = fontSize;
+    span.isNewInsertion = true;
+    // text / originalText both empty: isModified() stays false until the user
+    // types, so an empty new span that is never typed into commits nothing.
+    spans_.push_back(std::move(span));
+    return static_cast<int>(spans_.size()) - 1;
+}
+
 void TextEditModel::replaceSpanText(int spanIndex, const std::u32string& newText)
 {
     if (spanIndex < 0 || spanIndex >= static_cast<int>(spans_.size()))

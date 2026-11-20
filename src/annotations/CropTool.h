@@ -32,6 +32,9 @@ public:
     void onPaintOverlay(QPainter& painter, int pageIndex,
                         float zoom, QPointF pageOrigin, float pageHeightPt) override;
 
+    /// Esc-cancel an in-progress crop rubber-band (bug 6). See AnnotationTool.
+    bool cancelInProgress() override;
+
     /// Fired on mouse release with the final crop rectangle in PDF
     /// coordinates. The pageIndex passed to MainWindow identifies
     /// which page to apply the crop to.

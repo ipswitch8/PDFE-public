@@ -9,10 +9,15 @@
 #include "core/PageContentGuard.h"
 #include "core/RetainedObjHolder.h"
 #include "fonts/PdfFontEmbedder.h"
+#include "image/ImagePlacement.h"
+#include "image/ImagePlacementScanner.h"
 
 #include <QBuffer>
 #include <QDebug>
 #include <QImage>
+#include <QPainter>
+#include <QTransform>
+#include <cstdio>
 #include <cstring>
 #include <sstream>
 #include <iomanip>
@@ -25,100 +30,95 @@
 namespace pdfe::tre {
 
 // ---------------------------------------------------------------------------
-// Draw-order image enumeration (fix-tre-writetarget)
+// Draw-order image enumeration (fix-tre-writetarget; GitHub #443, #446)
 //
 // The write-target bug: resolving a page image back to a resource NAME by
 // matching (Width,Height) is ambiguous whenever a resources dict holds several
 // identical-dimension image XObjects (the e1139 file: 573 identical 1700x2200
 // images, one drawn per page). The unambiguous signal is the content stream's
-// own `/Name Do` operator plus the CTM that places it — exactly what the
-// pdf_filter_page_contents image-filter callback reports, in draw order. We
-// enumerate those draws (name + placement, converted into fitz device space so
-// it compares directly with a selection rect) and resolve against them instead
-// of guessing from dimensions/area.
+// own `/Name Do` operator plus the CTM that places it.
+//
+// The draws come from ImagePlacementScanner, the reader the image editor and
+// ImageManager use (docs/image-placement-model.md), so the OCR write-back and
+// the image tool agree on every placement: its identity (name + occurrence),
+// its full matrix and its frame. The placement is reported in the RENDERED
+// page frame (pdf_page_transform: box origin, /Rotate, Y flip), the frame of
+// Page::render and of a selection rect. GitHub #443: this used to flip the
+// user-space bound about the fz_bound_page height, which ignored the MediaBox
+// origin and /Rotate.
 // ---------------------------------------------------------------------------
 namespace {
 
+using pdfe::image::placement::Affine;
+
 struct DrawnImage {
-    std::string name;    // page-resource XObject name actually drawn
-    QRectF fitzBbox;     // placement in fitz device space (top-left origin, Y-down)
-    int w = 0;           // pixel width
-    int h = 0;           // pixel height
+    std::string name;     // XObject name as written in the content that draws it
+    QRectF fitzBbox;      // visible placement, rendered frame (top-left origin, Y-down)
+    int w = 0;            // pixel width
+    int h = 0;            // pixel height
+    int occurrence = -1;  // n-th page-level Do of `name`; -1 inside a form
+    bool inForm = false;  // drawn inside a Form XObject
+    bool isJpeg = false;  // DCTDecode
+    Affine pageCtm;       // unit square -> rendered frame
 };
 
-struct DrawnImageState {
-    std::vector<DrawnImage>* out = nullptr;
-    double pageH = 0.0;  // page height in fitz points, for the PDF-user->device Y flip
-};
-
-// image_filter callback: record each drawn image XObject's resource name and
-// its placement. The CTM maps the image unit square into PDF user space (Y-up);
-// fz_transform_rect gives its axis-aligned bbox there, which we flip about the
-// page height into fitz device space (Y-down) so it is directly comparable with
-// a selection rect. Rotated/sheared placements are handled conservatively by
-// the transformed bounding box (matches the existing enumeration in
-// ImageManager). Inline images (no name) are ignored — they carry no resource
-// key to write back into.
-fz_image* drawnImageFilter(fz_context* /*ctx*/, void* opaque, fz_matrix ctm,
-                           const char* name, fz_image* image, fz_rect /*scissor*/)
+bool imageIsJpeg(fz_context* ctx, pdf_obj* image)
 {
-    auto* st = static_cast<DrawnImageState*>(opaque);
-    if (st && st->out && name && name[0] && image) {
-        const fz_rect r = fz_transform_rect(fz_unit_rect, ctm);  // PDF user space
-        DrawnImage d;
-        d.name = name;
-        d.fitzBbox = QRectF(r.x0, st->pageH - r.y1,
-                            r.x1 - r.x0, r.y1 - r.y0);           // flip Y -> device
-        d.w = image->w;
-        d.h = image->h;
-        st->out->push_back(std::move(d));
+    pdf_obj* filter = pdf_dict_get(ctx, image, PDF_NAME(Filter));
+    if (pdf_is_array(ctx, filter)) {
+        const int n = pdf_array_len(ctx, filter);
+        filter = n > 0 ? pdf_array_get(ctx, filter, n - 1) : nullptr;
     }
-    return image;  // no_update=1: never rewrites the page
+    return filter && pdf_name_eq(ctx, filter, PDF_NAME(DCTDecode));
 }
 
-// Enumerate drawn image XObjects in content-stream (draw) order. `out` MUST live
-// in the caller's frame (not inside the MuPdfContext guarded region): a longjmp
-// out of pdf_filter_page_contents would otherwise skip the std::string dtors of
-// the collected names (GitHub #118 hazard class).
-void enumerateDrawnImages(fz_context* ctx, pdf_document* pdfDoc,
-                          pdf_page* pdfPage, double pageH,
+// Enumerate drawn image XObjects in content-stream (draw) order, Form XObjects
+// followed. `out` and `sites` MUST live in the caller's frame (not inside the
+// MuPdfContext guarded region): a longjmp out of the scan would otherwise skip
+// the std::string / std::vector destructors (GitHub #118 hazard class).
+// Inline images are not reported: they carry no resource key to write into.
+void enumerateDrawnImages(fz_context* ctx, pdf_page* pdfPage,
+                          std::vector<pdfe::image::placement::DoSite>* sites,
                           std::vector<DrawnImage>* out)
 {
-    DrawnImageState st;
-    st.out = out;
-    st.pageH = pageH;
-
-    pdf_sanitize_filter_options sopts;
-    std::memset(&sopts, 0, sizeof(sopts));
-    sopts.opaque = &st;
-    sopts.image_filter = drawnImageFilter;
-
-    pdf_filter_factory factories[2];
-    std::memset(factories, 0, sizeof(factories));
-    factories[0].filter = pdf_new_sanitize_filter;
-    factories[0].options = &sopts;
-    factories[1].filter = nullptr;
-
-    pdf_filter_options opts;
-    std::memset(&opts, 0, sizeof(opts));
-    opts.filters = factories;
-    opts.newlines = 1;
-    opts.no_update = 1;  // enumerate only; never rewrite the page
-
-    pdf_filter_page_contents(ctx, pdfDoc, pdfPage, &opts);
+    namespace pl = pdfe::image::placement;
+    *sites = pl::scanPage(ctx, pdfPage, /*recurseForms=*/true);
+    const Affine toRendered = pl::pageTransform(ctx, pdfPage);
+    for (const auto& site : *sites) {
+        if (!site.isImage || !site.xobject || site.name.empty()) continue;
+        const Affine m = pl::concat(site.ctm, toRendered);
+        const pl::UnitCrop& c = site.crop;
+        const QPointF p0 = m.apply(c.u0, c.v0), p1 = m.apply(c.u1, c.v0);
+        const QPointF p2 = m.apply(c.u1, c.v1), p3 = m.apply(c.u0, c.v1);
+        const double x0 = std::min({p0.x(), p1.x(), p2.x(), p3.x()});
+        const double x1 = std::max({p0.x(), p1.x(), p2.x(), p3.x()});
+        const double y0 = std::min({p0.y(), p1.y(), p2.y(), p3.y()});
+        const double y1 = std::max({p0.y(), p1.y(), p2.y(), p3.y()});
+        out->emplace_back();
+        DrawnImage& d = out->back();
+        d.name = site.name;
+        d.fitzBbox = QRectF(x0, y0, x1 - x0, y1 - y0);
+        d.w = pdf_dict_get_int(ctx, site.xobject, PDF_NAME(Width));
+        d.h = pdf_dict_get_int(ctx, site.xobject, PDF_NAME(Height));
+        d.inForm = site.formDepth > 0;
+        d.occurrence = d.inForm ? -1 : site.occurrence;
+        d.isJpeg = imageIsJpeg(ctx, site.xobject);
+        d.pageCtm = m;
+    }
 }
 
-// Whether the page-resource XObject `name` is DCTDecode (JPEG).
-bool xobjectIsJpeg(fz_context* ctx, pdf_page* pdfPage, const std::string& name)
+void fillInfo(const DrawnImage& d, PageImageInfo* info, bool withPlacement)
 {
-    pdf_obj* resources = pdf_page_resources(ctx, pdfPage);
-    if (!resources) return false;
-    pdf_obj* xo = pdf_dict_get(ctx, resources, PDF_NAME(XObject));
-    if (!xo) return false;
-    pdf_obj* val = pdf_dict_gets(ctx, xo, name.c_str());
-    if (!val) return false;
-    pdf_obj* filter = pdf_dict_get(ctx, val, PDF_NAME(Filter));
-    return filter && pdf_name_eq(ctx, filter, PDF_NAME(DCTDecode));
+    info->xobjectName = d.name;
+    info->width = d.w;
+    info->height = d.h;
+    info->isJpeg = d.isJpeg;
+    info->occurrence = d.occurrence;
+    info->inFormXObject = d.inForm;
+    info->hasPageCtm = true;
+    info->pageCtm = {d.pageCtm.a, d.pageCtm.b, d.pageCtm.c,
+                     d.pageCtm.d, d.pageCtm.e, d.pageCtm.f};
+    if (withPlacement) info->placementFitz = d.fitzBbox;
 }
 
 }  // namespace
@@ -170,12 +170,15 @@ std::optional<PageImageInfo> PdfContentWriter::findPageImageXObject(
     // pick was an arbitrary dictionary-order one that need not be the image the
     // page actually draws. Resolve instead against the images the page DRAWS,
     // choosing the largest by DISPLAYED area; only one of the identical XObjects
-    // is drawn per page, so the tie is gone. Placement is deliberately NOT
-    // recorded here: the two-argument replacePageImage() contract treats this as
-    // "the page's main image" under the page-spanning assumption, and recording
-    // a placement would change that fallback path. If the page draws no named
+    // is drawn per page, so the tie is gone. placementFitz is deliberately NOT
+    // recorded here (callers read an empty one as "the page's main image"); the
+    // identity (occurrence) and the full matrix (pageCtm) are, so the two-
+    // argument replacePageImage() can tell whether the image really spans the
+    // page (GitHub #447). Only the page's OWN draws count: a form's image is not
+    // a resource of this page and is never written. If the page draws no named
     // image (e.g. images nested only inside a Form XObject), fall back to the
     // old resources-dict largest-pixel-area walk.
+    std::vector<pdfe::image::placement::DoSite> sites;
     std::vector<DrawnImage> draws;
     PageImageInfo info;
     bool found = false;
@@ -188,19 +191,15 @@ std::optional<PageImageInfo> PdfContentWriter::findPageImageXObject(
             pdf_document* pdfDoc = pdf_document_from_fz_document(ctx, fzDoc);
             if (!pdfPage || !pdfDoc) return;
 
-            const fz_rect bounds = fz_bound_page(ctx, fzPage);
-            const double pageH = bounds.y1 - bounds.y0;
-            enumerateDrawnImages(ctx, pdfDoc, pdfPage, pageH, &draws);
+            enumerateDrawnImages(ctx, pdfPage, &sites, &draws);
 
             double bestDisplayArea = -1.0;
             for (const auto& d : draws) {
+                if (d.inForm) continue;
                 const double area = d.fitzBbox.width() * d.fitzBbox.height();
                 if (area > bestDisplayArea) {
                     bestDisplayArea = area;
-                    info.xobjectName = d.name;
-                    info.width = d.w;
-                    info.height = d.h;
-                    info.isJpeg = xobjectIsJpeg(ctx, pdfPage, d.name);
+                    fillInfo(d, &info, /*withPlacement=*/false);
                     found = true;
                 }
             }
@@ -271,6 +270,7 @@ std::optional<PageImageInfo> PdfContentWriter::findImageXObjectForRegion(
     // two image resources shared a size and bailed to nullopt even when the page
     // drew them at different, unambiguous placements (the e1139 bug: 573
     // identical 1700x2200 XObjects, one drawn per page).
+    std::vector<pdfe::image::placement::DoSite> sites;
     std::vector<DrawnImage> draws;
     PageImageInfo info;
     bool resolved = false;
@@ -283,9 +283,7 @@ std::optional<PageImageInfo> PdfContentWriter::findImageXObjectForRegion(
             pdf_document* pdfDoc = pdf_document_from_fz_document(ctx, fzDoc);
             if (!pdfPage || !pdfDoc) return;
 
-            const fz_rect bounds = fz_bound_page(ctx, fzPage);
-            const double pageH = bounds.y1 - bounds.y0;
-            enumerateDrawnImages(ctx, pdfDoc, pdfPage, pageH, &draws);
+            enumerateDrawnImages(ctx, pdfPage, &sites, &draws);
             if (draws.empty()) return;
 
             const double regionArea = std::max(0.0, regionFitz.width()) *
@@ -329,7 +327,8 @@ std::optional<PageImageInfo> PdfContentWriter::findImageXObjectForRegion(
             const double tol = 1.0;
             for (int i = 0; i < static_cast<int>(draws.size()); ++i) {
                 if (i == bestIdx) continue;
-                if (draws[i].name == draws[bestIdx].name) continue;
+                if (draws[i].name == draws[bestIdx].name &&
+                    draws[i].inForm == draws[bestIdx].inForm) continue;
                 const QRectF& bb = draws[i].fitzBbox;
                 const QRectF isect = bb.intersected(regionFitz);
                 const bool covers = (isect.isValid() && !isect.isEmpty()) ||
@@ -343,11 +342,7 @@ std::optional<PageImageInfo> PdfContentWriter::findImageXObjectForRegion(
                 }
             }
 
-            info.xobjectName = draws[bestIdx].name;
-            info.width = draws[bestIdx].w;
-            info.height = draws[bestIdx].h;
-            info.placementFitz = chosen;
-            info.isJpeg = xobjectIsJpeg(ctx, pdfPage, draws[bestIdx].name);
+            fillInfo(draws[bestIdx], &info, /*withPlacement=*/true);
             resolved = true;
         });
     } catch (const std::exception& e) {
@@ -379,6 +374,7 @@ std::optional<PageImageInfo> PdfContentWriter::topmostImageOverRegion(
     // drawn XObject NAME (via enumerateDrawnImages), so the occlusion check can
     // compare identity by name rather than by dimensions — which are ambiguous
     // on a page carrying several same-sized images.
+    std::vector<pdfe::image::placement::DoSite> sites;
     std::vector<DrawnImage> draws;
     PageImageInfo top;
     bool hit = false;
@@ -391,9 +387,7 @@ std::optional<PageImageInfo> PdfContentWriter::topmostImageOverRegion(
             pdf_document* pdfDoc = pdf_document_from_fz_document(ctx, fzDoc);
             if (!pdfPage || !pdfDoc) return;
 
-            const fz_rect bounds = fz_bound_page(ctx, fzPage);
-            const double pageH = bounds.y1 - bounds.y0;
-            enumerateDrawnImages(ctx, pdfDoc, pdfPage, pageH, &draws);
+            enumerateDrawnImages(ctx, pdfPage, &sites, &draws);
 
             // Draws are in content-stream order, so the LAST image covering the
             // region centre is the one drawn on top of it.
@@ -401,11 +395,7 @@ std::optional<PageImageInfo> PdfContentWriter::topmostImageOverRegion(
             for (const auto& d : draws) {
                 if (!d.fitzBbox.contains(centre)) continue;
                 hit = true;
-                top.xobjectName = d.name;
-                top.width = d.w;
-                top.height = d.h;
-                top.placementFitz = d.fitzBbox;
-                top.isJpeg = xobjectIsJpeg(ctx, pdfPage, d.name);
+                fillInfo(d, &top, /*withPlacement=*/true);
             }
         });
         if (!hit) {
@@ -425,6 +415,116 @@ std::optional<PageImageInfo> PdfContentWriter::topmostImageOverRegion(
 // replacePageImage
 // ---------------------------------------------------------------------------
 
+namespace {
+
+// The placement matrix as a QTransform (both row-vector: x' = a x + c y + e).
+QTransform toQTransform(const std::array<double, 6>& m)
+{
+    return QTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+}
+
+// Upright and unflipped in the rendered frame: the image's own x axis runs
+// right and its rows run down the page (unit v = 1 is the image's top row).
+bool isUprightUnflipped(const std::array<double, 6>& m)
+{
+    const double scale = std::max({std::abs(m[0]), std::abs(m[3]), 1e-9});
+    return m[0] > 0.0 && m[3] < 0.0 &&
+           std::abs(m[1]) <= 1e-6 * scale && std::abs(m[2]) <= 1e-6 * scale;
+}
+
+// Whether the main image IS the page: upright, unflipped, and covering the
+// rendered page to within a point (or 0.5%) on every edge. Only then is a
+// whole-page picture the image's own pixels (GitHub #447).
+bool coversThePageUpright(const PageImageInfo& info, const QRectF& pageRect)
+{
+    if (!info.hasPageCtm || !isUprightUnflipped(info.pageCtm) || pageRect.isEmpty())
+        return false;
+    const QRectF placed = toQTransform(info.pageCtm).mapRect(QRectF(0, 0, 1, 1));
+    const double tolX = std::max(1.0, pageRect.width() * 0.005);
+    const double tolY = std::max(1.0, pageRect.height() * 0.005);
+    return std::abs(placed.left() - pageRect.left()) <= tolX &&
+           std::abs(placed.right() - pageRect.right()) <= tolX &&
+           std::abs(placed.top() - pageRect.top()) <= tolY &&
+           std::abs(placed.bottom() - pageRect.bottom()) <= tolY;
+}
+
+// GitHub #445: carry the image dictionary's non-pixel state over to the new
+// image. The new samples are DECODED colours (what MuPDF draws), so /Decode is
+// not copied. Everything copied here depends only on the colours, not on how
+// the old samples were stored, except the colour-key /Mask array, which names
+// sample values: it is kept only for 8-bit, 3-component samples without
+// /Decode, which the new image's samples equal.
+void copyImageState(fz_context* ctx, pdf_obj* oldImage, pdf_obj* newImage)
+{
+    if (!oldImage || !newImage) return;
+    for (pdf_obj* key : {PDF_NAME(SMask), PDF_NAME(OC), PDF_NAME(Intent),
+                         PDF_NAME(Interpolate)}) {
+        if (pdf_obj* v = pdf_dict_get(ctx, oldImage, key)) {
+            pdf_dict_put(ctx, newImage, key, v);
+        }
+    }
+
+    // An ICCBased colour space with three components describes RGB samples:
+    // the new ones are those same numbers, so the profile still applies.
+    pdf_obj* cs = pdf_dict_get(ctx, oldImage, PDF_NAME(ColorSpace));
+    int components = 0;
+    if (pdf_name_eq(ctx, cs, PDF_NAME(DeviceRGB))) {
+        components = 3;
+    } else if (pdf_is_array(ctx, cs) &&
+               pdf_name_eq(ctx, pdf_array_get(ctx, cs, 0), PDF_NAME(ICCBased))) {
+        components = pdf_dict_get_int(ctx, pdf_array_get(ctx, cs, 1), PDF_NAME(N));
+        if (components == 3) {
+            pdf_dict_put(ctx, newImage, PDF_NAME(ColorSpace), cs);
+        }
+    }
+
+    pdf_obj* mask = pdf_dict_get(ctx, oldImage, PDF_NAME(Mask));
+    if (pdf_is_stream(ctx, mask)) {
+        pdf_dict_put(ctx, newImage, PDF_NAME(Mask), mask);
+    } else if (pdf_is_array(ctx, mask) && components == 3 &&
+               pdf_dict_get_int(ctx, oldImage, PDF_NAME(BitsPerComponent)) == 8 &&
+               !pdf_dict_get(ctx, oldImage, PDF_NAME(Decode))) {
+        pdf_dict_put(ctx, newImage, PDF_NAME(Mask), mask);
+    }
+}
+
+// Whether the page's /XObject dictionary is also another page's: then an entry
+// changed in it changes that page too.
+bool xobjectDictSharedWithAnotherPage(fz_context* ctx, pdf_document* doc,
+                                      pdf_obj* pageObj, pdf_obj* xobjectDict)
+{
+    // O(pages): one resources lookup per other page, stopping at the first
+    // page that shares the dictionary. The caller asks only when nothing else
+    // on this page uses the entry (otherwise the answer cannot change the
+    // outcome), and this page's own object is resolved once, not per page.
+    pdf_obj* mine = pdf_resolve_indirect(ctx, xobjectDict);
+    pdf_obj* self = pdf_resolve_indirect(ctx, pageObj);
+    const int n = pdf_count_pages(ctx, doc);
+    for (int i = 0; i < n; ++i) {
+        pdf_obj* other = pdf_lookup_page_obj(ctx, doc, i);
+        if (!other || pdf_resolve_indirect(ctx, other) == self) continue;
+        pdf_obj* res = pdf_dict_get_inheritable(ctx, other, PDF_NAME(Resources));
+        pdf_obj* xo = pdf_dict_get(ctx, res, PDF_NAME(XObject));
+        if (xo && pdf_resolve_indirect(ctx, xo) == mine) return true;  // first hit
+    }
+    return false;
+}
+
+}  // namespace
+
+bool PdfContentWriter::renderedFrameToImagePixels(const PageImageInfo& target,
+                                                  QTransform* out)
+{
+    if (!out || !target.hasPageCtm || target.width <= 0 || target.height <= 0) return false;
+    bool invertible = false;
+    const QTransform toUnit = toQTransform(target.pageCtm).inverted(&invertible);
+    if (!invertible) return false;
+    // Unit square -> image pixels: u -> u * W; v = 1 is the image's top row.
+    const QTransform unitToPixels(target.width, 0.0, 0.0, -target.height, 0.0, target.height);
+    *out = toUnit * unitToPixels;
+    return true;
+}
+
 bool PdfContentWriter::replacePageImage(
     pdfe::core::Page* page, pdfe::core::Document* document,
     const QImage& newImage)
@@ -439,7 +539,36 @@ bool PdfContentWriter::replacePageImage(
         return false;
     }
 
-    return replacePageImage(page, document, newImage, *imageInfo);
+    // GitHub #447. `newImage` is a picture of the whole page. Only when the main
+    // image is the page (upright, covering it) are the two the same pixels;
+    // the historical path below then stays exactly as it was. Otherwise the
+    // part of the picture under the image is taken through the full placement
+    // matrix into the image's own pixel grid, on top of its current pixels.
+    const QRectF pageRect = page->boundingBox();
+    if (!imageInfo->hasPageCtm || coversThePageUpright(*imageInfo, pageRect)) {
+        return replacePageImage(page, document, newImage, *imageInfo);
+    }
+
+    QTransform renderedToPixels;
+    if (pageRect.isEmpty() || !renderedFrameToImagePixels(*imageInfo, &renderedToPixels)) {
+        return false;
+    }
+    const QImage current = getOriginalImage(page, document, *imageInfo);
+    if (current.isNull()) {
+        return false;
+    }
+    QImage canvas = current.convertToFormat(QImage::Format_RGB32);
+    const QTransform pictureToRendered =
+        QTransform::fromScale(pageRect.width() / newImage.width(),
+                              pageRect.height() / newImage.height()) *
+        QTransform::fromTranslate(pageRect.x(), pageRect.y());
+    {
+        QPainter painter(&canvas);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        painter.setTransform(pictureToRendered * renderedToPixels);
+        painter.drawImage(QPointF(0.0, 0.0), newImage);
+    }
+    return replacePageImage(page, document, canvas, *imageInfo);
 }
 
 bool PdfContentWriter::replacePageImage(
@@ -450,6 +579,14 @@ bool PdfContentWriter::replacePageImage(
         return false;
     }
     if (target.xobjectName.empty()) {
+        return false;
+    }
+    // The phase-2 rule of the placement model: an image inside a Form XObject is
+    // shown and selectable, never written (the form may be drawn elsewhere).
+    if (target.inFormXObject) {
+        qWarning("PdfContentWriter::replacePageImage: '%s' is drawn inside a Form "
+                 "XObject, which may be shared; it is not written",
+                 target.xobjectName.c_str());
         return false;
     }
     const PageImageInfo* imageInfo = &target;
@@ -476,8 +613,20 @@ bool PdfContentWriter::replacePageImage(
             rgbImage, QSize(imageInfo->width, imageInfo->height));
     }
 
+    // Owned by THIS frame, not the guarded region: DoSite holds a std::string
+    // and the vector owns them (GitHub #118 hazard class).
+    std::vector<pdfe::image::placement::DoSite> sites;
+    pdfe::image::placement::DoSite repointed;
+    const std::string& name = imageInfo->xobjectName;
+    const QRectF wantedBox = imageInfo->placementFitz;
+    const int wantedOccurrence = imageInfo->occurrence;
+    const int rowBytes = rgbImage.width() * 3;
+    const int imageW = rgbImage.width();
+    const int imageH = rgbImage.height();
+
     try {
         pImpl_->context_->execute([&](fz_context* ctx) {
+            namespace pl = pdfe::image::placement;
             fz_page* fzPage = page->fzPage();
             fz_document* fzDoc = document->fzDocument();
             pdf_page* pdfPage = pdf_page_from_fz_page(ctx, fzPage);
@@ -487,48 +636,116 @@ bool PdfContentWriter::replacePageImage(
                 fz_throw(ctx, FZ_ERROR_GENERIC, "Invalid page or document");
             }
 
-            // Create fz_pixmap from QImage data
-            fz_colorspace* cs = fz_device_rgb(ctx);
-            fz_pixmap* pix = fz_new_pixmap(ctx, cs, rgbImage.width(), rgbImage.height(), nullptr, 0);
-            if (!pix) {
-                fz_throw(ctx, FZ_ERROR_GENERIC, "Failed to create pixmap");
-            }
-
-            // Copy RGB data
-            unsigned char* samples = fz_pixmap_samples(ctx, pix);
-            int stride = fz_pixmap_stride(ctx, pix);
-            for (int y = 0; y < rgbImage.height(); ++y) {
-                const unsigned char* srcLine = rgbImage.constScanLine(y);
-                unsigned char* dstLine = samples + y * stride;
-                std::memcpy(dstLine, srcLine, static_cast<size_t>(rgbImage.width() * 3));
-            }
-
-            // Create fz_image from pixmap
-            fz_image* fzImage = fz_new_image_from_pixmap(ctx, pix, nullptr);
-            fz_drop_pixmap(ctx, pix);
-            if (!fzImage) {
-                fz_throw(ctx, FZ_ERROR_GENERIC, "Failed to create image from pixmap");
-            }
-
-            // Add to PDF
-            pdf_obj* newImageObj = pdf_add_image(ctx, pdfDoc, fzImage);
-            fz_drop_image(ctx, fzImage);
-            if (!newImageObj) {
-                fz_throw(ctx, FZ_ERROR_GENERIC, "Failed to add image to PDF");
-            }
-
-            // Replace in XObject dict
             pdf_obj* resources = pdf_page_resources(ctx, pdfPage);
             if (!resources) {
                 fz_throw(ctx, FZ_ERROR_GENERIC, "Failed to get page resources");
             }
-
             pdf_obj* xobjectDict = pdf_dict_get(ctx, resources, PDF_NAME(XObject));
             if (!xobjectDict) {
                 fz_throw(ctx, FZ_ERROR_GENERIC, "No XObject dictionary found");
             }
+            pdf_obj* oldImage = pdf_dict_gets(ctx, xobjectDict, name.c_str());
 
-            pdf_dict_puts(ctx, xobjectDict, imageInfo->xobjectName.c_str(), newImageObj);
+            // GitHub #446: which Do is the target, and does anything else use
+            // the entry it draws? Every other Do that looks the name up in the
+            // page's own resource dict (a page-level Do, or one inside a form
+            // that inherits the page's resources) would change with it, and so
+            // would every page sharing the /XObject dict.
+            sites = pl::scanPage(ctx, pdfPage, /*recurseForms=*/true);
+            const pl::Affine toRendered = pl::pageTransform(ctx, pdfPage);
+            const pl::DoSite* site = nullptr;
+            int uses = 0;
+            int pageLevel = 0;
+            const pl::DoSite* onlyPageLevel = nullptr;
+            for (const auto& s : sites) {
+                if (s.name != name) continue;
+                if (s.formDepth == 0 || s.resources == resources) ++uses;
+                if (s.formDepth != 0 || !s.isImage) continue;
+                ++pageLevel;
+                onlyPageLevel = &s;
+                if (wantedOccurrence >= 0) {
+                    if (s.occurrence == wantedOccurrence) site = &s;
+                } else if (!wantedBox.isEmpty() && !site) {
+                    const pl::Affine m = pl::concat(s.ctm, toRendered);
+                    const QPointF p0 = m.apply(s.crop.u0, s.crop.v0);
+                    const QPointF p2 = m.apply(s.crop.u1, s.crop.v1);
+                    const QPointF p1 = m.apply(s.crop.u1, s.crop.v0);
+                    const QPointF p3 = m.apply(s.crop.u0, s.crop.v1);
+                    const double x0 = std::min({p0.x(), p1.x(), p2.x(), p3.x()});
+                    const double y0 = std::min({p0.y(), p1.y(), p2.y(), p3.y()});
+                    const double x1 = std::max({p0.x(), p1.x(), p2.x(), p3.x()});
+                    const double y1 = std::max({p0.y(), p1.y(), p2.y(), p3.y()});
+                    if (std::abs(x0 - wantedBox.left()) <= 1.0 &&
+                        std::abs(y0 - wantedBox.top()) <= 1.0 &&
+                        std::abs(x1 - wantedBox.right()) <= 1.0 &&
+                        std::abs(y1 - wantedBox.bottom()) <= 1.0)
+                        site = &s;
+                }
+            }
+            if (!site && wantedOccurrence < 0 && wantedBox.isEmpty() && pageLevel == 1) {
+                site = onlyPageLevel;
+            }
+            // The O(pages) sharing check runs only when nothing else on this
+            // page uses the entry; otherwise it cannot change the outcome.
+            const bool inPlace =
+                uses <= 1 &&
+                !xobjectDictSharedWithAnotherPage(ctx, pdfDoc, pdfPage->obj, xobjectDict);
+            if (!inPlace && !site) {
+                fz_throw(ctx, FZ_ERROR_GENERIC,
+                         "the targeted placement is not in the page content and the "
+                         "image is used elsewhere");
+            }
+
+            // The new pixels, as a fresh image object.
+            fz_pixmap* pix = nullptr;
+            fz_image* fzImage = nullptr;
+            pdf_obj* newImageObj = nullptr;
+            fz_var(pix);
+            fz_var(fzImage);
+            fz_var(newImageObj);
+            fz_try(ctx) {
+                pix = fz_new_pixmap(ctx, fz_device_rgb(ctx), imageW, imageH, nullptr, 0);
+                unsigned char* samples = fz_pixmap_samples(ctx, pix);
+                const int stride = fz_pixmap_stride(ctx, pix);
+                for (int y = 0; y < imageH; ++y) {
+                    std::memcpy(samples + static_cast<std::ptrdiff_t>(y) * stride,
+                                rgbImage.constScanLine(y), static_cast<size_t>(rowBytes));
+                }
+                fzImage = fz_new_image_from_pixmap(ctx, pix, nullptr);
+                newImageObj = pdf_add_image(ctx, pdfDoc, fzImage);
+                copyImageState(ctx, oldImage, newImageObj);
+
+                if (inPlace) {
+                    // The sole user of the entry: replace it under its own name
+                    // (what undo snapshots and the page's main-image lookup use).
+                    pdf_dict_puts(ctx, xobjectDict, name.c_str(), newImageObj);
+                } else {
+                    // Another placement uses the entry: add the new image under a
+                    // fresh name and repoint only the targeted Do, in place: only
+                    // its name operand is replaced, so its wrapper, every other
+                    // byte of the page content and the drawing order stay.
+                    char fresh[32];
+                    for (int i = 1;; ++i) {
+                        std::snprintf(fresh, sizeof(fresh), "PdfeTreIm%d", i);
+                        if (!pdf_dict_gets(ctx, xobjectDict, fresh)) break;
+                    }
+                    pdf_dict_puts(ctx, xobjectDict, fresh, newImageObj);
+                    repointed = *site;
+                    repointed.name = fresh;
+                    if (!pl::renameSite(ctx, pdfDoc, pdfPage, *site, repointed.name)) {
+                        pdf_dict_dels(ctx, xobjectDict, fresh);
+                        fz_throw(ctx, FZ_ERROR_GENERIC, "could not repoint the placement");
+                    }
+                }
+            }
+            fz_always(ctx) {
+                pdf_drop_obj(ctx, newImageObj);
+                fz_drop_image(ctx, fzImage);
+                fz_drop_pixmap(ctx, pix);
+            }
+            fz_catch(ctx) {
+                fz_rethrow(ctx);
+            }
         });
 
         return true;
@@ -768,52 +985,51 @@ std::vector<uint8_t> PdfContentWriter::getImageXObjectData(
         return {};
     }
 
+    // `result` lives in THIS frame, not the guarded region: a longjmp out of
+    // MuPDF would skip its destructor (GitHub #118 hazard class).
+    std::vector<uint8_t> result;
     try {
-        return pImpl_->context_->executeReturn<std::vector<uint8_t>>(
-            [&](fz_context* ctx) -> std::vector<uint8_t> {
+        pImpl_->context_->execute([&](fz_context* ctx) {
                 fz_page* fzPage = page->fzPage();
                 fz_document* fzDoc = document->fzDocument();
                 pdf_page* pdfPage = pdf_page_from_fz_page(ctx, fzPage);
                 const pdf_document* pdfDoc = pdf_document_from_fz_document(ctx, fzDoc);
 
                 if (!pdfPage || !pdfDoc) {
-                    return {};
+                    return;
                 }
 
                 pdf_obj* resources = pdf_page_resources(ctx, pdfPage);
                 if (!resources) {
-                    return {};
+                    return;
                 }
 
                 pdf_obj* xobjectDict = pdf_dict_get(ctx, resources, PDF_NAME(XObject));
                 if (!xobjectDict) {
-                    return {};
+                    return;
                 }
 
                 pdf_obj* imageObj = pdf_dict_gets(ctx, xobjectDict, imageInfo->xobjectName.c_str());
                 if (!imageObj) {
-                    return {};
+                    return;
                 }
 
                 // pdf_load_stream needs the indirect reference (not resolved)
                 // to locate the stream data by object number
                 fz_buffer* buf = pdf_load_stream(ctx, imageObj);
                 if (!buf) {
-                    return {};
+                    return;
                 }
 
-                size_t bufSize = fz_buffer_storage(ctx, buf, nullptr);
-                std::vector<uint8_t> result(bufSize);
-
                 unsigned char* data = nullptr;
-                fz_buffer_storage(ctx, buf, &data);
+                const size_t bufSize = fz_buffer_storage(ctx, buf, &data);
                 if (data) {
-                    std::memcpy(result.data(), data, bufSize);
+                    result.assign(data, data + bufSize);
                 }
 
                 fz_drop_buffer(ctx, buf);
-                return result;
             });
+        return result;
     } catch (const std::exception& e) {
         qWarning("PdfContentWriter::getImageXObjectData: %s", e.what());
         return {};
@@ -851,27 +1067,29 @@ QImage PdfContentWriter::getOriginalImage(
     }
     const PageImageInfo* imageInfo = &target;
 
+    // `result` lives in THIS frame, not the guarded region: a longjmp out of
+    // MuPDF would skip its destructor (GitHub #118 hazard class).
+    QImage result;
     try {
-        return pImpl_->context_->executeReturn<QImage>(
-            [&](fz_context* ctx) -> QImage {
+        pImpl_->context_->execute([&](fz_context* ctx) {
                 fz_page* fzPage = page->fzPage();
                 fz_document* fzDoc = document->fzDocument();
                 pdf_page* pdfPage = pdf_page_from_fz_page(ctx, fzPage);
                 pdf_document* pdfDoc = pdf_document_from_fz_document(ctx, fzDoc);
 
                 if (!pdfPage || !pdfDoc) {
-                    return {};
+                    return;
                 }
 
                 pdf_obj* resources = pdf_page_resources(ctx, pdfPage);
-                if (!resources) return {};
+                if (!resources) return;
 
                 pdf_obj* xobjectDict = pdf_dict_get(ctx, resources, PDF_NAME(XObject));
-                if (!xobjectDict) return {};
+                if (!xobjectDict) return;
 
                 pdf_obj* imageObj = pdf_dict_gets(ctx, xobjectDict,
                                                    imageInfo->xobjectName.c_str());
-                if (!imageObj) return {};
+                if (!imageObj) return;
 
                 // Load the image XObject (throws on failure, never null)
                 fz_image* fzImage = pdf_load_image(ctx, pdfDoc, imageObj);
@@ -904,12 +1122,32 @@ QImage PdfContentWriter::getOriginalImage(
                 unsigned char* samples = fz_pixmap_samples(ctx, pix);
                 int stride = fz_pixmap_stride(ctx, pix);
 
-                QImage result(w, h, QImage::Format_RGB888);
+                // GitHub #445: a colour-key /Mask comes back as alpha, and MuPDF
+                // zeroes the colour of every keyed-out pixel. Written back as
+                // black, those pixels would no longer match the key and would
+                // show. Give them the key's own colour instead (its lower
+                // bound), so the key replacePageImage keeps still hides them.
+                const bool alpha = fz_pixmap_alpha(ctx, pix) != 0;
+                int key[3] = {-1, -1, -1};
+                pdf_obj* colourKey = pdf_dict_get(ctx, imageObj, PDF_NAME(Mask));
+                if (alpha && n == 4 && pdf_is_array(ctx, colourKey) &&
+                    pdf_array_len(ctx, colourKey) == 6) {
+                    for (int c = 0; c < 3; ++c)
+                        key[c] = pdf_array_get_int(ctx, colourKey, 2 * c);
+                }
+
+                result = QImage(w, h, QImage::Format_RGB888);
                 for (int y = 0; y < h; ++y) {
                     const unsigned char* srcLine = samples + y * stride;
                     unsigned char* dstLine = result.scanLine(y);
                     if (n >= 3) {
                         for (int x = 0; x < w; ++x) {
+                            if (key[0] >= 0 && srcLine[x * n + 3] == 0) {
+                                dstLine[x * 3 + 0] = static_cast<unsigned char>(key[0]);
+                                dstLine[x * 3 + 1] = static_cast<unsigned char>(key[1]);
+                                dstLine[x * 3 + 2] = static_cast<unsigned char>(key[2]);
+                                continue;
+                            }
                             dstLine[x * 3 + 0] = srcLine[x * n + 0];
                             dstLine[x * 3 + 1] = srcLine[x * n + 1];
                             dstLine[x * 3 + 2] = srcLine[x * n + 2];
@@ -925,8 +1163,8 @@ QImage PdfContentWriter::getOriginalImage(
                 }
 
                 fz_drop_pixmap(ctx, pix);
-                return result;
             });
+        return result;
     } catch (const std::exception& e) {
         qWarning("PdfContentWriter::getOriginalImage: %s", e.what());
         return {};
@@ -947,24 +1185,24 @@ std::vector<uint8_t> PdfContentWriter::getContentStreamData(
         return {};
     }
 
+    // `result` lives in THIS frame, not the guarded region: a longjmp out of
+    // MuPDF would skip its destructor (GitHub #118 hazard class).
+    std::vector<uint8_t> result;
     try {
-        return pImpl_->context_->executeReturn<std::vector<uint8_t>>(
-            [&](fz_context* ctx) -> std::vector<uint8_t> {
+        pImpl_->context_->execute([&](fz_context* ctx) {
                 fz_page* fzPage = page->fzPage();
                 fz_document* fzDoc = document->fzDocument();
                 pdf_page* pdfPage = pdf_page_from_fz_page(ctx, fzPage);
                 const pdf_document* pdfDoc = pdf_document_from_fz_document(ctx, fzDoc);
 
                 if (!pdfPage || !pdfDoc) {
-                    return {};
+                    return;
                 }
 
                 pdf_obj* contents = pdf_dict_get(ctx, pdfPage->obj, PDF_NAME(Contents));
                 if (!contents) {
-                    return {};
+                    return;
                 }
-
-                std::vector<uint8_t> result;
 
                 // DEFECT FIX (meta-audit follow-up F17, gap A1-51): both branches
                 // used to call pdf_resolve_indirect() before pdf_load_stream().
@@ -1014,9 +1252,8 @@ std::vector<uint8_t> PdfContentWriter::getContentStreamData(
                         }
                     }
                 }
-
-                return result;
             });
+        return result;
     } catch (const std::exception& e) {
         qWarning("PdfContentWriter::getContentStreamData: %s", e.what());
         return {};

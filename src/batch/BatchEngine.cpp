@@ -28,27 +28,118 @@ namespace pdfe::batch {
 
 namespace {
 
-// Ensure page has /Resources /Font /F1 Helvetica so the text watermark
-// content stream can reference /F1 safely.
-void ensureF1Helvetica(fz_context* ctx, pdf_document* doc, pdf_page* page)
+// Watermark resources (GitHub #448, #449). The watermark never writes into a
+// resource dictionary it may share with something else, and never reuses a
+// resource name the page already has:
+//
+//  - ownPageResources() gives the page its OWN /Resources dict: a shallow copy
+//    of the effective dict (possibly inherited from the /Pages node, possibly
+//    shared by several pages), put on the page. Nothing is dropped, so every
+//    resource the page used before is still reachable.
+//  - ownCategory() does the same for one category (/ExtGState, /Font,
+//    /XObject) inside it before an entry is added.
+//  - freeResourceName() picks a key the category does not hold yet.
+pdf_obj* ownPageResources(fz_context* ctx, pdf_document* doc, pdf_obj* pageObj)
 {
-    pdf_obj* resources = pdf_dict_get(ctx, page->obj, PDF_NAME(Resources));
-    if (!resources) {
-        resources = pdf_new_dict(ctx, doc, 2);
-        pdf_dict_put(ctx, page->obj, PDF_NAME(Resources), resources);
+    pdf_obj* effective = pdf_dict_get_inheritable(ctx, pageObj, PDF_NAME(Resources));
+    pdf_obj* own = pdf_is_dict(ctx, effective) ? pdf_copy_dict(ctx, effective)
+                                               : pdf_new_dict(ctx, doc, 4);
+    pdf_dict_put_drop(ctx, pageObj, PDF_NAME(Resources), own);
+    return own;
+}
+
+pdf_obj* ownCategory(fz_context* ctx, pdf_document* doc, pdf_obj* resources, pdf_obj* key)
+{
+    pdf_obj* current = pdf_dict_get(ctx, resources, key);
+    pdf_obj* own = pdf_is_dict(ctx, current) ? pdf_copy_dict(ctx, current)
+                                             : pdf_new_dict(ctx, doc, 2);
+    pdf_dict_put_drop(ctx, resources, key, own);
+    return own;
+}
+
+std::string freeResourceName(fz_context* ctx, pdf_obj* category, const char* prefix)
+{
+    std::string name = prefix;
+    for (int n = 1; pdf_dict_gets(ctx, category, name.c_str()); ++n)
+        name = std::string(prefix) + std::to_string(n);
+    return name;
+}
+
+// Body of a PDF literal string: ( ) and backslash are escaped so the
+// watermark text can never end the string and inject operators.
+std::string pdfLiteralBody(const std::string& text)
+{
+    std::string out;
+    out.reserve(text.size() + 8);
+    for (char c : text) {
+        if (c == '(' || c == ')' || c == '\\') out.push_back('\\');
+        out.push_back(c);
     }
-    pdf_obj* fonts = pdf_dict_get(ctx, resources, PDF_NAME(Font));
-    if (!fonts) {
-        fonts = pdf_new_dict(ctx, doc, 1);
-        pdf_dict_put(ctx, resources, PDF_NAME(Font), fonts);
+    return out;
+}
+
+// Advance width of `text` in base-14 Helvetica (the watermark's own font) at
+// `fontSize`. Falls back to an average glyph width if the font cannot load.
+float helveticaWidth(fz_context* ctx, const std::string& text, float fontSize)
+{
+    float width = 0.0f;
+    fz_font* font = nullptr;
+    fz_var(font);
+    fz_var(width);
+    fz_try(ctx) {
+        font = fz_new_base14_font(ctx, "Helvetica");
+        for (unsigned char c : text)
+            width += fz_advance_glyph(ctx, font, fz_encode_character(ctx, font, c), 0);
+        width *= fontSize;
     }
-    if (pdf_dict_gets(ctx, fonts, "F1")) return;
-    pdf_obj* f1 = pdf_new_dict(ctx, doc, 4);
-    pdf_dict_put(ctx, f1, PDF_NAME(Type), PDF_NAME(Font));
-    pdf_dict_put(ctx, f1, PDF_NAME(Subtype), PDF_NAME(Type1));
-    pdf_dict_put_name(ctx, f1, PDF_NAME(BaseFont), "Helvetica");
-    pdf_dict_put_name(ctx, f1, PDF_NAME(Encoding), "WinAnsiEncoding");
-    pdf_dict_puts(ctx, fonts, "F1", f1);
+    fz_always(ctx) {
+        fz_drop_font(ctx, font);
+    }
+    fz_catch(ctx) {
+        width = 0.55f * fontSize * static_cast<float>(text.size());
+    }
+    return width;
+}
+
+// Placement of a watermark item (GitHub #450, #451). The item is placed in the
+// RENDERED page frame, the frame the user sees (CropBox origin and /Rotate
+// applied, Y down), and taken into user space with the inverse page transform
+// once, as docs/image-placement-model.md prescribes for every placement.
+//
+// The item is a w x h box in its own Y-up units; `localCentre` is the box
+// centre in those units. It is rotated CCW (as seen) by `rotationDeg` about
+// that centre, and its rotated bounding box is put at the anchor named by
+// `position`: "center" (also any unknown value), "top-left", "top-right",
+// "bottom-left" or "bottom-right", 5% of the shorter page side from the edges.
+//
+// Returns the matrix item units (Y up) -> user space.
+fz_matrix watermarkPlacement(const fz_rect& view, const fz_matrix& userToView,
+                             float w, float h, fz_point localCentre,
+                             float rotationDeg, const std::string& position)
+{
+    const float pw = view.x1 - view.x0;
+    const float ph = view.y1 - view.y0;
+    const float rad = rotationDeg * 3.14159265f / 180.0f;
+    const float aw = std::fabs(w * std::cos(rad)) + std::fabs(h * std::sin(rad));
+    const float ah = std::fabs(w * std::sin(rad)) + std::fabs(h * std::cos(rad));
+    const float margin = 0.05f * std::min(pw, ph);
+
+    float cx = view.x0 + pw / 2.0f;
+    float cy = view.y0 + ph / 2.0f;
+    const bool left   = position == "top-left"    || position == "bottom-left";
+    const bool right  = position == "top-right"   || position == "bottom-right";
+    const bool top    = position == "top-left"    || position == "top-right";
+    const bool bottom = position == "bottom-left" || position == "bottom-right";
+    if (left)   cx = view.x0 + margin + aw / 2.0f;
+    if (right)  cx = view.x1 - margin - aw / 2.0f;
+    if (top)    cy = view.y0 + margin + ah / 2.0f;
+    if (bottom) cy = view.y1 - margin - ah / 2.0f;
+
+    fz_matrix m = fz_translate(-localCentre.x, -localCentre.y);
+    m = fz_concat(m, fz_rotate(rotationDeg));
+    m = fz_concat(m, fz_make_matrix(1, 0, 0, -1, cx, cy));   // Y up -> rendered (Y down)
+    m = fz_concat(m, fz_invert_matrix(userToView));           // rendered -> user space
+    return m;
 }
 
 } // namespace
@@ -361,6 +452,18 @@ void applyWatermarkImpl(
         return true;
     };
 
+    // Resource names and the content string live in THIS frame, not the
+    // lambda's: the lambda body runs inside MuPdfContext::execute's fz_try
+    // (setjmp/longjmp), and a longjmp skips the destructors of its locals
+    // (tools/gate/fz_try_raii_scan.py).
+    std::string gsName;
+    std::string resName;
+    std::string content;
+    // The text watermark's ambient text-state reset (100 Tz, 0 Tc/Tw/Ts/Tr) so
+    // an ambient -100 Tz can't mirror it. A pure constant, so it is built once
+    // here, outside the guarded region, for the same reason as the names above.
+    const std::string wmBasis = pdfe::core::knownTextStateBasis();
+
     context_->execute([&](fz_context* ctx) {
         pdf_document* doc = pdf_open_document(ctx, file.string().c_str());
 
@@ -384,128 +487,131 @@ void applyWatermarkImpl(
             }
         }
 
+        // Everything below owns MuPDF objects. They are released in the one
+        // fz_always, so a failure on any page (or in the save) still drops the
+        // document, the watermark image and its PDF object, and the font.
         fz_image* wmImage = nullptr;
         pdf_obj* wmImageObj = nullptr;
-        if (useImage) {
-            fz_try(ctx) {
+        pdf_obj* wmFont = nullptr;   // the text watermark's Helvetica, made once
+        fz_var(wmImage);
+        fz_var(wmImageObj);
+        fz_var(wmFont);
+        fz_try(ctx) {
+            if (useImage) {
                 wmImage = fz_new_image_from_file(ctx, ext->imagePath.c_str());
                 wmImageObj = pdf_add_image(ctx, doc, wmImage);
-            } fz_catch(ctx) {
-                if (wmImage) { fz_drop_image(ctx, wmImage); wmImage = nullptr; }
-                pdf_drop_document(ctx, doc);
-                fz_rethrow(ctx);
             }
-        }
 
-        int pageCount = pdf_count_pages(ctx, doc);
-        for (int i = 0; i < pageCount; ++i) {
-            if (!pageMatchesExt(i, pageCount)) continue;
+            int pageCount = pdf_count_pages(ctx, doc);
+            for (int i = 0; i < pageCount; ++i) {
+                if (!pageMatchesExt(i, pageCount)) continue;
 
-            pdf_page* page = pdfe::core::safeLoadPdfPage(ctx, doc, i);
-            fz_rect mediabox = pdf_bound_page(ctx, page, FZ_MEDIA_BOX);
-            const float pw = mediabox.x1 - mediabox.x0;
-            const float ph = mediabox.y1 - mediabox.y0;
-            // Centre on the page in ABSOLUTE user space, honouring a non-zero
-            // MediaBox origin. pdf_bound_page NORMALISES the box to (0,0), but
-            // the content coordinate system is absolute, so read the raw
-            // MediaBox origin from the page dict (otherwise the watermark is
-            // offset by the origin on imposed / cropped pages).
-            float mbOx = 0.0f, mbOy = 0.0f;
-            {
-                pdf_obj* mbArr = pdf_dict_get_inheritable(
-                    ctx, page->obj, PDF_NAME(MediaBox));
-                if (mbArr && pdf_array_len(ctx, mbArr) == 4) {
-                    mbOx = pdf_to_real(ctx, pdf_array_get(ctx, mbArr, 0));
-                    mbOy = pdf_to_real(ctx, pdf_array_get(ctx, mbArr, 1));
+                pdf_page* page = pdfe::core::safeLoadPdfPage(ctx, doc, i);
+                fz_try(ctx) {
+                    // The rendered frame (CropBox origin, /Rotate, Y down) and the
+                    // transform user space -> rendered frame. Placement happens in
+                    // the rendered frame and goes back to user space once, so the
+                    // watermark sits where the user sees the page (GitHub #450).
+                    fz_rect box;
+                    fz_matrix userToView;
+                    pdf_page_transform(ctx, page, &box, &userToView);
+                    const fz_rect view = fz_transform_rect(box, userToView);
+                    const float viewW = view.x1 - view.x0;
+
+                    // The page's own copy of its effective resources, so inherited
+                    // and shared resources are kept and never edited in place
+                    // (GitHub #449); fresh names only (GitHub #448).
+                    pdf_obj* resources = ownPageResources(ctx, doc, page->obj);
+
+                    // Graphics state for opacity, under a name the page lacks.
+                    pdf_obj* extgstate = ownCategory(ctx, doc, resources, PDF_NAME(ExtGState));
+                    gsName = freeResourceName(ctx, extgstate, "PdfeWmGS");
+                    pdf_obj* gs = pdf_dict_puts_dict(ctx, extgstate, gsName.c_str(), 2);
+                    pdf_dict_put_real(ctx, gs, PDF_NAME(ca), config.opacity);
+                    pdf_dict_put_real(ctx, gs, PDF_NAME(CA), config.opacity);
+
+                    char num[512];
+                    if (useImage) {
+                        // Image watermark: 40% of the rendered page width, aspect
+                        // kept, rotated by config.rotation and put at
+                        // config.position (GitHub #451).
+                        pdf_obj* xobjects = ownCategory(ctx, doc, resources, PDF_NAME(XObject));
+                        resName = freeResourceName(ctx, xobjects, "PdfeWmImg");
+                        pdf_dict_puts(ctx, xobjects, resName.c_str(), wmImageObj);
+
+                        const int imgW = (wmImage->w > 0) ? wmImage->w : 100;
+                        const int imgH = (wmImage->h > 0) ? wmImage->h : 100;
+                        const float w = viewW * 0.40f;
+                        const float h = w * (static_cast<float>(imgH) / static_cast<float>(imgW));
+                        const fz_matrix m = fz_concat(
+                            fz_scale(w, h),
+                            watermarkPlacement(view, userToView, w, h, fz_make_point(w / 2.0f, h / 2.0f),
+                                               config.rotation, config.position));
+                        snprintf(num, sizeof(num),
+                            "%.4f %.4f %.4f %.4f %.4f %.4f cm ", m.a, m.b, m.c, m.d, m.e, m.f);
+                        content = "q /" + gsName + " gs " + num + "/" + resName + " Do Q";
+                    } else {
+                        // Text watermark in its own Helvetica, under a name the
+                        // page lacks: a page font that happens to be called like
+                        // the old fixed name is never borrowed (GitHub #449).
+                        pdf_obj* fonts = ownCategory(ctx, doc, resources, PDF_NAME(Font));
+                        resName = freeResourceName(ctx, fonts, "PdfeWmF");
+                        if (!wmFont) {
+                            pdf_obj* f = pdf_new_dict(ctx, doc, 4);
+                            pdf_dict_put(ctx, f, PDF_NAME(Type), PDF_NAME(Font));
+                            pdf_dict_put(ctx, f, PDF_NAME(Subtype), PDF_NAME(Type1));
+                            pdf_dict_put_name(ctx, f, PDF_NAME(BaseFont), "Helvetica");
+                            pdf_dict_put_name(ctx, f, PDF_NAME(Encoding), "WinAnsiEncoding");
+                            wmFont = pdf_add_object_drop(ctx, doc, f);
+                        }
+                        pdf_dict_puts(ctx, fonts, resName.c_str(), wmFont);
+
+                        // Fill mode, rotation and position through the text matrix.
+                        // The text box (advance width x Helvetica ascent..descent)
+                        // is centred on the anchor and rotated about its centre.
+                        const float fs = config.fontSize;
+                        const float tw = helveticaWidth(ctx, config.text, fs);
+                        const float asc = 0.718f * fs;
+                        const float desc = -0.207f * fs;
+                        const fz_matrix tm = watermarkPlacement(
+                            view, userToView, tw, asc - desc,
+                            fz_make_point(tw / 2.0f, (asc + desc) / 2.0f),
+                            config.rotation, config.position);
+                        // Reset ambient text state to a known basis (wmBasis, built
+                        // above the guarded region); the "0.5 g" grey below still
+                        // overrides the basis's black fill.
+                        content = "q " + wmBasis + "0.5 g /" + gsName + " gs BT /" + resName + " ";
+                        snprintf(num, sizeof(num), "%.1f Tf %.4f %.4f %.4f %.4f %.4f %.4f Tm ",
+                                 fs, tm.a, tm.b, tm.c, tm.d, tm.e, tm.f);
+                        content += num;
+                        content += "(" + pdfLiteralBody(config.text) + ") Tj ET Q";
+                    }
+
+                    // Append so the watermark runs at identity CTM even on N-up /
+                    // imposed pages (both modes place with absolute user-space
+                    // matrices, which the guard makes exact).
+                    pdfe::core::appendContentIsolatingAmbientCtm(
+                        ctx, doc, page->obj, content.data(), content.size());
+                }
+                fz_always(ctx) {
+                    fz_drop_page(ctx, reinterpret_cast<fz_page*>(page));
+                }
+                fz_catch(ctx) {
+                    fz_rethrow(ctx);
                 }
             }
-            const float cx = mbOx + pw / 2.0f;
-            const float cy = mbOy + ph / 2.0f;
 
-            char buf[2048];
-            if (useImage) {
-                // Image watermark — draw via Image XObject centered on page.
-                // Target image rendered at 40% of page width, preserving aspect.
-                const int imgW = (wmImage->w > 0) ? wmImage->w : 100;
-                const int imgH = (wmImage->h > 0) ? wmImage->h : 100;
-                float targetW = pw * 0.40f;
-                float targetH = targetW * ((float)imgH / (float)imgW);
-                float x = cx - targetW / 2.0f;
-                float y = cy - targetH / 2.0f;
-                snprintf(buf, sizeof(buf),
-                    "q /GS0 gs %.2f 0 0 %.2f %.2f %.2f cm /WMImg Do Q",
-                    targetW, targetH, x, y);
-            } else {
-                // Text watermark — render in fill mode, centered. Rotation
-                // is applied via the text matrix (Tm). The Phase 4
-                // implementation used "%.1f Tr" with the rotation value as
-                // text-rendering-mode which left text invisible (Tr values
-                // outside [0,7] are effectively no-op/invisible in MuPDF
-                // extraction). That was a latent bug; now fixed so the
-                // watermark is actually visible and extractable.
-                const float rad = config.rotation * 3.14159265f / 180.0f;
-                const float cr = std::cos(rad);
-                const float sr = std::sin(rad);
-                // Reset ambient text state to a known basis (100 Tz, 0 Tc/Tw/Ts/
-                // Tr) so an ambient -100 Tz can't mirror the watermark; the
-                // "0.5 g" grey below still overrides the basis's black fill.
-                const std::string wmBasis = pdfe::core::knownTextStateBasis();
-                snprintf(buf, sizeof(buf),
-                    "q %s0.5 g /GS0 gs BT /F1 %.1f Tf "
-                    "%.4f %.4f %.4f %.4f %.2f %.2f Tm "
-                    "(%s) Tj ET Q",
-                    wmBasis.c_str(),
-                    config.fontSize,
-                    cr, sr, -sr, cr,
-                    cx - config.fontSize * 2, cy,
-                    config.text.c_str());
-            }
-
-            pdf_obj* resources = pdf_dict_get(ctx, page->obj, PDF_NAME(Resources));
-            if (!resources) {
-                resources = pdf_new_dict(ctx, reinterpret_cast<pdf_document*>(doc), 2);
-                pdf_dict_put(ctx, page->obj, PDF_NAME(Resources), resources);
-            }
-
-            // Graphics state for opacity
-            pdf_obj* extgstate = pdf_dict_get(ctx, resources, PDF_NAME(ExtGState));
-            if (!extgstate) {
-                extgstate = pdf_new_dict(ctx, reinterpret_cast<pdf_document*>(doc), 1);
-                pdf_dict_put(ctx, resources, PDF_NAME(ExtGState), extgstate);
-            }
-            pdf_obj* gs0 = pdf_new_dict(ctx, reinterpret_cast<pdf_document*>(doc), 2);
-            pdf_dict_put_real(ctx, gs0, PDF_NAME(ca), config.opacity);
-            pdf_dict_put_real(ctx, gs0, PDF_NAME(CA), config.opacity);
-            pdf_dict_puts(ctx, extgstate, "GS0", gs0);
-
-            // Text-mode font resource hookup
-            if (!useImage) {
-                ensureF1Helvetica(ctx, doc, page);
-            }
-
-            // Image resource hookup
-            if (useImage && wmImageObj) {
-                pdf_obj* xobj = pdf_dict_get(ctx, resources, PDF_NAME(XObject));
-                if (!xobj) {
-                    xobj = pdf_new_dict(ctx, reinterpret_cast<pdf_document*>(doc), 1);
-                    pdf_dict_put(ctx, resources, PDF_NAME(XObject), xobj);
-                }
-                pdf_dict_puts(ctx, xobj, "WMImg", wmImageObj);
-            }
-
-            // Append so the watermark runs at identity CTM even on N-up /
-            // imposed pages (image watermark places via an absolute `cm`; the
-            // guard is a harmless balanced no-op for the text watermark).
-            pdfe::core::appendContentIsolatingAmbientCtm(
-                ctx, reinterpret_cast<pdf_document*>(doc), page->obj,
-                buf, strlen(buf));
-
-            fz_drop_page(ctx, reinterpret_cast<fz_page*>(page));
+            pdf_save_document(ctx, doc, outputFile.string().c_str(), nullptr);
         }
-
-        if (wmImage) fz_drop_image(ctx, wmImage);
-        pdf_save_document(ctx, doc, outputFile.string().c_str(), nullptr);
-        pdf_drop_document(ctx, doc);
+        fz_always(ctx) {
+            pdf_drop_obj(ctx, wmFont);
+            pdf_drop_obj(ctx, wmImageObj);
+            fz_drop_image(ctx, wmImage);
+            pdf_drop_document(ctx, doc);
+        }
+        fz_catch(ctx) {
+            fz_rethrow(ctx);
+        }
     });
 }
 

@@ -4,6 +4,8 @@
 #include <memory>
 #include <filesystem>
 
+#include "batch/BatchTypes.h"
+
 namespace pdfe::core {
 class MuPdfContext;
 class Document;
@@ -31,6 +33,18 @@ public:
         QWidget* parent = nullptr
     );
     ~WatermarkDialog() override;
+
+    /// The watermark settings as the controls hold them now (what Apply
+    /// hands to BatchEngine::applyWatermarkExt).
+    pdfe::batch::WatermarkConfig config() const;
+    /// Mode, image path and page range. An explicit range is parsed against
+    /// the document's page count; with no document it stays empty.
+    pdfe::batch::WatermarkExtConfig extConfig() const;
+
+    /// Default Rotation per mode, used until the user changes Rotation:
+    /// text is set diagonally, an image is placed upright (as it always was).
+    static constexpr double kTextDefaultRotation = 45.0;
+    static constexpr double kImageDefaultRotation = 0.0;
 
 signals:
     void watermarkApplied(const QString& outputPath);
@@ -64,6 +78,11 @@ private:
     QPushButton* applyButton_ = nullptr;
     QPushButton* cancelButton_ = nullptr;
     QLabel* statusLabel_ = nullptr;
+
+    // Rotation follows the mode's default until the user edits it; after
+    // that, switching modes keeps the user's value.
+    bool rotationUserSet_ = false;
+    bool settingRotation_ = false;
 };
 
 } // namespace pdfe::ui

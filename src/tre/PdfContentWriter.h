@@ -3,6 +3,8 @@
 #include "tre/TreTypes.h"
 #include <QImage>
 #include <QRectF>
+#include <QTransform>
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -43,6 +45,32 @@ struct PageImageInfo {
     /// An empty rect means "placement unknown"; callers must then fall back to
     /// the page-spanning assumption rather than compute a wrong offset.
     QRectF placementFitz;
+
+    /// Identity of the placement (docs/image-placement-model.md): the n-th `Do`
+    /// of `xobjectName` in the page's OWN content, in content order. -1 when
+    /// unknown (the resource-dictionary fallback of findPageImageXObject) or
+    /// when the image is drawn inside a Form XObject.
+    ///
+    /// GitHub #446. replacePageImage writes into THIS placement only: when the
+    /// XObject is drawn anywhere else, the new pixels go into a new XObject and
+    /// only this `Do` is repointed at it.
+    int occurrence = -1;
+
+    /// Drawn inside a Form XObject. Such a placement is reported (it is what
+    /// the user sees there) but never written: a form is a shared resource
+    /// (the phase-2 rule of the placement model). replacePageImage refuses it.
+    bool inFormXObject = false;
+
+    /// The full placement matrix: the image's unit square -> the RENDERED page
+    /// frame (fitz points, Y-down, page /Rotate and box origin applied; the
+    /// frame of `placementFitz`, of Page::render and of ImageManager). Row-
+    /// vector convention, [a b c d e f] as in a `cm` operator. Valid only when
+    /// hasPageCtm is true.
+    ///
+    /// GitHub #443/#444. The write-back maps an edit through this matrix
+    /// (rotation, flips, scale), not through the axis-aligned placementFitz.
+    bool hasPageCtm = false;
+    std::array<double, 6> pageCtm{1.0, 0.0, 0.0, 1.0, 0.0, 0.0};
 };
 
 class PdfContentWriter {
@@ -119,22 +147,53 @@ public:
         pdfe::core::Page* page, pdfe::core::Document* document,
         const QRectF& regionFitz);
 
-    /// Replace the page's background image with a new image (typically cleaned background).
-    /// @param newImage The new image to replace the existing one (will be converted to RGB if needed)
+    /// Replace the page's main image from a picture of the WHOLE page.
+    ///
+    /// `newImage` is a render of the page in the rendered frame (what
+    /// OcrPipeline::renderPage and RegionReconstructor produce). The main image
+    /// is the largest image the page draws in its own content.
+    ///
+    /// GitHub #447. When that image is upright and covers the page, the picture
+    /// IS the image and is written as before (resized to the image's pixel size
+    /// when it is at least half of it). Otherwise only the part of the picture
+    /// that lies under the image is taken, through the full placement matrix
+    /// (rotation, flips, box origin), and written into the image's own pixel
+    /// grid. A whole-page render is never squeezed into a smaller image.
+    /// Everything else is as for the targeted overload below.
     /// @return true on success, false on failure
     bool replacePageImage(
         pdfe::core::Page* page, pdfe::core::Document* document,
         const QImage& newImage);
 
-    /// Replace a SPECIFIC image XObject, rather than whichever one is biggest.
+    /// Replace the pixels of ONE image placement.
     ///
     /// GitHub #262. The two-argument form above resolves its own target and so
     /// cannot express "write into the image under the edit". `target` is
-    /// normally the result of `findImageXObjectForRegion()`.
-    /// @return true on success, false on failure
+    /// normally the result of `findImageXObjectForRegion()`. `newImage` is in
+    /// the image's own pixel grid (resized to it when at least half its size).
+    ///
+    /// The image dictionary's non-pixel state is kept (GitHub #445): /SMask, a
+    /// stream /Mask, /OC, /Intent and /Interpolate are copied onto the new
+    /// image, and an ICCBased RGB colour space is kept. /Decode is not copied:
+    /// the pixels are already decoded colours. A colour-key /Mask array is
+    /// kept for 8-bit RGB images without /Decode.
+    ///
+    /// Only the targeted placement changes (GitHub #446): when the XObject is
+    /// drawn more than once (another page-level `Do`, a form that uses the
+    /// page's resources) or the page's /XObject dictionary is shared with
+    /// another page, the new image is added under a fresh name and only the
+    /// target's `Do` is repointed at it, in place (ImagePlacementScanner).
+    /// A placement inside a Form XObject is refused (returns false).
     bool replacePageImage(
         pdfe::core::Page* page, pdfe::core::Document* document,
         const QImage& newImage, const PageImageInfo& target);
+
+    /// The map from the RENDERED page frame (fitz points, Y-down: the frame of
+    /// Page::render and of a selection rect) into `target`'s own pixel grid
+    /// (x right along the image's rows, y down from its top row), through the
+    /// full placement matrix: rotation, flips, skew and scale (GitHub #444).
+    /// Returns false when the target carries no matrix or it is singular.
+    static bool renderedFrameToImagePixels(const PageImageInfo& target, QTransform* out);
 
     /// Write a BT/ET text block to the page's content stream.
     /// Embeds the font if needed, then generates PDF text operators.

@@ -282,6 +282,26 @@ def test_both_payloads_are_xz(stub_packages):
         == ["control.tar.xz", "data.tar.xz"]
 
 
+def test_rpm_has_a_changelog_entry_for_its_version(stub_packages):
+    """GitHub #406: without a %changelog, rpmbuild warns that
+    %source_date_epoch_from_changelog has no entries to take a date from."""
+    _appdir, out = stub_packages
+    log = _rpm_query(out, "--changelog")
+    first = log.splitlines()[0] if log.strip() else ""
+    assert re.match(r"\* \w{3} \w{3} \d{2} \d{4} .+ - %s-1$" % re.escape(VERSION),
+                    first), log
+    assert "PDFE %s" % VERSION in log
+
+
+def test_rpmbuild_emits_no_changelog_warning(tmp_path):
+    """The warning itself, not just the entry: build the rpm and read stderr."""
+    appdir = make_appdir(tmp_path)
+    r = run_build(["--appdir", appdir, "--out-dir", tmp_path / "o",
+                   "--formats", "rpm"], check=False)
+    assert r.returncode == 0, r.stderr
+    assert "%changelog has no entries" not in r.stderr, r.stderr
+
+
 def test_rpm_has_no_scriptlets(stub_packages):
     _appdir, out = stub_packages
     assert _rpm_query(out, "--scripts").strip() == ""

@@ -121,6 +121,23 @@ void TextMarkupTool::onMouseRelease(QMouseEvent* event, int pageIndex, QPointF p
     // Do NOT access any member here — `this` may already be destroyed.
 }
 
+bool TextMarkupTool::cancelInProgress()
+{
+    // Bug 6: Esc mid-drag aborts the text selection. Reset isSelecting_ so the
+    // pending onMouseRelease is an early-out (creates no markup), and discard
+    // the selector's in-flight selection via its own cancel() seam so no quads
+    // linger into the next gesture or the overlay.
+    if (!isSelecting_) {
+        return false;
+    }
+    isSelecting_ = false;
+    if (selector_) {
+        selector_->cancel();
+    }
+    currentPageIndex_ = -1;
+    return true;
+}
+
 void TextMarkupTool::onPaintOverlay(QPainter& painter, int pageIndex,
                                      float zoom, QPointF pageOrigin, float pageHeightPt)
 {

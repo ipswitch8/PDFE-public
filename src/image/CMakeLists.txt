@@ -2,6 +2,7 @@ add_library(pdfe_image STATIC
     ImageManager.cpp
     ImageCommands.cpp
     ImageContentEditor.cpp
+    ImagePlacementScanner.cpp
     ExifStripper.cpp
     ImageTool.cpp
 )

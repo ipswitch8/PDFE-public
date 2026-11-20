@@ -323,6 +323,9 @@ add_executable(pdfe_tests
     test_annotation_commands.cpp
     test_text_selector.cpp
     test_annotation_tools.cpp
+    # form-field-bugs phase-8, bug 6: Esc aborts an in-progress placement/drag
+    # across the whole placement-tool family (FormTool + 9 drag tools).
+    test_esc_cancel_placement.cpp
     test_comment_panel.cpp
     test_save.cpp
     test_form_field_data.cpp
@@ -381,6 +384,7 @@ add_executable(pdfe_tests
     test_text_edit_integration.cpp
     test_text_edit_selection_render.cpp
     test_text_edit_save_roundtrip.cpp
+    test_text_edit_empty_area_insert.cpp
     test_cjk_content_edit_phase75.cpp
     test_ime_input_phase76.cpp
     test_text_edit_undo_chain.cpp
@@ -388,6 +392,7 @@ add_executable(pdfe_tests
     test_select_tool_stale_index_crash.cpp
     test_select_tool_cross_page_move.cpp
     test_form_tool_document_closing.cpp
+    test_form_tool_overlay_render.cpp
     test_annotation_tool_page_release.cpp
     test_forms_phase5.cpp
     test_form_appearance_render.cpp
@@ -682,6 +687,35 @@ add_executable(pdfe_tests
     # angle, additive second-drag (absolute = base + delta, not ~180), and the
     # selection-outline re-sync after a committed rotate.
     test_image_rotation_handle.cpp
+    # GitHub #416 -- moving or resizing a rotated image keeps its rotation;
+    # the overlay is re-read from the page after the commit.
+    test_image_move_keeps_rotation.cpp
+    # GitHub #417 and the placement-state audit (docs/image-placement-model.md):
+    # every image edit keeps what it was not asked to change.
+    test_image_placement_state.cpp
+    test_image_editor_state_probes.cpp
+    test_watermark_exif_state.cpp
+    test_redaction_image_state.cpp
+    test_tre_tagger_state.cpp
+    # Phase 2 of image-placement-state: the placement model's decided rules
+    # (crop composition, wrapper replace, identity, flips, form, undo).
+    test_image_placement_model.cpp
+    # Phase 3 of image-placement-state: the UI and insert rules (relative
+    # rotate, Crop/Resize fixed steps, properties panel, insert encoding and
+    # metadata, insert undo).
+    test_image_editor_ui_model.cpp
+    # Phase 4 of image-placement-state: watermark resources and placement,
+    # metadata stripping that keeps masks and colours, extract colour.
+    test_watermark_exif_model.cpp
+    # Phase 5 of image-placement-state: redaction of images (Pixels mode,
+    # per-mark methods, every placement shape), page-scoped Flatten Form,
+    # flattened images, and the metadata stripper's bounds.
+    test_redaction_image_model.cpp
+    test_exif_strip_bounds.cpp
+    # Phase 6 of image-placement-state: the OCR image write-back (frame,
+    # matrix, image state, one placement only) and the content-stream tagger
+    # (one sequence per region, figures point at their images).
+    test_tre_tagger_model.cpp
     # GitHub #373/#376/#378 — image coordinate-space unification: cross-space
     # render oracle (seam bbox vs rendered pixels), committed-move direction,
     # and committed rotation direction (cm matrix + visual).
@@ -875,6 +909,9 @@ add_executable(pdfe_tests
     test_compare_documents_view.cpp
     test_document_js_events.cpp
     test_toolbar_customization.cpp
+    # form-field-bugs phase-10: bug 7 — toolbar buttons wrap to extra rows
+    # (FlowLayout/FlowToolBar) instead of hiding behind a QToolBar chevron.
+    test_toolbar_flow_wrap.cpp
     # ui-bugs-381-383 phase-2: GitHub #381 — every on-toolbar action id must
     # resolve in buildToolbarActionRegistry() (else dropped under a saved
     # layout; stamp/attach were missing), plus the source guard for the
@@ -1003,6 +1040,10 @@ add_executable(pdfe_tests
     test_preflight_fix_all.cpp
     test_forms_designer.cpp
     test_form_tool_action_lifetime.cpp
+    test_form_textfield_state.cpp
+    test_form_textfield_model.cpp
+    test_form_textfield_ui.cpp
+    test_form_reconcile.cpp
     test_multi_document_open.cpp
     test_insert_image_options.cpp
     test_insert_image_activates_tool.cpp

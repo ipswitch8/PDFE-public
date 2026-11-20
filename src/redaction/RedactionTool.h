@@ -27,6 +27,8 @@ public:
     void onPaintOverlay(QPainter& painter, int pageIndex,
                         float zoom, QPointF pageOrigin, float pageHeightPt) override;
 
+    /// Esc-cancel an in-progress redaction rubber-band (bug 6). See AnnotationTool.
+    bool cancelInProgress() override;
 
     /// Callback invoked when a redaction area is selected.
     std::function<void(int pageIndex, QRectF pdfRect)> redactionCreated;

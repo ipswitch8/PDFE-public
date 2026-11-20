@@ -1,44 +1,52 @@
+// -*- coding: utf-8 -*-
 #define _USE_MATH_DEFINES
 #include "image/ImageContentEditor.h"
+#include "image/ImagePlacement.h"
+#include "image/ImagePlacementScanner.h"
 #include "core/MuPdfContext.h"
 #include "core/Document.h"
 #include "core/Page.h"
-#include "core/PageContentGuard.h"
 
 #include <mupdf/fitz.h>
 #include <mupdf/pdf.h>
 
 #include <cmath>
-#include <cstring>
-#include <sstream>
-#include <iomanip>
+#include <exception>
+#include <functional>
 
 namespace pdfe::image {
 
-// Filter state for removing image from content stream
-struct RemoveFilterState {
-    std::string targetName;
-};
+namespace pl = pdfe::image::placement;
 
-// Callback for pdf_filter_page_contents to remove an image
-static fz_image* removeImageCallback(
-    fz_context* ctx, void* opaque, fz_matrix ctm,
-    const char* name, fz_image* image, fz_rect scissor)
-{
-    (void)ctx;
-    (void)ctm;
-    (void)scissor;
+namespace {
 
-    const auto* state = static_cast<const RemoveFilterState*>(opaque);
-    if (name && state->targetName == name) {
-        // Return nullptr to remove this image from the content stream
-        return nullptr;
-    }
-    // Keep all other images
-    return image;
+constexpr double kPi = 3.14159265358979323846;
+
+// The visual-clockwise angle in degrees (toolbar / command / ImageTool
+// convention) as a rotation in the decomposition's convention: CCW-positive
+// in the Y-up rendered frame. A visually clockwise turn is a NEGATIVE math
+// angle there; the Y-down -> Y-up conversion of positions does not change
+// this, because the angle convention is defined visually (GitHub #376).
+double rotationFromVisualClockwise(float angleDegrees) {
+    return -static_cast<double>(angleDegrees) * kPi / 180.0;
 }
 
-// Implementation class
+// Place linear part `L` (rendered fitz frame) so that unit point (u, v)
+// lands on `target`.
+pl::Affine placeAt(pl::Affine L, double u, double v, QPointF target) {
+    L.e = target.x() - (u * L.a + v * L.c);
+    L.f = target.y() - (u * L.b + v * L.d);
+    return L;
+}
+
+} // namespace
+
+// An edit maps the placement's current (P, C) to a new (P, C). P is the
+// placement in the RENDERED fitz frame (unit square -> Y-down page, page
+// /Rotate applied); C the unit-square crop.
+using EditFn = std::function<bool(const pl::Affine& P, const pl::UnitCrop& C,
+                                  pl::Affine& newP, pl::UnitCrop& newC)>;
+
 class ImageContentEditor::Impl {
 public:
     std::shared_ptr<pdfe::core::MuPdfContext> context;
@@ -48,7 +56,6 @@ public:
     {
     }
 
-    // Helper to get pdf_page from Page
     pdf_page* getPdfPage(pdfe::core::Page* page) const {
         if (!page) return nullptr;
         fz_page* fzPage = page->fzPage();
@@ -56,7 +63,6 @@ public:
         return pdf_page_from_fz_page(context->get(), fzPage);
     }
 
-    // Helper to get pdf_document from Document
     pdf_document* getPdfDoc(pdfe::core::Document* doc) const {
         if (!doc) return nullptr;
         fz_document* fzDoc = doc->fzDocument();
@@ -64,156 +70,113 @@ public:
         return pdf_document_from_fz_document(context->get(), fzDoc);
     }
 
-    // Remove an image from the page's content stream
-    void removeFromContentStream(pdf_document* pdfDoc, pdf_page* pdfPage,
-                                  const std::string& xobjectName)
+    // Find the targeted Do, hand its current geometry to `fn`, and splice the
+    // new wrapper in place of the old Do (or of the PDFE wrapper around it).
+    bool edit(pdfe::core::Page* page, pdfe::core::Document* doc,
+              const PlacementId& id, const EditFn& fn)
     {
-        RemoveFilterState state;
-        state.targetName = xobjectName;
+        if (!page || !doc || id.xobjectName.empty() || id.occurrence < 0) return false;
+        bool success = false;
+        // Scanned in THIS frame, not the lambda's: the lambda runs inside
+        // MuPdfContext::execute's fz_try, and a longjmp skips the destructors
+        // of its locals (tools/gate/fz_try_raii_scan.py).
+        std::vector<pl::DoSite> sites;
+        try {
+            context->execute([&](fz_context* ctx) {
+                pdf_page* pdfPage = getPdfPage(page);
+                pdf_document* pdfDoc = getPdfDoc(doc);
+                if (!pdfPage || !pdfDoc) return;
 
-        fz_context* ctx = context->get();
+                sites = pl::scanPage(ctx, pdfPage, false);
+                const pl::DoSite* target = nullptr;
+                for (const auto& s : sites) {
+                    if (s.formDepth == 0 && s.name == id.xobjectName &&
+                        s.occurrence == id.occurrence) {
+                        target = &s;
+                        break;
+                    }
+                }
+                // Only a page-level Do that resolves to an Image XObject is
+                // editable: an unresolvable name, a Form, or a Do inside a Form
+                // XObject (never matched above: formDepth != 0) is refused.
+                if (!target || !target->isImage) return;
 
-        // Save the XObject reference before filtering — pdf_filter_page_contents
-        // may clean up unused resources, removing the XObject we still need.
-        pdf_obj* resources = pdf_page_resources(ctx, pdfPage);
-        pdf_obj* xobjects = resources ? pdf_dict_get(ctx, resources, PDF_NAME(XObject)) : nullptr;
-        pdf_obj* savedXObj = nullptr;
-        if (xobjects) {
-            savedXObj = pdf_dict_gets(ctx, xobjects, xobjectName.c_str());
-            if (savedXObj) {
-                pdf_keep_obj(ctx, savedXObj);
-            }
+                // User space -> rendered fitz frame, and back (applied ONCE at
+                // the content-stream boundary; GitHub #373/#426).
+                const pl::Affine pageT = pl::pageTransform(ctx, pdfPage);
+                pl::Affine pageInv;
+                if (!pl::invert(pageT, pageInv)) return;
+
+                const pl::Affine P = pl::concat(target->ctm, pageT);
+                pl::Affine newP = P;
+                pl::UnitCrop newC = target->crop;
+                if (!fn(P, target->crop, newP, newC)) return;
+                if (newC.isEmpty()) return;
+
+                success = pl::rewriteSite(ctx, pdfDoc, pdfPage, *target,
+                                          pl::concat(newP, pageInv), newC);
+            });
+        } catch (const std::exception&) {
+            success = false;
         }
-
-        // Setup sanitize filter to remove the target image
-        pdf_sanitize_filter_options sopts;
-        std::memset(&sopts, 0, sizeof(sopts));
-        sopts.opaque = &state;
-        sopts.image_filter = removeImageCallback;
-
-        // Setup filter factory
-        pdf_filter_factory factories[2];
-        std::memset(factories, 0, sizeof(factories));
-        factories[0].filter = pdf_new_sanitize_filter;
-        factories[0].options = &sopts;
-        factories[1].filter = nullptr;
-
-        // Setup filter options
-        pdf_filter_options opts;
-        std::memset(&opts, 0, sizeof(opts));
-        opts.filters = factories;
-        opts.newlines = 1;
-
-        // Apply filter to remove the image
-        pdf_filter_page_contents(ctx, pdfDoc, pdfPage, &opts);
-
-        // Restore the XObject reference if it was removed during filtering
-        if (savedXObj) {
-            resources = pdf_page_resources(ctx, pdfPage);
-            xobjects = resources ? pdf_dict_get(ctx, resources, PDF_NAME(XObject)) : nullptr;
-            if (!xobjects) {
-                xobjects = pdf_new_dict(ctx, pdfDoc, 4);
-                pdf_dict_put(ctx, resources, PDF_NAME(XObject), xobjects);
-            }
-            pdf_dict_puts(ctx, xobjects, xobjectName.c_str(), savedXObj);
-            pdf_drop_obj(ctx, savedXObj);
-        }
-    }
-
-    // GitHub #373: the editor's public API takes geometry in fitz device space
-    // (Y-down, origin at the page's TOP-left — the space mouse input, the
-    // enumerated bounding boxes and the canvas test seams share). The `cm`
-    // matrices written below are PDF USER space (Y-up, MediaBox origin), so
-    // each writer converts ONCE at this content-stream boundary via the
-    // page box fetched here:
-    //   x_user = mb.x0 + x_fitz
-    //   y_user(bottom of a box) = mb.y1 - y_fitz_top - height
-    void pageBox(pdf_page* pdfPage, float& x0, float& y1)
-    {
-        fz_rect mb;
-        fz_matrix pageT;
-        pdf_page_transform(context->get(), pdfPage, &mb, &pageT);
-        x0 = mb.x0;
-        y1 = mb.y1;
-    }
-
-    // Append a new content stream to the page, isolating the fragment's
-    // absolute `cm` from any ambient CTM the page left active (image
-    // insert/resize/rotate/crop all place via absolute matrices).
-    void appendContentStream(pdf_document* pdfDoc, pdf_page* pdfPage,
-                            const char* ops, size_t len)
-    {
-        fz_context* ctx = context->get();
-        pdfe::core::appendContentIsolatingAmbientCtm(
-            ctx, pdfDoc, pdfPage->obj, ops, len);
+        // The old content stream is orphaned by a rewrite; force a
+        // full-rewrite save (pipeline b2e47d91, Tier 1). Only after a real
+        // change: a refused edit leaves the document's save routing alone.
+        if (success) doc->markRequiresFullRewrite();
+        return success;
     }
 };
 
-// Constructor
 ImageContentEditor::ImageContentEditor(std::shared_ptr<pdfe::core::MuPdfContext> context)
     : impl_(std::make_unique<Impl>(std::move(context)))
 {
 }
 
-// Destructor
 ImageContentEditor::~ImageContentEditor() = default;
 
-// Resize image
+// ---------------------------------------------------------------------------
+// Move / resize
+// ---------------------------------------------------------------------------
 bool ImageContentEditor::resizeImage(
     pdfe::core::Page* page, pdfe::core::Document* doc,
     const std::string& xobjectName,
     float newWidth, float newHeight,
-    float x, float y)
+    float x, float y,
+    float angleDegrees)
 {
-    if (!page || !doc || xobjectName.empty()) {
-        return false;
-    }
-    // Editing an image rewrites the page content stream (removeFromContentStream
-    // orphans the old placement); force a full-rewrite save (pipeline b2e47d91,
-    // Tier 1).
-    doc->markRequiresFullRewrite();
-
-    bool success = false;
-
-    impl_->context->execute([&](fz_context* ctx) {
-        pdf_page* pdfPage = impl_->getPdfPage(page);
-        pdf_document* pdfDoc = impl_->getPdfDoc(doc);
-
-        if (!pdfPage || !pdfDoc) {
-            return;
-        }
-
-        // Remove the old image placement
-        impl_->removeFromContentStream(pdfDoc, pdfPage, xobjectName);
-
-        // GitHub #373: (x, y) arrive in fitz Y-down (top-left of the new
-        // placement); convert once to the Y-up cm translation (bottom-left).
-        float mbX0 = 0.0f, mbY1 = 0.0f;
-        impl_->pageBox(pdfPage, mbX0, mbY1);
-        const float cmE = mbX0 + x;
-        const float cmF = mbY1 - y - newHeight;
-
-        // Build new content stream with resized CTM
-        // Format: q [newW 0 0 newH x y] cm /ImN Do Q\n
-        std::ostringstream oss;
-        oss << std::fixed << std::setprecision(4);
-        oss << "q ";
-        oss << newWidth << " 0 0 " << newHeight << " " << cmE << " " << cmF << " cm ";
-        oss << "/" << xobjectName << " Do ";
-        oss << "Q\n";
-
-        std::string ops = oss.str();
-
-        // Append the new content stream
-        impl_->appendContentStream(pdfDoc, pdfPage, ops.c_str(), ops.length());
-
-        success = true;
-    });
-
-    return success;
+    return resizeImage(page, doc, PlacementId{xobjectName, 0},
+                       newWidth, newHeight, x, y, angleDegrees);
 }
 
-// Rotate image
+bool ImageContentEditor::resizeImage(
+    pdfe::core::Page* page, pdfe::core::Document* doc,
+    const PlacementId& placement,
+    float newWidth, float newHeight,
+    float x, float y,
+    float angleDegrees)
+{
+    if (!(newWidth > 0.0f) || !(newHeight > 0.0f)) return false;
+    // GitHub #416: (x, y, newWidth, newHeight) is the UPRIGHT full rect and
+    // angleDegrees its orientation, so a move or resize keeps the rotation.
+    // GitHub #424: the new matrix is the old one re-scaled in the image's own
+    // axes and re-oriented, never rebuilt from (w, h, angle), so flips and
+    // skew survive.
+    return impl_->edit(page, doc, placement,
+        [&](const pl::Affine& P, const pl::UnitCrop& C, pl::Affine& newP, pl::UnitCrop& newC) {
+            pl::Affine L;
+            if (!pl::reorient(P, rotationFromVisualClockwise(angleDegrees),
+                              newWidth, newHeight, L))
+                return false;
+            newP = placeAt(L, 0.5, 0.5, QPointF(double(x) + newWidth / 2.0,
+                                                double(y) + newHeight / 2.0));
+            newC = C;  // GitHub #419: the crop moves and scales with the image
+            return true;
+        });
+}
+
+// ---------------------------------------------------------------------------
+// Rotate
+// ---------------------------------------------------------------------------
 bool ImageContentEditor::rotateImage(
     pdfe::core::Page* page, pdfe::core::Document* doc,
     const std::string& xobjectName,
@@ -221,81 +184,36 @@ bool ImageContentEditor::rotateImage(
     float centerX, float centerY,
     float displayWidth, float displayHeight)
 {
-    if (!page || !doc || xobjectName.empty()) {
-        return false;
-    }
-    // Editing an image rewrites the page content stream (removeFromContentStream
-    // orphans the old placement); force a full-rewrite save (pipeline b2e47d91,
-    // Tier 1).
-    doc->markRequiresFullRewrite();
-
-    bool success = false;
-
-    impl_->context->execute([&](fz_context* ctx) {
-        pdf_page* pdfPage = impl_->getPdfPage(page);
-        pdf_document* pdfDoc = impl_->getPdfDoc(doc);
-
-        if (!pdfPage || !pdfDoc) {
-            return;
-        }
-
-        // Remove the old image placement
-        impl_->removeFromContentStream(pdfDoc, pdfPage, xobjectName);
-
-        // GitHub #373: the rotation centre arrives in fitz Y-down; convert
-        // once to user space for the cm translations below.
-        float mbX0 = 0.0f, mbY1 = 0.0f;
-        impl_->pageBox(pdfPage, mbX0, mbY1);
-        const float userCx = mbX0 + centerX;
-        const float userCy = mbY1 - centerY;
-
-        // Convert to radians (negative for clockwise rotation in PDF coordinates).
-        // angleDegrees stays clockwise-positive VISUALLY (toolbar/command
-        // convention); a visually-clockwise turn is a NEGATIVE math angle in
-        // Y-up user space, hence the negation. The Y-down→Y-up conversion of
-        // the centre above does not alter this: the angle convention is
-        // defined visually, not in the input coordinate frame (GitHub #376).
-        float radians = -angleDegrees * static_cast<float>(M_PI) / 180.0f;
-        float cosTheta = std::cos(radians);
-        float sinTheta = std::sin(radians);
-
-        // Build new content stream with rotation
-        // Pattern: translate to center, rotate, translate back, apply size and position
-        // q 1 0 0 1 cx cy cm [cos sin -sin cos 0 0] cm 1 0 0 1 -cx -cy cm [w 0 0 h x y] cm /ImN Do Q\n
-        std::ostringstream oss;
-        oss << std::fixed << std::setprecision(4);
-        oss << "q ";
-
-        // Translate to center (user space)
-        oss << "1 0 0 1 " << userCx << " " << userCy << " cm ";
-
-        // Rotate
-        oss << cosTheta << " " << sinTheta << " " << (-sinTheta) << " " << cosTheta << " 0 0 cm ";
-
-        // Translate back
-        oss << "1 0 0 1 " << (-userCx) << " " << (-userCy) << " cm ";
-
-        // Apply size and position (position relative to rotation center)
-        float offsetX = userCx - displayWidth / 2.0f;
-        float offsetY = userCy - displayHeight / 2.0f;
-        oss << displayWidth << " 0 0 " << displayHeight << " " << offsetX << " " << offsetY << " cm ";
-
-        // Draw image
-        oss << "/" << xobjectName << " Do ";
-        oss << "Q\n";
-
-        std::string ops = oss.str();
-
-        // Append the new content stream
-        impl_->appendContentStream(pdfDoc, pdfPage, ops.c_str(), ops.length());
-
-        success = true;
-    });
-
-    return success;
+    return rotateImage(page, doc, PlacementId{xobjectName, 0}, angleDegrees,
+                       centerX, centerY, displayWidth, displayHeight);
 }
 
-// Crop image
+bool ImageContentEditor::rotateImage(
+    pdfe::core::Page* page, pdfe::core::Document* doc,
+    const PlacementId& placement,
+    float angleDegrees,
+    float centerX, float centerY,
+    float displayWidth, float displayHeight)
+{
+    if (!(displayWidth > 0.0f) || !(displayHeight > 0.0f)) return false;
+    // Rotation about the VISIBLE centre: the centre of the crop stays at
+    // (centerX, centerY), the crop and flips/skew are kept (GitHub #419/#424).
+    return impl_->edit(page, doc, placement,
+        [&](const pl::Affine& P, const pl::UnitCrop& C, pl::Affine& newP, pl::UnitCrop& newC) {
+            pl::Affine L;
+            if (!pl::reorient(P, rotationFromVisualClockwise(angleDegrees),
+                              displayWidth, displayHeight, L))
+                return false;
+            newP = placeAt(L, (C.u0 + C.u1) / 2.0, (C.v0 + C.v1) / 2.0,
+                           QPointF(centerX, centerY));
+            newC = C;
+            return true;
+        });
+}
+
+// ---------------------------------------------------------------------------
+// Crop
+// ---------------------------------------------------------------------------
 bool ImageContentEditor::cropImage(
     pdfe::core::Page* page, pdfe::core::Document* doc,
     const std::string& xobjectName,
@@ -303,66 +221,44 @@ bool ImageContentEditor::cropImage(
     float displayWidth, float displayHeight,
     float x, float y)
 {
-    if (!page || !doc || xobjectName.empty()) {
-        return false;
-    }
-    // Editing an image rewrites the page content stream (removeFromContentStream
-    // orphans the old placement); force a full-rewrite save (pipeline b2e47d91,
-    // Tier 1).
-    doc->markRequiresFullRewrite();
+    return cropImage(page, doc, PlacementId{xobjectName, 0}, cropRect,
+                     displayWidth, displayHeight, x, y);
+}
 
-    bool success = false;
-
-    impl_->context->execute([&](fz_context* ctx) {
-        pdf_page* pdfPage = impl_->getPdfPage(page);
-        pdf_document* pdfDoc = impl_->getPdfDoc(doc);
-
-        if (!pdfPage || !pdfDoc) {
-            return;
-        }
-
-        // Remove the old image placement
-        impl_->removeFromContentStream(pdfDoc, pdfPage, xobjectName);
-
-        // GitHub #373: cropRect and (x, y) arrive in fitz Y-down (rect given
-        // by its visual top-left); the `re` operator and the cm translation
-        // are user space (Y-up, box given by its bottom-left). Convert once.
-        float mbX0 = 0.0f, mbY1 = 0.0f;
-        impl_->pageBox(pdfPage, mbX0, mbY1);
-        const double clipX = mbX0 + cropRect.x();
-        const double clipY = mbY1 - cropRect.y() - cropRect.height();
-        const float cmE = mbX0 + x;
-        const float cmF = mbY1 - y - displayHeight;
-
-        // Build new content stream with clipping path
-        // Format: q [cropX cropY cropW cropH] re W n [w 0 0 h x y] cm /ImN Do Q\n
-        std::ostringstream oss;
-        oss << std::fixed << std::setprecision(4);
-        oss << "q ";
-
-        // Define clipping rectangle (user space)
-        oss << clipX << " " << clipY << " ";
-        oss << cropRect.width() << " " << cropRect.height() << " re ";
-
-        // Set clipping path (W = clip, n = end path without fill/stroke)
-        oss << "W n ";
-
-        // Apply image transformation
-        oss << displayWidth << " 0 0 " << displayHeight << " " << cmE << " " << cmF << " cm ";
-
-        // Draw image
-        oss << "/" << xobjectName << " Do ";
-        oss << "Q\n";
-
-        std::string ops = oss.str();
-
-        // Append the new content stream
-        impl_->appendContentStream(pdfDoc, pdfPage, ops.c_str(), ops.length());
-
-        success = true;
-    });
-
-    return success;
+bool ImageContentEditor::cropImage(
+    pdfe::core::Page* page, pdfe::core::Document* doc,
+    const PlacementId& placement,
+    QRectF cropRect,
+    float /*displayWidth*/, float /*displayHeight*/,
+    float /*x*/, float /*y*/)
+{
+    cropRect = cropRect.normalized();
+    if (cropRect.isEmpty()) return false;
+    // GitHub #417: the crop is taken in the image's own axes and stored in its
+    // unit square, inside the cm, so the placement matrix - and with it the
+    // rotation - is untouched.
+    return impl_->edit(page, doc, placement,
+        [&](const pl::Affine& P, const pl::UnitCrop& C, pl::Affine& newP, pl::UnitCrop& newC) {
+            pl::Affine Pinv;
+            if (!pl::invert(P, Pinv)) return false;
+            // The visible upright frame is the fitz frame turned by
+            // +rotationRadians about the visible centre; a point q of it is
+            // on the page at rotateAbout(q, centre, -rotationRadians) (Y-down
+            // math convention, GitHub #342/#376).
+            const pl::Decomposition dec = pl::decompose(P);
+            const QPointF centre = pl::visibleCentre(P, C);
+            double u0 = 1e300, v0 = 1e300, u1 = -1e300, v1 = -1e300;
+            for (const QPointF q : {cropRect.topLeft(), cropRect.topRight(),
+                                    cropRect.bottomLeft(), cropRect.bottomRight()}) {
+                const QPointF unit = Pinv.apply(pl::rotateAbout(q, centre, -dec.rotation));
+                u0 = std::min(u0, unit.x()); u1 = std::max(u1, unit.x());
+                v0 = std::min(v0, unit.y()); v1 = std::max(v1, unit.y());
+            }
+            // Crops compose: keep only what is visible now AND inside the rect.
+            newC = C.intersected(pl::UnitCrop{u0, v0, u1, v1}).clamped();
+            newP = P;
+            return !newC.isEmpty();
+        });
 }
 
 } // namespace pdfe::image
