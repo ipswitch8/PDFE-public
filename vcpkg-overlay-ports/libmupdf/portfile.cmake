@@ -25,6 +25,14 @@ vcpkg_from_github(
         # input and nothing about the build looks different. Bump procedure:
         # docs/security-policy.md -> "Dependency bump runbook (MuPDF / QPDF)".
         0002-pdfe-jbig2-decode-gate.patch
+        # PDFE GitHub #465: correctness fix (NOT security) -- draw_push_button in
+        # pdf-appearance.c passed 4 args to a 2-conversion fz_append_printf for
+        # its background fill, dropping w/h so push buttons rendered a blank
+        # interior. Drops the two spurious leading zeros. If it fails to apply on
+        # a MuPDF bump, re-base it (or drop it if upstream has fixed the
+        # argument count) -- losing it only reverts push buttons to blank, not a
+        # security regression.
+        0003-pdfe-pushbutton-fill.patch
 )
 file(COPY "${CMAKE_CURRENT_LIST_DIR}/CMakeLists.txt" DESTINATION "${SOURCE_PATH}")
 file(COPY "${CMAKE_CURRENT_LIST_DIR}/unofficial-libmupdf-config.cmake.in" DESTINATION "${SOURCE_PATH}")

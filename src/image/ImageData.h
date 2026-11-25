@@ -68,6 +68,11 @@ struct PageImageInfo {
                                  ///< Crop in the image's unit square [u0 v0 u1 v1]
                                  ///< (v = 0 is the image's bottom row as drawn); the
                                  ///< full square when not cropped.
+    QRectF pageClip;             ///< ui-tweaks phase-4: the bounds (rendered fitz frame)
+                                 ///< of a rect clip that encloses this placement alone -
+                                 ///< PDFE's clip-to-page wrapper, `q x y w h re W n
+                                 ///< <wrapper> Q` (ImagePlacementScanner.h). Nothing of the
+                                 ///< image is drawn outside it. Null when there is none.
     std::array<float, 6> pageCtm{};
                                  ///< The placement matrix: unit square -> RENDERED
                                  ///< fitz page frame (Y-down), row-vector [a b c d e f].

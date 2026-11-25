@@ -603,6 +603,100 @@ TEST_F(FormToolTest, StickyPlacement_DeactivateExitsCreationModeAndNotifies) {
         << "bug 10: the tool switch notifies the UI so the toolbar unchecks";
 }
 
+// User report (2026-11-22): "form fields are properly displayed when added now
+// but they cannot be edited (content cannot be entered!)". The sticky tool is
+// STILL ARMED after a placement, and onMousePress used to start a new rubber
+// band for every press in creation mode -- so clicking the field just placed
+// never reached startEditing(). This drives that exact sequence through the
+// tool: arm -> drag-place -> click the new field -> type -> click away.
+TEST_F(FormToolTest, StickyPlacement_ClickOnPlacedFieldEditsItWhileArmed) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+
+    tool->setCreationFieldType(pdfe::forms::FormFieldType::Text);
+    const QRectF rect(72, 72, 180, 30);
+    const int w = placeFieldViaDrag(tool.get(), manager.get(), page.get(), rect,
+                                    "StickyEditMe");
+    ASSERT_GE(w, 0) << "the drag must have created a field";
+    ASSERT_TRUE(tool->isCreationMode()) << "precondition: sticky tool still armed";
+
+    int idx = -1;
+    for (const auto& f : manager->getFormFields(page.get())) {
+        if (f.fieldName == "StickyEditMe") { idx = f.widgetIndex; break; }
+    }
+    ASSERT_GE(idx, 0);
+    const size_t fieldsAfterPlacement = manager->getFormFields(page.get()).size();
+
+    // From here on any fieldCreated call is a defect: count them (and stop the
+    // helper's by-reference lambda from outliving its frame).
+    int unexpectedCreates = 0;
+    tool->fieldCreated = [&](int, pdfe::forms::FormFieldType, QRectF) {
+        ++unexpectedCreates;
+    };
+
+    // Click (press + release, no drag) on the placed field.
+    const QPointF center = manager->getFormField(page.get(), idx).rect.center();
+    QMouseEvent press(QEvent::MouseButtonPress, QPointF(0, 0), QPointF(0, 0),
+                      Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMousePress(&press, 0, center);
+    QMouseEvent release(QEvent::MouseButtonRelease, QPointF(0, 0), QPointF(0, 0),
+                        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMouseRelease(&release, 0, center);
+
+    EXPECT_EQ(tool->selectedFieldIndex(), idx)
+        << "clicking the placed field must select it, not start a rubber band";
+    ASSERT_TRUE(tool->isEditingField())
+        << "clicking a placed text field while the tool is armed must enter editing";
+
+    for (char c : std::string("Hello")) {
+        QKeyEvent k(QEvent::KeyPress, 0, Qt::NoModifier, QString(QChar(c)));
+        tool->onKeyPress(&k);
+    }
+    EXPECT_EQ(tool->editBufferForTesting(), "Hello");
+
+    // Click away on empty page space: commits the value.
+    const QPointF empty(rect.left(), rect.bottom() + 200);
+    ASSERT_FALSE(manager->getFormFieldAt(page.get(), empty).has_value())
+        << "precondition: the click-away point is empty page space";
+    tool->onMousePress(&press, 0, empty);
+    tool->onMouseRelease(&release, 0, empty);
+
+    EXPECT_EQ(manager->getFormField(page.get(), idx).value, "Hello")
+        << "the typed text must be committed to the field";
+    EXPECT_FALSE(tool->isEditingField());
+    EXPECT_EQ(unexpectedCreates, 0) << "clicks (no drag) must not place fields";
+    EXPECT_EQ(manager->getFormFields(page.get()).size(), fieldsAfterPlacement);
+    EXPECT_TRUE(tool->isCreationMode())
+        << "editing a field does not disarm sticky placement";
+}
+
+// The other half: with the tool still armed, a DRAG on empty space after
+// editing a field still places a new field (sticky placement is intact).
+TEST_F(FormToolTest, StickyPlacement_DragOnEmptySpaceStillPlacesAfterEditing) {
+    ASSERT_NE(document, nullptr) << "test_form.pdf not loaded";
+
+    tool->setCreationFieldType(pdfe::forms::FormFieldType::Text);
+    ASSERT_GE(placeFieldViaDrag(tool.get(), manager.get(), page.get(),
+                                QRectF(72, 72, 180, 30), "StickyFirst"), 0);
+
+    // Edit the first field.
+    QMouseEvent press(QEvent::MouseButtonPress, QPointF(0, 0), QPointF(0, 0),
+                      Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    tool->onMousePress(&press, 0, QPointF(162, 87));
+    ASSERT_TRUE(tool->isEditingField());
+    QKeyEvent k(QEvent::KeyPress, 0, Qt::NoModifier, QStringLiteral("x"));
+    tool->onKeyPress(&k);
+
+    const size_t before = manager->getFormFields(page.get()).size();
+    const int w2 = placeFieldViaDrag(tool.get(), manager.get(), page.get(),
+                                     QRectF(72, 300, 180, 30), "StickySecond");
+    EXPECT_GE(w2, 0) << "a drag on empty space must still place a field";
+    EXPECT_EQ(manager->getFormFields(page.get()).size(), before + 1);
+    EXPECT_TRUE(tool->isCreationMode());
+    EXPECT_FALSE(tool->isEditingField())
+        << "starting a new placement commits the edit in progress";
+    tool->fieldCreated = nullptr;  // the helper's lambda captured its locals
+}
+
 // ============================================================================
 // form-field-bugs phase-6, bug-4 — a placed field cannot be re-edited or
 // deleted after content is added and focus leaves. Two independently-grounded

@@ -799,7 +799,10 @@ void PdfCanvas::paintEvent(QPaintEvent* event)
         // image (unscaled, un-translated). Deliberately NO scale(1,-1) — the
         // bboxes are already Y-down, and a flip would mirror the rotation
         // angle text the tool draws.
-        if (imageTool_) {
+        // Only on the page the tool is bound to: the overlay now draws the
+        // image's live pixels during a drag, and painting it on every visible
+        // page put a copy of the dragged image on each of them.
+        if (imageTool_ && imageTool_->pageIndex() == layout.pageIndex) {
             painter.save();
             painter.translate(tileOriginX, tileOriginY);
             painter.scale(zoomLevel_, zoomLevel_);
@@ -1290,6 +1293,18 @@ void PdfCanvas::mousePressEvent(QMouseEvent* event)
     if (imageTool_ && event->button() == Qt::LeftButton) {
         int docY = scrollOffset_.y() + event->pos().y();
         int pageIdx = findPageAtY(docY);
+        if (pageIdx >= 0 && pageIdx < document_->pageCount() &&
+            pageIdx != imageTool_->pageIndex()) {
+            // ui-tweaks-2 phase-2: the tool holds ONE page's images and
+            // hit-tests page-local points against them. A press on another
+            // page used to be hit-tested against them anyway, so a press on
+            // page Q picked up the image of page P that sits at the same
+            // page-local spot. A press elsewhere is "outside any image".
+            imageTool_->deselect();
+            update();
+            event->accept();
+            return;
+        }
         if (pageIdx >= 0 && pageIdx < document_->pageCount()) {
             const auto& layout = pageLayouts_[pageIdx];
             int pageLeft = (width() - layout.widthPx) / 2;
@@ -1477,11 +1492,16 @@ void PdfCanvas::mouseMoveEvent(QMouseEvent* event)
         }
     }
 
-    // Image tool dispatch (third path)
+    // Image tool dispatch (third path). Measured on the TOOL's page, not
+    // the page under the pointer (ui-tweaks-2 phase-2): a drag that started
+    // on the tool's page and crosses onto the next page (or the gap between
+    // pages) is still a drag on the tool's page. Mapping it into the other
+    // page's coordinates turned a drag down past the bottom edge into a drag
+    // up, and the gap between pages dropped the release entirely.
     if (imageTool_) {
-        int docY = scrollOffset_.y() + event->pos().y();
-        int pageIdx = findPageAtY(docY);
-        if (pageIdx >= 0 && pageIdx < document_->pageCount()) {
+        const int pageIdx = imageTool_->pageIndex();
+        if (pageIdx >= 0 && pageIdx < document_->pageCount() &&
+            pageIdx < static_cast<int>(pageLayouts_.size())) {
             const auto& layout = pageLayouts_[pageIdx];
             int pageLeft = (width() - layout.widthPx) / 2;
             int pageTop = layout.yOffset - scrollOffset_.y();
@@ -1577,11 +1597,16 @@ void PdfCanvas::mouseReleaseEvent(QMouseEvent* event)
         }
     }
 
-    // Image tool dispatch (third path)
+    // Image tool dispatch (third path). Measured on the TOOL's page, not
+    // the page under the pointer (ui-tweaks-2 phase-2): a drag that started
+    // on the tool's page and crosses onto the next page (or the gap between
+    // pages) is still a drag on the tool's page. Mapping it into the other
+    // page's coordinates turned a drag down past the bottom edge into a drag
+    // up, and the gap between pages dropped the release entirely.
     if (imageTool_) {
-        int docY = scrollOffset_.y() + event->pos().y();
-        int pageIdx = findPageAtY(docY);
-        if (pageIdx >= 0 && pageIdx < document_->pageCount()) {
+        const int pageIdx = imageTool_->pageIndex();
+        if (pageIdx >= 0 && pageIdx < document_->pageCount() &&
+            pageIdx < static_cast<int>(pageLayouts_.size())) {
             const auto& layout = pageLayouts_[pageIdx];
             int pageLeft = (width() - layout.widthPx) / 2;
             int pageTop = layout.yOffset - scrollOffset_.y();
@@ -1651,6 +1676,33 @@ void PdfCanvas::mouseDoubleClickEvent(QMouseEvent* event)
                 event->pos(), zoomLevel_, pageOrigin, pageHeightPt);
 
             textEditTool_->onMouseDoubleClick(event, pageIdx, pdfPoint);
+            update();
+            event->accept();
+            return;
+        }
+    }
+
+    // Image tool, in the same order as the press dispatch. ui-tweaks-3
+    // phase-1: a double-click is the deliberate way to pick up a page-covering
+    // image (ImageTool::mouseDoubleClickEvent). Before this it fell through to
+    // QWidget's default, a second press. As for the press, only the tool's own
+    // page reaches it; elsewhere it is "outside any image" and deselects.
+    if (imageTool_ && event->button() == Qt::LeftButton && document_) {
+        int docY = scrollOffset_.y() + event->pos().y();
+        int pageIdx = findPageAtY(docY);
+        if (pageIdx >= 0 && pageIdx < document_->pageCount()) {
+            if (pageIdx != imageTool_->pageIndex()) {
+                imageTool_->deselect();
+            } else {
+                const auto& layout = pageLayouts_[pageIdx];
+                int pageLeft = (width() - layout.widthPx) / 2;
+                int pageTop = layout.yOffset - scrollOffset_.y();
+                auto pageInfo = document_->pageInfo(pageIdx);
+                QPointF pageOrigin(pageLeft, pageTop);
+                QPointF pdfPoint = pdfe::core::CoordinateTransform::screenToPdf(
+                    event->pos(), zoomLevel_, pageOrigin, pageInfo.heightPt);
+                imageTool_->mouseDoubleClickEvent(event, pdfPoint, zoomLevel_);
+            }
             update();
             event->accept();
             return;
@@ -1805,8 +1857,37 @@ void PdfCanvas::contextMenuEvent(QContextMenuEvent* event)
     event->accept();
 }
 
+bool PdfCanvas::claimsDeleteShortcut(const QKeyEvent* ke, bool canvasWantsDelete)
+{
+    if (!ke || !canvasWantsDelete) return false;
+    if (ke->key() != Qt::Key_Delete && ke->key() != Qt::Key_Backspace) return false;
+    // Bare key only: Shift+Del (Cut on some platforms), Ctrl+Backspace and the
+    // like stay with whatever shortcut owns them.
+    return (ke->modifiers() & ~Qt::KeypadModifier) == Qt::NoModifier;
+}
+
+bool PdfCanvas::wantsDeleteKey() const
+{
+    if (textEditTool_ && textEditTool_->isEditing()) return true;
+    if (imageTool_ && imageTool_->hasSelection()) return true;
+    if (currentTool_ && currentTool_->wantsDeleteKey()) return true;
+    return false;
+}
+
 bool PdfCanvas::event(QEvent* event)
 {
+    // ui-tweaks-2 phase-3: claim Del for the tool that has something to delete
+    // (see the header comment on wantsDeleteKey). Accepting the override is
+    // what stops deletePageAction's window shortcut; Qt then delivers the
+    // KeyPress to keyPressEvent(). Not claimed -> the shortcut runs as before.
+    if (event->type() == QEvent::ShortcutOverride) {
+        auto* ke = static_cast<QKeyEvent*>(event);
+        if (claimsDeleteShortcut(ke, wantsDeleteKey())) {
+            ke->accept();
+            return true;
+        }
+    }
+
     // Intercept Tab/Shift+Tab so they reach keyPressEvent() instead of
     // being consumed by Qt's focus-chain navigation.
     if (event->type() == QEvent::KeyPress) {
@@ -1820,6 +1901,19 @@ bool PdfCanvas::event(QEvent* event)
     if (event->type() == QEvent::ScreenChangeInternal ||
         event->type() == QEvent::WindowChangeInternal) {
         updateDevicePixelRatio();
+    }
+
+    // Image tool tooltip: the part of a selected image that hangs off its page
+    // will be cropped on save. Checked first and against the tool's own page,
+    // because that excess lies outside the page, where the per-page lookup
+    // below may resolve a different page or none.
+    if (event->type() == QEvent::ToolTip && document_ && imageTool_) {
+        auto* helpEvent = static_cast<QHelpEvent*>(event);
+        const QString tipText = imageToolTooltipAt(helpEvent->pos());
+        if (!tipText.isEmpty()) {
+            QToolTip::showText(helpEvent->globalPos(), tipText, this);
+            return true;
+        }
     }
 
     // Tooltip for annotation hover
@@ -2037,6 +2131,27 @@ void PdfCanvas::setDevicePixelRatioForTest(float dpr)
     }
     requestVisibleTiles();
     update();
+}
+
+QString PdfCanvas::imageToolTooltipAt(QPoint widgetPos) const
+{
+    if (!document_ || !imageTool_) {
+        return QString();
+    }
+    const int pageIdx = imageTool_->pageIndex();
+    if (pageIdx < 0 || pageIdx >= document_->pageCount()) {
+        return QString();
+    }
+    QPoint origin;
+    int widthPx = 0;
+    int heightPx = 0;
+    if (!getPageScreenRect(pageIdx, origin, widthPx, heightPx)) {
+        return QString();
+    }
+    const auto pageInfo = document_->pageInfo(pageIdx);
+    const QPointF pdfPoint = pdfe::core::CoordinateTransform::screenToPdf(
+        QPointF(widgetPos), zoomLevel_, QPointF(origin), pageInfo.heightPt);
+    return imageTool_->tooltipAt(pdfPoint);
 }
 
 bool PdfCanvas::getPageScreenRect(int pageIndex, QPoint& pageOrigin, int& widthPx, int& heightPx) const

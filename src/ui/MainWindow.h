@@ -1261,6 +1261,7 @@ private slots:
     void onImageRotate270();
     void onImageCrop();
     void onImageResize();
+    void onImageSelectBackground();
     /// Image Properties panel > Extract: save the selected image's pixels to
     /// a file (save dialog, or the test seam's queued path).
     void onImageExtract();
@@ -1648,10 +1649,6 @@ private:
     QAction* rotatePageCCWAction_ = nullptr;
     QAction* rotatePage180Action_ = nullptr;
     QAction* deletePageAction_ = nullptr;
-    /// Cached enabled state of @ref deletePageAction_ while a text edit
-    /// session has the action temporarily disabled (so the Delete key
-    /// forward-deletes characters instead of triggering page deletion).
-    bool deletePageActionWasEnabled_ = false;
     QAction* insertBlankPageAction_ = nullptr;
     QAction* insertPagesFromFileAction_ = nullptr;
     QAction* extractPagesAction_ = nullptr;
@@ -2472,6 +2469,7 @@ private:
     QAction* imageRotate270Action_ = nullptr;  ///< relative three-quarter turn (GitHub #432)
     QAction* imageCropAction_ = nullptr;
     QAction* imageResizeAction_ = nullptr;
+    QAction* imageSelectBackgroundAction_ = nullptr;
 
     // docs/image-placement-model.md, "Image actions in the UI" (GitHub
     // #422/#423/#431/#432). Every helper reads the selected placement back
@@ -2489,6 +2487,28 @@ private:
     /// Re-read the image tool (and so the properties panel) from the page
     /// after an edit, reselecting the placement @p name / @p occurrence.
     void resyncImageToolAfterEdit(int pageIdx, const std::string& name, int occurrence);
+    /// The active image tool's page and selected placement (empty name = no
+    /// selection), taken before a save so the tool can be re-pointed at the
+    /// freshly-resolved page afterwards. std::nullopt when the image tool is
+    /// not the canvas's active tool or has no page.
+    struct ImageToolSaveState {
+        int pageIdx = -1;
+        std::string name;
+        int occurrence = 0;
+    };
+    std::optional<ImageToolSaveState> imageToolStateForSave() const;
+    /// Re-point the image tool at the post-save page (the save drops the Page
+    /// it held) and reselect its placement.
+    void rebindImageToolAfterSave(const std::optional<ImageToolSaveState>& state);
+    /// SAVE-TIME CROP (ui-tweaks phase-4). Crops, and where a crop cannot do
+    /// it clips, every editable placed image that hangs off its page so the
+    /// saved file draws no image content outside the page box
+    /// (pdfe::image::pageOverflowCropRect / pageClipNeeded have the geometry).
+    /// Each step is an ordinary undoable command. Does nothing on a document
+    /// with digital signatures. Returns the number of edits made. Called before
+    /// the write by onSaveFile / onSaveAsFile (and the Save As test pipe that
+    /// mirrors it), the redaction save, and the pre-sign Save As.
+    int cropImagesOverflowingPagesForSave();
     /// Enable the image edit actions for @p info (nullptr = no selection); a
     /// placement inside a Form XObject is not editable, so they are disabled.
     void updateImageActionsFor(const pdfe::image::PageImageInfo* info);

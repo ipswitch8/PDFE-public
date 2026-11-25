@@ -292,6 +292,7 @@ add_executable(pdfe_tests
     test_coordinate_transform.cpp
     test_undo_manager.cpp
     test_undo_fallthrough_filter.cpp   # GitHub #295
+    test_delete_key_routing.cpp        # ui-tweaks-2 phase-3: Del acts on the selection first
     test_test_pipe_focus_guard.cpp     # GitHub #303
     test_freetype_fallback_saved_document.cpp   # GitHub #302
     test_text_extraction.cpp
@@ -683,6 +684,13 @@ add_executable(pdfe_tests
     # GitHub #340/#341/#342 — interactive image move, rotate-direction, and
     # rotated-handle hit-test (see docs/audit/ui-image-stamp-interaction-investigation.md).
     test_image_tool_interaction.cpp
+    test_image_live_preview.cpp   # live pixels during move/resize/rotate
+    test_image_page_bounds.cpp    # page clamp, red overflow, crop-on-save tooltip
+    test_image_save_crop.cpp      # save crops images that hang off their page
+    test_image_mediabox_bounds.cpp # ui-tweaks-2: the image page box is the MediaBox
+    test_image_scan_background.cpp # ui-tweaks-2: a click never picks up the page's scan
+    test_image_background_select.cpp # ui-tweaks-3: double-click / Image menu select a page-covering image
+    test_page_render_single_raster.cpp # ui-tweaks-3: Page::render draws one raster, byte-identical to MuPDF
     # GitHub #391 (BUG 2) — placed-image rotation handle: arbitrary (unsnapped)
     # angle, additive second-drag (absolute = base + delta, not ~180), and the
     # selection-outline re-sync after a committed rotate.

@@ -7,6 +7,8 @@
 #include "Error.h"
 
 #include <algorithm>
+#include <atomic>
+#include <limits>
 
 #include <mupdf/fitz.h>
 #include <mupdf/pdf.h>
@@ -75,59 +77,85 @@ Page::Page(Page&&) noexcept = default;
 
 Page& Page::operator=(Page&&) noexcept = default;
 
+namespace {
+// Page::failNextRenderForTest (test seam): one-shot, consumed by the next render.
+std::atomic<bool> g_failNextRender{false};
+}  // namespace
+
+void Page::failNextRenderForTest()
+{
+    g_failNextRender.store(true);
+}
+
 QImage Page::render(const QRectF& region, float scale) {
     (void)region;
 
-    // Rasterize to a pixmap in a MINIMAL pure-C lambda: a single fz call whose
-    // only outcome is either "returns the pixmap" or "fz_throws and returns
-    // nothing" — it cannot leak (R2-05).
-    fz_pixmap* pixmap = pImpl->context->executeReturn<fz_pixmap*>(
-        [this, scale](fz_context* ctx) -> fz_pixmap* {
-            fz_matrix transform = fz_scale(scale, scale);
-            fz_colorspace* colorspace = fz_device_rgb(ctx);
-            return fz_new_pixmap_from_page(
-                ctx,
-                pImpl->fzPage,
-                transform,
-                colorspace,
-                1  // alpha = 1 (include alpha channel)
-            );
-        }
-    );
-    if (!pixmap) {
+    // ONE raster (ui-tweaks-3 phase-2). MuPDF draws straight into the QImage
+    // the caller gets. This used to be fz_new_pixmap_from_page followed by a
+    // second, same-sized QImage and a row-by-row copy while the pixmap was
+    // still alive: twice the memory at the peak (2 x 3.09 GB for a 200 x 200 in
+    // sheet at scale 2), and a copy loop whose `samples + y * stride` was an
+    // int * int that overflows from row 18642 of a 28800-pixel-wide raster.
+    //
+    // The steps are fz_new_pixmap_from_page_with_separations' own (MuPDF 1.26,
+    // source/fitz/util.c): bound the page, transform by the ctm, round to the
+    // integer bbox, clear to transparent (alpha = 1), draw device with the same
+    // ctm, run the page, close the device. The only difference is who owns the
+    // samples: fz_new_pixmap_with_bbox_and_data wraps the QImage's buffer
+    // (Format_RGBA8888 is MuPDF's RGB + alpha byte order, and its bytesPerLine
+    // is w * 4, the stride MuPDF computes for that pixmap), so the result is
+    // byte-identical to what the copy produced.
+    const fz_matrix ctm = fz_scale(scale, scale);
+    const fz_irect bbox = pImpl->context->executeReturn<fz_irect>(
+        [this, ctm](fz_context* ctx) -> fz_irect {
+            return fz_round_rect(fz_transform_rect(fz_bound_page(ctx, pImpl->fzPage), ctm));
+        });
+    const qint64 w = qint64(bbox.x1) - qint64(bbox.x0);
+    const qint64 h = qint64(bbox.y1) - qint64(bbox.y0);
+    if (w <= 0 || h <= 0 || w > std::numeric_limits<int>::max() / 4 ||
+        h > std::numeric_limits<int>::max()) {
         return QImage();
     }
 
-    // RAII guard so the pixmap is dropped on EVERY path out of here — including
-    // if the QImage allocation/copy below throws (R2-05 defense-in-depth). This
-    // is pure C++ OUTSIDE any fz_try; the old single-lambda version held the
-    // live pixmap through this C++ work with no drop guard, so a throw here
-    // leaked it.
-    struct PixmapGuard {
-        MuPdfContext* ctx;
-        fz_pixmap* p;
-        ~PixmapGuard() {
-            if (p) {
-                ctx->execute([q = p](fz_context* c) { fz_drop_pixmap(c, q); });
-            }
-        }
-    } guard{pImpl->context.get(), pixmap};
-
-    // Convert pixmap -> QImage. MuPDF pixmap format is RGBA when alpha=1; the
-    // stride may include padding, so copy row by row. No MuPDF call here can
-    // fz_throw.
-    const int width = pixmap->w;
-    const int height = pixmap->h;
-    const int stride = pixmap->stride;
-    const unsigned char* samples = pixmap->samples;
-
-    QImage image(width, height, QImage::Format_RGBA8888);
-    for (int y = 0; y < height; ++y) {
-        const unsigned char* srcLine = samples + y * stride;
-        unsigned char* dstLine = image.scanLine(y);
-        memcpy(dstLine, srcLine, static_cast<size_t>(width) * 4);  // 4 bytes/pixel
+    // A raster too large to allocate is a null image (QImage reports it).
+    QImage image(static_cast<int>(w), static_cast<int>(h), QImage::Format_RGBA8888);
+    if (image.isNull() || image.bytesPerLine() != w * 4) {
+        return QImage();
     }
+    unsigned char* samples = image.bits();
+    const bool injectFault = g_failNextRender.exchange(false);
 
+    // A MuPDF error propagates as MuPdfException (MuPdfContext::execute), as it
+    // did before. The pixmap header (which does not own the samples) and the
+    // device are dropped on every path; `image` is ordinary C++ outside the
+    // fz_try and is released by unwinding.
+    pImpl->context->execute([this, ctm, bbox, samples, injectFault](fz_context* ctx) {
+        fz_pixmap* pix = nullptr;
+        fz_device* dev = nullptr;
+        fz_var(pix);
+        fz_var(dev);
+        fz_try(ctx)
+        {
+            pix = fz_new_pixmap_with_bbox_and_data(ctx, fz_device_rgb(ctx), bbox, nullptr, 1,
+                                                   samples);
+            fz_clear_pixmap(ctx, pix);
+            dev = fz_new_draw_device(ctx, ctm, pix);
+            if (injectFault) {
+                fz_throw(ctx, FZ_ERROR_GENERIC, "Page::render: injected fault (test seam)");
+            }
+            fz_run_page(ctx, pImpl->fzPage, dev, fz_identity, nullptr);
+            fz_close_device(ctx, dev);
+        }
+        fz_always(ctx)
+        {
+            fz_drop_device(ctx, dev);
+            fz_drop_pixmap(ctx, pix);
+        }
+        fz_catch(ctx)
+        {
+            fz_rethrow(ctx);
+        }
+    });
     return image;
 }
 
@@ -141,6 +169,36 @@ QRectF Page::boundingBox() const {
                 bounds.x1 - bounds.x0,
                 bounds.y1 - bounds.y0
             );
+        }
+    );
+}
+
+QRectF Page::mediaBox() const {
+    if (!pImpl->pdfPage) {
+        return boundingBox();
+    }
+    return pImpl->context->executeReturn<QRectF>(
+        [this](fz_context* ctx) -> QRectF {
+            // The ctm fz_bound_page uses (the CropBox frame). Not
+            // fz_bound_page_box(FZ_MEDIA_BOX): that maps the MediaBox by a ctm
+            // translated to the MediaBox's own origin, a different space from
+            // boundingBox() whenever the CropBox origin differs.
+            fz_rect cropFrame;
+            fz_matrix ctm;
+            pdf_page_transform(ctx, pImpl->pdfPage, &cropFrame, &ctm);
+            const fz_rect m = pdf_to_rect(
+                ctx, pdf_dict_get_inheritable(ctx, pImpl->pdfPage->obj, PDF_NAME(MediaBox)));
+            // Normalised as pdf_page_obj_transform_box does; a box MuPDF would
+            // replace with its default falls back to what it renders.
+            const float x0 = fz_min(m.x0, m.x1), x1 = fz_max(m.x0, m.x1);
+            const float y0 = fz_min(m.y0, m.y1), y1 = fz_max(m.y0, m.y1);
+            fz_rect r;
+            if (x1 - x0 < 1 || y1 - y0 < 1) {
+                r = fz_bound_page(ctx, pImpl->fzPage);
+            } else {
+                r = fz_transform_rect(fz_make_rect(x0, y0, x1, y1), ctm);
+            }
+            return QRectF(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
         }
     );
 }

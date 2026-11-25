@@ -152,6 +152,16 @@ public:
         }
     }
 
+    /// ui-tweaks-2 phase-3: true when this tool has something of its own that
+    /// Delete / Backspace act on RIGHT NOW (a selected object, a field being
+    /// typed into). PdfCanvas asks this while answering QEvent::ShortcutOverride
+    /// for Del: claiming the key stops the window's "Delete Selected Pages"
+    /// shortcut (deletePageAction, QKeySequence::Delete) from taking it, so the
+    /// KeyPress reaches onKeyPress() instead. Must be true ONLY when onKeyPress
+    /// would act on Delete -- a tool that claims the key and then ignores it
+    /// leaves Del dead. Default: nothing to delete.
+    [[nodiscard]] virtual bool wantsDeleteKey() const { return false; }
+
     /// Handle mouse double-click event.
     virtual void onMouseDoubleClick(QMouseEvent* event, int pageIndex, QPointF pdfPoint) {
         (void)event; (void)pageIndex; (void)pdfPoint;

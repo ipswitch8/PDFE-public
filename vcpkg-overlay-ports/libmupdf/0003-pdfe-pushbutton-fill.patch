@@ -1,0 +1,22 @@
+PDFE GitHub #465: fix the push-button background fill in draw_push_button.
+
+Upstream MuPDF 1.26.10 passes four arguments to a two-conversion
+fz_append_printf format for the push-button background fill:
+    fz_append_printf(ctx, buf, "0 0 %g %g re\nf\n", 0, 0, w, h);
+so the two %g consume the leading 0, 0 and the width/height are dropped --
+the fill becomes a degenerate 0 0 0 0 re and the button interior is never
+painted. draw_check_button and the Tx/Ch fills in the same file use the
+correct two-argument form. Drop the two spurious leading zeros so the push
+button fills its box like every other widget.
+
+--- a/source/pdf/pdf-appearance.c
++++ b/source/pdf/pdf-appearance.c
+@@ -3070,7 +3070,7 @@
+ 		if (has_bg)
+ 		{
+ 			fz_append_printf(ctx, buf, "%g %g %g rg\n", bg[0], bg[1], bg[2]);
+-			fz_append_printf(ctx, buf, "0 0 %g %g re\nf\n", 0, 0, w, h);
++			fz_append_printf(ctx, buf, "0 0 %g %g re\nf\n", w, h);
+ 		}
+ 		if (has_bc && b > 0)
+ 		{

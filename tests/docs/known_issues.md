@@ -2931,7 +2931,15 @@ creation-mode exit fire) or opt in with `,interaction`:
 has already been migrated to the real flow (toolbar arm -> drag-create -> #369
 exit -> click) and now also covers the #369 regression shape.
 
-## PDFE-LIMITATION-PUSHBUTTON-APPEARANCE (2026-11-20; tracked as GitHub #465)
+## PDFE-LIMITATION-PUSHBUTTON-APPEARANCE - RESOLVED (GitHub #465, vcpkg overlay patch 0003, 2026-11-22)
+
+> **RESOLVED 2026-11-22.** Fixed in the vendored MuPDF overlay port with
+> `vcpkg-overlay-ports/libmupdf/0003-pdfe-pushbutton-fill.patch` (drop the two
+> spurious leading `0, 0` args from `draw_push_button`'s `fz_append_printf`
+> background fill so width/height are no longer discarded). After a `--fresh`
+> libmupdf rebuild, all four PushButton cases below (and the whole
+> `FormFieldVisibilityModel/PushButton` suite, 6/6) pass — the interior is
+> shaded. This evidence record is retained; the entry is no longer open.
 
 Four parameterized `FormFieldVisibilityModel` cases for the **PushButton** field
 type fail because a push-button widget renders with an unpainted (blank)

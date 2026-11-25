@@ -196,4 +196,39 @@ private:
     bool failed_ = false;
 };
 
+/// Command to clip an image placement to its page (undoable; ui-tweaks
+/// phase-4). ImageContentEditor::clipImageToPage; undo restores the page
+/// content exactly as CropImageCommand does.
+class ClipImageToPageCommand : public pdfe::commands::Command {
+public:
+    ClipImageToPageCommand(
+        ImageManager* manager,
+        ImageContentEditor* editor,
+        pdfe::core::Page* page,
+        pdfe::core::Document* doc,
+        const std::string& xobjectName,
+        int occurrence);
+    ~ClipImageToPageCommand() override;
+
+    void execute() override;
+    void undo() override;
+    [[nodiscard]] std::string description() const override;
+    [[nodiscard]] int pageIndex() const override;
+    void rebindPage(pdfe::core::Page* page) override;
+    /// The editor refused (already clipped, Form XObject, ...): nothing
+    /// changed and UndoManager stacks no entry.
+    [[nodiscard]] bool failed() const override { return failed_; }
+
+private:
+    ImageManager* manager_;
+    ImageContentEditor* editor_;
+    pdfe::core::Page* page_;
+    pdfe::core::Document* doc_;
+    std::string xobjectName_;
+    int occurrence_ = 0;
+    void* savedContentsRef_ = nullptr;
+    bool executed_ = false;
+    bool failed_ = false;
+};
+
 } // namespace pdfe::image

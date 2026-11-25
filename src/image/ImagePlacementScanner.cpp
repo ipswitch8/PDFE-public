@@ -387,6 +387,20 @@ struct Scanner {
         auto is = [&](std::size_t i, OpCode c, int stream) {
             return i < ops.size() && ops[i].code == c && ops[i].stream == stream;
         };
+        // A PDFE wrapper (ops[first..last]) alone inside `q x y w h re W n ... Q`
+        // (rewriteSiteInClip's shape): record the clip and its byte range.
+        auto detectClip = [&](DoSite& site, std::size_t first, std::size_t last) {
+            const int st = ops[first].stream;
+            if (first < 4 || !is(first - 4, OpCode::q, st) || !is(first - 3, OpCode::re, st) ||
+                !is(first - 2, OpCode::W, st) || !is(first - 1, OpCode::n, st) ||
+                !is(last + 1, OpCode::Q, st))
+                return;
+            site.enclosingClip = true;
+            for (int k = 0; k < 4; ++k) site.clipRect[k] = ops[first - 3].v[k];
+            site.clipCtm = ops[first - 3].ctmBefore;
+            site.clipStart = ops[first - 4].start;
+            site.clipEnd = ops[last + 1].end;
+        };
         for (const auto& [siteIdx, i] : s.sites) {
             DoSite& site = (*out)[siteIdx];
             const int st = ops[i].stream;
@@ -397,6 +411,7 @@ struct Scanner {
                 site.ctmOuter = ops[i - 2].ctmBefore;
                 site.replaceStart = ops[i - 2].start;
                 site.replaceEnd = ops[i + 1].end;
+                detectClip(site, i - 2, i + 1);
                 continue;
             }
             if (i < 5 || !is(i - 5, OpCode::q, st)) continue;
@@ -412,6 +427,7 @@ struct Scanner {
                 site.ctmOuter = ops[i - 5].ctmBefore;
                 site.replaceStart = ops[i - 5].start;
                 site.replaceEnd = ops[i + 1].end;
+                detectClip(site, i - 5, i + 1);
                 continue;
             }
             // Legacy: q x y w h re W n M cm /Name Do Q (clip in the outer
@@ -502,9 +518,12 @@ std::vector<DoSite> scanPage(fz_context* ctx, pdf_page* page, bool recurseForms)
     return out;
 }
 
-bool rewriteSite(fz_context* ctx, pdf_document* doc, pdf_page* page,
-                 const DoSite& site, const Affine& placement, const UnitCrop& crop) {
-    if (site.formDepth != 0 || site.stream < 0) return false;
+namespace {
+
+// The PDFE wrapper drawing `site` at user-space matrix `placement` with
+// `crop`, given the CTM where the wrapper sits. False for degenerate geometry.
+bool wrapperText(const DoSite& site, const Affine& placement, const UnitCrop& crop,
+                 std::string& wrapper) {
     Affine outerInv;
     if (!invert(site.ctmOuter, outerInv)) return false;
     // cm pre-multiplies: CTM_at_Do = F x CTM_outer, so F = placement x CTM_outer^-1.
@@ -514,7 +533,7 @@ bool rewriteSite(fz_context* ctx, pdf_document* doc, pdf_page* page,
         std::abs(F.det()) < 1e-12)
         return false;
 
-    std::string wrapper = "q " + formatNumber(F.a) + " " + formatNumber(F.b) + " " +
+    wrapper = "q " + formatNumber(F.a) + " " + formatNumber(F.b) + " " +
                           formatNumber(F.c) + " " + formatNumber(F.d) + " " +
                           formatNumber(F.e) + " " + formatNumber(F.f) + " cm ";
     if (!crop.isFull()) {
@@ -523,11 +542,43 @@ bool rewriteSite(fz_context* ctx, pdf_document* doc, pdf_page* page,
                    " re W n ";
     }
     wrapper += "/" + site.name + " Do Q";
+    return true;
+}
+
+} // namespace
+
+bool rewriteSite(fz_context* ctx, pdf_document* doc, pdf_page* page,
+                 const DoSite& site, const Affine& placement, const UnitCrop& crop) {
+    if (site.formDepth != 0 || site.stream < 0) return false;
+    std::string wrapper;
+    if (!wrapperText(site, placement, crop, wrapper)) return false;
     return spliceSite(ctx, doc, page, site, wrapper);
+}
+
+bool rewriteSiteInClip(fz_context* ctx, pdf_document* doc, pdf_page* page,
+                       const DoSite& site, const Affine& placement, const UnitCrop& crop,
+                       const double clipRe[4]) {
+    if (site.formDepth != 0 || site.stream < 0 || site.enclosingClip) return false;
+    for (int k = 0; k < 4; ++k)
+        if (!std::isfinite(clipRe[k])) return false;
+    if (!(clipRe[2] > 0) || !(clipRe[3] > 0)) return false;
+    std::string wrapper;
+    if (!wrapperText(site, placement, crop, wrapper)) return false;
+    const std::string clipped = "q " + formatNumber(clipRe[0]) + " " + formatNumber(clipRe[1]) +
+                                " " + formatNumber(clipRe[2]) + " " + formatNumber(clipRe[3]) +
+                                " re W n " + wrapper + " Q";
+    return spliceSite(ctx, doc, page, site, clipped);
 }
 
 bool removeSite(fz_context* ctx, pdf_document* doc, pdf_page* page, const DoSite& site) {
     if (site.formDepth != 0 || site.stream < 0) return false;
+    if (site.enclosingClip) {
+        // The clip wrapper exists only for this placement: take it along.
+        DoSite whole = site;
+        whole.replaceStart = site.clipStart;
+        whole.replaceEnd = site.clipEnd;
+        return spliceSite(ctx, doc, page, whole, std::string());
+    }
     return spliceSite(ctx, doc, page, site, std::string());
 }
 

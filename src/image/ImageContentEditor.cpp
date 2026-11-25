@@ -10,6 +10,7 @@
 #include <mupdf/fitz.h>
 #include <mupdf/pdf.h>
 
+#include <algorithm>
 #include <cmath>
 #include <exception>
 #include <functional>
@@ -72,8 +73,13 @@ public:
 
     // Find the targeted Do, hand its current geometry to `fn`, and splice the
     // new wrapper in place of the old Do (or of the PDFE wrapper around it).
+    //
+    // With clipToPage, the new wrapper is written inside a clip to the page
+    // rect (pl::rewriteSiteInClip) - refused when the placement already has
+    // an enclosing clip, or when the page rect is not an axis-aligned rect in
+    // the space where the wrapper sits (an enclosing third-party rotation).
     bool edit(pdfe::core::Page* page, pdfe::core::Document* doc,
-              const PlacementId& id, const EditFn& fn)
+              const PlacementId& id, const EditFn& fn, bool clipToPage = false)
     {
         if (!page || !doc || id.xobjectName.empty() || id.occurrence < 0) return false;
         bool success = false;
@@ -81,6 +87,11 @@ public:
         // MuPdfContext::execute's fz_try, and a longjmp skips the destructors
         // of its locals (tools/gate/fz_try_raii_scan.py).
         std::vector<pl::DoSite> sites;
+        // The clip rect: Page::mediaBox (ui-tweaks-2 phase-1), the page box
+        // the image tool and the save-time crop use. Read before execute():
+        // Page's accessors take the context themselves.
+        const QRectF pageBox = clipToPage ? page->mediaBox() : QRectF();
+        if (clipToPage && pageBox.isEmpty()) return false;
         try {
             context->execute([&](fz_context* ctx) {
                 pdf_page* pdfPage = getPdfPage(page);
@@ -113,8 +124,36 @@ public:
                 if (!fn(P, target->crop, newP, newC)) return;
                 if (newC.isEmpty()) return;
 
-                success = pl::rewriteSite(ctx, pdfDoc, pdfPage, *target,
-                                          pl::concat(newP, pageInv), newC);
+                if (!clipToPage) {
+                    success = pl::rewriteSite(ctx, pdfDoc, pdfPage, *target,
+                                              pl::concat(newP, pageInv), newC);
+                    return;
+                }
+                if (target->enclosingClip) return;  // clips never stack
+                // The page box (Page::mediaBox, in the rendered fitz frame of
+                // Page::boundingBox) in the space of the CTM where the wrapper
+                // sits.
+                pl::Affine outerInv;
+                if (!pl::invert(target->ctmOuter, outerInv)) return;
+                const pl::Affine toLocal = pl::concat(pageInv, outerInv);
+                const fz_rect b{float(pageBox.left()), float(pageBox.top()),
+                                float(pageBox.right()), float(pageBox.bottom())};
+                const QPointF corners[4] = {toLocal.apply(b.x0, b.y0), toLocal.apply(b.x1, b.y0),
+                                            toLocal.apply(b.x1, b.y1), toLocal.apply(b.x0, b.y1)};
+                double x0 = corners[0].x(), x1 = x0, y0 = corners[0].y(), y1 = y0;
+                for (const QPointF& c : corners) {
+                    x0 = std::min(x0, c.x()); x1 = std::max(x1, c.x());
+                    y0 = std::min(y0, c.y()); y1 = std::max(y1, c.y());
+                }
+                // Axis-aligned there? Every corner must be a corner of the box.
+                for (const QPointF& c : corners) {
+                    const bool onX = std::abs(c.x() - x0) < 1e-6 || std::abs(c.x() - x1) < 1e-6;
+                    const bool onY = std::abs(c.y() - y0) < 1e-6 || std::abs(c.y() - y1) < 1e-6;
+                    if (!onX || !onY) return;
+                }
+                const double re[4] = {x0, y0, x1 - x0, y1 - y0};
+                success = pl::rewriteSiteInClip(ctx, pdfDoc, pdfPage, *target,
+                                                pl::concat(newP, pageInv), newC, re);
             });
         } catch (const std::exception&) {
             success = false;
@@ -259,6 +298,22 @@ bool ImageContentEditor::cropImage(
             newP = P;
             return !newC.isEmpty();
         });
+}
+
+// ---------------------------------------------------------------------------
+// Clip to page (ui-tweaks phase-4)
+// ---------------------------------------------------------------------------
+bool ImageContentEditor::clipImageToPage(pdfe::core::Page* page, pdfe::core::Document* doc,
+                                         const PlacementId& placement)
+{
+    // The placement keeps its matrix and crop; only the clip is added.
+    return impl_->edit(page, doc, placement,
+        [](const pl::Affine& P, const pl::UnitCrop& C, pl::Affine& newP, pl::UnitCrop& newC) {
+            newP = P;
+            newC = C;
+            return true;
+        },
+        /*clipToPage=*/true);
 }
 
 } // namespace pdfe::image

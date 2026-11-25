@@ -3356,6 +3356,10 @@ MainWindow::MainWindow(QWidget* parent)
             try {
                 std::filesystem::path target = qStringToPath(path);
                 if (bookmarkPanel_) bookmarkPanel_->commitToDocument(document_.get());
+                // The save-time image crop, as onSaveAsFile does it (ui-tweaks
+                // phase-4), so this pipe still writes what Save As writes.
+                cropImagesOverflowingPagesForSave();
+                const auto imageToolState = imageToolStateForSave();
                 // Route through the production drain/rebind path exactly like
                 // onSaveAsFile (non-flush branch): drop the active tool's page
                 // holder, drain all Page holders so the write is unlocked, run
@@ -3369,6 +3373,7 @@ MainWindow::MainWindow(QWidget* parent)
                 pdfe::core::saveAsWithCommandPageRebind(
                     *document_, *undoManager_, commandPages_, target);
                 onDocumentStructureChanged(/*preserveCommandPages=*/true);
+                rebindImageToolAfterSave(imageToolState);
                 currentFileName_ = path;
                 // Same as onSaveAsFile: a real path replaces any placeholder
                 // display name (e.g. "Untitled" from File > New).
@@ -5232,6 +5237,24 @@ void MainWindow::createActions()
     imageResizeAction_->setEnabled(false);
     connect(imageResizeAction_, &QAction::triggered, this, &MainWindow::onImageResize);
 
+    // ui-tweaks-3 phase-1: a click on a page-covering image (a scan, or a
+    // full-page photo; ImageTool.h, isPageBackgroundImage) deselects, so it
+    // cannot be picked up by accident. This, and a double-click on it with
+    // the image tool, pick it up on purpose.
+    imageSelectBackgroundAction_ = new QAction(tr("Select Page &Background Image"), this);
+    imageSelectBackgroundAction_->setObjectName("imageSelectBackgroundAction");
+    imageSelectBackgroundAction_->setStatusTip(
+        tr("Select the image that covers the current page, such as a scan "
+           "(or double-click it with the Image Tool)"));
+    imageSelectBackgroundAction_->setToolTip(imageSelectBackgroundAction_->statusTip());
+    imageSelectBackgroundAction_->setWhatsThis(
+        tr("A single click on an image that covers the whole page, such as a scanned "
+           "page, does not select it, so the page cannot be moved by accident. This "
+           "selects it on purpose, so it can be moved, resized, rotated or removed."));
+    imageSelectBackgroundAction_->setEnabled(false);
+    connect(imageSelectBackgroundAction_, &QAction::triggered, this,
+            &MainWindow::onImageSelectBackground);
+
     // Metadata
     documentMetadataAction_ = new QAction(tr("Document Properties..."), this);
     documentMetadataAction_->setObjectName("documentMetadataAction");
@@ -5758,6 +5781,8 @@ void MainWindow::createMenus()
     imageMenu->addAction(imageRotate270Action_);
     imageMenu->addAction(imageCropAction_);
     imageMenu->addAction(imageResizeAction_);
+    imageMenu->addSeparator();
+    imageMenu->addAction(imageSelectBackgroundAction_);
 
     // Tools menu
     QMenu* toolsMenu = menuBar()->addMenu(tr("&Tools"));
@@ -7941,6 +7966,7 @@ void MainWindow::openFile(const QString& filePath)
         // Enable image actions
         imageToolAction_->setEnabled(true);
         insertImageAction_->setEnabled(true);
+        imageSelectBackgroundAction_->setEnabled(true);
         stripExifAction_->setEnabled(true);
         documentMetadataAction_->setEnabled(true);
         complianceAction_->setEnabled(true);
@@ -8004,6 +8030,16 @@ void MainWindow::openFile(const QString& filePath)
         // them into the live document just before each recovery snapshot so the
         // recovery copy carries them — mirrors the pre-save flush at
         // onSaveFile / onSaveFileAs (autosave-coverage Phase-2, Bookmarks gap).
+        //
+        // The save-time image crop (cropImagesOverflowingPagesForSave, ui-tweaks
+        // phase-4) is deliberately NOT run here. A snapshot fires on a timer,
+        // in the middle of the user's work: the crop is an edit of the live
+        // document with its own undo entries, and running it would change the
+        // page under an image the user may be dragging back onto the page,
+        // and stack undo entries they never asked for. The recovery copy is
+        // meant to be the in-memory state as it is; the overhang it carries is
+        // cropped when the recovered document is saved, by the ordinary
+        // Save / Save As path.
         autosaveManager_->setPreSnapshotFlush([this]() {
             if (bookmarkPanel_) bookmarkPanel_->commitToDocument(document_.get());
         });
@@ -8178,6 +8214,12 @@ void MainWindow::onSaveFile()
         // Flush in-memory bookmark edits into /Outlines before save.
         if (bookmarkPanel_) bookmarkPanel_->commitToDocument(document_.get());
 
+        // ui-tweaks phase-4: crop the parts of placed images that hang off
+        // their page (the kImageOverflowCropTooltip promise), as undoable
+        // edits of the live document, so what is saved is what is in memory.
+        cropImagesOverflowingPagesForSave();
+        const auto imageToolState = imageToolStateForSave();
+
         // Drop the active editing tool's page holder before the full-rewrite
         // save. A live Page keeps the source fz_document handle open
         // (fz_keep_document), so on Windows the in-place remove()+rename() of
@@ -8220,6 +8262,7 @@ void MainWindow::onSaveFile()
             pdfe::core::saveWithCommandPageRebind(
                 *document_, *undoManager_, commandPages_, filePath);
             onDocumentStructureChanged(/*preserveCommandPages=*/true);
+            rebindImageToolAfterSave(imageToolState);
         }
 
         undoManager_->setClean();
@@ -8318,6 +8361,10 @@ void MainWindow::onSaveAsFile()
         // Flush in-memory bookmark edits into /Outlines before save.
         if (bookmarkPanel_) bookmarkPanel_->commitToDocument(document_.get());
 
+        // ui-tweaks phase-4: the save-time crop, as in onSaveFile.
+        cropImagesOverflowingPagesForSave();
+        const auto imageToolState = imageToolStateForSave();
+
         // Drop the active editing tool's page holder before the write (mirrors
         // onSaveFile). saveAs writes a NEW file so there is no in-place lock,
         // but it still drops+reopens the page tree, so held pages must be
@@ -8346,6 +8393,7 @@ void MainWindow::onSaveAsFile()
             pdfe::core::saveAsWithCommandPageRebind(
                 *document_, *undoManager_, commandPages_, filePath);
             onDocumentStructureChanged(/*preserveCommandPages=*/true);
+            rebindImageToolAfterSave(imageToolState);
         }
 
         // F24 — the certification guard allows a Save As that breaks a
@@ -10811,6 +10859,7 @@ void MainWindow::closeDocument()
     // Disable image actions
     imageToolAction_->setEnabled(false);
     insertImageAction_->setEnabled(false);
+    imageSelectBackgroundAction_->setEnabled(false);
     stripExifAction_->setEnabled(false);
     documentMetadataAction_->setEnabled(false);
     complianceAction_->setEnabled(false);
@@ -11278,24 +11327,14 @@ void MainWindow::onAnnotationToolSelected(QAction* action)
             if (!editing) {
                 textEditToolBar_->clearFontInfo();
             }
-            // Suspend the page-level Delete-key shortcut while text editing
-            // is active so the Delete key forward-deletes characters at the
-            // cursor instead of triggering "Delete Selected Pages". The
-            // QAction's shortcut fires window-wide before keyPressEvent
-            // reaches the canvas, so accepting the event in the canvas
-            // isn't enough — we have to disable the action itself. Save
-            // the previous enabled state and restore it when editing ends
-            // so the user's selection-driven enable from PagePanel is
-            // preserved across edits.
-            // Backspace doesn't conflict because no QAction binds it.
-            if (deletePageAction_) {
-                if (editing) {
-                    deletePageActionWasEnabled_ = deletePageAction_->isEnabled();
-                    deletePageAction_->setEnabled(false);
-                } else {
-                    deletePageAction_->setEnabled(deletePageActionWasEnabled_);
-                }
-            }
+            // ui-tweaks-2 phase-3: Delete while editing text used to be kept
+            // from "Delete Selected Pages" by disabling deletePageAction_ here
+            // and restoring a cached state afterwards. That could stick the
+            // action disabled (two editingStateChanged(true) in a row cached
+            // `false`) and greyed out Pages > Delete while editing. The canvas
+            // now claims Del itself through QEvent::ShortcutOverride whenever
+            // a tool has something to delete -- see PdfCanvas::wantsDeleteKey
+            // -- so the action is no longer touched on this path.
         });
 
         // Toolbar → TextEditTool formatting connections
@@ -14478,6 +14517,14 @@ void MainWindow::onApplyRedactions()
         int currentPage = canvas_ ? canvas_->currentPage() : 0;
         std::filesystem::path filePath = qStringToPath(currentFileName_);
 
+        // ui-tweaks phase-4: this is an ordinary full save of the document
+        // (Document::save below), so it keeps the same promise as File > Save
+        // and crops images that hang off their page. Done AFTER the redactions
+        // are applied, so it sees the final content, and before the undo stack
+        // is cleared below - its commands go with the rest of the history,
+        // as this save is irreversible anyway (the user was told so above).
+        cropImagesOverflowingPagesForSave();
+
         // ----- P11-BUG-1 fix (pipeline b3f19d72 phase-5) -----------
         // Release every owning Page reference *before*
         // Document::save() so that fz_drop_document inside save() drops
@@ -15178,6 +15225,17 @@ bool MainWindow::signTargetFieldWithOptions(
         }
         if (savePath.isEmpty()) return false;
 
+        // ui-tweaks phase-4: the save-time crop, before this Save As. That is
+        // safe here: this is a plain full Save As of the document as it is
+        // BEFORE the new signature is applied (signField below signs the saved
+        // file incrementally), so the signature covers the cropped content.
+        // A document that already carries a signature is left alone by
+        // cropImagesOverflowingPagesForSave itself (see the reason there), so
+        // an earlier signature is never put under a rewritten stream.
+        // The undo stack is cleared just below, so the crop's undo entries go
+        // with it, as every other edit's do on this terminal save.
+        cropImagesOverflowingPagesForSave();
+
         // SaveAs first to preserve original
         document_->saveAs(qStringToPath(savePath));
 
@@ -15589,7 +15647,12 @@ void MainWindow::onImageToolSelected()
         connect(imageTool_.get(), &pdfe::image::ImageTool::removeRequested,
                 this, [this](int imageIndex) {
             if (!document_ || !imageManager_) return;
-            int pageIdx = canvas_->currentPage();
+            // The TOOL's page, not canvas_->currentPage() (ui-tweaks-2
+            // phase-2): once the user scrolls on, the current page is another
+            // page, and the edit landed there (on whatever that page draws
+            // under the same name, e.g. its own scan) or nowhere.
+            const int pageIdx = imageTool_ ? imageTool_->pageIndex() : -1;
+            if (pageIdx < 0) return;
             auto page = document_->page(pageIdx);
             if (!page) return;
 
@@ -15613,7 +15676,12 @@ void MainWindow::onImageToolSelected()
                 this, [this](const std::string& xobjectName, float w, float h, float x, float y,
                              float angleDegrees) {
             if (!document_ || !imageManager_ || !imageContentEditor_ || !imageTool_) return;
-            int pageIdx = canvas_->currentPage();
+            // The TOOL's page, not canvas_->currentPage() (ui-tweaks-2
+            // phase-2): once the user scrolls on, the current page is another
+            // page, and the edit landed there (on whatever that page draws
+            // under the same name, e.g. its own scan) or nowhere.
+            const int pageIdx = imageTool_ ? imageTool_->pageIndex() : -1;
+            if (pageIdx < 0) return;
             auto page = document_->page(pageIdx);
             if (!page) return;
 
@@ -15642,7 +15710,12 @@ void MainWindow::onImageToolSelected()
         connect(imageTool_.get(), &pdfe::image::ImageTool::rotateRequested,
                 this, [this](const std::string& xobjectName, float angleDegrees) {
             if (!document_ || !imageManager_ || !imageContentEditor_ || !imageTool_) return;
-            int pageIdx = canvas_->currentPage();
+            // The TOOL's page, not canvas_->currentPage() (ui-tweaks-2
+            // phase-2): once the user scrolls on, the current page is another
+            // page, and the edit landed there (on whatever that page draws
+            // under the same name, e.g. its own scan) or nowhere.
+            const int pageIdx = imageTool_ ? imageTool_->pageIndex() : -1;
+            if (pageIdx < 0) return;
             auto page = document_->page(pageIdx);
             if (!page) return;
 
@@ -15678,7 +15751,12 @@ void MainWindow::onImageToolSelected()
         connect(imageTool_.get(), &pdfe::image::ImageTool::cropRequested,
                 this, [this](const std::string& xobjectName, QRectF cropRect) {
             if (!document_ || !imageManager_ || !imageContentEditor_ || !imageTool_) return;
-            int pageIdx = canvas_->currentPage();
+            // The TOOL's page, not canvas_->currentPage() (ui-tweaks-2
+            // phase-2): once the user scrolls on, the current page is another
+            // page, and the edit landed there (on whatever that page draws
+            // under the same name, e.g. its own scan) or nowhere.
+            const int pageIdx = imageTool_ ? imageTool_->pageIndex() : -1;
+            if (pageIdx < 0) return;
             auto page = document_->page(pageIdx);
             if (!page) return;
 
@@ -16385,6 +16463,27 @@ void MainWindow::onImageCrop()
     emit imageTool_->cropRequested(img->xobjectName, crop);
 }
 
+void MainWindow::onImageSelectBackground()
+{
+    if (!document_ || !imageManager_ || !canvas_) return;
+
+    // Arm the image tool on the current page, as Insert Image does (so the
+    // toolbar shows it), unless it is already armed there.
+    const int current = canvas_->currentPage();
+    const bool armedHere = imageTool_ && canvas_->imageTool() == imageTool_.get() &&
+                           imageTool_->pageIndex() == current;
+    if (!armedHere && imageToolAction_ && imageToolAction_->isEnabled()) {
+        imageToolAction_->setChecked(true);
+        onAnnotationToolSelected(imageToolAction_);
+    }
+
+    if (!imageTool_ || canvas_->imageTool() != imageTool_.get() ||
+        !imageTool_->selectPageBackgroundImage()) {
+        statusBar()->showMessage(
+            tr("Page %1 has no image covering the page to select.").arg(current + 1), 5000);
+    }
+}
+
 void MainWindow::onImageResize()
 {
     // docs/image-placement-model.md, "Crop and Resize actions": a fixed step to
@@ -16423,7 +16522,9 @@ void MainWindow::onImageExtract()
         return;
     }
 
-    auto page = document_->page(canvas_->currentPage());
+    // The tool's page, where the selection is (ui-tweaks-2 phase-2).
+    std::unique_ptr<pdfe::core::Page> page;
+    if (imageTool_->pageIndex() >= 0) page = document_->page(imageTool_->pageIndex());
     const bool ok = page && imageManager_->extractImageToFile(
                                 page.get(), document_.get(), img->imageIndex,
                                 fileName.toStdString());
@@ -16442,7 +16543,10 @@ std::optional<pdfe::image::PageImageInfo> MainWindow::selectedImagePlacementOnPa
         !imageTool_->hasSelection())
         return std::nullopt;
     const pdfe::image::PageImageInfo sel = imageTool_->selectedImage();
-    auto page = document_->page(canvas_->currentPage());
+    // The tool's page (ui-tweaks-2 phase-2): the selection lives there, not
+    // necessarily on the page the canvas currently calls current.
+    if (imageTool_->pageIndex() < 0) return std::nullopt;
+    auto page = document_->page(imageTool_->pageIndex());
     if (!page) return std::nullopt;
     for (const auto& info : imageManager_->enumerateImages(page.get(), document_.get())) {
         if (info.xobjectName == sel.xobjectName && info.occurrence == sel.occurrence &&
@@ -16504,6 +16608,133 @@ void MainWindow::resyncImageToolAfterEdit(int pageIdx, const std::string& name, 
     toolPage_ = std::move(refreshed);
     pdfe::image::resyncImageToolPlacement(*imageTool_, toolPage_.get(), document_.get(),
                                           id, occurrence);
+}
+
+std::optional<MainWindow::ImageToolSaveState> MainWindow::imageToolStateForSave() const
+{
+    if (!imageTool_ || !canvas_ || canvas_->imageTool() != imageTool_.get() || !toolPage_)
+        return std::nullopt;
+    ImageToolSaveState s;
+    s.pageIdx = toolPage_->index();
+    if (imageTool_->hasSelection()) {
+        s.name = imageTool_->selectedImage().xobjectName;
+        s.occurrence = imageTool_->selectedImage().occurrence;
+    }
+    return s;
+}
+
+void MainWindow::rebindImageToolAfterSave(const std::optional<ImageToolSaveState>& state)
+{
+    // The save released toolPage_, the Page the image tool reads its overlay
+    // and its preview pixels from. Re-read the tool from the saved page, so it
+    // shows what was written (the save-time crop included: no red overflow,
+    // no "will be cropped" tooltip, for a placement that is now cropped) and
+    // does not keep a pointer to the released Page.
+    if (!state || !document_ || state->pageIdx < 0 ||
+        state->pageIdx >= document_->pageCount())
+        return;
+    resyncImageToolAfterEdit(state->pageIdx, state->name, state->occurrence);
+}
+
+int MainWindow::cropImagesOverflowingPagesForSave()
+{
+    // ui-tweaks phase-4: kImageOverflowCropTooltip promises that the part of an
+    // image outside its page "will be cropped when the document is saved".
+    // This is where that happens, for every page, not only the image tool's.
+    //
+    // TWO STEPS per placement, both through existing machinery:
+    //   1. CROP (CropImageCommand -> ImageContentEditor::cropImage): the
+    //      unit-square crop pageOverflowCropRect computes. Exact for upright,
+    //      flipped and 90/180/270-degree placements.
+    //   2. CLIP (ClipImageToPageCommand -> ImageContentEditor::clipImageToPage
+    //      -> ImagePlacementScanner rewriteSiteInClip): for any other rotation
+    //      a rect crop in the image's axes cannot follow the page edge, so the
+    //      slivers left outside the page are cut by a page-rect clip around
+    //      the placement (pageClipNeeded).
+    //
+    // THE PAGE BOX is Page::mediaBox() - the page's MediaBox, in the fitz
+    // space of Page::boundingBox() (ui-tweaks-2 phase-1): the same box the
+    // image tool clamps to and shades against, and the box
+    // ClipImageToPageCommand clips to. NOT the CropBox: on a page whose
+    // CropBox is smaller than its MediaBox (CropTool), image content between
+    // the two is kept by the save, so the page crop stays reversible. Only
+    // what lies beyond the MediaBox - off the paper - is cut.
+    //
+    // UNDO / IN-MEMORY STATE: each step is an ordinary command run through the
+    // undo manager on the LIVE document, before the write, so the in-memory
+    // document is exactly what is saved. A crop is one "Crop Image" undo
+    // entry, a clip one "Clip Image to Page" entry; undoing them after the
+    // save brings the overhang back and marks the document modified again,
+    // like any edit. The commands' pages are parked in commandPages_ so the
+    // save's page rebind keeps them valid. Not a CompositeCommand: a composite
+    // does not forward pageIndex()/rebindPage() to its children, so its
+    // children's pages would dangle after the full-rewrite save.
+    //
+    // LEFT ALONE: a placement already inside its page (its bytes stay exactly
+    // as they were), one inside a Form XObject (not editable here), one wholly
+    // off its page (see pageOverflowCropRect), and one already clipped.
+    //
+    // SIGNED DOCUMENTS ARE NOT TOUCHED. A placement edit rewrites a content
+    // stream and forces a full-rewrite save (ImageContentEditor::Impl::edit
+    // calls Document::markRequiresFullRewrite). On a document that carries a
+    // digital signature that turns a save the user expects to be an
+    // incremental, signature-preserving append (Document::save's Tier-1
+    // routing) into a rewrite that invalidates the signature (its ByteRange no
+    // longer describes the file) - for an image overhang the user may never
+    // have touched. Document::runSignedRewriteGuard refuses such rewrites only
+    // for needsFullGc() sessions, so it would not stop this one. The open-time
+    // count is consulted too, as that guard does.
+    if (!document_ || !imageManager_ || !imageContentEditor_ || !undoManager_) return 0;
+    if (document_->appliedSignatureCount() > 0 || document_->appliedSignatureCountAtOpen() > 0)
+        return 0;
+    int edited = 0;
+    std::set<int> editedPages;
+    // Runs `cmd`; true when it was stacked (a refused edit is not, see
+    // Command::failed; a stacked one is the new top of the undo stack).
+    auto run = [this](std::unique_ptr<pdfe::commands::Command> cmd) {
+        const pdfe::commands::Command* raw = cmd.get();
+        undoManager_->execute(std::move(cmd));
+        return undoManager_->peekUndoCommand() == raw;
+    };
+    const int pageCount = document_->pageCount();
+    for (int i = 0; i < pageCount; ++i) {
+        auto page = document_->page(i);
+        if (!page) continue;
+        const QRectF pageRect = page->mediaBox();
+        bool pageChanged = false;
+        for (const auto& img : imageManager_->enumerateImages(page.get(), document_.get())) {
+            const std::optional<QRectF> crop = pdfe::image::pageOverflowCropRect(img, pageRect);
+            if (!crop) continue;
+            if (run(std::make_unique<pdfe::image::CropImageCommand>(
+                    imageManager_.get(), imageContentEditor_.get(), page.get(), document_.get(),
+                    img.xobjectName, *crop, img.displayWidth, img.displayHeight,
+                    static_cast<float>(img.boundingBox.x()),
+                    static_cast<float>(img.boundingBox.y()), img.occurrence))) {
+                ++edited;
+                pageChanged = true;
+            }
+        }
+        // Re-read the page: the crops changed what is visible.
+        for (const auto& img : imageManager_->enumerateImages(page.get(), document_.get())) {
+            if (!pdfe::image::pageClipNeeded(img, pageRect)) continue;
+            if (run(std::make_unique<pdfe::image::ClipImageToPageCommand>(
+                    imageManager_.get(), imageContentEditor_.get(), page.get(), document_.get(),
+                    img.xobjectName, img.occurrence))) {
+                ++edited;
+                pageChanged = true;
+            }
+        }
+        if (pageChanged) {
+            editedPages.insert(i);
+            commandPages_.push_back(std::move(page));
+            if (canvas_) canvas_->refreshPage(i);
+        }
+    }
+    // The image tool's overlay is a cache of the page: re-read it, so the
+    // shading and the tooltip follow the crop and the clip.
+    if (const auto st = imageToolStateForSave(); st && editedPages.count(st->pageIdx))
+        resyncImageToolAfterEdit(st->pageIdx, st->name, st->occurrence);
+    return edited;
 }
 
 void MainWindow::updateImageActionsFor(const pdfe::image::PageImageInfo* info)

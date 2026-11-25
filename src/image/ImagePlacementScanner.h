@@ -22,6 +22,13 @@
 // clip. When the targeted Do already sits in such a wrapper, the whole
 // wrapper is replaced, so repeated edits never nest.
 //
+// Clip to page (ui-tweaks phase-4): when a unit-square crop cannot keep a
+// placement inside its page (a rotation that is not a multiple of 90
+// degrees), the save wraps the whole wrapper in a page-rect clip,
+// `q x y w h re W n <wrapper> Q`. scanPage reports it (DoSite::enclosingClip);
+// later edits replace the inner wrapper and leave the clip, which is the page
+// box and so stays right wherever the image is moved on its page.
+//
 // Legacy crop: the editor before the fix wrote a page-space clip OUTSIDE the
 // cm, `q x y w h re W n <M> cm /Name Do Q`. The scanner recognises that
 // shape, reports its clip converted to the unit square, and the next edit
@@ -64,6 +71,16 @@ struct DoSite {
     std::size_t replaceEnd = 0;
     std::size_t nameStart = 0;   ///< byte range of the Do's name operand ("/Name")
     std::size_t nameEnd = 0;
+    /// The placement's PDFE wrapper sits alone inside a rect clip,
+    ///     q x y w h re W n <wrapper> Q
+    /// - the shape rewriteSiteInClip writes to keep a placement inside its
+    /// page (ui-tweaks phase-4). An edit replaces only the inner wrapper
+    /// (replaceStart/End), so the clip stays; removeSite takes it along.
+    bool enclosingClip = false;
+    double clipRect[4] = {0, 0, 0, 0};  ///< x y w h of that `re`, in clipCtm's space
+    Affine clipCtm;                     ///< user-space CTM in force at that `re`
+    std::size_t clipStart = 0;          ///< byte range of the whole clip wrapper
+    std::size_t clipEnd = 0;
 };
 
 /// Every Do on the page in content order. With recurseForms, Form XObjects are
@@ -84,8 +101,18 @@ Affine pageTransform(fz_context* ctx, pdf_page* page);
 bool rewriteSite(fz_context* ctx, pdf_document* doc, pdf_page* page,
                  const DoSite& site, const Affine& placement, const UnitCrop& crop);
 
+/// rewriteSite, with the new wrapper put inside a rect clip:
+///     q x y w h re W n <wrapper> Q
+/// `clipRe` is the clip's `re` operands (x y w h) in the space of the CTM where
+/// the wrapper sits (site.ctmOuter). Refused (false) when the site already has
+/// an enclosing clip, so clips never stack.
+bool rewriteSiteInClip(fz_context* ctx, pdf_document* doc, pdf_page* page,
+                       const DoSite& site, const Affine& placement, const UnitCrop& crop,
+                       const double clipRe[4]);
+
 /// Remove `site` (a page-level site from scanPage): its Do, or the whole PDFE
-/// wrapper around it, is cut from the content; every other byte stays.
+/// wrapper around it (with its enclosing clip, if any), is cut from the
+/// content; every other byte stays.
 bool removeSite(fz_context* ctx, pdf_document* doc, pdf_page* page, const DoSite& site);
 
 /// Point `site` (a page-level site from scanPage) at another XObject: only its

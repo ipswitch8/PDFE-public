@@ -65,6 +65,14 @@ public:
     void onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pdfPoint) override;
     void onKeyPress(QKeyEvent* event) override;
 
+    /// ui-tweaks-2 phase-3: an annotation (or a rubber-band set) is selected,
+    /// so Delete removes it rather than the page. Mirrors the guard and the
+    /// two branches of onKeyPress's Delete/Backspace path exactly.
+    [[nodiscard]] bool wantsDeleteKey() const override {
+        return manager_ && page_ &&
+               (selectedAnnotIndex_ >= 0 || !selectedAnnotIndices_.empty());
+    }
+
     /// form-field-bugs phase-8, bug 6: Esc aborts an in-progress manipulation
     /// drag (move / resize / rotate of the selected annotation), reverting the
     /// live preview to its pre-drag geometry so no annotationMoved/Rotated

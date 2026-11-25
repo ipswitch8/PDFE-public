@@ -127,6 +127,18 @@ public:
                    float displayWidth = 0.0f, float displayHeight = 0.0f,
                    float x = 0.0f, float y = 0.0f);
 
+    /// Clip a placement to its page (ui-tweaks phase-4): the placement's
+    /// wrapper is rewritten inside `q x y w h re W n ... Q`, the rect being the
+    /// page box (Page::mediaBox) in the space where the wrapper sits. The
+    /// matrix and the crop are unchanged; nothing of the image is drawn outside
+    /// the page any more. For a placement a unit-square crop cannot keep on the
+    /// page (a rotation that is not a multiple of 90 degrees).
+    /// @return true on success; false on error, for a placement that already
+    ///         has an enclosing clip (clips never stack), or when the page rect
+    ///         is not axis-aligned where the wrapper sits.
+    bool clipImageToPage(pdfe::core::Page* page, pdfe::core::Document* doc,
+                         const PlacementId& placement);
+
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;

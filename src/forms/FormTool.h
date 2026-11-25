@@ -49,6 +49,14 @@ public:
     void onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pdfPoint) override;
     void onKeyPress(QKeyEvent* event) override;
 
+    /// ui-tweaks-2 phase-3: Delete belongs to this tool while a field is being
+    /// typed into (forward-delete a character) or a field is selected (remove
+    /// the field) -- the two Delete branches of onKeyPress, behind the same
+    /// page_ guard.
+    [[nodiscard]] bool wantsDeleteKey() const override {
+        return page_ != nullptr && (isEditing_ || selectedWidget_ >= 0);
+    }
+
     /// form-field-bugs phase-8, bug 6: Esc aborts an in-progress field
     /// placement — the rubber-band (isDrawingRect_) and/or armed creation mode
     /// (isCreationMode()). Exits creation mode via the existing creationModeExited

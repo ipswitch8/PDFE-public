@@ -150,6 +150,22 @@ public:
             const double vh = (c.v1 - c.v0) * dec.height;
             info.boundingBox = QRectF(vis.x() - vw / 2.0, vis.y() - vh / 2.0, vw, vh);
 
+            // ui-tweaks phase-4: a rect clip enclosing this placement alone
+            // (rewriteSiteInClip's wrapper), as its bounds in the rendered
+            // frame. Nothing of the image is drawn outside it.
+            if (site.enclosingClip) {
+                const Affine C = concat(site.clipCtm, pageT);
+                const double* r = site.clipRect;
+                double x0 = 1e300, y0 = 1e300, x1 = -1e300, y1 = -1e300;
+                for (int k = 0; k < 4; ++k) {
+                    const QPointF q = C.apply(r[0] + ((k & 1) ? r[2] : 0.0),
+                                              r[1] + ((k & 2) ? r[3] : 0.0));
+                    x0 = std::min(x0, q.x()); x1 = std::max(x1, q.x());
+                    y0 = std::min(y0, q.y()); y1 = std::max(y1, q.y());
+                }
+                info.pageClip = QRectF(QPointF(x0, y0), QPointF(x1, y1));
+            }
+
             // DPI of the full placement
             if (info.displayWidth > 0)
                 info.xDpi = static_cast<int>(std::round(info.pixelWidth * 72.0f / info.displayWidth));

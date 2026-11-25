@@ -21,6 +21,7 @@
 #include "core/MuPdfContext.h"
 #include "core/Document.h"
 #include "core/Page.h"
+#include "render_band_reference.h"
 
 #include <mupdf/fitz.h>
 #include <mupdf/pdf.h>
@@ -30,6 +31,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cmath>
+#include <limits>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -172,16 +175,31 @@ TEST_F(RgbaInsertReproTest, InsertSigThenRenderLargestPage) {
     auto page = doc->page(biggest);
     ASSERT_NE(page, nullptr);
 
-    InsertImageOptions opts;
-    opts.filePath = sigPath_;
-    opts.targetRect = QRectF(100, 100, 172, 42);
-    std::fprintf(stderr, "[rgba] FLOW: insert sig into page %d...\n", biggest);
-    std::fflush(stderr);
-    auto result = manager_->insertImage(page.get(), doc.get(), opts);
-    std::fprintf(stderr, "[rgba] FLOW: insert success=%d msg='%s'\n",
-        result.success ? 1 : 0, result.errorMessage.c_str());
-    std::fflush(stderr);
+    // The signature where the user put it, and a second copy near the
+    // bottom-right corner (ui-tweaks-3 phase-2): the sheet is otherwise blank,
+    // so the second copy is what puts drawn, alpha-blended pixels in the rows
+    // past the 2^31-byte offset of the scale-2 raster checked below.
+    const QRectF topRect(100, 100, 172, 42);
+    const QRectF bottomRect(bw - 400, bh - 200, 172, 42);
+    for (const QRectF& target : {topRect, bottomRect}) {
+        InsertImageOptions opts;
+        opts.filePath = sigPath_;
+        opts.targetRect = target;
+        opts.maintainAspectRatio = false;
+        std::fprintf(stderr, "[rgba] FLOW: insert sig into page %d at (%.0f,%.0f)...\n", biggest,
+                     target.x(), target.y());
+        std::fflush(stderr);
+        auto result = manager_->insertImage(page.get(), doc.get(), opts);
+        std::fprintf(stderr, "[rgba] FLOW: insert success=%d msg='%s'\n",
+            result.success ? 1 : 0, result.errorMessage.c_str());
+        std::fflush(stderr);
+        ASSERT_TRUE(result.success) << result.errorMessage;
+    }
 
+    // Page::render at scale 1 and 2: at 2, ONE 3.09 GB raster (MuPDF draws
+    // into the returned QImage; before ui-tweaks-3 phase-2 a second same-sized
+    // copy was held at the peak). The signature's pixels, soft mask applied,
+    // must match an independent band render (render_band_reference.h).
     for (float scale : {1.0f, 2.0f}) {
         std::fprintf(stderr, "[rgba] FLOW: render page %d scale=%.1f...\n", biggest, scale);
         std::fflush(stderr);
@@ -189,6 +207,28 @@ TEST_F(RgbaInsertReproTest, InsertSigThenRenderLargestPage) {
         std::fprintf(stderr, "[rgba] FLOW: render -> %dx%d null=%d\n",
             img.width(), img.height(), img.isNull() ? 1 : 0);
         std::fflush(stderr);
+        ASSERT_FALSE(img.isNull()) << "scale " << scale;
+        EXPECT_EQ(img.width(), static_cast<int>(std::lround(bw * scale)));
+        EXPECT_EQ(img.height(), static_cast<int>(std::lround(bh * scale)));
+        for (const QRectF& placed : {topRect, bottomRect}) {
+            const QRect band = pdfe::testing::rasterRectFor(placed, scale, 4, img);
+            const auto cmp =
+                pdfe::testing::compareBandToReference(*context_, *page, scale, img, band);
+            std::fprintf(stderr, "[rgba] FLOW: scale %.1f rows %d..%d: %s\n", scale, band.top(),
+                         band.bottom(), cmp.describe().c_str());
+            std::fflush(stderr);
+            EXPECT_TRUE(cmp.ok()) << "scale " << scale << ": " << cmp.describe();
+            EXPECT_GT(cmp.inked, static_cast<long>(200 * scale * scale))
+                << "the signature is not drawn";
+        }
+        // The bottom check lies past the 2^31-byte offset exactly at scale 2
+        // (row 28196+ of 115200-byte rows), and short of it at scale 1.
+        const qint64 bottomOffset =
+            static_cast<qint64>(pdfe::testing::rasterRectFor(bottomRect, scale, 4, img).top()) *
+            img.bytesPerLine();
+        EXPECT_EQ(bottomOffset > static_cast<qint64>(std::numeric_limits<int>::max()),
+                  scale == 2.0f)
+            << "scale " << scale << ": bottom band starts at byte " << bottomOffset;
     }
 
     // Save after insert (the real signature workflow writes the file out). This

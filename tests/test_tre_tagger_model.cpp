@@ -1051,7 +1051,17 @@ TEST_F(TaggerModelTest, DeeplyNestedContentIsPlacedInBoundedTime) {
     tag(regions);
     const double seconds =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
-    EXPECT_LT(seconds, 2.0) << "automatic placement is not bounded on deep nesting";
+    // Build-config-aware bound: a Debug build runs this 20000-deep placement
+    // several times slower than Release (where it finishes well inside 2 s). The
+    // old O(n^2) rescan took many seconds and would blow even the generous Debug
+    // bound, so a quadratic regression is still caught in both configurations.
+#ifdef NDEBUG
+    constexpr double kPlacementBudgetSec = 2.0;
+#else
+    constexpr double kPlacementBudgetSec = 8.0;
+#endif
+    EXPECT_LT(seconds, kPlacementBudgetSec)
+        << "automatic placement is not bounded on deep nesting";
 
     const std::string c = savedContent();
     // Placed, not left untagged: Figure 0 holds the first image draw, P 1 the

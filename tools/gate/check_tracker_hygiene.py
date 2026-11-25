@@ -93,8 +93,21 @@ def _gh():
 
 
 def api_json(gh, path):
-    """One paginated GET. Returns a flat list, or None on any failure."""
-    r = subprocess.run([gh, "api", "-X", "GET", "--paginate", path],
+    """One paginated GET. Returns a flat list, or None on any failure.
+
+    Query parameters are passed as `-f key=value` args rather than an inline
+    `path?a=b&c=d` string. On Windows `gh` resolves to a `gh.cmd` wrapper, and
+    a `.cmd` is invoked through cmd.exe, which treats an unquoted `&` in the
+    joined command line as a command separator -- so an inline query string
+    silently truncated the request at the first `&` (e.g. dropping
+    `per_page=100`). Splitting the query into `-f` args keeps every `&` out of
+    the command line entirely; gh appends them to the GET query string itself.
+    """
+    base, _, query = path.partition("?")
+    args = [gh, "api", "-X", "GET", "--paginate", base]
+    for kv in filter(None, query.split("&")):
+        args += ["-f", kv]
+    r = subprocess.run(args,
                        capture_output=True, text=True,
                        encoding="utf-8", errors="replace")
     if r.returncode != 0 or not r.stdout.strip():

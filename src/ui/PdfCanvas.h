@@ -145,6 +145,32 @@ public:
     void clearImageTool();
     pdfe::image::ImageTool* imageTool() const { return imageTool_; }
 
+    // ui-tweaks-2 phase-3 -- Del belongs to the canvas, not the page, when
+    // there is something on the canvas for it to act on.
+    //
+    // deletePageAction ("Delete Selected Pages") owns QKeySequence::Delete as a
+    // Qt::WindowShortcut. Qt asks the focus widget first via
+    // QEvent::ShortcutOverride; a widget that ACCEPTS it keeps the key and the
+    // shortcut does not fire (the same mechanism UndoFallthroughFilter uses in
+    // the opposite direction). PdfCanvas::event() accepts the override for a
+    // bare Delete/Backspace exactly when wantsDeleteKey() is true, so the
+    // KeyPress reaches keyPressEvent() and the tool's own Delete branch runs.
+    // With nothing selected and nothing being edited the override is left
+    // alone and Del deletes the Pages-panel selection / the current page,
+    // behind onDeletePages's confirmation, as before.
+
+    /// True when a tool on this canvas would act on Delete right now: text is
+    /// being edited, the image tool has a selected image, or the active
+    /// annotation/form tool reports AnnotationTool::wantsDeleteKey().
+    [[nodiscard]] bool wantsDeleteKey() const;
+
+    /// The pure decision, exposed so it can be unit-tested without a window,
+    /// a shortcut map or a focus chain: does the canvas claim this
+    /// ShortcutOverride? Only a bare Delete/Backspace (keypad allowed), and only
+    /// when @p canvasWantsDelete.
+    [[nodiscard]] static bool claimsDeleteShortcut(const QKeyEvent* ke,
+                                                   bool canvasWantsDelete);
+
     // Copy prevention
     void setCopyPrevented(bool prevented);
     bool isCopyPrevented() const { return copyPrevented_; }
@@ -162,6 +188,14 @@ public:
 
     // Tooltip callback: returns tooltip text for annotation at (pageIndex, pdfPoint)
     std::function<QString(int pageIndex, QPointF pdfPoint)> tooltipRequested;
+
+    /// The image tool's tooltip at widget position @p widgetPos, mapped into
+    /// the fitz space of the page the tool is bound to (the same mapping the
+    /// overlay is painted with), or an empty string. Today that is the
+    /// "cropped on save" warning over the part of a selected image outside
+    /// its page (ImageTool::tooltipAt). The QEvent::ToolTip handler asks this
+    /// before tooltipRequested; public so a test can hit-test it directly.
+    QString imageToolTooltipAt(QPoint widgetPos) const;
 
     /// GitHub #135 — link follow callback. Returns true when a /Link
     /// annotation was found at (pageIndex, pdfPoint) AND dispatched.

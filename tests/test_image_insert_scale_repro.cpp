@@ -20,6 +20,7 @@
 #include "core/MuPdfContext.h"
 #include "core/Document.h"
 #include "core/Page.h"
+#include "render_band_reference.h"
 #include "rendering/TileRenderer.h"
 #include "rendering/TileId.h"
 #include <mupdf/fitz.h>
@@ -27,7 +28,9 @@
 #include <QRectF>
 #include <QCoreApplication>
 #include <atomic>
+#include <cmath>
 #include <cstdint>
+#include <limits>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -226,26 +229,42 @@ TEST_F(InsertScaleReproTest, Scan_FindLargestPageThenInsertAndRender) {
     auto page = doc->page(biggest);
     ASSERT_NE(page, nullptr);
 
-    // Insert into the large page.
-    if (std::filesystem::exists(png)) {
+    // Insert into the large page: the reported flow's image near the top-left,
+    // and a second copy near the bottom-right corner (ui-tweaks-3 phase-2).
+    // The sheet is otherwise blank, so the second copy is what gives the
+    // render check below something drawn in the rows past the 2^31-byte
+    // offset of the scale-2 raster.
+    ASSERT_TRUE(std::filesystem::exists(png)) << "Fixture PNG missing: " << png;
+    const QRectF topRect(100, 100, 200, 160);
+    const QRectF bottomRect(biggestW - 600, biggestH - 300, 400, 200);
+    for (const QRectF& target : {topRect, bottomRect}) {
         InsertImageOptions opts;
         opts.filePath = png;
-        opts.targetRect = QRectF(100, 100, 200, 160);
-        std::fprintf(stderr, "[repro] SCAN: inserting into page %d...\n", biggest);
+        opts.targetRect = target;
+        opts.maintainAspectRatio = false;
+        std::fprintf(stderr, "[repro] SCAN: inserting into page %d at (%.0f,%.0f)...\n", biggest,
+                     target.x(), target.y());
         std::fflush(stderr);
         auto result = manager_->insertImage(page.get(), doc.get(), opts);
         std::fprintf(stderr, "[repro] SCAN: insert success=%d msg='%s'\n",
             result.success ? 1 : 0, result.errorMessage.c_str());
         std::fflush(stderr);
-
-        std::fprintf(stderr, "[repro] SCAN: re-enumerate on page %d...\n", biggest);
-        std::fflush(stderr);
-        auto imgs = manager_->enumerateImages(page.get(), doc.get());
-        std::fprintf(stderr, "[repro] SCAN: re-enumerate found %zu\n", imgs.size());
-        std::fflush(stderr);
+        ASSERT_TRUE(result.success) << result.errorMessage;
     }
 
-    // Render the large page at increasing scale.
+    std::fprintf(stderr, "[repro] SCAN: re-enumerate on page %d...\n", biggest);
+    std::fflush(stderr);
+    auto imgs = manager_->enumerateImages(page.get(), doc.get());
+    std::fprintf(stderr, "[repro] SCAN: re-enumerate found %zu\n", imgs.size());
+    std::fflush(stderr);
+    EXPECT_EQ(imgs.size(), 2u);
+
+    // Render the large page at increasing scale through Page::render, the
+    // whole-page path print, export, compare and OCR use. At scale 2 that is
+    // ONE 3.09 GB raster (MuPDF draws into the returned QImage; before
+    // ui-tweaks-3 phase-2 a second same-sized copy was held at the peak).
+    // Each inserted image's pixels must match an independent band render of
+    // the same region (render_band_reference.h) and be drawn.
     for (float scale : {1.0f, 2.0f}) {
         const double pxW = biggestW * static_cast<double>(scale);
         const double pxH = biggestH * static_cast<double>(scale);
@@ -257,9 +276,30 @@ TEST_F(InsertScaleReproTest, Scan_FindLargestPageThenInsertAndRender) {
         std::fprintf(stderr, "[repro] SCAN: render returned %dx%d null=%d\n",
             img.width(), img.height(), img.isNull() ? 1 : 0);
         std::fflush(stderr);
+        ASSERT_FALSE(img.isNull()) << "scale " << scale;
+        EXPECT_EQ(img.width(), static_cast<int>(std::lround(pxW)));
+        EXPECT_EQ(img.height(), static_cast<int>(std::lround(pxH)));
+        for (const QRectF& placed : {topRect, bottomRect}) {
+            const QRect band = pdfe::testing::rasterRectFor(placed, scale, 4, img);
+            const auto cmp =
+                pdfe::testing::compareBandToReference(*context_, *page, scale, img, band);
+            std::fprintf(stderr, "[repro] SCAN: scale %.1f rows %d..%d: %s\n", scale, band.top(),
+                         band.bottom(), cmp.describe().c_str());
+            std::fflush(stderr);
+            EXPECT_TRUE(cmp.ok()) << "scale " << scale << ": " << cmp.describe();
+            EXPECT_GT(cmp.inked, static_cast<long>(placed.width() * placed.height() * scale *
+                                                   scale / 2))
+                << "the inserted image is not drawn";
+        }
+        // The bottom check lies past the 2^31-byte offset exactly at scale 2
+        // (row 28196+ of 115200-byte rows), and short of it at scale 1.
+        const qint64 bottomOffset =
+            static_cast<qint64>(pdfe::testing::rasterRectFor(bottomRect, scale, 4, img).top()) *
+            img.bytesPerLine();
+        EXPECT_EQ(bottomOffset > static_cast<qint64>(std::numeric_limits<int>::max()),
+                  scale == 2.0f)
+            << "scale " << scale << ": bottom band starts at byte " << bottomOffset;
     }
-
-    SUCCEED();
 }
 
 // STEP 4 --------------------------------------------------------------------

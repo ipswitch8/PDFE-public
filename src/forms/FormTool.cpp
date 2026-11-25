@@ -894,8 +894,25 @@ void FormTool::onMousePress(QMouseEvent* event, int pageIndex, QPointF pdfPoint)
 
     if (!page_) return;
 
-    // Creation mode: start drawing new field
-    if (isCreationMode()) {
+    auto hitResult = manager_->getFormFieldAt(page_, pdfPoint);
+
+    // Creation mode: a press on EMPTY page space starts the rubber band for a
+    // new field. A press on an EXISTING field falls through to the
+    // interaction path below so the field can be selected and filled.
+    //
+    // Sticky placement (form-field-bugs phase-9, bug 10) keeps the tool armed
+    // after a field is placed, and activating the Form Tool always arms Text
+    // creation. Before this check the creation branch ran first and
+    // unconditionally, so clicking the field the user had just placed only
+    // started another rubber band (a short click creates nothing): a placed
+    // field could not be typed into until the user found Esc or switched
+    // tools. Placing a new field ON TOP of an existing one is the one gesture
+    // this gives up; drag from empty space next to it instead.
+    if (isCreationMode() && !hitResult.has_value()) {
+        if (isEditing_) {
+            commitEdit();
+        }
+        deselectField();
         drawStart_ = pdfPoint;
         drawEnd_ = pdfPoint;
         drawPageIndex_ = pageIndex;
@@ -903,8 +920,7 @@ void FormTool::onMousePress(QMouseEvent* event, int pageIndex, QPointF pdfPoint)
         return;
     }
 
-    // Interaction mode: hit test for existing fields
-    auto hitResult = manager_->getFormFieldAt(page_, pdfPoint);
+    // Interaction (or creation-mode press on a field): act on the field hit.
 
     if (hitResult.has_value()) {
         int widgetIdx = hitResult.value();

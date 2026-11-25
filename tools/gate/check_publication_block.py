@@ -55,10 +55,28 @@ from __future__ import annotations
 
 import argparse
 import io
+import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+
+def _gh():
+    """Resolve the gh CLI to an invocable path.
+
+    A bare "gh" fails on Windows: CreateProcess does not apply PATHEXT, so it
+    never finds the `gh.cmd` wrapper and raises FileNotFoundError, which this
+    guard then (wrongly) reports as "visibility UNKNOWN / no network". Resolve
+    via shutil.which (which DOES honour PATHEXT and returns the .cmd path) so
+    the calls actually run.
+    """
+    return (os.environ.get("PDFE_GH") or shutil.which("gh.exe")
+            or shutil.which("gh") or "gh")
+
+
+_GH = _gh()
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GC_REQUEST = REPO_ROOT / "docs" / "legal" / "github-gc-request-2026-10.md"
@@ -392,7 +410,7 @@ def query_visibility(slug: str):
     """True=private, False=public, None=could not determine."""
     try:
         out = subprocess.run(
-            ["gh", "api", f"repos/{slug}", "--jq", ".private"],
+            [_GH, "api", f"repos/{slug}", "--jq", ".private"],
             capture_output=True, text=True, encoding="utf-8",
             errors="replace", timeout=60,
         )
@@ -419,7 +437,7 @@ def query_repo_by_id(repo_id: int):
     """
     try:
         out = subprocess.run(
-            ["gh", "api", f"repositories/{repo_id}", "--jq",
+            [_GH, "api", f"repositories/{repo_id}", "--jq",
              "[(.private|tostring), .full_name] | join(\" \")"],
             capture_output=True, text=True, encoding="utf-8",
             errors="replace", timeout=60,
@@ -454,7 +472,7 @@ def query_visibility_detailed(slug: str) -> str:
     """
     try:
         out = subprocess.run(
-            ["gh", "api", f"repos/{slug}", "--jq", ".private"],
+            [_GH, "api", f"repos/{slug}", "--jq", ".private"],
             capture_output=True, text=True, encoding="utf-8",
             errors="replace", timeout=60,
         )

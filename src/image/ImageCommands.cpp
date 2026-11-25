@@ -433,4 +433,68 @@ void RotateImageCommand::rebindPage(pdfe::core::Page* page) { page_ = page; }
 int CropImageCommand::pageIndex() const { return page_ ? page_->index() : -1; }
 void CropImageCommand::rebindPage(pdfe::core::Page* page) { page_ = page; }
 
+// -----------------------------------------------------------------------
+// ClipImageToPageCommand (ui-tweaks phase-4) - same snapshot/restore undo as
+// CropImageCommand.
+// -----------------------------------------------------------------------
+
+ClipImageToPageCommand::ClipImageToPageCommand(
+    ImageManager* manager,
+    ImageContentEditor* editor,
+    pdfe::core::Page* page,
+    pdfe::core::Document* doc,
+    const std::string& xobjectName,
+    int occurrence)
+    : manager_(manager), editor_(editor), page_(page), doc_(doc),
+      xobjectName_(xobjectName), occurrence_(occurrence)
+{
+}
+
+ClipImageToPageCommand::~ClipImageToPageCommand()
+{
+    if (savedContentsRef_) {
+        manager_->releaseRef(savedContentsRef_);
+    }
+}
+
+void ClipImageToPageCommand::execute()
+{
+    if (!page_) return;
+    if (savedContentsRef_) {
+        manager_->releaseRef(savedContentsRef_);
+        savedContentsRef_ = nullptr;
+    }
+    savedContentsRef_ = manager_->saveContentsRef(page_, doc_);
+    const bool ok = editor_->clipImageToPage(page_, doc_, PlacementId{xobjectName_, occurrence_});
+    if (!ok) {
+        manager_->releaseRef(savedContentsRef_);
+        savedContentsRef_ = nullptr;
+        failed_ = true;
+        executed_ = false;
+        return;
+    }
+    failed_ = false;
+    doc_->markPageDirty(page_->index());
+    executed_ = true;
+}
+
+void ClipImageToPageCommand::undo()
+{
+    if (!executed_) return;
+    if (!page_) return;
+    if (savedContentsRef_) {
+        manager_->restoreImage(page_, doc_, {}, nullptr, savedContentsRef_);
+        doc_->markPageDirty(page_->index());
+    }
+    executed_ = false;
+}
+
+std::string ClipImageToPageCommand::description() const
+{
+    return "Clip Image to Page";
+}
+
+int ClipImageToPageCommand::pageIndex() const { return page_ ? page_->index() : -1; }
+void ClipImageToPageCommand::rebindPage(pdfe::core::Page* page) { page_ = page; }
+
 } // namespace pdfe::image

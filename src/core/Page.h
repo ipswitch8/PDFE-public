@@ -71,7 +71,16 @@ public:
     ~Page();
 
     // Rendering
+    /// The whole page as one RGBA raster at @p scale (72 dpi = 1.0); @p
+    /// region is ignored. MuPDF draws straight into the returned image, so a
+    /// render holds ONE raster at its peak (ui-tweaks-3 phase-2): bytes are
+    /// exactly fz_new_pixmap_from_page's. A raster too large to allocate gives
+    /// a null image; a MuPDF error mid-draw throws MuPdfException, as before.
     QImage render(const QRectF& region, float scale = 1.0f);
+
+    /// TEST SEAM. The next render() (one-shot) raises a MuPDF error after its
+    /// draw device is created, to exercise the error path's cleanup.
+    static void failNextRenderForTest();
 
     // Text extraction
     std::vector<TextBlock> extractText();
@@ -88,6 +97,19 @@ public:
 
     // Page properties
     QRectF boundingBox() const;
+
+    /// The page's MediaBox (inherited if need be) in the SAME fitz space as
+    /// boundingBox(): user space mapped by the page ctm that boundingBox()
+    /// uses (pdf_page_transform: the CropBox frame, with /Rotate and
+    /// /UserUnit applied). So boundingBox() lies inside it, and the two are
+    /// equal when the page has no CropBox or its CropBox is its MediaBox.
+    /// This is the page box the image tool clamps to and shades against, and
+    /// the box the save-time image crop/clip cuts to (ui-tweaks-2 phase-1);
+    /// the canvas still renders only the CropBox. Falls back to boundingBox()
+    /// for a non-PDF page or an empty/degenerate MediaBox (MuPDF then
+    /// substitutes its own default box, which is what boundingBox() reports).
+    QRectF mediaBox() const;
+
     int rotation() const;
     int index() const;
 
@@ -135,6 +157,7 @@ public:
 
 private:
     friend class Document;
+    friend struct PageRenderTestAccess;  // tests: the fz_page for an independent reference render
     friend class TextExtractor;
     friend class SearchEngine;
     friend class pdfe::annotations::AnnotationManager;
