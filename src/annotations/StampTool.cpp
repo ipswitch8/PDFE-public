@@ -103,6 +103,7 @@ void StampTool::onMouseRelease(QMouseEvent* event, int pageIndex, QPointF pdfPoi
         data.contents = stampName_.toStdString();
         manager_->setContents(page_, data.annotIndex, data.contents);
         manager_->setStampImageAppearance(page_, data.annotIndex, stampImage_);
+        data.stampImage = stampImage_;  // re-applied when MainWindow re-creates it
 
         if (annotationCreated) {
             auto cb = annotationCreated;  // copy: the call may destroy this tool

@@ -231,6 +231,14 @@ void PdfCanvas::releaseActiveToolPageCache()
     if (currentTool_) {
         currentTool_->onDocumentClosing();
     }
+    // DCA 0128. onDocumentClosing() nulls the TOOL's page_, so the CANVAS
+    // binding has to go with it, in the same order clearDocument() uses.
+    // Before this, toolPage_/toolPageIndex_ survived the save, the next
+    // click's bindToolToPage() took its "already bound to this page"
+    // short-circuit and never called setPage() again, and every tool dropped
+    // every press at its `if (!page_)` guard until the user switched tools:
+    // after File > Save a form field could not be clicked into.
+    releaseToolPage();
 }
 
 void PdfCanvas::clearDocument()
@@ -1362,6 +1370,25 @@ void PdfCanvas::mousePressEvent(QMouseEvent* event)
                 update();
                 event->accept();
                 return;
+            }
+
+            // DCA 0128. The Select tool is the tool a document opens with, and
+            // it never filled a form field: a press on one selected the widget
+            // as an annotation. When the owner switches to the form editor for
+            // a fillable field at this point, the SAME press is delivered to
+            // the new tool below, so the click that switched also starts the
+            // edit or toggles the checkbox. Restricted to SelectTool for the
+            // reason given for link following above.
+            if (event->button() == Qt::LeftButton && formFieldFillRequested &&
+                dynamic_cast<pdfe::annotations::SelectTool*>(
+                    currentTool_.get()) != nullptr &&
+                formFieldFillRequested(pageIdx, pdfPoint)) {
+                // The owner replaced the tool. Fall through: the dispatch
+                // below delivers this press to the new current tool.
+                if (!currentTool_) {
+                    event->accept();
+                    return;
+                }
             }
 
             // GitHub #269: act on the page that was clicked, not the page the

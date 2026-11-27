@@ -2,6 +2,10 @@ add_library(pdfe_ui STATIC
     branding.qrc
     action_icons.qrc
     MainWindow.cpp
+    PaletteIconEngine.cpp
+    ThemedIconStyle.cpp      # dark-theme dock title-bar icons
+    CreateCertificateDialog.cpp  # DCA 0129: create-certificate form
+    VisualSignature.cpp       # visual signature appearance (no certificate)
     TestPipeFocusGuard.cpp   # GitHub #303
     PdfCanvas.cpp
     PagePanel.cpp
@@ -101,6 +105,7 @@ target_link_libraries(pdfe_ui PUBLIC
     pdfe_formsubmit
     Qt6::Widgets
     Qt6::PrintSupport
+    Qt6::Svg   # PaletteIconEngine renders the action SVGs
 )
 
 target_compile_features(pdfe_ui PUBLIC cxx_std_20)

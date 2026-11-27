@@ -800,6 +800,9 @@ add_executable(pdfe_tests
     # accumulation across a second consecutive drag.
     test_select_tool_rotation_handle.cpp
     test_pdfcanvas_setdocument_tool_release.cpp
+    test_form_fields_after_save.cpp   # DCA 0128: form fields dead after save / reopen
+    test_create_certificate_dialog.cpp   # DCA 0129: create-certificate form validates in place
+    test_visual_signature.cpp   # visual signature without a PFX (image + date stamp)
     test_substitution_info_model.cpp
     test_content_stream_per_run_emission.cpp
     test_text_edit_commands_per_run.cpp
@@ -969,6 +972,7 @@ add_executable(pdfe_tests
     # DPI change (needs Qt6::GuiPrivate for the QPA notification entry point).
     test_dpi_change_relayout.cpp
     test_theme_dark_pixels.cpp
+    test_action_icon_contrast.cpp   # dark-mode toolbar icon contrast
     # GitHub #216 (View > Search Panel must raise a tabified dock) and
     # GitHub #217 (dark theme must repaint the PdfCanvas viewport).
     test_panel_raise_and_canvas_theme.cpp

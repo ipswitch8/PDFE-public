@@ -586,6 +586,55 @@
       "ordinal": 0,
       "classification": "benign",
       "reason": "Outcome branch, not a measurement magnitude: a JPEG behind a buried DCT filter may be either re-encoded (stripped == 1) or reported not processed (failed == 1); both are accepted outcomes, recorded with RecordProperty. The test asserts unconditionally that exactly one image was seen and that it was not reported clean (EXPECT_EQ(r.total(), 1), EXPECT_EQ(r.alreadyClean, 0)); the guarded EXPECT adds the secret-bytes check for the stripped outcome only, because a failed image is documented as left untouched. The count is 0 or 1 by construction and cannot drift with hardware. (image-placement-state phase 6; the guard was added in phase 4, GitHub #452)"
+    },
+    {
+      "file": "tests/test_form_commands.cpp",
+      "condition": "textIdx < 0",
+      "ordinal": 5,
+      "classification": "benign",
+      "reason": "Zero-threshold availability guard: firstEditableTextField returns -1 when test_form.pdf has no editable text field, so the test skips (GTEST_SKIP, visible in the report) rather than asserting on a field it does not have. Not a timing or size threshold; hardware speed cannot make it false."
+    },
+    {
+      "file": "tests/test_form_commands.cpp",
+      "condition": "idx < 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold availability guard: findField returns -1 when the fixture has no editable text field; the case skips visibly. Not a magnitude threshold."
+    },
+    {
+      "file": "tests/test_form_commands.cpp",
+      "condition": "idx < 0",
+      "ordinal": 1,
+      "classification": "benign",
+      "reason": "Zero-threshold availability guard: findField returns -1 when the fixture has no checkbox; the case skips visibly. Not a magnitude threshold."
+    },
+    {
+      "file": "tests/test_form_commands.cpp",
+      "condition": "idx < 0",
+      "ordinal": 2,
+      "classification": "benign",
+      "reason": "Zero-threshold availability guard: idx stays -1 when the fixture has no choice field with options; the case skips visibly. Not a magnitude threshold."
+    },
+    {
+      "file": "tests/test_image_page_bounds.cpp",
+      "condition": "clockwiseDeg == 0.0f",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Not a guard on a measurement: the place() helper chooses resizeImage for an unrotated placement and rotateImage otherwise, and both branches ASSERT_TRUE the edit and then assert the placed bounding box. Every path asserts; nothing is disabled."
+    },
+    {
+      "file": "tests/test_text_edit_empty_area_insert.cpp",
+      "condition": "!document_ || document_->pageCount() == 0",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Zero-threshold availability guard in SetUp: test_3page.pdf failed to open or has no pages, so the fixture skips visibly. Same shape as the other fixture-open guards in this baseline."
+    },
+    {
+      "file": "tests/test_watermark_exif_model.cpp",
+      "condition": "report.failed == 1",
+      "ordinal": 0,
+      "classification": "benign",
+      "reason": "Both-paths: the two outcomes the stripper may legitimately take for a cut-off JPEG each have their own assertions (reported-not-stripped: metadataFree()==0 and stripImage false; re-encoded: stripped==1 and no secret left in the saved file). total()==1 and alreadyClean==0 are asserted unconditionally before the branch."
     }
   ],
   "_ownership": {

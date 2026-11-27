@@ -133,6 +133,17 @@ QPalette ThemeManager::paletteFor(Theme t)
     p.setColor(QPalette::Mid,      QColor(45, 45, 45));
     p.setColor(QPalette::Dark,     QColor(30, 30, 30));
     p.setColor(QPalette::Shadow,   QColor(20, 20, 20));
+
+    // The DISABLED text roles. setColor(role, c) above writes every colour
+    // group, so a disabled control's text was the same white as an enabled
+    // one. The toolbar icons are now drawn in ButtonText by PaletteIconEngine,
+    // which made that visible: a greyed-out Save looked exactly like a live
+    // one. A mid grey keeps disabled items readable on #353535 while plainly
+    // distinct from the white enabled text.
+    const QColor disabledText(128, 128, 128);
+    p.setColor(QPalette::Disabled, QPalette::WindowText, disabledText);
+    p.setColor(QPalette::Disabled, QPalette::Text,       disabledText);
+    p.setColor(QPalette::Disabled, QPalette::ButtonText, disabledText);
     return p;
 }
 

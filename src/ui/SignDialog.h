@@ -129,6 +129,9 @@ private slots:
     /// test seam, run it headlessly) and populate the PFX path + password fields.
     void onCreateCert();
     void validateInput();
+    /// Visual-signature mode on/off: disables the certificate controls and
+    /// shows the "not a digital signature" notice.
+    void onVisualOnlyToggled(bool visual);
 
 private:
     QLineEdit* pfxPathEdit_ = nullptr;
@@ -150,6 +153,9 @@ private:
     QPushButton* saveImageButton_ = nullptr;
     QLineEdit* pfxPasswordEdit_ = nullptr;
     QPushButton* createCertButton_ = nullptr;  // GitHub #361
+    QLabel* createCertStatusLabel_ = nullptr;  // DCA 0129: outcome beside the button
+    QCheckBox* visualOnlyCheck_ = nullptr;     // visual signature, no certificate
+    QLabel* visualNoticeLabel_ = nullptr;      // "not a digital signature"
     QLineEdit* reasonEdit_ = nullptr;
     QLineEdit* locationEdit_ = nullptr;
     QCheckBox* showLabelsCheck_ = nullptr;

@@ -29,6 +29,7 @@
 #include "core/Page.h"
 
 #include <QApplication>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRectF>
@@ -360,4 +361,15 @@ TEST(CreateSelfSignedCert, SignDialogSeamEmptyCnRejected)
                      .contains(QString::fromUtf8(kDummyPass)))
         << "the create-cert error must not contain the passphrase";
     EXPECT_TRUE(dlg.findChild<QLineEdit*>("pfxPathEdit")->text().isEmpty());
+
+    // DCA 0129: the rejection names the missing Common Name and is shown
+    // beside the Create-certificate button, not only in the validation label
+    // at the bottom of the scroll area. (The real form keeps itself open with
+    // the same message: CreateCertificateForm.* in
+    // test_create_certificate_dialog.cpp.)
+    EXPECT_TRUE(dlg.lastCreateCertErrorForTesting().contains("Common Name"))
+        << dlg.lastCreateCertErrorForTesting().toStdString();
+    auto* status = dlg.findChild<QLabel*>("createCertStatusLabel");
+    ASSERT_NE(status, nullptr);
+    EXPECT_EQ(status->text(), dlg.lastCreateCertErrorForTesting());
 }

@@ -132,6 +132,14 @@ struct SigningOptions {
     std::string reason;
     std::string location;
 
+    /// VISUAL signature only: place the signature image (imagePath) and the
+    /// date and time on the page as an image /Stamp annotation, with NO
+    /// cryptographic signature -- no certificate, no /Sig value, no
+    /// /ByteRange. pfxPath/pfxPassword are ignored (and left empty by the
+    /// Sign dialog). MainWindow::placeVisualSignature handles it; the signing
+    /// engines never see an options object with this set.
+    bool visualOnly = false;
+
     /// GitHub #327 — path to an image file (PNG/JPEG/…) to use as the
     /// VISIBLE signature graphic. When non-empty and the signature is
     /// visible, it is loaded into an `fz_image*` and passed to

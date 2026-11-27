@@ -213,6 +213,14 @@ public:
     /// `tooltipRequested` above.
     std::function<bool(int pageIndex, QPointF pdfPoint)> linkFollowRequested;
 
+    /// DCA 0128 — Select-tool form filling. Called for a left press while the
+    /// SELECT tool is active. The owner returns true when (pageIndex,
+    /// pdfPoint) is on a fillable form field AND it has made the form editor
+    /// the current tool; the canvas then delivers this same press to the new
+    /// current tool, so one click both switches and starts filling. Returns
+    /// false, and changes nothing, everywhere else.
+    std::function<bool(int pageIndex, QPointF pdfPoint)> formFieldFillRequested;
+
     // HiDPI
     float devicePixelRatio() const;
 

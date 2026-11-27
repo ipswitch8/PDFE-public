@@ -61,6 +61,7 @@
 #include "ui/PrintDialog.h"
 #include "ui/PrintPreviewDialog.h"
 #include "ui/SignDialog.h"
+#include "ui/CreateCertificateDialog.h"
 #include "ui/TabOrderDialog.h"
 #include "ui/TrustAnchorDialog.h"
 #include "ui/WatermarkDialog.h"
@@ -427,6 +428,8 @@ TEST_F(ThemeDarkPixelsTest, EveryProductDialogBackgroundFollowsTheDarkPalette)
         {"MetadataDialog",     [] { return new MetadataDialog(nullptr); }},
         {"PasswordDialog",     [] { return new PasswordDialog(nullptr); }},
         {"SignDialog",         [] { return new SignDialog(nullptr); }},
+        // DCA 0129 — the create-certificate form opened from SignDialog.
+        {"CreateCertificateDialog", [] { return new CreateCertificateDialog(nullptr); }},
         {"TrustAnchorDialog",  [] { return new TrustAnchorDialog(nullptr); }},
 
         // Context-backed.
@@ -513,6 +516,7 @@ TEST(ThemeDialogCoverageEnumeration, EveryDialogHeaderIsCoveredOrJustified)
     // and it is meant to be an independent check on it.
     static const std::set<std::string> kCovered = {
         "AboutDialog", "AltTextDialog", "BatchDialog", "CalculationOrderDialog",
+        "CreateCertificateDialog",
         "CompareDialog", "ComplianceDialog", "CustomizeToolbarsDialog",
         "EncryptionDialog", "HeaderFooterDialog", "MetadataDialog",
         "OptimizeDialog", "PageLabelsDialog", "PasswordDialog",

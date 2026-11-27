@@ -273,6 +273,14 @@ public:
     /// Returns true if a link was found and handled.
     bool followLinkAt(int pageIndex, QPointF pdfPoint);
 
+    /// DCA 0128 — Select-tool form filling. If (pageIndex, pdfPoint) is on a
+    /// fillable field (text, checkbox, radio, combo or list box; not read-only,
+    /// not a signature or push button), make the Form Tool current with field
+    /// CREATION disarmed, so the press PdfCanvas delivers next fills the field
+    /// and a later click on empty page space draws nothing. Returns true when
+    /// it switched.
+    bool switchToFormFillAt(int pageIndex, QPointF pdfPoint);
+
     /// Pipeline E phase-13: test seam for /Launch link follow. When set,
     /// followLinkAt() routes the launch decision through this callback
     /// instead of showing a QMessageBox + QDesktopServices::openUrl.
@@ -699,6 +707,9 @@ public:
         /// GitHub #372 — record signing errors via lastSigningErrorForTesting()
         /// instead of showing the modal QMessageBox (headless runs block on it).
         bool suppressErrorDialogs = false;
+        /// Visual signature only (SigningOptions::visualOnly): the flow places
+        /// an image + date stamp and signs nothing; the PFX fields are ignored.
+        bool visualOnly = false;
     };
     void setSignFlowTestInputsForTesting(std::optional<SignFlowTestInputs> inputs) {
         signFlowTestInputs_ = std::move(inputs);
@@ -706,6 +717,11 @@ public:
     /// Signature-field widget count on the current document (signed OR not) via
     /// the real SignatureManager/AcroForm enumeration — the #360 oracle.
     int signatureFieldCountForTesting() const;
+    /// The pixel size of the last visual-signature appearance placeVisualSignature
+    /// composed (invalid if none). Its aspect ratio should be the placed stamp's.
+    QSize lastVisualSignatureAppearanceSizeForTesting() const {
+        return lastVisualSignatureAppearanceSize_;
+    }
     /// Run the real Sign Document action against the current document.
     void triggerSignDocumentForTesting() { onSignDocument(); }
     /// GitHub #372 — the last signing-error text recorded by
@@ -1213,6 +1229,15 @@ private slots:
     /// must be rolled back (a cancelled Sign dialog previously left a stray
     /// red "SIGN" widget on the page).
     bool signTargetField(int targetPage, int targetWidget);
+    /// Visual signature (no certificate): places the signature image and the
+    /// date and time as an image /Stamp at @p rect on @p pageIndex, with
+    /// /Contents saying it is not a digital signature. Writes no signature
+    /// field, no /Sig value and no /ByteRange. Goes through the annotation
+    /// command path, so it can be undone. Returns false (after
+    /// showSigningError) if the image cannot be read or the stamp cannot be
+    /// placed.
+    bool placeVisualSignature(int pageIndex, const QRectF& rect,
+                              const pdfe::signatures::SigningOptions& opts);
     /// GitHub #370 — show the Sign dialog (or consume the test seam) and fill
     /// `opts`. `newField` arms the dialog's placement controls; `defaultRect`
     /// / `defaultPageIndex` seed them (the pre-#370 hard-coded values for a
@@ -2446,6 +2471,9 @@ private:
     /// and Save-As dialogs and uses these injected values. Test-only; unset in
     /// production. See setSignFlowTestInputsForTesting().
     std::optional<SignFlowTestInputs> signFlowTestInputs_;
+    /// Pixel size of the last visual-signature appearance composed, so a test
+    /// can check it was composed for the stamp's own rectangle.
+    QSize lastVisualSignatureAppearanceSize_;
     /// GitHub #372 — last error recorded by showSigningError(); cleared at
     /// the start of each sign flow. Test oracle for the suppressed-dialog
     /// error paths.

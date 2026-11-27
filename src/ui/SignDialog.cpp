@@ -2,6 +2,7 @@
 #include "signatures/SignatureData.h"
 #include "signatures/Pkcs7OpenSslBridge.h"
 #include "annotations/SignatureImageLibrary.h"  // GitHub #362
+#include "CreateCertificateDialog.h"           // DCA 0129
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -65,6 +66,25 @@ SignDialog::SignDialog(QWidget* parent)
 
     auto* mainLayout = new QVBoxLayout(contentWidget);
 
+    // Visual signature: the signature image plus the date and time, placed on
+    // the page WITHOUT a certificate. It is not a digital signature, and the
+    // notice below says so in the dialog itself, beside the option.
+    visualOnlyCheck_ = new QCheckBox(
+        tr("Visual signature only (image and date, no certificate)"), this);
+    visualOnlyCheck_->setObjectName("visualSignatureCheck");
+    visualOnlyCheck_->setAccessibleName(tr("Visual signature only"));
+    mainLayout->addWidget(visualOnlyCheck_);
+    visualNoticeLabel_ = new QLabel(
+        tr("This is not a digital signature. It places your signature image and "
+           "the date and time on the page. It does not prove who signed, and it "
+           "does not detect later changes. Use a certificate for that."),
+        this);
+    visualNoticeLabel_->setObjectName("visualSignatureNotice");
+    visualNoticeLabel_->setAccessibleName(tr("Visual signature notice"));
+    visualNoticeLabel_->setWordWrap(true);
+    visualNoticeLabel_->setVisible(false);
+    mainLayout->addWidget(visualNoticeLabel_);
+
     // Certificate group
     auto* certGroup = new QGroupBox(tr("Certificate"), this);
     certGroup->setObjectName("certificateGroup");
@@ -99,7 +119,17 @@ SignDialog::SignDialog(QWidget* parent)
     createCertButton_ = new QPushButton(tr("Create certificate..."), this);
     createCertButton_->setObjectName("createCertButton");
     createCertButton_->setAccessibleName(tr("Create Self-Signed Certificate"));
-    certLayout->addRow(QString(), createCertButton_);
+    // DCA 0129: the outcome of Create certificate is shown HERE, beside the
+    // button that started it, not only in validationLabel_ at the bottom of
+    // the scroll area where the old CN error was never seen.
+    createCertStatusLabel_ = new QLabel(this);
+    createCertStatusLabel_->setObjectName("createCertStatusLabel");
+    createCertStatusLabel_->setAccessibleName(tr("Certificate Creation Status"));
+    createCertStatusLabel_->setWordWrap(true);
+    auto* createRow = new QHBoxLayout;
+    createRow->addWidget(createCertButton_);
+    createRow->addWidget(createCertStatusLabel_, 1);
+    certLayout->addRow(QString(), createRow);
 
     mainLayout->addWidget(certGroup);
 
@@ -348,6 +378,8 @@ SignDialog::SignDialog(QWidget* parent)
     connect(pfxPathEdit_, &QLineEdit::textChanged, this, &SignDialog::validateInput);
     connect(pfxPasswordEdit_, &QLineEdit::textChanged, this, &SignDialog::validateInput);
     connect(okButton_, &QPushButton::clicked, this, &QDialog::accept);
+    connect(visualOnlyCheck_, &QCheckBox::toggled, this, &SignDialog::onVisualOnlyToggled);
+    connect(imagePathEdit_, &QLineEdit::textChanged, this, &SignDialog::validateInput);
     connect(cancelButton_, &QPushButton::clicked, this, &QDialog::reject);
 
     // GitHub #362 — load the persisted signature-image library on construction
@@ -367,8 +399,11 @@ SignDialog::~SignDialog() = default;
 pdfe::signatures::SigningOptions SignDialog::signingOptions() const
 {
     pdfe::signatures::SigningOptions opts;
-    opts.pfxPath = pfxPathEdit_->text().toStdString();
-    opts.pfxPassword = pfxPasswordEdit_->text().toStdString();
+    opts.visualOnly = visualOnlyCheck_->isChecked();
+    if (!opts.visualOnly) {
+        opts.pfxPath = pfxPathEdit_->text().toStdString();
+        opts.pfxPassword = pfxPasswordEdit_->text().toStdString();
+    }
     opts.reason = reasonEdit_->text().toStdString();
     opts.location = locationEdit_->text().toStdString();
 
@@ -620,127 +655,61 @@ bool SignDialog::selectSavedSignatureImageForTesting(const QString& name)
 
 void SignDialog::onCreateCert()
 {
-    // GitHub #361 — gather the subject/validity/passphrase + output path, then
-    // run the REAL create + field-population path. Production shows two modals;
-    // a GoogleTest injects the values via setCreateCertTestInputsForTesting()
-    // and this method skips the modals but runs the identical create path below.
-    QString cn, org, pass, outPath;
-    int days = 365;
+    // GitHub #361, DCA 0129. Production opens CreateCertificateDialog, which
+    // validates every input and writes the certificate in its own accept(), so
+    // a missing Common Name or passphrase is shown IN that form while the user
+    // can still fix it. The headless seam below skips the form: it shares the
+    // form's validationError() (with the passphrase standing in for its own
+    // confirmation, so a mismatch cannot occur), withPfxSuffix() and the
+    // create call, but has no overwrite check. Only its empty-CN rejection is
+    // tested (CreateSelfSignedCert.SignDialogSeamEmptyCnRejected); the real
+    // form's behaviour is tested by CreateCertificateForm.*.
+    createCertLastError_.clear();
+    QString path;
+    QString pass;
 
     if (createCertTestInputs_) {
         if (!createCertTestInputs_->accepted) {
-            return;  // simulate the user cancelling the entry dialog
+            return;  // simulate the user cancelling the form
         }
-        cn      = createCertTestInputs_->commonName;
-        org     = createCertTestInputs_->organization;
-        days    = createCertTestInputs_->validityDays;
-        pass    = createCertTestInputs_->passphrase;
-        outPath = createCertTestInputs_->outputPath;
-    } else {
-        // Subject / validity / passphrase entry dialog. A plain QDialog instance
-        // (not a subclass) so the introspection build-guard does not require a
-        // new registered type, yet still registered here for UIA automation.
-        QDialog entry(this);
-        entry.setObjectName("createCertDialog");
-        entry.setAccessibleName(tr("Create Self-Signed Certificate"));
-        entry.setWindowTitle(tr("Create Self-Signed Certificate"));
-
-        auto* form = new QFormLayout(&entry);
-
-        auto* cnEdit = new QLineEdit(&entry);
-        cnEdit->setObjectName("certCnEdit");
-        cnEdit->setAccessibleName(tr("Certificate Common Name"));
-        cnEdit->setPlaceholderText(tr("e.g., Jane Doe"));
-        form->addRow(tr("Common Name (CN):"), cnEdit);
-
-        auto* orgEdit = new QLineEdit(&entry);
-        orgEdit->setObjectName("certOrgEdit");
-        orgEdit->setAccessibleName(tr("Certificate Organization"));
-        orgEdit->setPlaceholderText(tr("Optional"));
-        form->addRow(tr("Organization (O):"), orgEdit);
-
-        auto* daysSpin = new QSpinBox(&entry);
-        daysSpin->setObjectName("certValidityDaysSpin");
-        daysSpin->setAccessibleName(tr("Certificate Validity Days"));
-        daysSpin->setRange(1, 7300);
-        daysSpin->setValue(365);
-        form->addRow(tr("Validity (days):"), daysSpin);
-
-        auto* passEdit = new QLineEdit(&entry);
-        passEdit->setObjectName("certPassphraseEdit");
-        passEdit->setAccessibleName(tr("Certificate Passphrase"));
-        passEdit->setEchoMode(QLineEdit::Password);
-        form->addRow(tr("Passphrase:"), passEdit);
-
-        auto* buttons = new QDialogButtonBox(
-            QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &entry);
-        buttons->setObjectName("certButtonBox");
-        connect(buttons, &QDialogButtonBox::accepted, &entry, &QDialog::accept);
-        connect(buttons, &QDialogButtonBox::rejected, &entry, &QDialog::reject);
-        form->addRow(buttons);
-
-        // Automation-friendly: let UIA-blind tests observe this modal's inventory.
-        pdfe::ui::testseam::registerDialogIntrospection(&entry);
-
-        if (entry.exec() != QDialog::Accepted) {
+        const auto& in = *createCertTestInputs_;
+        createCertLastError_ = CreateCertificateDialog::validationError(
+            in.commonName, in.passphrase, in.passphrase, in.outputPath);
+        if (!createCertLastError_.isEmpty()) {
+            createCertStatusLabel_->setText(createCertLastError_);
             return;
         }
-
-        cn   = cnEdit->text().trimmed();
-        org  = orgEdit->text().trimmed();
-        days = daysSpin->value();
-        pass = passEdit->text();
-
-        // Where to write the new .pfx. Honors the file-dialog path-injection
-        // seam used by the rest of the UI.
-        outPath = QFileDialog::getSaveFileName(
-            this, tr("Save New Certificate"),
-            QString(), tr("PFX Files (*.pfx)"));
-        if (outPath.isEmpty()) {
-            return;  // user cancelled the Save-As
+        path = CreateCertificateDialog::withPfxSuffix(in.outputPath);
+        pdfe::signatures::Pkcs7OpenSslBridge::SelfSignedCertOptions opts;
+        opts.commonName = in.commonName.trimmed().toStdString();
+        opts.organization = in.organization.trimmed().toStdString();
+        opts.validityDays = in.validityDays;
+        const auto res = pdfe::signatures::Pkcs7OpenSslBridge::createSelfSignedPfx(
+            path.toStdString(), in.passphrase.toStdString(), opts);
+        if (!res.success) {
+            // SECURITY (#361): res.errorMessage is secret-free by contract.
+            createCertLastError_ = QString::fromStdString(res.errorMessage);
+            createCertStatusLabel_->setText(
+                tr("Certificate creation failed: %1").arg(createCertLastError_));
+            return;
         }
-    }
-
-    // ---- Common path: the REAL create + field-population (#361) ----
-    createCertLastError_.clear();
-    if (cn.isEmpty()) {
-        createCertLastError_ = tr("Common Name (CN) is required.");
-        validationLabel_->setText(createCertLastError_);
-        return;
-    }
-    if (pass.isEmpty()) {
-        createCertLastError_ = tr("Certificate passphrase is required.");
-        validationLabel_->setText(createCertLastError_);
-        return;
-    }
-    if (outPath.isEmpty()) {
-        createCertLastError_ = tr("A certificate output path is required.");
-        validationLabel_->setText(createCertLastError_);
-        return;
-    }
-
-    pdfe::signatures::Pkcs7OpenSslBridge::SelfSignedCertOptions opts;
-    opts.commonName   = cn.toStdString();
-    opts.organization = org.toStdString();
-    opts.validityDays = days;
-
-    const auto res = pdfe::signatures::Pkcs7OpenSslBridge::createSelfSignedPfx(
-        outPath.toStdString(), pass.toStdString(), opts);
-
-    if (!res.success) {
-        // SECURITY (#361): res.errorMessage is secret-free by contract — the
-        // passphrase and key are never surfaced here.
-        createCertLastError_ = QString::fromStdString(res.errorMessage);
-        validationLabel_->setText(
-            tr("Certificate creation failed: %1").arg(createCertLastError_));
-        return;
+        pass = in.passphrase;
+    } else {
+        CreateCertificateDialog form(this);
+        if (form.exec() != QDialog::Accepted) {
+            return;  // cancelled: nothing was written
+        }
+        path = form.certificatePath();
+        pass = form.passphrase();
     }
 
     // Populate the existing PFX fields so signingOptions() returns the freshly
     // created certificate and the user can sign immediately.
-    pfxPathEdit_->setText(outPath);
+    pfxPathEdit_->setText(path);
     pfxPasswordEdit_->setText(pass);
-    validationLabel_->setText(tr("Self-signed certificate created."));
+    createCertStatusLabel_->setText(
+        tr("Created %1. It is filled in above.").arg(QDir::toNativeSeparators(path)));
+    validationLabel_->clear();
     createCertLastError_.clear();
 }
 
@@ -748,7 +717,10 @@ void SignDialog::validateInput()
 {
     QString message;
 
-    if (pfxPathEdit_->text().trimmed().isEmpty()) {
+    if (visualOnlyCheck_ && visualOnlyCheck_->isChecked()) {
+        if (imagePathEdit_->text().trimmed().isEmpty())
+            message = tr("Choose a signature image for a visual signature.");
+    } else if (pfxPathEdit_->text().trimmed().isEmpty()) {
         message = tr("PFX certificate file is required.");
     } else if (pfxPasswordEdit_->text().isEmpty()) {
         message = tr("Certificate password is required.");
@@ -760,8 +732,31 @@ void SignDialog::validateInput()
     validationLabel_->setText(message);
 }
 
+void SignDialog::onVisualOnlyToggled(bool visual)
+{
+    // The certificate and the cryptographic options do not apply to a visual
+    // signature; disable them so the dialog shows what will be used.
+    for (QWidget* w : std::initializer_list<QWidget*>{
+             pfxPathEdit_, browseButton_, pfxPasswordEdit_, createCertButton_,
+             tsaTimestampCheck_, tsaUrlEdit_, invisibleCheck_, certificationCombo_}) {
+        if (w) w->setEnabled(!visual);
+    }
+    visualNoticeLabel_->setVisible(visual);
+    okButton_->setText(visual ? tr("Place") : tr("Sign"));
+    validateInput();
+}
+
 void SignDialog::accept()
 {
+    if (visualOnlyCheck_->isChecked()) {
+        if (imagePathEdit_->text().trimmed().isEmpty()) {
+            validationLabel_->setText(
+                tr("Choose a signature image for a visual signature."));
+            return;
+        }
+        QDialog::accept();
+        return;
+    }
     // Re-validate at accept time so the dialog cannot be accepted
     // with empty inputs even if the OK button is reached via UIA
     // InvokePattern (which on some Qt6 builds bypasses the enabled

@@ -27,7 +27,9 @@
 #include "core/Page.h"
 #include "ui/MainWindow.h"
 
+#include <QAction>
 #include <QApplication>
+#include <QTemporaryDir>
 #include <QColor>
 #include <QImage>
 #include <QMouseEvent>
@@ -166,4 +168,72 @@ TEST(StampWarnLoudOnNullImage, ResolveWarnsOnNullAndNotOnValid) {
         << "GitHub #359: a null library image must take the loud warn path, not "
            "silently degrade (the pre-fix behaviour). The production Stamp "
            "action calls this same resolver.";
+}
+
+// The Stamp tool's image branch, through the REAL MainWindow hand-off.
+//
+// MainWindow::onAnnotationCreatedByTool deletes the annotation a tool made and
+// re-creates it through the command system so it can be undone. It restored
+// colour, contents, quads, ink and so on, but not an image appearance: an
+// image stamp placed in the application came back as an empty text stamp, and
+// the contents update resized its rectangle. The tests above stub
+// annotationCreated and so never passed through that hand-off. This one drives
+// the real tool into the real slot, saves through the real Save action, and
+// reads the file back. (Found 2026-11-26 while building the visual signature,
+// which uses the same hand-off.) The rect checks are loose on height because
+// MuPDF fixes a /Stamp's height itself.
+TEST(ImageStampThroughMainWindow, AToolPlacedImageStampKeepsItsImageAndRectAfterSaveAndReopen)
+{
+    if (!qApp) GTEST_SKIP() << "QApplication not available";
+    QTemporaryDir tmp;
+    ASSERT_TRUE(tmp.isValid());
+    const auto work = std::filesystem::path(tmp.path().toStdString()) / "stamp.pdf";
+    std::filesystem::copy_file(std::filesystem::path(TEST_FIXTURES_DIR) / "test_single.pdf", work);
+
+    {
+        pdfe::ui::MainWindow mw;
+        mw.openFile(QString::fromStdString(work.string()));
+        for (int i = 0; i < 5; ++i) QApplication::processEvents();
+        ASSERT_NE(mw.documentForTesting(), nullptr);
+        auto page = mw.documentForTesting()->page(0);
+        ASSERT_NE(page, nullptr);
+
+        StampTool tool(mw.annotationManagerForTesting());
+        tool.setImageStamp(QStringLiteral("logo"), makeRedImage(100, 50));
+        tool.setPage(page.get());
+        tool.annotationCreated = [&mw](int pageIdx, const AnnotationData& d) {
+            mw.triggerAnnotationCreatedByToolForTesting(pageIdx, d);
+        };
+        QMouseEvent press = leftButton(QEvent::MouseButtonPress);
+        tool.onMousePress(&press, 0, QPointF(72, 72));
+        QMouseEvent release = leftButton(QEvent::MouseButtonRelease);
+        tool.onMouseRelease(&release, 0, QPointF(272, 172));
+
+        auto* save = mw.findChild<QAction*>(QStringLiteral("saveAction"));
+        ASSERT_NE(save, nullptr);
+        save->trigger();
+        for (int i = 0; i < 5; ++i) QApplication::processEvents();
+    }
+
+    auto ctx = std::make_shared<MuPdfContext>();
+    auto doc = Document::open(ctx, work);
+    ASSERT_NE(doc, nullptr);
+    AnnotationManager mgr(ctx);
+    auto page = doc->page(0);
+    int idx = -1;
+    AnnotationData stamp;
+    for (const auto& a : mgr.getAnnotations(page.get())) {
+        if (a.type == AnnotationType::Stamp) { stamp = a; idx = a.annotIndex; }
+    }
+    ASSERT_GE(idx, 0) << "no stamp was saved";
+    EXPECT_TRUE(mgr.stampAppearanceHasImageXObjectForTesting(page.get(), idx))
+        << "the image stamp lost its image on the way through MainWindow";
+    // Inside the dragged box (72, 72, 200 x 100). MuPDF gives every /Stamp
+    // its own proportions -- the requested width, a fixed height, centred
+    // vertically -- so the height is not 100; that is MuPDF's, before and
+    // after this change.
+    EXPECT_NEAR(stamp.rect.left(), 72.0, 1.0);
+    EXPECT_NEAR(stamp.rect.width(), 200.0, 1.0);
+    EXPECT_GE(stamp.rect.top(), 72.0 - 1.0);
+    EXPECT_LE(stamp.rect.bottom(), 172.0 + 1.0);
 }

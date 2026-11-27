@@ -42,6 +42,16 @@ void CreateAnnotationCommand::undo()
     if (!page_) {
         return;
     }
+    // Snapshot the annotation as it is NOW, so redo restores what the user
+    // undid. The data captured by execute() predates everything the caller
+    // set afterwards -- contents, colour, quads, ink -- and a redo from it
+    // brought back a bare annotation (a visual signature lost its
+    // "not a digital signature" contents and its image).
+    try {
+        createdData_ = manager_->getAnnotation(page_, createdData_.annotIndex);
+    } catch (const std::exception&) {
+        // Keep the execute()-time data: a less complete redo beats none.
+    }
     manager_->deleteAnnotation(page_, createdData_.annotIndex);
 }
 
@@ -56,6 +66,9 @@ void CreateAnnotationCommand::redo()
     }
     int newIndex = manager_->restoreAnnotation(page_, createdData_);
     createdData_.annotIndex = newIndex;
+    if (type_ == AnnotationType::Stamp && !stampImage_.isNull() && newIndex >= 0) {
+        manager_->setStampImageAppearance(page_, newIndex, stampImage_);
+    }
 }
 
 std::string CreateAnnotationCommand::description() const

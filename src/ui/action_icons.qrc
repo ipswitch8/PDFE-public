@@ -27,4 +27,8 @@
     <file alias="attach_file.svg">icons/action_attach_file.svg</file>
     <file alias="print_preview.svg">icons/action_print_preview.svg</file>
   </qresource>
+  <qresource prefix="/icons/style">
+    <file alias="dock_float.svg">icons/style_dock_float.svg</file>
+    <file alias="dock_close.svg">icons/style_dock_close.svg</file>
+  </qresource>
 </RCC>

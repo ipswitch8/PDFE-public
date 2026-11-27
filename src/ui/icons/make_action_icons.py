@@ -5,9 +5,17 @@
 # is a set of .svg files next to this script; src/ui/action_icons.qrc embeds them
 # under :/icons/actions/<name>.svg and MainWindow sets them via QAction::setIcon.
 import os
+import sys
+
+sys.stdout.reconfigure(encoding="utf-8")
 
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
-STROKE = "#303030"
+# Every stroke and fill is drawn as currentColor. PaletteIconEngine
+# (src/ui/PaletteIconEngine.cpp) substitutes the current application
+# palette's ButtonText colour at paint time, so the icons follow the
+# Light/Dark/System theme. A fixed #303030 here was dark grey on the dark
+# theme's #353535 toolbar and close to invisible.
+STROKE = "currentColor"
 
 def svg(body):
     return (
@@ -50,6 +58,26 @@ ICONS = {
     "print_preview":'<path d="M7 8V4h10v4"/><rect x="4" y="8" width="16" height="7" rx="1"/><rect x="7" y="14" width="10" height="6"/><circle cx="17" cy="11" r=".9"/>',
 }
 
+# Replacements for icons Qt's STYLE would otherwise draw. QDockWidget asks
+# style()->standardIcon() for its title-bar float and close buttons, and
+# Fusion (the style on Linux) answers with fixed dark-grey PNGs that ignore
+# the palette -- about 2.3:1 on the dark theme's #353535 title bar.
+# ThemedIconStyle (src/ui/ThemedIconStyle.cpp) serves these instead, through
+# PaletteIconEngine, from :/icons/style/<name>.svg. 16x16, drawn at the size a
+# dock title button asks for.
+def style_svg(body):
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" '
+        'viewBox="0 0 16 16" fill="none" stroke="%s" stroke-width="1.5" '
+        'stroke-linecap="round" stroke-linejoin="round">\n%s\n</svg>\n' % (STROKE, body)
+    )
+
+STYLE_ICONS = {
+    # Two overlapping windows: "undock / float this panel".
+    "dock_float": '<rect x="5.5" y="2.5" width="8" height="8" rx="1"/><path d="M2.5 6v6.5a1 1 0 0 0 1 1H10"/>',
+    "dock_close": '<path d="M4 4l8 8M12 4l-8 8"/>',
+}
+
 names = []
 for name, body in ICONS.items():
     path = os.path.join(OUT_DIR, "action_%s.svg" % name)
@@ -64,7 +92,19 @@ lines = ['<!DOCTYPE RCC><RCC version="1.0">', '  <qresource prefix="/icons/actio
 for name in names:
     lines.append('    <file alias="%s.svg">icons/action_%s.svg</file>' % (name, name))
 lines.append('  </qresource>')
+style_names = []
+for name, body in STYLE_ICONS.items():
+    path = os.path.join(OUT_DIR, "style_%s.svg" % name)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(style_svg(body))
+    style_names.append(name)
+    print("wrote", os.path.basename(path))
+lines.append('  <qresource prefix="/icons/style">')
+for name in style_names:
+    lines.append('    <file alias="%s.svg">icons/style_%s.svg</file>' % (name, name))
+lines.append('  </qresource>')
 lines.append('</RCC>')
 with open(qrc_path, "w", encoding="utf-8") as f:
     f.write("\n".join(lines) + "\n")
-print("wrote", qrc_path, "with", len(names), "icons")
+print("wrote", qrc_path, "with", len(names), "action icons and",
+      len(style_names), "style icons")

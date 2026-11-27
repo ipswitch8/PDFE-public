@@ -4,6 +4,7 @@
 #include <QRectF>
 #include <QPointF>
 #include <QColor>
+#include <QImage>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -51,6 +52,15 @@ struct AnnotationData {
 
     // Icon name (for stamp/text annotations)
     std::string iconName;
+
+    // Image /Stamp appearance, carried from a tool to MainWindow::
+    // onAnnotationCreatedByTool, which deletes the tool's annotation and
+    // re-creates it through the command system for undo. The re-created
+    // annotation gets this image as its appearance again; without it an image
+    // stamp came back as a plain text stamp, and the contents update that
+    // follows resized its rectangle. Empty for every other annotation. Never
+    // read from a PDF.
+    QImage stampImage;
 
     bool isOpen = false;  // Whether the popup is open (PDF /Open flag)
 

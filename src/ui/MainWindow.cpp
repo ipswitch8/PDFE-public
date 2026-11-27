@@ -2,6 +2,9 @@
 #include <atomic>  // GitHub #218: recomposite-completion sequence counter.
 #include "PdfCanvas.h"
 #include "TestPipeFocusGuard.h"   // GitHub #303
+#include "PaletteIconEngine.h"
+#include "ThemedIconStyle.h"
+#include "VisualSignature.h"
 #include "PagePanel.h"
 #include "PropertiesPanel.h"
 #include "StatusBar.h"
@@ -184,6 +187,8 @@
 #include <QToolBar>
 #include <QToolButton>
 #include <QAction>
+#include <QPainter>
+#include <QDateTime>
 #include <QFileDialog>
 #include <QTimer>
 #include <QMetaMethod>
@@ -734,6 +739,13 @@ MainWindow::MainWindow(QWidget* parent)
     // installing stays a human act via Help > Check for Updates, which is what
     // keeps UC-1..UC-8 (docs/code-signing.md) out of scope. See UC-9.
     maybeCheckForUpdateOnStartup();
+
+    // The dock title-bar float/close icons come from the style, and Fusion's
+    // are fixed dark-grey pixmaps (about 2.3:1 on the dark title bar).
+    // ThemedIconStyle serves palette-following ones instead. It must be in
+    // place BEFORE the theme is applied: QApplication::setStyle() re-applies
+    // the new style's standard palette. Idempotent across MainWindows.
+    ThemedIconStyle::installOnApplication();
 
     // Pipeline F phase-5: theme manager owns the persisted Light/Dark/System
     // choice and applies it on construction (default: Theme::System).
@@ -6027,9 +6039,12 @@ void MainWindow::createMenus()
 // bugfix-3e91a7c4 #2: load a toolbar action icon from the action_icons.qrc
 // resource (src/ui/icons/action_<name>.svg). Kept local to MainWindow.cpp so
 // the icon wiring lives next to the toolbar construction that uses it.
+// The SVGs draw in currentColor; PaletteIconEngine tints them with the current
+// palette's ButtonText so they stay visible under the dark theme.
 static QIcon actionIcon(const char* name)
 {
-    return QIcon(QStringLiteral(":/icons/actions/%1.svg").arg(QLatin1String(name)));
+    return pdfe::ui::PaletteIconEngine::icon(
+        QStringLiteral(":/icons/actions/%1.svg").arg(QLatin1String(name)));
 }
 
 void MainWindow::applyDeterministicTestLayout()
@@ -7667,6 +7682,12 @@ void MainWindow::openFile(const QString& filePath)
             return followLinkAt(pageIndex, pdfPoint);
         };
 
+        // DCA 0128: a Select-tool click on a fillable form field fills it.
+        canvas_->formFieldFillRequested = [this](int pageIndex,
+                                                 QPointF pdfPoint) -> bool {
+            return switchToFormFillAt(pageIndex, pdfPoint);
+        };
+
         // Wire annotation tooltip for hover preview
         canvas_->tooltipRequested = [this](int pageIndex, QPointF pdfPoint) -> QString {
             // Annotation tooltips
@@ -8497,6 +8518,50 @@ void MainWindow::onExportPlainText()
         QMessageBox::warning(this, tr("Export Plain Text"),
             tr("Could not write file:\n%1").arg(savePath));
     }
+}
+
+bool MainWindow::switchToFormFillAt(int pageIndex, QPointF pdfPoint)
+{
+    if (!document_ || !formManager_ || !canvas_ || !formToolAction_) return false;
+    if (!formToolAction_->isEnabled()) return false;
+    auto page = document_->page(pageIndex);
+    if (!page) return false;
+    const auto hit = formManager_->getFormFieldAt(page.get(), pdfPoint);
+    if (!hit.has_value()) return false;
+    const auto field = formManager_->getFormField(page.get(), *hit);
+    if (field.isReadOnly) return false;
+    switch (field.type) {
+    case pdfe::forms::FormFieldType::Text:
+    case pdfe::forms::FormFieldType::Checkbox:
+    case pdfe::forms::FormFieldType::RadioButton:
+    case pdfe::forms::FormFieldType::ComboBox:
+    case pdfe::forms::FormFieldType::ListBox:
+        break;
+    default:
+        // Signatures route to the signing flow and push buttons run actions;
+        // neither is "filling", so the Select tool keeps them.
+        return false;
+    }
+
+    formToolAction_->trigger();  // synchronous: installs a new FormTool
+    auto* formTool = dynamic_cast<pdfe::forms::FormTool*>(canvas_->currentTool());
+    if (!formTool) return false;
+    // Activation arms Text-field creation by default; filling must not, or the
+    // user's next click on empty space would draw a new field.
+    formTool->setCreationFieldType(pdfe::forms::FormFieldType::Unknown);
+    if (formTool->creationModeExited) formTool->creationModeExited();
+    // The field-CREATION toolbar (Text Field, Checkbox, ...) is not needed to
+    // fill a field, and showing it moved the page down under the user's mouse
+    // between the click that started the fill and the next click (found by
+    // the phase-4 GUI check: the second click landed between two fields).
+    if (formToolBar_) formToolBar_->setVisible(false);
+    if (statusBar_) {
+        statusBar_->showMessage(
+            tr("Filling form field \"%1\" with the Form Tool.")
+                .arg(QString::fromStdString(field.fieldName)),
+            4000);
+    }
+    return true;
 }
 
 bool MainWindow::followLinkAt(int pageIndex, QPointF pdfPoint)
@@ -12815,6 +12880,9 @@ void MainWindow::onAnnotationCreatedByTool(int pageIndex, pdfe::annotations::Ann
     auto command = std::make_unique<pdfe::annotations::CreateAnnotationCommand>(
         annotationManager_.get(), pagePtr, snapshot.type, snapshot.rect);
     auto* createCommand = command.get();
+    if (snapshot.type == pdfe::annotations::AnnotationType::Stamp && !data.stampImage.isNull()) {
+        createCommand->setStampImage(data.stampImage);  // for redo (DCA 0130)
+    }
     undoManager_->execute(std::move(command));
 
     // GitHub #170. The index of the annotation just created comes from the
@@ -12867,6 +12935,13 @@ void MainWindow::onAnnotationCreatedByTool(int pageIndex, pdfe::annotations::Ann
         }
         if (std::abs(snapshot.opacity - 1.0f) > 0.001f) {
             annotationManager_->setOpacity(pagePtr, newIndex, snapshot.opacity);
+        }
+        // Image stamps (the Stamp tool's image branch, visual signatures):
+        // the re-created /Stamp gets a text appearance; put the tool's image
+        // back as its appearance, last, so nothing after it replaces it.
+        if (snapshot.type == pdfe::annotations::AnnotationType::Stamp &&
+            !data.stampImage.isNull()) {
+            annotationManager_->setStampImageAppearance(pagePtr, newIndex, data.stampImage);
         }
     }
 
@@ -14980,6 +15055,13 @@ void MainWindow::onSignDocument()
         fieldRect = opts.fieldRect;
     }
 
+    // Visual signature: place the image + date stamp where the field would
+    // have gone, and create no signature field at all.
+    if (opts.visualOnly) {
+        placeVisualSignature(fieldPage, fieldRect, opts);
+        return;
+    }
+
     // GitHub #360 — the field created here is speculative until the flow
     // commits to the signed save; every abort below rolls it back so the
     // signature-field count returns to its pre-sign baseline.
@@ -15063,6 +15145,11 @@ bool MainWindow::promptSigningOptions(pdfe::signatures::SigningOptions& opts,
         // GitHub #372 — appearance image (a nonexistent path is the
         // injectable post-reopen failure).
         opts.imagePath = signFlowTestInputs_->imagePath.toStdString();
+        opts.visualOnly = signFlowTestInputs_->visualOnly;
+        if (opts.visualOnly) {
+            opts.pfxPath.clear();
+            opts.pfxPassword.clear();
+        }
         if (newField) {
             // GitHub #370 — injected geometry stands in for the dialog's
             // placement controls; absent, the defaults the dialog would show.
@@ -15083,6 +15170,59 @@ bool MainWindow::promptSigningOptions(pdfe::signatures::SigningOptions& opts,
                              document_ ? document_->pageCount() : 1);
     if (dialog.exec() != QDialog::Accepted) return false;
     opts = dialog.signingOptions();
+    return true;
+}
+
+bool MainWindow::placeVisualSignature(int pageIndex, const QRectF& rect,
+                                      const pdfe::signatures::SigningOptions& opts)
+{
+    if (!document_ || !annotationManager_) return false;
+    if (pageIndex < 0 || pageIndex >= document_->pageCount()) return false;
+
+    const QString imagePath = QString::fromStdString(opts.imagePath);
+    const QImage signature(imagePath);
+    if (signature.isNull()) {
+        showSigningError(tr("The signature image could not be read:\n%1")
+                             .arg(QDir::toNativeSeparators(imagePath)));
+        return false;
+    }
+
+    const QString when = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm"));
+    QString contents = tr("Visual signature, not a digital signature. Placed %1.").arg(when);
+    if (!opts.reason.empty()) {
+        contents += tr(" Reason: %1.").arg(QString::fromStdString(opts.reason));
+    }
+    auto page = document_->page(pageIndex);
+    if (!page) return false;
+    try {
+        auto data = annotationManager_->createAnnotation(
+            page.get(), pdfe::annotations::AnnotationType::Stamp, rect);
+        data.pageIndex = pageIndex;
+        // MuPDF sizes a /Stamp itself: the requested width and a height of
+        // its own, centred vertically in the requested box (observed
+        // 2026-11-26 with MuPDF 1.26: 52.6 pt tall for 200 pt wide). Compose
+        // the appearance for the rectangle the stamp actually has, so the
+        // image and the caption are not stretched.
+        const QRectF placed = annotationManager_->getAnnotation(page.get(), data.annotIndex).rect;
+        const QImage appearance = composeVisualSignature(signature, when, placed.size());
+        lastVisualSignatureAppearanceSize_ = appearance.size();
+        data.contents = contents.toStdString();
+        data.stampImage = appearance;
+        annotationManager_->setContents(page.get(), data.annotIndex, data.contents);
+        annotationManager_->setStampImageAppearance(page.get(), data.annotIndex, appearance);
+        // The same hand-off every annotation tool uses: it re-creates the
+        // annotation through the command system so the placement can be undone.
+        page.reset();
+        onAnnotationCreatedByTool(pageIndex, data);
+    } catch (const std::exception&) {
+        showSigningError(tr("The visual signature could not be placed on page %1.")
+                             .arg(pageIndex + 1));
+        return false;
+    }
+    if (statusBar_) {
+        statusBar_->showMessage(
+            tr("Visual signature placed (not a digital signature). Save to keep it."), 5000);
+    }
     return true;
 }
 
@@ -15111,6 +15251,11 @@ bool MainWindow::signTargetField(int targetPage, int targetWidget)
     // field is never rolled back (nothing was created for this sign).
     if (!promptSigningOptions(opts, /*newField=*/false, fieldRect, targetPage)) {
         return false;
+    }
+    // Visual signature over an existing field: the stamp goes on the field's
+    // rectangle, and the field itself stays unsigned.
+    if (opts.visualOnly) {
+        return placeVisualSignature(targetPage, fieldRect, opts);
     }
     return signTargetFieldWithOptions(targetPage, targetWidget, opts,
                                       /*removeFieldOnPostReopenFailure=*/false);

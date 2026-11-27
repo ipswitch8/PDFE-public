@@ -3,6 +3,7 @@
 #include "AnnotationType.h"
 #include "core/Command.h"
 #include <memory>
+#include <QImage>
 #include <QRectF>
 
 namespace pdfe::core { class Page; }
@@ -49,12 +50,19 @@ public:
      */
     [[nodiscard]] const AnnotationData& createdAnnotation() const;
 
+    /// Image /Stamp appearance to put back on redo. The caller applies it
+    /// after execute() (MainWindow::onAnnotationCreatedByTool); redo restores
+    /// the annotation from its undo-time snapshot, which has no image, and
+    /// re-applies this.
+    void setStampImage(const QImage& image) { stampImage_ = image; }
+
 private:
     AnnotationManager* manager_;
     pdfe::core::Page* page_;
     AnnotationType type_;
     QRectF rect_;
     AnnotationData createdData_;
+    QImage stampImage_;
     bool executed_ = false;
 };
 
